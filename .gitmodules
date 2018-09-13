@@ -1,0 +1,9 @@
+[submodule "haskell-proto/deps/crucible"]
+	path = haskell-proto/deps/crucible
+	url = git@github.com:GaloisInc/crucible.git
+[submodule "haskell-proto/deps/dwarf"]
+	path = haskell-proto/deps/dwarf
+	url = git@github.com:GaloisInc/dwarf.git
+[submodule "haskell-proto/deps/elf-edit"]
+	path = haskell-proto/deps/elf-edit
+	url = git@github.com:GaloisInc/elf-edit.git
