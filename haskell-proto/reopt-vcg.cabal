@@ -1,14 +1,7 @@
--- This file has been generated from package.yaml by hpack version 0.20.0.
---
--- see: https://github.com/sol/hpack
---
--- hash: b845d3016fdcde390ed96d1d6dc963b0d553f740387af4488b65b0cb6e0344a8
-
-name:           vcg-proto
+name:           reopt-vcg
 version:        0.1.0.0
-description:    Please see the README on GitHub at <https://github.com/githubuser/vcg-proto#readme>
-homepage:       https://github.com/githubuser/vcg-proto#readme
-bug-reports:    https://github.com/githubuser/vcg-proto/issues
+description:    Th
+homepage:       https://github.com/GaloisInc/reopt-vcg/haskell-proto
 author:         Guannan Wei and Joe Hendrix
 maintainer:     Joe Hendrix <jhendrix@galois.com>
 copyright:      2018 Galois, Inc
@@ -18,10 +11,6 @@ cabal-version:  >= 1.10
 
 extra-source-files:
     README.md
-
-source-repository head
-  type: git
-  location: https://github.com/githubuser/vcg-proto
 
 library
   hs-source-dirs:
@@ -33,7 +22,7 @@ library
     Reopt.VCG.Config
   default-language: Haskell2010
 
-executable vcg-proto
+executable reopt-vcg
   main-is: Main.hs
   hs-source-dirs:
       app
@@ -55,7 +44,7 @@ executable vcg-proto
               , mtl
               , parameterized-utils
               , text >=1.2.3.0
-              , vcg-proto
+              , reopt-vcg
               , vector
               , what4
               , yaml >= 0.10.0
@@ -67,7 +56,7 @@ executable vcg-proto
       Paths_vcg_proto
   default-language: Haskell2010
 
-test-suite vcg-proto-test
+test-suite reopt-vcg-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   hs-source-dirs:
@@ -87,10 +76,10 @@ test-suite vcg-proto-test
     , mtl
     , parameterized-utils
     , text >=1.2.3.0
-    , vcg-proto
+    , reopt-vcg
     , vector
     , what4
     , yaml
   other-modules:
-      Paths_vcg_proto
+      Paths_reopt-vcg
   default-language: Haskell2010
