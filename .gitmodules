@@ -1,0 +1,24 @@
+[submodule "crucible"]
+	path = haskell-proto/deps/crucible
+	url = git@github.com:GaloisInc/crucible.git
+[submodule "dwarf"]
+	path = haskell-proto/deps/dwarf
+	url = git@github.com:GaloisInc/dwarf.git
+[submodule "elf-edit"]
+	path = haskell-proto/deps/elf-edit
+	url = git@github.com:GaloisInc/elf-edit.git
+[submodule "flexdis86"]
+	path = haskell-proto/deps/flexdis86
+	url = git@github.com:GaloisInc/flexdis86.git
+[submodule "llvm-pretty"]
+	path = haskell-proto/deps/llvm-pretty
+	url = git@github.com:elliottt/llvm-pretty.git
+[submodule "llvm-pretty-bc-parser"]
+	path = haskell-proto/deps/llvm-pretty-bc-parser
+	url = git@github.com:GaloisInc/llvm-pretty-bc-parser.git
+[submodule "macaw"]
+	path = haskell-proto/deps/macaw
+	url = git@github.com:GaloisInc/macaw.git
+[submodule "parameterized-utils"]
+	path = haskell-proto/deps/parameterized-utils
+	url = git@github.com:GaloisInc/parameterized-utils.git
