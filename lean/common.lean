@@ -300,8 +300,15 @@ def rbx := reg64 3
 
 def flagreg (i:fin 32) := lhs.reg $ reg.concrete_flagreg i
 
-def cf := flagreg  0
-def of := flagreg 11
+def cf  := flagreg  0
+def pf  := flagreg  2
+def af  := flagreg  4
+def zf  := flagreg  6
+def sf  := flagreg  7
+def tf  := flagreg  8
+def if' := flagreg  9
+def df  := flagreg 10
+def of  := flagreg 11
 
 def st0 : lhs x86_80 := lhs.streg 0
 
@@ -319,6 +326,8 @@ inductive prim : type → Type
 | slice (w:ℕ) (u:ℕ) (l:ℕ) : prim (bv w .→ bv (u+1-l))
 -- `(sext i o)` sign extends an `i`-bit number to a `o`-bit number.
 | sext  (i:ℕ) (o:ℕ) : prim (bv i .→ bv o)
+-- `(uext i o)` unsigned extension of an `i`-bit number to a `o`-bit number.
+| uext  (i:ℕ) (o:ℕ) : prim (bv i .→ bv o)
 -- `(trunc i o)` truncates an `i`-bit number to a `o`-bit number.
 | trunc (i:ℕ) (o:ℕ) : prim (bv i .→ bv o)
 -- `(eq tp)` returns `true` if two values are equal.
@@ -341,6 +350,7 @@ def pp : Π{tp:type}, prim tp → string
 | ._ (mul i) := "mul " ++ i.pp
 | ._ (slice w u l) := "slice " ++ w.pp ++ " " ++ u.pp ++ " " ++ l.pp
 | ._ (sext i o) := "sext " ++ i.pp ++ " " ++ o.pp
+| ._ (uext i o) := "uext " ++ i.pp ++ " " ++ o.pp
 | ._ (trunc i o) := "trunc " ++ i.pp ++ " " ++ o.pp
 | ._ (eq tp) := "eq " ++ tp.pp
 | ._ (neq tp) := "neq " ++ tp.pp
@@ -370,6 +380,10 @@ instance (a:type) (f:type) : has_coe_to_fun (value (type.fn a f)) :=
 { F := λ_, Π(y:value a), value f
 , coe := app
 }
+
+instance (w:ℕ) : has_zero (value (bv w)) := sorry
+instance (w:ℕ) : has_one  (value (bv w)) := sorry
+instance (w:ℕ) : has_add  (value (bv w)) := sorry
 
 protected
 def is_app : Π{tp:type}, value tp → bool
@@ -405,6 +419,8 @@ def slice {w:nat_expr} (x:value (bv w)) (u:nat_expr) (l:nat_expr)
 def trunc {w:nat_expr} (x: bv w) (o:nat_expr) : bv o := prim.trunc w o x
 
 def sext {w:nat_expr} (x: bv w) (o:nat_expr) : bv o := prim.sext w o x
+
+def uext {w:nat_expr} (x: bv w) (o:nat_expr) : bv o := prim.uext w o x
 
 def neq {tp:type} (x y : tp) : bit := prim.neq tp x y
 
