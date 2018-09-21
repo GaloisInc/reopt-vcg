@@ -31,7 +31,8 @@ def is_zero {w:ℕ} (v : bv w) : bit := sorry
 def least_byte {w:ℕ} (v : bv w) : bv 8 := sorry
 def even_parity {w:ℕ} (v : bv w) : bit := sorry
 
-def set_undefined {tp:type} (v : lhs tp) : semantics unit := sorry
+def set_undefined {tp:type} (v : lhs tp) : semantics unit := do
+  semantics.add_action (action.mk_undef v)
 
 def set_overflow (b:bit) : semantics unit := do
   cf .= b,

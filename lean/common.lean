@@ -463,6 +463,7 @@ inductive action
 | set {tp:type} (l:lhs tp) (v:value tp) : action
 | local_def {tp:type} (idx:ℕ) (v:value tp) : action
 | event (e:event) : action
+| mk_undef {tp:type} (l:lhs tp) : action
 
 namespace action
 
@@ -470,6 +471,7 @@ protected def repr : action → string
 | (set l r)         := sexp.app "set" [l.repr, r.pp]
 | (local_def idx v) := sexp.app "var" [idx.pp, v.pp]
 | (event e) := e.pp
+| (mk_undef v) := sexp.app "mk_undef" [v.repr]
 
 end action
 

@@ -55,23 +55,6 @@ def read_uint8 : reader uint8 := do
   | _ := throw "internal: read_uint8"
   end
 
-def read_uint16le : reader uint16 := do
-  l ← reader.read_chars 2,
-  match l with
-  | [x0,x1] :=
-    return (fin.of_nat (nat.shiftl x1.val 8 + x0.val))
-  | _ := throw "internal: read_uint16le"
-  end
-
-def read_uint16be : reader uint16 := do
-  l ← reader.read_chars 2,
-  match l with
-  | [x1,x0] :=
-    return (fin.of_nat (nat.shiftl x1.val 8 + x0.val))
-  | _ := throw "internal: read_uint16le"
-  end
-
-
 def from_handle {α} (h:io.handle) (n:ℕ) (r:reader α) : io α := do
   b ← io.fs.read h n,
   match r.run.run b with
@@ -571,7 +554,6 @@ def get_filename_arg : io string := do
   | _ := do
       io.fail "Please provide single argument containing path to elf file."
   end
-
 
 def main : io unit := do
   args ← get_filename_arg,
