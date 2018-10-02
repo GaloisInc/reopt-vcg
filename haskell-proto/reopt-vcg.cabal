@@ -53,7 +53,6 @@ executable reopt-vcg
       VCGCommon
       VCGLLVM
       VCGMacaw
-      Paths_vcg_proto
   default-language: Haskell2010
 
 test-suite reopt-vcg-test
@@ -81,5 +80,5 @@ test-suite reopt-vcg-test
     , what4
     , yaml
   other-modules:
-      Paths_reopt-vcg
+      Paths_reopt_vcg
   default-language: Haskell2010

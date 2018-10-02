@@ -8,6 +8,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeSynonymInstances #-}
@@ -15,7 +16,6 @@
 module VCGLLVM
   ( getLLVMMod
   , inject
-  , blocks2SMT
   , bb2SMT
   , getDefineByName
   , events
@@ -28,29 +28,28 @@ module VCGLLVM
   , ppEvent
   ) where
 
-import           Control.Monad (forM_)
 import           Control.Monad.State
 import           Data.LLVM.BitCode
 import qualified Data.List as List
 import qualified Data.Map as Map
 import           Data.Parameterized.Classes
-import           Data.Parameterized.Context as Ctx
+--import           Data.Parameterized.Context as Ctx
 import           Data.Parameterized.Some
-import           Data.Proxy
+--import           Data.Proxy
 import           GHC.Stack
-import           System.IO
+--import           System.IO
 import           Text.LLVM hiding ((:>))
 import           Text.LLVM.PP
-import qualified Text.Read as Read
-import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 import           What4.BaseTypes
 import           What4.Interface
+--import           What4.Protocol.SMTLib2.Syntax
 import           What4.Symbol
 
 import           VCGCommon
 
-
 type Locals sym = Map.Map Ident (Some (SymExpr sym))
+
+$(pure [])
 
 data LEvent sym
   = AllocaEvent Instr !Ident (SymBV64 sym)
@@ -61,96 +60,130 @@ data LEvent sym
   | JumpEvent !BlockLabel
   | ReturnEvent !(Maybe (Some (SymExpr sym)))
 
+$(pure [])
+
 ppEvent :: LEvent sym
         -> String
-ppEvent (AllocaEvent _ nm val) = "alloca"
+ppEvent (AllocaEvent _ _nm _val) = "alloca"
 ppEvent (InvokeEvent _ _ _) = "invoke"
 ppEvent (BranchEvent _ _ _) = "branch"
 ppEvent (JumpEvent _) = "jump"
 ppEvent (ReturnEvent _) = "return"
 
-readMem :: IsSymExprBuilder sym
-        => sym
-        -> SymMemory sym
-        -> Ptr sym
-        -> Type
-        -> LStateM sym (Some (SymExpr sym))
-readMem sym mem ptr (PrimType (Integer  w))
-  | w > 0
-  , (w `mod` 8) == 0 = do
-      Just (Some w) <- pure $ someNat (toInteger w `div` 3)
-      Just LeqProof <- pure $ testLeq (knownNat @1) w
-      io $ Some <$> readMemBVLE sym mem ptr w
-readMem sym mem ptr (PtrTo _) = do
-  io $ Some <$> readMemBVLE sym mem ptr (knownNat @8)
-
-readMem _ _ _ tp = do
-  error $ "readMem: unsupported type " ++ show tp
-
-writeMem :: IsSymExprBuilder sym
-         => sym
-         -> SymMemory sym
-         -> Ptr sym
-         -> SymExpr sym tp
-         -> LStateM sym (SymMemory sym)
-writeMem sym mem ptr val =
-  case exprType val of
-    BaseBVRepr _ -> do
-      io $ putStrLn "LLVM WriteMem"
-      io $ writeMemBVLE sym mem ptr val
-    _ -> error $ "writeMem: unsupported type."
+$(pure [])
 
 -- TODO: add a predicate to distinguish stack address and heap address
 -- TODO: add an array to track bound for each address
 -- TODO: arbitray size read/write to memory
 data LState sym = LState
-  { locals   :: Locals sym
-  , heap     :: SymMemory sym
-  , disjoint :: [Ptr sym]
-  , events   :: [LEvent sym]
+  { lsym      :: !sym
+  , isBuilder :: !(forall a . (IsSymExprBuilder sym => a) -> a)
+  , locals    :: !(Locals sym)
+  , heap      :: !(SymMemory sym)
+  , disjoint  :: ![Ptr sym]
+  , events    :: ![LEvent sym]
   }
+
+$(pure [])
 
 type LStateM sym a = StateT (LState sym) IO a
 
-type LStateBV64M sym = LStateM sym (SymBV64 sym)
+$(pure [])
 
-io :: IO a -> LStateM sym a
-io = liftIO
+io :: (IsSymExprBuilder sym => IO a) -> LStateM sym a
+io m = do
+  f <- gets isBuilder
+  liftIO $ f m
 
-  -- Default LLVM register names are consist of digits, which are not valid
+$(pure [])
+
+readMem :: SymMemory sym
+        -> Ptr sym
+        -> Type
+        -> LStateM sym (Some (SymExpr sym))
+readMem mem ptr (PrimType (Integer  w))
+  | w > 0
+  , (w `mod` 8) == 0 = do
+      sym <- gets lsym
+      Just (Some bw) <- pure $ someNat (toInteger w `div` 3)
+      Just LeqProof <- pure $ testLeq (knownNat @1) bw
+      io $ Some <$> readMemBVLE sym mem ptr bw
+readMem mem ptr (PtrTo _) = do
+  sym <- gets lsym
+  io $ Some <$> readMemBVLE sym mem ptr (knownNat @8)
+readMem _ _ tp = do
+  error $ "readMem: unsupported type " ++ show tp
+
+$(pure [])
+
+writeMem :: SymMemory sym
+         -> Ptr sym
+         -> SymExpr sym tp
+         -> BaseTypeRepr tp
+         -> LStateM sym (SymMemory sym)
+writeMem mem ptr val tp = do
+  case tp of
+    BaseBVRepr _ -> do
+      sym <- gets lsym
+      io $ putStrLn "LLVM WriteMem"
+      io $ writeMemBVLE sym mem ptr val
+    _ -> error $ "writeMem: unsupported type."
+
+$(pure [])
+
+-- Default LLVM register names are consist of digits, which are not valid
 -- names in SMTLib. This function tweaks register names by adding a prefix,
 -- and then returns a symbol that can be used in SMT.
 regNameToSMTSymbol :: String -> SolverSymbol
 regNameToSMTSymbol name = newUserSymbol ("r" ++ name)
+
+$(pure [])
 
 -- Inject initial (symbolic) arguments
 -- The [String] are arugment name used for this function
 inject :: IsSymExprBuilder sym => sym -> [(Ident,Some (SymExpr sym))] -> IO (LState sym)
 inject sym args = do
   heap0  <- freshConstant sym (systemSymbol "llvm_mem!") knownRepr
-  pure $! LState { locals = Map.fromList args
+  pure $! LState { lsym = sym
+                 , isBuilder = \x -> x
+                 , locals = Map.fromList args
                  , heap = heap0
                  , disjoint = []
                  , events = []
                  }
 
+$(pure [])
 
-localsUpdate :: IsSymExprBuilder sym => Ident -> SymExpr sym tp -> LStateM sym ()
+localsUpdate :: Ident -> SymExpr sym tp -> LStateM sym ()
 localsUpdate key val =
   modify $ \s -> s { locals = Map.insert key (Some val) (locals s) }
 
-addDisjointPtr :: IsSymExprBuilder sym => (Ptr sym) -> LStateM sym ()
+$(pure [])
+
+addDisjointPtr :: Ptr sym -> LStateM sym ()
 addDisjointPtr ptr = modify $ \s -> s { disjoint = ptr:disjoint s }
 
-addEvent :: IsSymExprBuilder sym => LEvent sym -> LStateM sym ()
+$(pure [])
+
+addEvent :: LEvent sym -> LStateM sym ()
 addEvent e = modify $ \s -> s { events = e:events s }
 
-stackAlloc :: IsSymExprBuilder sym => sym -> Ident -> Instr -> LStateBV64M sym
-stackAlloc sym (Ident nm) (Alloca _ty _n _align) = do
+$(pure [])
+
+llvmError :: String -> a
+llvmError msg = error ("[LLVM Error] " ++ msg)
+
+$(pure [])
+
+stackAlloc :: Ident -> Instr -> LStateM sym (SymBV64 sym)
+stackAlloc (Ident nm) (Alloca _ty _n _align) = do
+  sym <- gets lsym
   freshPtr <- io $ freshConstant sym (regNameToSMTSymbol nm) bv64 --Event
   addDisjointPtr freshPtr
   return freshPtr
-stackAlloc _ _ _ = llvmError "Not a alloca"
+stackAlloc _ _ = llvmError "Not a alloca"
+
+$(pure [])
 
 arithOpFunc :: (IsSymExprBuilder sym, 1 <= w)
             => sym
@@ -163,6 +196,8 @@ arithOpFunc sym (Sub _uw _sw) = bvSub sym
 arithOpFunc sym (Mul _uw _sw) = bvMul sym
 arithOpFunc _ _ = llvmError "Not implemented yet"
 
+$(pure [])
+
 asBaseType :: Type -> Maybe (Some BaseTypeRepr)
 asBaseType (PtrTo _) = do
   pure $ Some $ BaseBVRepr (knownNat @64)
@@ -172,18 +207,18 @@ asBaseType (PrimType (Integer i)) = do
   pure $ Some $ BaseBVRepr w
 asBaseType _ = Nothing
 
+$(pure [])
 
-primEval :: IsSymExprBuilder sym
-         => sym
-         -> BaseTypeRepr tp
+primEval :: BaseTypeRepr tp
          -> Value
          -> LStateM sym (SymExpr sym tp)
-primEval _sym tpr (ValIdent var@(Ident nm)) = do
+primEval tpr (ValIdent var@(Ident nm)) = do
   lcls <- gets $ locals
+  isb <- gets isBuilder
   case Map.lookup var lcls of
     Nothing ->
       llvmError  $ "Not contained in the locals: " ++ nm
-    Just (Some v) ->
+    Just (Some v) -> isb $
       case testEquality tpr (exprType v) of
         Just Refl -> pure v
         Nothing ->
@@ -191,32 +226,37 @@ primEval _sym tpr (ValIdent var@(Ident nm)) = do
           $  "Bad type assigned to " ++ nm ++ "\n"
           ++ "Assigned type: " ++ show (exprType v) ++ "\n"
           ++ "Declared type: " ++ show tpr
-primEval sym (BaseBVRepr w) (ValInteger i) = do
+primEval (BaseBVRepr w) (ValInteger i) = do
+  sym <- gets lsym
   io $ bvLit sym w i
-primEval _ _ _ = error "TODO: Add more support in primEval"
+primEval _ _ = error "TODO: Add more support in primEval"
 
+$(pure [])
 
-bvPrimEval :: (IsSymExprBuilder sym, 1 <= w)
-           => sym
-           -> NatRepr w
+bvPrimEval :: 1 <= w
+           => NatRepr w
            -> Value
            -> LStateM sym (SymExpr sym (BaseBVType w))
-bvPrimEval sym w v = primEval sym (BaseBVRepr w) v
+bvPrimEval w v = primEval (BaseBVRepr w) v
 
-assign2SMT :: IsSymExprBuilder sym => sym -> Ident -> Instr -> LStateM sym ()
-assign2SMT sym ident (Arith op (Typed lty lhs) rhs) = do
+$(pure [])
+
+assign2SMT :: Ident -> Instr -> LStateM sym ()
+assign2SMT ident (Arith op (Typed lty lhs) rhs) = do
   case asBaseType lty of
     Just (Some (BaseBVRepr w)) -> do
-      lhsv   <- bvPrimEval sym w lhs
-      rhsv   <- bvPrimEval sym w rhs
+      lhsv   <- bvPrimEval w lhs
+      rhsv   <- bvPrimEval w rhs
+      sym <- gets lsym
       resv <- io $ arithOpFunc sym op lhsv rhsv
       localsUpdate ident resv
     _ -> error $ "Unsupported type " ++ show lty
-assign2SMT sym ident (ICmp op (Typed lty lhs) rhs) = do
+assign2SMT ident (ICmp op (Typed lty lhs) rhs) = do
   case asBaseType lty of
     Just (Some (BaseBVRepr w)) -> do
-      lhsv <- bvPrimEval sym w lhs
-      rhsv <- bvPrimEval sym w rhs
+      sym <- gets lsym
+      lhsv <- bvPrimEval w lhs
+      rhsv <- bvPrimEval w rhs
       r <- io $
         case op of
           Ieq -> bvEq sym lhsv rhsv
@@ -231,23 +271,24 @@ assign2SMT sym ident (ICmp op (Typed lty lhs) rhs) = do
           Isle -> bvSle sym lhsv rhsv
       localsUpdate ident r
     _ -> error $ "Unsupported type " ++ show lty
-assign2SMT sym name allocaVal@(Alloca _ty _n _align) = do
-  addr <- stackAlloc sym name allocaVal
+assign2SMT name allocaVal@(Alloca _ty _n _align) = do
+  addr <- stackAlloc name allocaVal
   addEvent $ AllocaEvent allocaVal name addr
   localsUpdate name addr
-assign2SMT sym ident (Load (Typed lty src) _ord _align) = do
+assign2SMT ident (Load (Typed lty src) _ord _align) = do
   -- TODO: now assume all ptrs are on stack, maybe add a predicate
   mem <- gets heap
-  ptr <- primEval sym bv64 src
-  Some val <- readMem sym mem ptr lty
+  ptr <- primEval bv64 src
+  Some val <- readMem mem ptr lty
   localsUpdate ident val
-assign2SMT sym ident@(Ident nm) (Call _tail retty f args) = do
+assign2SMT ident@(Ident nm) (Call _tail retty f args) = do
+  sym <- gets lsym
   -- TODO: Add function called to invoke event.
-  fPtrVal <- primEval sym bv64 f
+  fPtrVal <- primEval bv64 f
   let evalArg (Typed lty av) =
         case asBaseType lty of
           Just (Some tp) ->
-            Some <$> primEval sym tp av
+            Some <$> primEval tp av
           Nothing ->
             error $ "Could not evaluate type " ++ show lty
   argValues <- mapM evalArg args
@@ -258,31 +299,33 @@ assign2SMT sym ident@(Ident nm) (Call _tail retty f args) = do
       returnVal <- io $ freshConstant sym (regNameToSMTSymbol nm) tp
       addEvent $ InvokeEvent fPtrVal argValues (Just (ident, Some returnVal))
       localsUpdate ident returnVal
-assign2SMT _ _ instr  = do
+assign2SMT _ instr  = do
   error $ "assign2SMT: unsupported instruction: " ++ show instr
 
-effect2SMT :: (HasCallStack, IsSymExprBuilder sym) => sym -> Instr -> LStateM sym ()
-effect2SMT sym instr =
+$(pure [])
+
+effect2SMT :: HasCallStack => Instr -> LStateM sym ()
+effect2SMT instr =
   case instr of
     Store (Typed _ty1 llvmVal) (Typed llvmTy llvmPtr) _align -> do
       case asBaseType llvmTy of
         Nothing -> do
           error $ "Unsupported type " ++ show llvmTy
         Just (Some tp) -> do
-          val <- primEval sym tp llvmVal
-          ptr <- primEval sym bv64 llvmPtr
+          val <- primEval tp llvmVal
+          ptr <- primEval bv64 llvmPtr
           s <- get
-          newMem <- writeMem sym (heap s) ptr val
+          newMem <- writeMem (heap s) ptr val tp
           put $! s { heap = newMem }
     Br (Typed _ty cnd) t1 t2 -> do
-      cndv <- primEval sym BaseBoolRepr cnd
+      cndv <- primEval BaseBoolRepr cnd
       addEvent $ BranchEvent cndv t1 t2
     Jump t -> do
       addEvent $ JumpEvent t
     Ret (Typed llvmTy v) -> do
       case asBaseType llvmTy of
         Just (Some tp) -> do
-          val <- primEval sym tp v
+          val <- primEval tp v
           addEvent $ ReturnEvent $ Just $ Some val
         Nothing -> do
           error $ "Unsupported type " ++ show llvmTy
@@ -290,53 +333,25 @@ effect2SMT sym instr =
       addEvent $ ReturnEvent Nothing
     _ -> error "Unsupported instruction."
 
-stmt2SMT :: IsSymExprBuilder sym => sym -> Stmt -> LStateM sym ()
-stmt2SMT sym (Result ident inst _mds) = do
-  -- io $ putStrLn $ show inst
-  assign2SMT sym ident inst
-stmt2SMT sym (Effect instr _mds) = do
-  -- io $ putStrLn $ show inst
-  effect2SMT sym instr
+$(pure [])
 
-bb2SMT :: IsSymExprBuilder sym => sym -> BasicBlock -> LStateM sym ()
-bb2SMT sym bb = do
+stmt2SMT :: Stmt -> LStateM sym ()
+stmt2SMT (Result ident inst _mds) = do
+  -- io $ putStrLn $ show inst
+  assign2SMT ident inst
+stmt2SMT (Effect instr _mds) = do
+  -- io $ putStrLn $ show inst
+  effect2SMT instr
+
+$(pure [])
+
+bb2SMT :: BasicBlock -> LStateM sym ()
+bb2SMT bb = do
   let ?config = Config True True True
   io $ putStrLn $ show $ ppBasicBlock bb
-  forM_ (bbStmts bb) $ stmt2SMT sym
+  mapM_ stmt2SMT (bbStmts bb)
 
-blocks2SMT :: forall sym
-           . IsSymExprBuilder sym => sym -> String -> [BasicBlock] -> LStateM sym ()
-blocks2SMT sym startBlk bbs = do
-  let loop :: BasicBlock -> LStateM sym ()
-      loop bb = do
-        bb2SMT sym bb
-        case brTargets bb of
-          [] ->
-            pure ()
-          [next] ->
-            loop $ findBlock next bbs
-          _ -> do
-            liftIO $ llvmWarning "non-deterministic LLVM branching targets, abort."
-  loop $ findBlockByName startBlk bbs
-
-findBlock :: BlockLabel -> [BasicBlock] -> BasicBlock
-findBlock lab bbs =
-  let match bb = bbLabel bb == Just lab
-   in case List.find match bbs of
-        Nothing -> llvmError ("Can not find block: " ++ (show lab))
-        Just bb -> bb
-
-findBlockByName :: String -> [BasicBlock] -> BasicBlock
-findBlockByName ident =
-  case Read.readMaybe ident of
-    Just i -> findBlock $ Anon i
-    Nothing -> findBlock $ Named $ Ident ident
-
-llvmError :: String -> a
-llvmError msg = error ("[LLVM Error] " ++ msg)
-
-llvmWarning :: String -> IO ()
-llvmWarning msg = putStrLn ("[LLVM Warning] " ++ msg)
+$(pure [])
 
 getLLVMMod :: FilePath -> IO Module
 getLLVMMod path = do
@@ -345,9 +360,13 @@ getLLVMMod path = do
     Left err -> llvmError $ "Parse LLVM error: " ++ (show err)
     Right llvmMod -> return llvmMod
 
+$(pure [])
+
 getDefineByName :: Module -> String -> Maybe Define
 getDefineByName llvmMod name =
   List.find (\d -> defName d == Symbol name) (modDefines llvmMod)
+
+$(pure [])
 
 getFunctionNameFromValSymbol :: Value' lab -> String
 getFunctionNameFromValSymbol (ValSymbol (Symbol f)) = f

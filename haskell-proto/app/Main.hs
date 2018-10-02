@@ -34,8 +34,10 @@ import           System.Exit
 import           System.FilePath
 import           System.IO
 import           Text.LLVM hiding ((:>), Value)
---import           Text.Read (readMaybe)
+import           What4.Expr.Builder (getSymbolVarBimap)
 import           What4.Interface
+import qualified What4.Protocol.SMTLib2 as SMT2
+import qualified What4.Protocol.SMTWriter as SMT2 (mkSMTTerm)
 import           What4.Solver.CVC4
 
 import           Reopt.VCG.Config
@@ -43,6 +45,10 @@ import           Reopt.VCG.Config
 import           VCGCommon
 import qualified VCGLLVM as L
 import qualified VCGMacaw as M
+
+import qualified Data.Text.Lazy.Builder as Builder
+import qualified Data.Text.Lazy.IO as LText
+import qualified What4.Protocol.SMTLib2.Syntax as SMT
 
 -- Maps LLVM block labels to the Macaw adddress they are associated with.
 type BlockMapping = Map BlockLabel (MemSegmentOff 64)
@@ -54,25 +60,24 @@ data VCGConfig sym ids = VCGConfig
   , symIsBuilder :: (forall a . (IsSymExprBuilder sym => a) -> a)
   }
 
+type Prop sym = (SymBV sym 64, SymBV sym 64)
+
 data PfState sym = PfState
-  { preConds :: [Pred sym]
-  , goals :: [Pred sym]
+  { preConds :: [Prop sym]
+  , goals :: [Prop sym]
   }
 
 --TODO: use newtype
 type VCGMonad sym ids = ReaderT (VCGConfig sym ids) (StateT (PfState sym) IO)
 
-addProofGoal :: IsSymExprBuilder sym => sym -> Pred sym -> VCGMonad sym ids ()
-addProofGoal sym p = addProofGoals sym [p]
+proveValuesEq :: IsSymExprBuilder sym => sym -> SymBV sym 64 -> SymBV sym 64 -> VCGMonad sym ids ()
+proveValuesEq sym la ma = do
+  modify $ \s -> s { goals = (la, ma) : goals s }
 
-addProofGoals :: IsSymExprBuilder sym => sym -> [Pred sym] -> VCGMonad sym ids ()
-addProofGoals _ ps = modify $ \s -> s { goals = ps ++ goals s }
-
-addProofPreCond :: IsSymExprBuilder sym => sym -> Pred sym -> VCGMonad sym ids ()
-addProofPreCond sym p = addProofPreConds sym [p]
-
-addProofPreConds :: IsSymExprBuilder sym => sym -> [Pred sym] -> VCGMonad sym ids ()
-addProofPreConds _sym ps = modify $ \s -> s { preConds = ps ++ preConds s }
+assumeValEq :: IsSymExprBuilder sym => sym -> SymBV sym 64 -> SymBV sym 64 -> VCGMonad sym ids ()
+assumeValEq sym lRetVal mRetVal = do
+  retEq <- liftIO $ bvEq sym lRetVal mRetVal
+  modify $ \s -> s { preConds = (lRetVal, mRetVal) : preConds s }
 
 {-
 -- | Insert a false predicate to make sure the proof fail
@@ -178,8 +183,7 @@ eventsEq sym (L.InvokeEvent f lArgs lRet:levs)
         let M.MSymExpr ma = regs^.boundValue reg
         case testEquality (exprType la) (BaseBVRepr (knownNat @64)) of
           Just Refl -> do
-            eq <- liftIO $ bvEq sym la ma
-            addProofGoal sym eq
+            proveValuesEq sym la ma
           Nothing -> do
             error $ "Unexpected argument type " ++ show (exprType la)
   zipWithM_ compareArg lArgs x86ArgRegs
@@ -189,9 +193,8 @@ eventsEq sym (L.InvokeEvent f lArgs lRet:levs)
     Just (_id, Some lRetVal)
       | Just Refl <- testEquality (exprType lRetVal) (BaseBVRepr (knownNat @64)) -> do
           let M.MSymExpr mRetVal = regs^.boundValue RAX
-          retEq <- liftIO $ bvEq sym lRetVal mRetVal
           -- We can assume return values are equal.
-          addProofPreCond sym retEq
+          assumeValEq sym lRetVal mRetVal
       | otherwise -> do
           error $ "Unexpected return type " ++ show (exprType lRetVal)
     Nothing -> pure ()
@@ -203,8 +206,7 @@ eventsEq sym (L.JumpEvent lbl:levs) (M.FetchAndExecuteEvent regs:mevs) = do
       let regionMap = error "region index map is not defined."
       llvmMemAddr <- liftIO  $ M.evalMemAddr sym regionMap (relativeSegmentAddr off)
       let M.MSymExpr mRegIP = regs ^. boundValue X86_IP
-      eq <- liftIO $ bvEq sym llvmMemAddr mRegIP
-      addProofGoal sym eq
+      proveValuesEq sym llvmMemAddr mRegIP
 
     Nothing -> do
       error $ "Could not find map for block " ++ show lbl
@@ -216,8 +218,7 @@ eventsEq sym (L.ReturnEvent mlret:levs) (M.FetchAndExecuteEvent regs:mevs) = do
       case testEquality (exprType lret) (BaseBVRepr (knownNat @64)) of
         Just Refl -> do
           let M.MSymExpr mret = regs^.boundValue RAX
-          eq <- liftIO $ bvEq sym lret mret
-          addProofGoal sym eq
+          proveValuesEq sym lret mret
         Nothing -> do
           error $ "Unexpected argument type " ++ show (exprType lret)
   eventsEq sym levs mevs
@@ -251,7 +252,9 @@ retValueEq _sym _ _ = do
 -}
 
 stateEq :: IsSymExprBuilder sym
-        => sym -> L.LState sym -> M.MState sym ids
+        => sym
+        -> L.LState sym
+        -> M.MState sym ids
         -> VCGMonad sym ids ()
 stateEq sym lstate mstate = do
   -- Check event traces equality
@@ -385,6 +388,10 @@ verifyBlock :: IO ()
 verifyBlock = do
 -}
 
+writeCommand :: Handle -> SMT.Command -> IO ()
+writeCommand h (SMT.Cmd b) =
+  LText.hPutStrLn h (Builder.toLazyText b)
+
 verifyFunction :: Module
                -> DiscoveryState X86_64
                -> Map BSC.ByteString (MemSegmentOff 64)
@@ -433,58 +440,54 @@ verifyFunction lMod discState funMap outDir vfi = do
   ms0 <- M.inject sym
 
 
-  let assertEq lval reg = do
-        let M.MSymExpr mval = M.initRegs ms0^.boundValue reg
-        bvEq sym lval mval
-  eqConds <- zipWithM assertEq llvmVals x86ArgRegs
-
   let vcgCfg =  VCGConfig { blockMapping = Map.empty
                           , llvmMod = lMod
                           , exprBuilder = sym
                           , symIsBuilder = \x -> x
                           }
-  pfSt <- runVCG vcgCfg $ do
-    let bb = firstBlock
-
-    liftIO $ putStrLn "Simulating LLVM program ..."
-    ls' <- liftIO $ execStateT (L.bb2SMT sym bb) ls0
-
-
-
-    let initAbsState = M.mkInitialAbsState x86_64_linux_info mem addr
-    (blocks,_cnt, _merr) <- liftIO $ stToIO $
-      M.disassembleFn x86_64_linux_info stGen addr maxBound initAbsState
-
-    let blockMap = Map.fromList [ (M.blockLabel b, b) | b <- blocks ]
-    let Just macawParsedBlock = Map.lookup 0 blockMap
-
-    liftIO $ putStrLn "Simulating Macaw program ..."
-    ms' <- liftIO $ execStateT (M.block2SMT blockMap macawParsedBlock) ms0
-
-    -- Build disjointness constraints and variable mapping constraints,
-    -- which will be used as pre-conditions
-    disCons <- liftIO $  disjointConstraints sym ls' ms'
-    addProofPreConds sym disCons
-
-    -- Check state equality
-    stateEq sym ls' ms'
-
-
-
-
-  -- Build preconditions and proof goals
-  let t = truePred sym
-  conjPreConds <- foldM (andPred sym) t (preConds pfSt ++ eqConds)
-  conjGoals <- foldM (andPred sym) t (goals pfSt)
-  negConjGoals <- notPred sym conjGoals
+  putStrLn "Simulating LLVM program ..."
+  ls' <- execStateT (L.bb2SMT firstBlock) ls0
+  putStrLn "Simulating Macaw program ..."
+  let initAbsState = M.mkInitialAbsState x86_64_linux_info mem addr
+  (blocks,_cnt, _merr) <- stToIO $
+    M.disassembleFn x86_64_linux_info stGen addr maxBound initAbsState
+  let blockMap = Map.fromList [ (M.blockLabel b, b) | b <- blocks ]
+  let Just macawParsedBlock = Map.lookup 0 blockMap
+  ms' <- execStateT (M.block2SMT blockMap macawParsedBlock) ms0
+  pfSt <- runVCG vcgCfg $ stateEq sym ls' ms'
 
   -- write proof to smt file
   putStrLn $ "Writing SMT formulas to " ++ outDir
   let Just lbl = bbLabel firstBlock
-  let fname = llvmFunName vfi ++ "_" ++ ppBlock lbl ++ ".smt"
-  bracket (openFile (outDir </> fname) ReadWriteMode) hClose $ \h -> do
-    writeMultiAsmpCVC4SMT2File sym h [conjPreConds, negConjGoals]
+  forM_ (zip [0..] (goals pfSt)) $ \(i, (goal_lval, goal_mval)) -> do
+    let fname = llvmFunName vfi ++ "_" ++ ppBlock lbl ++ "_" ++ show (i::Integer) ++ ".smt"
+    bracket (openFile (outDir </> fname) ReadWriteMode) hClose $ \h -> do
+      writeCommand h $ SMT.setLogic SMT.allSupported
+      writeCommand h $ SMT.setOption (SMT.produceModels True)
+      bindings <- getSymbolVarBimap sym
+      c <- SMT2.newWriter CVC4 h "CVC4" True cvc4Features True bindings
 
+      let assertEq lval reg = do
+            let M.MSymExpr mval = M.initRegs ms0^.boundValue reg
+            lv <- SMT2.mkSMTTerm c lval
+            mv <- SMT2.mkSMTTerm c mval
+            writeCommand h $ SMT.assert $ SMT.eq [lv, mv]
+      zipWithM_ assertEq llvmVals x86ArgRegs
+
+      -- Assert disjoint-ness of LLVM formulas
+      -- TODO: Check if this is something we should do.
+      do ptrFormulas <- mapM (SMT2.mkSMTTerm c) (L.disjoint ls')
+         writeCommand h $ SMT.assert (SMT.distinct ptrFormulas)
+
+      forM_ (preConds pfSt) $ \(lval, mval) -> do
+        lv <- SMT2.mkSMTTerm c lval
+        mv <- SMT2.mkSMTTerm c mval
+        writeCommand h $ SMT.assert $ SMT.eq [lv, mv]
+      do lv <- SMT2.mkSMTTerm c goal_lval
+         mv <- SMT2.mkSMTTerm c goal_mval
+         writeCommand h $ SMT.assert $ SMT.distinct [lv, mv]
+      writeCommand h SMT.checkSat
+      writeCommand h SMT.exit
 
   forM_ restBlocks $ \_bb -> do
     pure ()
