@@ -67,7 +67,9 @@ data VCGConfig sym ids = VCGConfig
 type Prop sym = (SMT.Term, SymBV sym 64)
 
 data PfState sym = PfState
-  { preConds :: [Prop sym]
+  { pfCmds :: [SMT.Command]
+    -- ^ Commands added when traversing events in reverse order.
+  , preConds :: [Prop sym]
   , goals :: [Prop sym]
   }
 
@@ -158,6 +160,9 @@ eventsEq :: forall sym ids
          -> [M.MEvent sym]
          -> VCGMonad sym ids ()
 eventsEq _sym [] [] = return ()
+eventsEq sym (L.CmdEvent cmd:levs) mevs = do
+  modify $ \s -> s { pfCmds = cmd : pfCmds s }
+  eventsEq sym levs mevs
 eventsEq sym (L.AllocaEvent{}:levs) mevs =
   eventsEq sym levs mevs --Skip alloca events
 --eventsEq sym levs (M.AllocaEvent{}:mevs) =
@@ -273,7 +278,8 @@ simulateAndCheck sym _vfi bb discInfo ls0 ms0 = do
 
 runVCG :: VCGConfig sym ids -> VCGMonad sym ids () -> IO (PfState sym)
 runVCG cfg action =
-  let s = PfState { preConds = []
+  let s = PfState { pfCmds = []
+                  , preConds = []
                   , goals = []
                   }
    in execStateT (runReaderT action cfg) s
@@ -410,9 +416,6 @@ verifyFunction lMod discState funMap outDir vfi = do
   Some gen <- newIONonceGenerator
   sym <- newSimpleBackend gen
 
-  let mkLLVMArg :: Typed Ident -> SMT.Term
-      mkLLVMArg (Typed _ (Ident arg)) = L.smtVar ("llvmarg_" <> Text.pack arg)
-
   let mkLLVMDecl :: Typed Ident -> SMT.Command
       mkLLVMDecl (Typed (PrimType (Integer 64)) (Ident arg)) =
         let vnm = "llvmarg_" <> Text.pack arg
@@ -420,9 +423,14 @@ verifyFunction lMod discState funMap outDir vfi = do
       mkLLVMDecl  (Typed tp _) =
         error $ "Unexpected type " ++ show tp
 
+  let llvmArgDecls = mkLLVMDecl <$> defArgs lFun
+
+  let mkLLVMArg :: Typed Ident -> SMT.Term
+      mkLLVMArg (Typed _ (Ident arg)) = L.smtVar ("llvmarg_" <> Text.pack arg)
+
+
   let llvmVals :: [SMT.Term]
       llvmVals     = mkLLVMArg <$> defArgs lFun
-  let llvmArgDecls = mkLLVMDecl <$> defArgs lFun
 
   when (length (defArgs lFun) > length x86ArgRegs) $ do
     error $ "Too many arguments."
@@ -463,9 +471,6 @@ verifyFunction lMod discState funMap outDir vfi = do
       -- Generate LLVM arguments
       mapM_ (writeCommand h) llvmArgDecls
 
-      -- Write commands from SMTLIB generation
-      mapM_ (writeCommand h) (reverse (L.commands ls'))
-
       bindings <- getSymbolVarBimap sym
       c <- SMT2.newWriter CVC4 h "CVC4" True cvc4Features True bindings
 
@@ -475,9 +480,8 @@ verifyFunction lMod discState funMap outDir vfi = do
             writeCommand h $ SMT.assert $ SMT.eq [lv, mv]
       zipWithM_ assertEq llvmVals x86ArgRegs
 
-      -- Assert disjoint-ness of LLVM formulas
-      -- TODO: Check if this is something we should do.
-      writeCommand h $ SMT.assert (SMT.distinct (reverse (L.disjoint ls')))
+      -- Write commands from proof state
+      mapM_ (writeCommand h) (reverse (pfCmds pfSt))
 
       forM_ (preConds pfSt) $ \(lv, mval) -> do
         mv <- SMT2.mkSMTTerm c mval

@@ -20,8 +20,6 @@ module VCGLLVM
   , getDefineByName
   , events
   , LState
-  , commands
-  , disjoint
   , locals
   , getFunctionNameFromValSymbol
   , LEvent(..)
@@ -46,7 +44,8 @@ type Locals = Map.Map Ident SMT.Term
 $(pure [])
 
 data LEvent
-  = AllocaEvent !Ident !SMT.Term
+  = CmdEvent !SMT.Command
+  | AllocaEvent !Ident !SMT.Term
   | InvokeEvent !Bool !SMT.Term [SMT.Term] (Maybe (Ident, SMT.Term))
     -- ^ The invoke event takes the address of the function that we are jumping to, the
     -- arguments that are passed in, and the return identifier and value (if any).
@@ -61,6 +60,7 @@ $(pure [])
 
 ppEvent :: LEvent
         -> String
+ppEvent (CmdEvent _) = "cmd"
 ppEvent (AllocaEvent _nm _val) = "alloca"
 ppEvent (InvokeEvent _ _ _ _) = "invoke"
 ppEvent (BranchEvent _ _ _) = "branch"
@@ -109,9 +109,7 @@ data LState = LState
   , memIndex  :: !Integer
     -- ^ Index of memory
   , heap      :: !SMem
-  , disjoint  :: ![SMT.Term]
-  , commands   :: ![SMT.Command]
-    -- ^ Commands added to SMT in reverse order.
+  , disjoint  :: ![(SMT.Term, SMT.Term)]
   , events    :: ![LEvent]
   }
 
@@ -121,8 +119,13 @@ type LStateM a = StateT LState IO a
 
 $(pure [])
 
+addEvent :: LEvent -> LStateM ()
+addEvent e = modify $ \s -> s { events = e:events s }
+
+$(pure [])
+
 addCommand :: SMT.Command -> LStateM ()
-addCommand cmd = modify $ \s -> s { commands = cmd:commands s }
+addCommand cmd = addEvent (CmdEvent cmd)
 
 $(pure [])
 
@@ -159,8 +162,7 @@ inject args = do
              , memIndex = 1
              , heap = SMem $ smtVar (memVar 0)
              , disjoint = []
-             , commands = [cmd]
-             , events = []
+             , events = [CmdEvent cmd]
              }
 
 $(pure [])
@@ -171,13 +173,14 @@ localsUpdate key val = do
 
 $(pure [])
 
-addDisjointPtr :: SMT.Term -> LStateM ()
-addDisjointPtr ptr = modify $ \s -> s { disjoint = ptr:disjoint s }
-
-$(pure [])
-
-addEvent :: LEvent -> LStateM ()
-addEvent e = modify $ \s -> s { events = e:events s }
+addDisjointPtr :: SMT.Term -> SMT.Term -> LStateM ()
+addDisjointPtr base sz = do
+  let end = SMT.bvadd base [sz]
+  l <- gets disjoint
+  forM_ l $ \(prevBase, prevEnd) -> do
+    -- Assert [base,end) is before or after [prevBase, prevEnd)
+    addCommand $ SMT.assert $ SMT.or [SMT.le [prevEnd, base], SMT.le [end, prevBase]]
+  modify $ \s -> s { disjoint = (base,end):disjoint s }
 
 $(pure [])
 
@@ -259,13 +262,37 @@ assign2SMT ident (ICmp op (Typed lty@(PrimType (Integer w)) lhs) rhs) = do
           Islt -> SMT.bvslt lhsv rhsv
           Isle -> SMT.bvsle lhsv rhsv
   defineTerm ident (SMT.bvType (toInteger w)) r
-assign2SMT nm (Alloca _ty _n _align) = do
+assign2SMT nm (Alloca ty eltCount malign) = do
   let vnm = identVar nm
   addCommand $ SMT.declareFun vnm [] (SMT.bvType 64)
-  let addr = SMT.T (Builder.fromText vnm)
-  addDisjointPtr addr
-  addEvent $ AllocaEvent nm addr
-  localsUpdate nm addr
+  let base = smtVar vnm
+
+  let eltSize :: Integer
+      eltSize =
+        case ty of
+          PrimType (Integer i) | i .&. 0x7 == 0 -> toInteger i `shiftR` 3
+          PtrTo _ -> 8
+          _ -> error $ "Unexpected type " ++ show ty
+  -- Total size as a bv64
+  totalSize <-
+    case eltCount of
+      Nothing -> pure $ SMT.bvdecimal eltSize 64
+      Just (Typed itp@(PrimType (Integer 64)) i) -> do
+        cnt <- primEval itp i
+        pure $ SMT.bvmul (SMT.bvdecimal eltSize 64) [cnt]
+      Just (Typed itp _) -> do
+        error $ "Unexpected count type " ++ show itp
+
+  addDisjointPtr base totalSize
+  case malign of
+    Nothing -> pure ()
+    Just a -> do
+      -- Assert base satisfies alignment constraint
+      addCommand $ SMT.assert $ SMT.eq [SMT.bvand base [SMT.bvdecimal (toInteger a-1) 64], SMT.bvdecimal 0 64]
+
+
+  addEvent $ AllocaEvent nm base
+  localsUpdate nm base
 assign2SMT ident (Load (Typed (PtrTo lty) src) _ord _align) = do
   -- TODO: now assume all ptrs are on stack, maybe add a predicate
   mem <- gets heap
@@ -310,7 +337,7 @@ effect2SMT instr =
       let cmd = SMT.defineFun (memVar (memIndex s)) [] memType newMem
       put $! s { memIndex = memIndex s + 1
                , heap = SMem (smtVar (memVar (memIndex s)))
-               , commands = cmd:commands s
+               , events = CmdEvent cmd:events s
                }
     Br (Typed _ty cnd) t1 t2 -> do
       cndv <- primEval (PrimType (Integer 1)) cnd
