@@ -32,7 +32,6 @@ executable reopt-vcg
               , ansi-wl-pprint
               , bytestring
               , containers
-              , crucible
               , directory
               , elf-edit
               , filepath
@@ -65,7 +64,6 @@ test-suite reopt-vcg-test
       base >=4.7 && <5
     , bytestring
     , containers
-    , crucible
     , elf-edit
     , lens
     , llvm-pretty

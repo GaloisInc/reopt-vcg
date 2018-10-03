@@ -39,6 +39,9 @@ import           GHC.Stack
 import           Text.LLVM hiding ((:>))
 import qualified What4.Protocol.SMTLib2.Syntax as SMT
 
+
+import VCGCommon
+
 type Locals = Map.Map Ident SMT.Term
 
 $(pure [])
@@ -68,38 +71,6 @@ ppEvent (JumpEvent _) = "jump"
 ppEvent (ReturnEvent _) = "return"
 
 $(pure [])
-
--- | A term denoting an term with type @Array (bv 64) (bv 8)
-newtype SMem = SMem SMT.Term
-
-$(pure [])
-
--- | Read a number of bytes as a bitvector.
--- Note. This refers repeatedly to ptr so, it should be a constant.
-readBVLE :: SMem
-         -> SMT.Term  -- ^ Address to read
-         -> Integer -- ^ Number of bytes to read.
-         -> SMT.Term
-readBVLE (SMem mem) ptr0 w = go (w-1)
-  where go :: Integer -> SMT.Term
-        go 0 = SMT.select mem ptr0
-        go i =
-          let ptr = SMT.bvadd ptr0 [SMT.bvdecimal i 64]
-           in SMT.concat (SMT.select mem ptr) (go (i-1))
-
--- | Read a number of bytes as a bitvector.
--- Note. This refers repeatedly to ptr so, it should be a constant.
-writeBVLE :: SMem
-          -> SMT.Term  -- ^ Address to write
-          -> SMT.Term  -- ^ Value to write
-          -> Integer -- ^ Number of bytes to write.
-          -> SMem
-writeBVLE (SMem mem) ptr0 val w = SMem $ go (w-1)
-  where go :: Integer -> SMT.Term
-        go 0 = SMT.store mem ptr0 (SMT.extract 7 0 val)
-        go i =
-          let ptr = SMT.bvadd ptr0 [SMT.bvdecimal i 64]
-           in SMT.store (go (i-1)) ptr (SMT.extract (8*i+7) (8*i) val)
 
 -- TODO: add a predicate to distinguish stack address and heap address
 -- TODO: add an array to track bound for each address
@@ -179,7 +150,7 @@ addDisjointPtr base sz = do
   l <- gets disjoint
   forM_ l $ \(prevBase, prevEnd) -> do
     -- Assert [base,end) is before or after [prevBase, prevEnd)
-    addCommand $ SMT.assert $ SMT.or [SMT.le [prevEnd, base], SMT.le [end, prevBase]]
+    addCommand $ SMT.assert $ SMT.or [SMT.bvule prevEnd base, SMT.bvule end prevBase]
   modify $ \s -> s { disjoint = (base,end):disjoint s }
 
 $(pure [])

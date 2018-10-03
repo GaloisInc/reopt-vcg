@@ -6,30 +6,61 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 module VCGCommon
-  ( SymBV64
+  ( {-
+    SymBV64
   , Ptr
   , BaseBV64Type
   , newUserSymbol
   , bv64
   , nat64
-  , warning
-  , fatalError
   , SymMemory
   , readMemBVLE
   , writeMemBVLE
+-}
+    -- * Memory
+    SMem(..)
+  , readBVLE
+  , writeBVLE
+    -- * Error reporting
+  , warning
+  , fatalError
   ) where
 
-import Control.Monad
-import Data.Parameterized.Context as Ctx
-import Data.Parameterized.NatRepr
-import Data.Parameterized.Some
-import Data.Proxy
-import GHC.Stack
-import System.Exit
-import System.IO
+import           System.Exit
+import           System.IO
+import qualified What4.Protocol.SMTLib2.Syntax as SMT
 
-import What4.Symbol
-import What4.Interface
+
+-- | A term denoting an term with type @Array (bv 64) (bv 8)
+newtype SMem = SMem SMT.Term
+
+-- | Read a number of bytes as a bitvector.
+-- Note. This refers repeatedly to ptr so, it should be a constant.
+readBVLE :: SMem
+         -> SMT.Term  -- ^ Address to read
+         -> Integer -- ^ Number of bytes to read.
+         -> SMT.Term
+readBVLE (SMem mem) ptr0 w = go (w-1)
+  where go :: Integer -> SMT.Term
+        go 0 = SMT.select mem ptr0
+        go i =
+          let ptr = SMT.bvadd ptr0 [SMT.bvdecimal i 64]
+           in SMT.concat (SMT.select mem ptr) (go (i-1))
+
+-- | Read a number of bytes as a bitvector.
+-- Note. This refers repeatedly to ptr so, it should be a constant.
+writeBVLE :: SMem
+          -> SMT.Term  -- ^ Address to write
+          -> SMT.Term  -- ^ Value to write
+          -> Integer -- ^ Number of bytes to write.
+          -> SMem
+writeBVLE (SMem mem) ptr0 val w = SMem $ go (w-1)
+  where go :: Integer -> SMT.Term
+        go 0 = SMT.store mem ptr0 (SMT.extract 7 0 val)
+        go i =
+          let ptr = SMT.bvadd ptr0 [SMT.bvdecimal i 64]
+           in SMT.store (go (i-1)) ptr (SMT.extract (8*i+7) (8*i) val)
+
 
 warning :: String -> IO ()
 warning msg = do
@@ -39,85 +70,3 @@ fatalError :: String -> IO a
 fatalError msg = do
   hPutStrLn stderr msg
   exitFailure
-
-newUserSymbol :: HasCallStack => String -> SolverSymbol
-newUserSymbol str =
-  case userSymbol str of
-    Left err -> error $ str ++ ": " ++ (ppSolverSymbolError err)
-    Right ssym -> ssym
-
-nat64 :: NatRepr 64
-nat64 = knownNat
-
-bv64 :: BaseTypeRepr (BaseBVType 64)
-bv64 = BaseBVRepr nat64
-
---type BaseBV8Type = BaseBVType 8
-type BaseBV64Type = BaseBVType 64
-
---type SymBVByte sym = SymBV sym 8
-type SymBV64 sym = SymBV sym 64
-
-type Ptr sym = SymBV64 sym -- TODO: distinguish Ptr and SymBV64 at type level
-
-type SymMemory sym = SymArray sym (EmptyCtx ::> BaseBVType 64) (BaseBVType 8)
-
--- | Read a number of bytes as a bitvector.
-readMemBVLE :: forall sym w
-            .  (IsExprBuilder sym, 1 <= w)
-            => sym
-            -> SymMemory sym
-            -> Ptr sym -- ^ Address to read
-            -> NatRepr w-- ^ Number of bytes to read.
-            -> IO (SymExpr sym (BaseBVType (8*w)))
-readMemBVLE sym mem ptr0 w = do
-  one <- bvLit sym (knownNat @64) 1
-  let go :: forall u
-         .  (1 <= u)
-         => SymBV sym u -- Previous value
-         -> Ptr sym -- Pointer
-         -> Integer -- Number of bytes left
-         -> IO (Some (SymExpr sym))
-      go prev ptr cnt
-        | cnt <= 0 = pure $! Some prev
-        | otherwise = do
-            readByte <- arrayLookup sym mem (Ctx.singleton ptr)
-            prev' <- bvConcat sym readByte prev
-            ptr' <- bvAdd sym ptr one
-            LeqProof <- pure $ leqAddPos (Proxy @8) (Proxy @u)
-            go prev' ptr' (cnt-1)
-  firstVal <- arrayLookup sym mem (Ctx.singleton ptr0)
-  Some v <- go firstVal ptr0 (natValue w-1)
-  let w8 = natMultiply (knownNat @8) w
-  Just LeqProof <- pure $ testLeq (knownNat @1) w8
-  Just Refl <- pure $ testEquality (exprType v) (BaseBVRepr w8)
-  pure $! v
-
--- | Read a number of bytes as a bitvector.
-writeMemBVLE :: forall sym w
-            .  (IsExprBuilder sym)
-            => sym
-            -> SymMemory sym
-            -> Ptr sym
-            -> SymBV sym w
-            -> IO (SymMemory sym)
-writeMemBVLE sym mem0 ptr0 val = do
-  one <- bvLit sym (knownNat @64) 1
-  let w = bvWidth val
-  when (natValue w `mod` 8 /= 0) $ do
-    error "writeMemBVLE expects width to be a multiple of 8."
-  let byteCount = natValue w `div` 8
-  let go :: SymMemory sym
-         -> Ptr sym -- Pointer
-         -> NatRepr u -- Offset to write
-         -> IO (SymMemory sym)
-      go mem ptr idx
-        | natValue idx >= byteCount = pure $! mem
-        | otherwise = do
-            let idx' = addNat idx (knownNat @8)
-            Just LeqProof <- pure $ testLeq idx' w
-            byte <- bvSelect sym idx (knownNat @8) val
-            mem' <- arrayUpdate sym mem (Ctx.singleton ptr) byte
-            ptr' <- bvAdd sym ptr one
-            go mem' ptr' idx'
-  go mem0 ptr0 (knownNat @0)

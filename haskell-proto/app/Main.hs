@@ -28,58 +28,49 @@ import qualified Data.Map.Strict as Map
 import           Data.Maybe
 import           Data.Parameterized.Nonce
 import           Data.Parameterized.Some
-import qualified Data.Yaml as Yaml
-import           Lang.Crucible.Backend.Simple
-import           System.Directory
 import qualified Data.Text as Text
+import qualified Data.Yaml as Yaml
+import           System.Directory
 import           System.Environment
 import           System.Exit
 import           System.FilePath
 import           System.IO
 import           Text.LLVM hiding ((:>), Value)
-import           What4.Expr.Builder (getSymbolVarBimap)
-import           What4.Interface
-import qualified What4.Protocol.SMTLib2 as SMT2
-import qualified What4.Protocol.SMTWriter as SMT2 (mkSMTTerm)
-import           What4.Solver.CVC4
+import qualified Data.Text.Lazy.Builder as Builder
+import qualified Data.Text.Lazy.IO as LText
+import           Text.LLVM.PP
+import qualified What4.Protocol.SMTLib2.Syntax as SMT
 
 import           Reopt.VCG.Config
-
 import           VCGCommon
 import qualified VCGLLVM as L
 import qualified VCGMacaw as M
-import           Text.LLVM.PP
 
-import qualified Data.Text.Lazy.Builder as Builder
-import qualified Data.Text.Lazy.IO as LText
-import qualified What4.Protocol.SMTLib2.Syntax as SMT
 
 -- Maps LLVM block labels to the Macaw adddress they are associated with.
 type BlockMapping = Map BlockLabel (MemSegmentOff 64)
 
-data VCGConfig sym ids = VCGConfig
+data VCGConfig = VCGConfig
   { blockMapping :: !BlockMapping
   , llvmMod      :: Module
-  , exprBuilder  :: sym
-  , symIsBuilder :: (forall a . (IsSymExprBuilder sym => a) -> a)
   }
 
-type Prop sym = (SMT.Term, SymBV sym 64)
+type Prop = (SMT.Term, SMT.Term)
 
-data PfState sym = PfState
+data PfState = PfState
   { pfCmds :: [SMT.Command]
     -- ^ Commands added when traversing events in reverse order.
-  , preConds :: [Prop sym]
-  , goals :: [Prop sym]
+  , preConds :: [Prop]
+  , goals :: [Prop]
   }
 
-type VCGMonad sym ids = ReaderT (VCGConfig sym ids) (StateT (PfState sym) IO)
+type VCGMonad = ReaderT VCGConfig (StateT PfState IO)
 
-proveLLVMAndMacawEq :: SMT.Term -> SymBV sym 64 -> VCGMonad sym ids ()
+proveLLVMAndMacawEq :: SMT.Term -> SMT.Term -> VCGMonad ()
 proveLLVMAndMacawEq la ma = do
   modify $ \s -> s { goals = (la, ma) : goals s }
 
-assumeValEq :: SMT.Term -> SymBV sym 64 -> VCGMonad sym ids ()
+assumeValEq :: SMT.Term -> SMT.Term -> VCGMonad ()
 assumeValEq lRetVal mRetVal = do
   modify $ \s -> s { preConds = (lRetVal, mRetVal) : preConds s }
 
@@ -139,7 +130,7 @@ jumpEventEq sym _ _ = proofFailed sym
 
 -- | Assert that the functions identified by the LLVM and macaw function pointers
 -- are equivalent.
-assertFnNameEq :: SMT.Term -> SymBV sym 64 -> VCGMonad sym ids ()
+assertFnNameEq :: SMT.Term -> SMT.Term -> VCGMonad ()
 assertFnNameEq llvmFun macawIP = undefined llvmFun macawIP
 
 x86ArgRegs :: [X86Reg (M.BVType 64)]
@@ -153,23 +144,22 @@ evalMemAddr m a =
     Nothing -> error "evalMemAddr given address with bad region index."
     Just b -> SMT.bvadd b [SMT.bvdecimal (toInteger (addrOffset a)) 64]
 
-eventsEq :: forall sym ids
-         .  IsSymExprBuilder sym
-         => sym
-         -> [L.LEvent]
-         -> [M.MEvent sym]
-         -> VCGMonad sym ids ()
-eventsEq _sym [] [] = return ()
-eventsEq sym (L.CmdEvent cmd:levs) mevs = do
+eventsEq :: [L.LEvent]
+         -> [M.MEvent]
+         -> VCGMonad ()
+eventsEq [] [] = return ()
+eventsEq (L.CmdEvent cmd:levs) mevs = do
   modify $ \s -> s { pfCmds = cmd : pfCmds s }
-  eventsEq sym levs mevs
-eventsEq sym (L.AllocaEvent{}:levs) mevs =
-  eventsEq sym levs mevs --Skip alloca events
+  eventsEq levs mevs
+eventsEq levs (M.CmdEvent cmd:mevs) = do
+  modify $ \s -> s { pfCmds = cmd : pfCmds s }
+  eventsEq levs mevs
+eventsEq (L.AllocaEvent{}:levs) mevs =
+  eventsEq levs mevs --Skip alloca events
 --eventsEq sym levs (M.AllocaEvent{}:mevs) =
 --  eventsEq sym levs mevs --Skip alloca events
-eventsEq sym (L.InvokeEvent _ f lArgs lRet:levs)
-             (M.FetchAndExecuteEvent regs:mevs) = do
-  let M.MSymExpr mRegIP = regs ^. boundValue X86_IP
+eventsEq (L.InvokeEvent _ f lArgs lRet:levs) (M.FetchAndExecuteEvent regs:mevs) = do
+  let Const mRegIP = regs ^. boundValue X86_IP
   assertFnNameEq f mRegIP
   -- Verify that the arguments should be same.
   -- Note: Here we take the number of arguments from LLVM side,
@@ -178,46 +168,46 @@ eventsEq sym (L.InvokeEvent _ f lArgs lRet:levs)
   when (length lArgs > length x86ArgRegs) $ do
     error $ "Too many arguments."
 
-  let compareArg :: SMT.Term -> X86Reg (M.BVType 64) -> VCGMonad sym ids ()
+  let compareArg :: SMT.Term -> X86Reg (M.BVType 64) -> VCGMonad ()
       compareArg la reg = do
-        let M.MSymExpr ma = regs^.boundValue reg
+        let Const ma = regs^.boundValue reg
         proveLLVMAndMacawEq la ma
   zipWithM_ compareArg lArgs x86ArgRegs
   -- If LLVM side has a return value, then we assert lRet = mRet as precondition
   -- for the rest program.
   case lRet of
     Just (_id, lRetVal) -> do
-      let M.MSymExpr mRetVal = regs^.boundValue RAX
+      let Const mRetVal = regs^.boundValue RAX
       -- We can assume return values are equal.
       assumeValEq lRetVal mRetVal
     Nothing -> pure ()
-  eventsEq sym levs mevs
-eventsEq sym (L.JumpEvent lbl:levs) (M.FetchAndExecuteEvent regs:mevs) = do
+  eventsEq levs mevs
+eventsEq (L.JumpEvent lbl:levs) (M.FetchAndExecuteEvent regs:mevs) = do
   m <- asks blockMapping
   case Map.lookup lbl m of
     Just off -> do
       let regionMap = error "region index map is not defined."
       let llvmMemAddr = evalMemAddr regionMap (relativeSegmentAddr off)
-      let M.MSymExpr mRegIP = regs ^. boundValue X86_IP
+      let Const mRegIP = regs ^. boundValue X86_IP
       proveLLVMAndMacawEq llvmMemAddr mRegIP
 
     Nothing -> do
       error $ "Could not find map for block " ++ show lbl
-  eventsEq sym levs mevs
-eventsEq sym (L.ReturnEvent mlret:levs) (M.FetchAndExecuteEvent regs:mevs) = do
+  eventsEq levs mevs
+eventsEq (L.ReturnEvent mlret:levs) (M.FetchAndExecuteEvent regs:mevs) = do
   case mlret of
     Nothing -> pure ()
     Just lret -> do
-      let M.MSymExpr mret = regs^.boundValue RAX
+      let Const mret = regs^.boundValue RAX
       proveLLVMAndMacawEq lret mret
-  eventsEq sym levs mevs
-eventsEq _ (lev:_) [] = do
+  eventsEq levs mevs
+eventsEq (lev:_) [] = do
   error $ "LLVM after end of Macaw events:\n"
     ++ L.ppEvent lev
-eventsEq _ [] (mev:_) = do
+eventsEq [] (mev:_) = do
   error $ "Macaw event after end of LLVM events:\n"
     ++ M.ppEvent mev
-eventsEq _ (lev:_) (mev:_) = do
+eventsEq (lev:_) (mev:_) = do
   error $ "Incompatible LLVM and Macaw events:\n"
     ++ "LLVM:  " ++ L.ppEvent lev ++ "\n"
     ++ "Macaw: " ++ M.ppEvent mev
@@ -240,16 +230,14 @@ retValueEq _sym _ _ = do
   liftIO $ warning "return value is not provided"
 -}
 
-stateEq :: IsSymExprBuilder sym
-        => sym
-        -> L.LState
-        -> M.MState sym ids
-        -> VCGMonad sym ids ()
-stateEq sym lstate mstate = do
+stateEq :: L.LState
+        -> M.MState
+        -> VCGMonad ()
+stateEq lstate mstate = do
   -- Check event traces equality
   let levs = reverse $ L.events lstate
   let mevs = reverse $ M.events mstate
-  eventsEq sym levs mevs
+  eventsEq levs mevs
 
 {-
 simulateAndCheck :: IsSymExprBuilder sym
@@ -276,7 +264,7 @@ simulateAndCheck sym _vfi bb discInfo ls0 ms0 = do
   stateEq sym ls' ms'
 -}
 
-runVCG :: VCGConfig sym ids -> VCGMonad sym ids () -> IO (PfState sym)
+runVCG :: VCGConfig -> VCGMonad () -> IO PfState
 runVCG cfg action =
   let s = PfState { pfCmds = []
                   , preConds = []
@@ -412,10 +400,6 @@ verifyFunction lMod discState funMap outDir vfi = do
       [] -> error $ "Expected function to have at least one basic block."
       f:r -> pure (f,r)
 
-
-  Some gen <- newIONonceGenerator
-  sym <- newSimpleBackend gen
-
   let mkLLVMDecl :: Typed Ident -> SMT.Command
       mkLLVMDecl (Typed (PrimType (Integer 64)) (Ident arg)) =
         let vnm = "llvmarg_" <> Text.pack arg
@@ -438,13 +422,11 @@ verifyFunction lMod discState funMap outDir vfi = do
   Some stGen <- liftIO $ stToIO $ newSTNonceGenerator
 
   let ls0 = L.inject $ zip (typedValue <$> defArgs lFun) llvmVals
-  ms0 <- M.inject sym
+  let ms0 = M.inject
 
 
   let vcgCfg =  VCGConfig { blockMapping = Map.empty
                           , llvmMod = lMod
-                          , exprBuilder = sym
-                          , symIsBuilder = \x -> x
                           }
   putStrLn "Simulating LLVM program ..."
   do let ?config = Config True True True
@@ -457,37 +439,33 @@ verifyFunction lMod discState funMap outDir vfi = do
   let blockMap = Map.fromList [ (M.blockLabel b, b) | b <- blocks ]
   let Just macawParsedBlock = Map.lookup 0 blockMap
   ms' <- execStateT (M.block2SMT blockMap macawParsedBlock) ms0
-  pfSt <- runVCG vcgCfg $ stateEq sym ls' ms'
+  pfSt <- runVCG vcgCfg $ stateEq ls' ms'
 
   -- write proof to smt file
   putStrLn $ "Writing SMT formulas to " ++ outDir
   let Just lbl = bbLabel firstBlock
   forM_ (zip [0..] (goals pfSt)) $ \(i, (goal_lval, goal_mval)) -> do
     let fname = llvmFunName vfi ++ "_" ++ ppBlock lbl ++ "_" ++ show (i::Integer) ++ ".smt"
-    bracket (openFile (outDir </> fname) ReadWriteMode) hClose $ \h -> do
+    bracket (openFile (outDir </> fname) WriteMode) hClose $ \h -> do
       writeCommand h $ SMT.setLogic SMT.allSupported
       writeCommand h $ SMT.setOption (SMT.produceModels True)
 
       -- Generate LLVM arguments
       mapM_ (writeCommand h) llvmArgDecls
 
-      bindings <- getSymbolVarBimap sym
-      c <- SMT2.newWriter CVC4 h "CVC4" True cvc4Features True bindings
-
-      let assertEq lv reg = do
-            let M.MSymExpr mval = M.initRegs ms0^.boundValue reg
-            mv <- SMT2.mkSMTTerm c mval
-            writeCommand h $ SMT.assert $ SMT.eq [lv, mv]
-      zipWithM_ assertEq llvmVals x86ArgRegs
-
       -- Write commands from proof state
       mapM_ (writeCommand h) (reverse (pfCmds pfSt))
 
-      forM_ (preConds pfSt) $ \(lv, mval) -> do
-        mv <- SMT2.mkSMTTerm c mval
+      -- Assert arguments are equal
+      let assertEq lv reg = do
+            let Const mv = M.initRegs ms0^.boundValue reg
+            writeCommand h $ SMT.assert $ SMT.eq [lv, mv]
+      zipWithM_ assertEq llvmVals x86ArgRegs
+
+
+      forM_ (preConds pfSt) $ \(lv, mv) -> do
         writeCommand h $ SMT.assert $ SMT.eq [lv, mv]
-      do mv <- SMT2.mkSMTTerm c goal_mval
-         writeCommand h $ SMT.assert $ SMT.distinct [goal_lval, mv]
+      writeCommand h $ SMT.assert $ SMT.distinct [goal_lval, goal_mval]
       writeCommand h SMT.checkSat
       writeCommand h SMT.exit
 
