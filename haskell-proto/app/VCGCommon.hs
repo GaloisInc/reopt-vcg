@@ -23,7 +23,7 @@ import Control.Monad
 import Data.Parameterized.Context as Ctx
 import Data.Parameterized.NatRepr
 import Data.Parameterized.Some
-import           Data.Proxy
+import Data.Proxy
 import GHC.Stack
 import System.Exit
 import System.IO
@@ -66,7 +66,7 @@ type SymMemory sym = SymArray sym (EmptyCtx ::> BaseBVType 64) (BaseBVType 8)
 readMemBVLE :: forall sym w
             .  (IsExprBuilder sym, 1 <= w)
             => sym
-            -> SymMemory sym --
+            -> SymMemory sym
             -> Ptr sym -- ^ Address to read
             -> NatRepr w-- ^ Number of bytes to read.
             -> IO (SymExpr sym (BaseBVType (8*w)))
