@@ -14,6 +14,7 @@ module VCGMacaw
   , MState(..)
   , MEvent(..)
   , ppEvent
+  , memVar
   ) where
 
 import           Control.Lens
@@ -44,6 +45,8 @@ import qualified What4.Protocol.SMTLib2.Syntax as SMT
 
 import           VCGCommon
 
+
+
 -- | Read an elf from a binary
 readElf :: FilePath -> IO (Elf 64)
 readElf path = do
@@ -61,6 +64,15 @@ readElf path = do
         warning "Expected Linux binary"
       pure e
 
+memVar :: Integer -> Var
+memVar i = "x86mem_" <> Text.pack (show i)
+
+smtRegVar :: X86Reg tp -> Text
+smtRegVar reg = "x86reg_" <> Text.pack (show reg)
+
+smtLocalVar :: AssignId ids tp -> Text
+smtLocalVar (AssignId n) = "x86local_" <> Text.pack (show (indexValue n))
+
 macawError :: HasCallStack => String -> a
 macawError msg = error $ "[Macaw Error] " ++ msg
 
@@ -72,14 +84,18 @@ evalMemAddr m a =
     Nothing -> error "evalMemAddr given address with bad region index."
     Just b -> SMT.bvadd b [SMT.bvdecimal (toInteger (addrOffset a)) 64]
 
-memVar :: Integer -> Text
-memVar i = "x86mem_" <> Text.pack (show i)
-
-memType :: SMT.Type
-memType = SMT.arrayType (SMT.bvType 64) (SMT.bvType 8)
-
 data MEvent
   = CmdEvent !SMT.Command
+  | CondReadEvent !SMT.Term !SMT.Term !Integer !Var
+    -- ^ `CondReadEvent c a w v` indicates that we read `w` bytes from `a` when
+    -- condition `c` holds, and the read returned the value `v`.
+    --
+    -- This can have a side effect, so we record the event.  When `c` is false,
+    -- then the read value `v` is irrelevant.
+  | WriteEvent !SMT.Term !Integer !SMT.Term
+    -- ^ `WriteEvent a w v` indicates that we write the `w` byte value `v`  to `a`.
+    --
+    -- This has side effects, so we record the event.
   | FetchAndExecuteEvent !(RegState (ArchReg X86_64) (Const SMT.Term))
 
   | BranchEvent !SMT.Term
@@ -88,15 +104,17 @@ data MEvent
 
 ppEvent :: MEvent
         -> String
-ppEvent (CmdEvent _) = "cmd"
+ppEvent CmdEvent{} = "cmd"
+ppEvent CondReadEvent{} = "read"
+ppEvent WriteEvent{} = "write"
 ppEvent (FetchAndExecuteEvent _) = "fetchAndExecute"
 ppEvent (BranchEvent _ _ _) = "branch"
 
 data MState = MState
   { locals   :: !(Map Word64 SMT.Term)
   , initRegs :: !(RegState X86Reg (Const SMT.Term))
-  , memIndex  :: !Integer
-  , curMem      :: !SMem
+--  , memIndex  :: !Integer
+--  , curMem      :: !SMem
   , retval   :: Maybe (RegState X86Reg (Const SMT.Term))
   , events   :: [MEvent]
   }
@@ -109,11 +127,11 @@ inject :: MState
 inject =
   MState { locals = Map.empty
          , initRegs = mkRegState initReg
-         , curMem = SMem (varTerm (memVar 0))
-         , memIndex = 1
+         --, curMem = SMem (varTerm (memVar 0))
+         --, memIndex = 1
          , retval = Nothing
          , events = ((\(Some r) -> CmdEvent (initRegDecl r)) <$> reverse archRegs)
-                 ++ [CmdEvent (SMT.declareFun (memVar 0) [] memType)]
+--                 ++ [CmdEvent (SMT.declareFun (memVar 0) [] memType)]
          }
 
 ------------------------------------------------------------------------
@@ -156,15 +174,6 @@ primEval (SymbolValue _w _id) = do
 evalToMSymExpr :: Value X86_64 ids tp -> MStateM (Const SMT.Term tp)
 evalToMSymExpr v = Const <$> primEval v
 
-varTerm :: Text -> SMT.Term
-varTerm = SMT.T . Builder.fromText
-
-smtRegVar :: X86Reg tp -> Text
-smtRegVar reg = "x86reg_" <> Text.pack (show reg)
-
-smtLocalVar :: AssignId ids tp -> Text
-smtLocalVar (AssignId n) = "x86local_" <> Text.pack (show (indexValue n))
-
 initReg :: X86Reg tp
          -> Const SMT.Term tp
 initReg reg = Const $ varTerm (smtRegVar reg)
@@ -174,10 +183,14 @@ toSMTType (M.BVTypeRepr w) = SMT.bvType (natValue w)
 toSMTType M.BoolTypeRepr = SMT.boolType
 toSMTType tp = error $ "toSMTType: unsupported type " ++ show tp
 
+{-
 readMem :: SMT.Term
         -> M.MemRepr tp
         -> MStateM SMT.Term
-readMem ptr (BVMemRepr w _end) = do
+readMem ptr (BVMemRepr w end) = do
+  when (end /= LittleEndian) $ do
+    error "reopt-vcg only encountered big endian read."
+  -- TODO: Add assertion that memory is valid.
   mem <- gets curMem
   pure $ readBVLE mem ptr (natValue w)
 
@@ -185,7 +198,7 @@ writeMem :: SMT.Term
          -> M.MemRepr tp
          -> SMT.Term
          -> MStateM ()
-writeMem ptr (BVMemRepr w _end) val = do
+writeMem ptr (BVMemRepr w LittleEndian) val = do
   modify' $ \s ->
     let SMem newMem = writeBVLE (curMem s) ptr val (natValue w)
         cmd = SMT.defineFun (memVar (memIndex s)) [] memType newMem
@@ -193,6 +206,7 @@ writeMem ptr (BVMemRepr w _end) val = do
           , memIndex = memIndex s + 1
           , events = CmdEvent cmd : events s
           }
+-}
 
 setDefined :: AssignId ids tp
            -> M.TypeRepr tp
@@ -205,15 +219,13 @@ setDefined (AssignId n) tp t = do
                    , locals = Map.insert (indexValue n) (varTerm nm) (locals s)
                    }
 
+-- | The the local value to be undefined assign id to be undefined
 setUndefined :: AssignId ids tp
-             -> M.TypeRepr tp
-             -> MStateM ()
-setUndefined (AssignId n) tp = do
+             -> MStateM Var
+setUndefined (AssignId n) = do
   let nm = smtLocalVar (AssignId n)
-  let decl = SMT.declareFun nm [] (toSMTType tp)
-  modify $ \s -> s { events = CmdEvent decl : events s
-                   , locals = Map.insert (indexValue n) (varTerm nm) (locals s)
-                   }
+  modify $ \s -> s { locals = Map.insert (indexValue n) (varTerm nm) (locals s) }
+  pure $! nm
 
 evalApp2SMT :: AssignId ids tp
             -> App (Value X86_64 ids) tp
@@ -264,7 +276,9 @@ evalApp2SMT aid a = do
       doSet $ SMT.extract (natValue w-1) 0 xv
     _app -> do
       liftIO $ hPutStrLn stderr $ show (ppApp (\_ -> text "*") a) ++ ": Not implemented yet"
-      setUndefined aid (M.typeRepr a)
+      var <- setUndefined aid
+      addEvent $ CmdEvent $ SMT.declareFun var [] (toSMTType (M.typeRepr a))
+
 
 assignRhs2SMT :: AssignId ids tp
               -> AssignRhs X86_64 (Value X86_64 ids) tp
@@ -274,32 +288,51 @@ assignRhs2SMT aid rhs = do
     EvalApp a -> do
       evalApp2SMT aid a
 
-    ReadMem addr mrepr -> do
-      -- TODO: dealing with memory representation
-      addrv <- primEval addr
-      val <- readMem addrv mrepr
-      setDefined aid (M.typeRepr rhs) val
+    ReadMem addr (BVMemRepr w end) -> do
+      when (end /= LittleEndian) $ do
+        error "reopt-vcg only encountered big endian read."
+      addrTerm <- primEval addr
+      valVar <- setUndefined aid
+      -- Add conditional read event.
+      addEvent $ CondReadEvent SMT.true addrTerm (natValue w) valVar
 
-    CondReadMem _repr _c _a _d -> do
-      error $ "CondReadMem is not implemented yet."
+    CondReadMem (BVMemRepr w end) cond addr def -> do
+      when (end /= LittleEndian) $ do
+        error "reopt-vcg only encountered big endian read."
+      condTerm <- primEval cond
+      addrTerm <- primEval addr
+      defTerm <- primEval def
+
+      -- Set location of read to fresh constant.
+      valVar <- setUndefined aid
+
+      -- Assert that value = default when cond is false
+      -- Add conditional read event.
+      addEvent $ CondReadEvent condTerm addrTerm (natValue w) valVar
+      addEvent $ CmdEvent $ SMT.assert $
+        SMT.or [condTerm, SMT.eq [varTerm valVar, defTerm]]
 
     SetUndefined tp -> do
-      setUndefined aid tp
+      var <- setUndefined aid
+      addEvent $ CmdEvent $ SMT.declareFun var [] (toSMTType tp)
 
     EvalArchFn _f tp -> do
       liftIO $ hPutStrLn stderr $ "EvalArchFn is not implemented yet."
-      setUndefined aid tp
+      var <- setUndefined aid
+      addEvent $ CmdEvent $ SMT.declareFun var [] (toSMTType tp)
 
 stmt2SMT :: Stmt X86_64 ids -> MStateM ()
 stmt2SMT stmt =
   case stmt of
     AssignStmt (Assignment aid rhs) -> do
       assignRhs2SMT aid rhs
-    WriteMem addr repr rhs -> do
+    WriteMem addr (BVMemRepr w end) val -> do
+      when (end /= LittleEndian) $ do
+        error "reopt-vcg only encountered big endian read."
       -- TODO: dealing with memory representation
-      addrv <- primEval addr
-      val   <- primEval rhs
-      writeMem addrv repr val
+      addrTerm <- primEval addr
+      valTerm  <- primEval val
+      addEvent $ WriteEvent addrTerm (natValue w) valTerm
     InstructionStart _off _mnem -> return () -- NoOps
     Comment _s -> return ()                 -- NoOps
     ArchState _a _m -> return ()             -- NoOps

@@ -55,78 +55,27 @@ data VCGConfig = VCGConfig
   , llvmMod      :: Module
   }
 
-type Prop = (SMT.Term, SMT.Term)
-
 data PfState = PfState
   { pfCmds :: [SMT.Command]
     -- ^ Commands added when traversing events in reverse order.
-  , preConds :: [Prop]
-  , goals :: [Prop]
+  , negGoals :: [([SMT.Command], SMT.Term)]
+    -- ^ Negation of a goal to prove align with assumptions up to goal.
+  , macawMemIndex :: !Integer
   }
 
 type VCGMonad = ReaderT VCGConfig (StateT PfState IO)
 
-proveLLVMAndMacawEq :: SMT.Term -> SMT.Term -> VCGMonad ()
-proveLLVMAndMacawEq la ma = do
-  modify $ \s -> s { goals = (la, ma) : goals s }
+addCommand :: SMT.Command -> VCGMonad ()
+addCommand cmd = modify $ \s -> s { pfCmds = cmd : pfCmds s }
 
-assumeValEq :: SMT.Term -> SMT.Term -> VCGMonad ()
-assumeValEq lRetVal mRetVal = do
-  modify $ \s -> s { preConds = (lRetVal, mRetVal) : preConds s }
+addAssumption :: SMT.Term -> VCGMonad ()
+addAssumption p = addCommand $ SMT.assert p
 
-{-
--- | Insert a false predicate to make sure the proof fail
-proofFailed :: IsSymExprBuilder sym => sym -> VCGMonad sym ids ()
-proofFailed sym = do
-  liftIO $ putStrLn "Warning: proof failed."
-  addProofGoal sym (falsePred sym)
--}
-
-{-
--- | Return true if the givne LLVM blocklabel corresponds with the address of the x86 block.
-matchLabel :: BlockMapping
-           -> BlockLabel
-           -> MemSegmentOff 64
-           -> Bool
-matchLabel m llbl mlbl =
-  case Map.lookup llbl m of
-    Just massoc -> mlbl == massoc
-    Nothing -> error $ "No association for " ++ show llbl
--}
-
-{-
-jumpEventEq :: IsSymExprBuilder sym
-            => sym
-            -> L.LEvent sym
-            -> M.MEvent sym ids
-            -> VCGMonad sym ids ()
--- Conditional jumps
-jumpEventEq sym (L.BranchEvent lcnd tlbl flbl) (M.BranchEvent mcnd (toff,_tregs) (foff,_fregs)) = do
-  bm <- asks blockMapping
-  pred1 <-
-    if matchLabel bm tlbl toff && matchLabel bm flbl foff then
-      liftIO $ isEq sym lcnd mcnd
-     else
-      pure $! falsePred sym
-  pred2 <-
-    if matchLabel bm tlbl foff && matchLabel bm flbl toff then
-      liftIO $ isEq sym lcnd mcnd
-     else
-      pure $! falsePred sym
-  -- TODO: Check registers
-  p <- liftIO $ orPred sym pred1 pred2
-  addProofGoal sym p
--- Unconditional jumps
-jumpEventEq sym (L.JumpEvent lbl) (M.JumpEvent offset _) = do
-  m <- asks blockMapping
-  case Map.lookup lbl m of
-    Just off' -> do
-      when (off' /= offset) $ do
-        proofFailed sym
-    Nothing -> do
-      error $ "Could not find map for block " ++ show lbl
-jumpEventEq sym _ _ = proofFailed sym
--}
+addNegGoal :: SMT.Term -> VCGMonad ()
+addNegGoal g = do
+  s <- get
+  let cmds = pfCmds s
+  put $ s { negGoals = (cmds, g) : negGoals s }
 
 -- | Assert that the functions identified by the LLVM and macaw function pointers
 -- are equivalent.
@@ -144,21 +93,99 @@ evalMemAddr m a =
     Nothing -> error "evalMemAddr given address with bad region index."
     Just b -> SMT.bvadd b [SMT.bvdecimal (toInteger (addrOffset a)) 64]
 
+macawRead :: SMT.Term -> Integer -> Var -> VCGMonad ()
+macawRead addr byteCount valVar = do
+  idx <- gets macawMemIndex
+  let mem = SMem (varTerm (M.memVar idx))
+  let valType = SMT.bvType (8*byteCount)
+  addCommand $ SMT.defineFun valVar [] valType (readBVLE mem addr byteCount)
+
+
+macawWrite :: SMT.Term -> Integer -> SMT.Term -> VCGMonad ()
+macawWrite addr byteCount val = do
+  idx <- gets macawMemIndex
+  let mem = SMem (varTerm (M.memVar idx))
+  let SMem newMem = writeBVLE mem addr val byteCount
+  addCommand $ SMT.defineFun (M.memVar (idx+1)) [] memType newMem
+  modify $ \s -> s { macawMemIndex = idx + 1 }
+
 eventsEq :: [L.LEvent]
          -> [M.MEvent]
          -> VCGMonad ()
 eventsEq [] [] = return ()
 eventsEq (L.CmdEvent cmd:levs) mevs = do
-  modify $ \s -> s { pfCmds = cmd : pfCmds s }
+  addCommand cmd
   eventsEq levs mevs
 eventsEq levs (M.CmdEvent cmd:mevs) = do
-  modify $ \s -> s { pfCmds = cmd : pfCmds s }
+  addCommand cmd
   eventsEq levs mevs
 eventsEq (L.AllocaEvent{}:levs) mevs =
   eventsEq levs mevs --Skip alloca events
---eventsEq sym levs (M.AllocaEvent{}:mevs) =
---  eventsEq sym levs mevs --Skip alloca events
-eventsEq (L.InvokeEvent _ f lArgs lRet:levs) (M.FetchAndExecuteEvent regs:mevs) = do
+eventsEq (L.LoadEvent _llvmAddr llvmCount llvmValVar:levs)
+         (M.CondReadEvent macawCond macawAddr macawCount macawValVar:mevs) = do
+  when (macawCount /= llvmCount) $ do
+    error "Bytes read with different number of bytes."
+  let valType = SMT.bvType (8*macawCount)
+  liftIO $ hPutStrLn stderr $ "TODO: Assert addresses are equal."
+
+  -- Require that write occur.
+  addNegGoal $ SMT.not macawCond
+
+  -- Assert addresses correspond equal
+--  addNegGoal $ SMT.distinct [ llvmAddr, macawAddr ]
+
+  -- Declare values returned and assert they are equal.
+  addCommand $ SMT.declareFun llvmValVar [] valType
+  macawRead macawAddr macawCount macawValVar
+  addAssumption $ SMT.eq [ varTerm llvmValVar, varTerm macawValVar]
+  eventsEq levs mevs
+
+eventsEq levs
+         (M.CondReadEvent macawCond addr byteCount macawValVar:mevs) = do
+
+  let valType = SMT.bvType (8*byteCount)
+  liftIO $ hPutStrLn stderr $ "TODO: Assert address is on stack and valid."
+
+  -- Declare macaw value variable
+  idx <- gets macawMemIndex
+  let mem = SMem (varTerm (M.memVar idx))
+  addCommand $ SMT.declareFun macawValVar [] valType
+
+  addAssumption $ SMT.implies [macawCond] (SMT.eq [ varTerm macawValVar, readBVLE mem addr byteCount])
+  eventsEq levs mevs
+
+eventsEq (L.StoreEvent _llvmAddr llvmCount llvmVal:levs)
+         (M.WriteEvent macawAddr macawCount macawVal:mevs) = do
+  when (llvmCount /= macawCount) $ do
+    error "Bytes written have different number of bytes."
+  liftIO $ hPutStrLn stderr $ "TODO: Assert addresses are equal."
+
+  -- Assert values are equal
+  addNegGoal $ SMT.distinct [ llvmVal, macawVal ]
+
+  -- Assert addresses correspond equal
+--  addNegGoal $ SMT.distinct [ llvmAddr, macawAddr ]
+
+  -- Update macaw memory
+  macawWrite macawAddr macawCount macawVal
+
+  eventsEq levs mevs
+
+-- Writes to the stack may occur in Macaw, but not LLVM
+eventsEq levs (M.WriteEvent macawAddr macawCount macawVal:mevs) = do
+  liftIO $ hPutStrLn stderr $ "TODO: Assert address is on stack."
+
+  macawWrite macawAddr macawCount macawVal
+
+
+  -- Assert addresses correspond equal
+--  addNegGoal $ SMT.distinct [ llvmAddr, macawAddr ]
+
+  eventsEq levs mevs
+
+
+
+eventsEq [L.InvokeEvent _ f lArgs _lRet] [M.FetchAndExecuteEvent regs] = do
   let Const mRegIP = regs ^. boundValue X86_IP
   assertFnNameEq f mRegIP
   -- Verify that the arguments should be same.
@@ -171,36 +198,24 @@ eventsEq (L.InvokeEvent _ f lArgs lRet:levs) (M.FetchAndExecuteEvent regs:mevs) 
   let compareArg :: SMT.Term -> X86Reg (M.BVType 64) -> VCGMonad ()
       compareArg la reg = do
         let Const ma = regs^.boundValue reg
-        proveLLVMAndMacawEq la ma
+        addNegGoal (SMT.distinct [la, ma])
   zipWithM_ compareArg lArgs x86ArgRegs
-  -- If LLVM side has a return value, then we assert lRet = mRet as precondition
-  -- for the rest program.
-  case lRet of
-    Just (_id, lRetVal) -> do
-      let Const mRetVal = regs^.boundValue RAX
-      -- We can assume return values are equal.
-      assumeValEq lRetVal mRetVal
-    Nothing -> pure ()
-  eventsEq levs mevs
-eventsEq (L.JumpEvent lbl:levs) (M.FetchAndExecuteEvent regs:mevs) = do
+eventsEq [L.JumpEvent lbl] [M.FetchAndExecuteEvent regs] = do
   m <- asks blockMapping
   case Map.lookup lbl m of
     Just off -> do
       let regionMap = error "region index map is not defined."
       let llvmMemAddr = evalMemAddr regionMap (relativeSegmentAddr off)
       let Const mRegIP = regs ^. boundValue X86_IP
-      proveLLVMAndMacawEq llvmMemAddr mRegIP
-
+      addNegGoal (SMT.distinct [llvmMemAddr, mRegIP])
     Nothing -> do
       error $ "Could not find map for block " ++ show lbl
-  eventsEq levs mevs
-eventsEq (L.ReturnEvent mlret:levs) (M.FetchAndExecuteEvent regs:mevs) = do
+eventsEq [L.ReturnEvent mlret] [M.FetchAndExecuteEvent regs] = do
   case mlret of
     Nothing -> pure ()
     Just lret -> do
       let Const mret = regs^.boundValue RAX
-      proveLLVMAndMacawEq lret mret
-  eventsEq levs mevs
+      addNegGoal (SMT.distinct [lret, mret])
 eventsEq (lev:_) [] = do
   error $ "LLVM after end of Macaw events:\n"
     ++ L.ppEvent lev
@@ -264,11 +279,13 @@ simulateAndCheck sym _vfi bb discInfo ls0 ms0 = do
   stateEq sym ls' ms'
 -}
 
-runVCG :: VCGConfig -> VCGMonad () -> IO PfState
-runVCG cfg action =
-  let s = PfState { pfCmds = []
-                  , preConds = []
-                  , goals = []
+runVCG :: VCGConfig -> [SMT.Command] -> VCGMonad () -> IO PfState
+runVCG cfg cmds action =
+  let s = PfState { pfCmds
+                      =  [SMT.declareFun (M.memVar 0) [] memType  ]
+                      ++ reverse cmds
+                  , negGoals = []
+                  , macawMemIndex = 0
                   }
    in execStateT (runReaderT action cfg) s
 
@@ -401,17 +418,15 @@ verifyFunction lMod discState funMap outDir vfi = do
       f:r -> pure (f,r)
 
   let mkLLVMDecl :: Typed Ident -> SMT.Command
-      mkLLVMDecl (Typed (PrimType (Integer 64)) (Ident arg)) =
-        let vnm = "llvmarg_" <> Text.pack arg
-         in SMT.declareFun vnm [] (SMT.bvType 64)
+      mkLLVMDecl arg@(Typed (PrimType (Integer 64)) _) =
+        SMT.declareFun (L.argVar arg) [] (SMT.bvType 64)
       mkLLVMDecl  (Typed tp _) =
         error $ "Unexpected type " ++ show tp
 
   let llvmArgDecls = mkLLVMDecl <$> defArgs lFun
 
   let mkLLVMArg :: Typed Ident -> SMT.Term
-      mkLLVMArg (Typed _ (Ident arg)) = L.smtVar ("llvmarg_" <> Text.pack arg)
-
+      mkLLVMArg = varTerm . L.argVar
 
   let llvmVals :: [SMT.Term]
       llvmVals     = mkLLVMArg <$> defArgs lFun
@@ -439,22 +454,19 @@ verifyFunction lMod discState funMap outDir vfi = do
   let blockMap = Map.fromList [ (M.blockLabel b, b) | b <- blocks ]
   let Just macawParsedBlock = Map.lookup 0 blockMap
   ms' <- execStateT (M.block2SMT blockMap macawParsedBlock) ms0
-  pfSt <- runVCG vcgCfg $ stateEq ls' ms'
+  pfSt <- runVCG vcgCfg llvmArgDecls $ stateEq ls' ms'
 
   -- write proof to smt file
   putStrLn $ "Writing SMT formulas to " ++ outDir
   let Just lbl = bbLabel firstBlock
-  forM_ (zip [0..] (goals pfSt)) $ \(i, (goal_lval, goal_mval)) -> do
+  forM_ (zip [0..] (reverse (negGoals pfSt))) $ \(i, (cmds, negGoal)) -> do
     let fname = llvmFunName vfi ++ "_" ++ ppBlock lbl ++ "_" ++ show (i::Integer) ++ ".smt"
     bracket (openFile (outDir </> fname) WriteMode) hClose $ \h -> do
       writeCommand h $ SMT.setLogic SMT.allSupported
       writeCommand h $ SMT.setOption (SMT.produceModels True)
 
-      -- Generate LLVM arguments
-      mapM_ (writeCommand h) llvmArgDecls
-
       -- Write commands from proof state
-      mapM_ (writeCommand h) (reverse (pfCmds pfSt))
+      mapM_ (writeCommand h) (reverse cmds)
 
       -- Assert arguments are equal
       let assertEq lv reg = do
@@ -463,11 +475,9 @@ verifyFunction lMod discState funMap outDir vfi = do
       zipWithM_ assertEq llvmVals x86ArgRegs
 
 
-      forM_ (preConds pfSt) $ \(lv, mv) -> do
-        writeCommand h $ SMT.assert $ SMT.eq [lv, mv]
-      writeCommand h $ SMT.assert $ SMT.distinct [goal_lval, goal_mval]
-      writeCommand h SMT.checkSat
-      writeCommand h SMT.exit
+      writeCommand h $ SMT.assert negGoal
+      writeCommand h $ SMT.checkSat
+      writeCommand h $ SMT.exit
 
   forM_ restBlocks $ \_bb -> do
     pure ()

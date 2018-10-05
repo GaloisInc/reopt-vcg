@@ -17,8 +17,12 @@ module VCGCommon
   , readMemBVLE
   , writeMemBVLE
 -}
+    -- * SMT
+    Var
+  , varTerm
     -- * Memory
-    SMem(..)
+  , SMem(..)
+  , memType
   , readBVLE
   , writeBVLE
     -- * Error reporting
@@ -26,13 +30,23 @@ module VCGCommon
   , fatalError
   ) where
 
+import           Data.Text (Text)
+import qualified Data.Text.Lazy.Builder as Builder
 import           System.Exit
 import           System.IO
 import qualified What4.Protocol.SMTLib2.Syntax as SMT
 
+type Var = Text
+
+varTerm :: Var -> SMT.Term
+varTerm = SMT.T . Builder.fromText
+
 
 -- | A term denoting an term with type @Array (bv 64) (bv 8)
 newtype SMem = SMem SMT.Term
+
+memType :: SMT.Type
+memType = SMT.arrayType (SMT.bvType 64) (SMT.bvType 8)
 
 -- | Read a number of bytes as a bitvector.
 -- Note. This refers repeatedly to ptr so, it should be a constant.
