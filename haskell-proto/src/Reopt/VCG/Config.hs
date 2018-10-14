@@ -4,12 +4,23 @@ module Reopt.VCG.Config
   , VCGFunInfo(..)
   ) where
 
+import           Data.Word
 import qualified Data.Yaml as Yaml
 import           GHC.Generics
 
+-- | Our VCG supports cases where each LLVM block corresponds to a contiguous range
+-- of instructions.
 data VCGBlockInfo = VCGBlockInfo
-  { macawBlockInfo :: ()
+  { blockLabel :: !String
+    -- ^ LLVM label of block
+  , blockAddr :: !Word64
+    -- ^ Address of start of block
+  , blockSize :: !Word64
+    -- ^ Number of bytes in block
   }
+  deriving (Show, Generic)
+
+instance Yaml.FromJSON VCGBlockInfo
 
 data VCGFunInfo = VCGFunInfo
   { llvmFunName    :: String
@@ -26,6 +37,8 @@ data VCGFunInfo = VCGFunInfo
     -- ^ Macaw argument names, build mappings with llvmArgs
   , macawVars      :: [String]
     -- ^ Macaw variables, build mappings with llvmVars
+  , blocks :: [VCGBlockInfo]
+    -- ^ Information relating blocks
   }
   deriving (Show, Generic)
 

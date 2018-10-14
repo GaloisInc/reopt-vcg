@@ -28,7 +28,7 @@ import qualified Data.Map.Strict as Map
 import           Data.Maybe
 import           Data.Parameterized.Nonce
 import           Data.Parameterized.Some
-import qualified Data.Text as Text
+--import qualified Data.Text as Text
 import qualified Data.Yaml as Yaml
 import           System.Directory
 import           System.Environment
@@ -52,7 +52,19 @@ type BlockMapping = Map BlockLabel (MemSegmentOff 64)
 
 data VCGConfig = VCGConfig
   { blockMapping :: !BlockMapping
-  , llvmMod      :: Module
+  , llvmMod      :: !Module
+{-
+  , stackLow    :: !SMT.Term
+    -- ^ The minimum address that the stack is allowed to have.
+    --
+    -- The stack grows down, but we assume it has a maximum size,
+    -- so this represents the lowest address that the stack is allowed
+    -- to have.
+  , stackHigh    :: !SMT.Term
+    -- ^ The maximum legal address for the stack.
+    --
+    -- As the stack grows down, this represents the initial address of the stack.
+-}
   }
 
 data PfState = PfState
@@ -68,8 +80,8 @@ type VCGMonad = ReaderT VCGConfig (StateT PfState IO)
 addCommand :: SMT.Command -> VCGMonad ()
 addCommand cmd = modify $ \s -> s { pfCmds = cmd : pfCmds s }
 
-addAssumption :: SMT.Term -> VCGMonad ()
-addAssumption p = addCommand $ SMT.assert p
+--addAssert :: SMT.Term -> VCGMonad ()
+--addAssert p = addCommand $ SMT.assert p
 
 addNegGoal :: SMT.Term -> VCGMonad ()
 addNegGoal g = do
@@ -93,13 +105,16 @@ evalMemAddr m a =
     Nothing -> error "evalMemAddr given address with bad region index."
     Just b -> SMT.bvadd b [SMT.bvdecimal (toInteger (addrOffset a)) 64]
 
+getMacawMem :: VCGMonad SMem
+getMacawMem = do
+  idx <- gets macawMemIndex
+  pure $! SMem (varTerm (M.memVar idx))
+
 macawRead :: SMT.Term -> Integer -> Var -> VCGMonad ()
 macawRead addr byteCount valVar = do
-  idx <- gets macawMemIndex
-  let mem = SMem (varTerm (M.memVar idx))
+  mem <- getMacawMem
   let valType = SMT.bvType (8*byteCount)
   addCommand $ SMT.defineFun valVar [] valType (readBVLE mem addr byteCount)
-
 
 macawWrite :: SMT.Term -> Integer -> SMT.Term -> VCGMonad ()
 macawWrite addr byteCount val = do
@@ -108,6 +123,13 @@ macawWrite addr byteCount val = do
   let SMem newMem = writeBVLE mem addr val byteCount
   addCommand $ SMT.defineFun (M.memVar (idx+1)) [] memType newMem
   modify $ \s -> s { macawMemIndex = idx + 1 }
+
+-- | A SMT predicate that holds if all the bytes [addr, addr+sz)` are on the stack.
+--
+-- Note. This predicate can assume that `sz > 0` and `sz < 2^64`, but still
+-- be correct if the computation of `addr+sz` overflows.
+isStackAddr :: SMT.Term -> Integer -> SMT.Term
+isStackAddr addr sz = SMT.term_app "is_stack_addr" [addr, SMT.bvdecimal sz 64]
 
 eventsEq :: [L.LEvent]
          -> [M.MEvent]
@@ -122,36 +144,49 @@ eventsEq levs (M.CmdEvent cmd:mevs) = do
 eventsEq (L.AllocaEvent{}:levs) mevs =
   eventsEq levs mevs --Skip alloca events
 eventsEq (L.LoadEvent _llvmAddr llvmCount llvmValVar:levs)
-         (M.CondReadEvent macawCond macawAddr macawCount macawValVar:mevs) = do
+         (M.ReadEvent macawAddr macawCount macawValVar:mevs) = do
+  -- Check size of writes are equivalent.
   when (macawCount /= llvmCount) $ do
     error "Bytes read with different number of bytes."
-  let valType = SMT.bvType (8*macawCount)
   liftIO $ hPutStrLn stderr $ "TODO: Assert addresses are equal."
-
-  -- Require that write occur.
-  addNegGoal $ SMT.not macawCond
-
-  -- Assert addresses correspond equal
---  addNegGoal $ SMT.distinct [ llvmAddr, macawAddr ]
-
-  -- Declare values returned and assert they are equal.
-  addCommand $ SMT.declareFun llvmValVar [] valType
+  --  addNegGoal $ SMT.distinct [ llvmAddr, macawAddr ]
+  -- Define Macaw value returned
   macawRead macawAddr macawCount macawValVar
-  addAssumption $ SMT.eq [ varTerm llvmValVar, varTerm macawValVar]
+  -- Define LLVM value returned in terms of macaw value
+  addCommand $ SMT.defineFun llvmValVar [] (SMT.bvType (8*macawCount)) (varTerm macawValVar)
+  -- Process future events.
   eventsEq levs mevs
 
-eventsEq levs
-         (M.CondReadEvent macawCond addr byteCount macawValVar:mevs) = do
+eventsEq (L.LoadEvent _llvmAddr llvmCount llvmValVar:levs)
+         (M.CondReadEvent macawCond macawReadAddr macawCount _macawDef macawValVar:mevs) = do
+  -- Require that write occurs.
+  addNegGoal $ SMT.not macawCond
+  -- Check size of writes are equivalent.
+  when (macawCount /= llvmCount) $ do
+    error "Bytes read with different number of bytes."
+  liftIO $ hPutStrLn stderr $ "TODO: Assert addresses are equal."
+  --  addNegGoal $ SMT.distinct [ llvmAddr, macawAddr ]
+  -- Define Macaw value returned
+  macawRead macawReadAddr macawCount macawValVar
+  -- Define LLVM value returned in terms of macaw value
+  addCommand $ SMT.defineFun llvmValVar [] (SMT.bvType (8*macawCount)) (varTerm macawValVar)
+  -- Process future events.
+  eventsEq levs mevs
 
-  let valType = SMT.bvType (8*byteCount)
-  liftIO $ hPutStrLn stderr $ "TODO: Assert address is on stack and valid."
+-- This doesn't match a LLVM read, so we will require it either
+-- doesn't occur or is a write to the stack.
+eventsEq levs
+         (M.CondReadEvent macawCond addr byteCount defTerm macawValVar:mevs) = do
 
   -- Declare macaw value variable
-  idx <- gets macawMemIndex
-  let mem = SMem (varTerm (M.memVar idx))
-  addCommand $ SMT.declareFun macawValVar [] valType
+  mem <- getMacawMem
+  let valType = SMT.bvType (8*byteCount)
+  -- Assert that there are at least byteCount bytes available to read at address addr.
+  addNegGoal $ SMT.and [macawCond, SMT.not (isStackAddr addr byteCount)]
 
-  addAssumption $ SMT.implies [macawCond] (SMT.eq [ varTerm macawValVar, readBVLE mem addr byteCount])
+  addCommand $ SMT.defineFun macawValVar [] valType $
+     SMT.ite macawCond (readBVLE mem addr byteCount) defTerm
+
   eventsEq levs mevs
 
 eventsEq (L.StoreEvent _llvmAddr llvmCount llvmVal:levs)
@@ -173,7 +208,7 @@ eventsEq (L.StoreEvent _llvmAddr llvmCount llvmVal:levs)
 
 -- Writes to the stack may occur in Macaw, but not LLVM
 eventsEq levs (M.WriteEvent macawAddr macawCount macawVal:mevs) = do
-  liftIO $ hPutStrLn stderr $ "TODO: Assert address is on stack."
+  liftIO $ hPutStrLn stderr $ "TODO: Assert address is on stack and writable."
 
   macawWrite macawAddr macawCount macawVal
 
@@ -449,9 +484,9 @@ verifyFunction lMod discState funMap outDir vfi = do
   ls' <- execStateT (L.bb2SMT firstBlock) ls0
   putStrLn "Simulating Macaw program ..."
   let initAbsState = M.mkInitialAbsState x86_64_linux_info mem addr
-  (blocks,_cnt, _merr) <- stToIO $
+  (macawBlocks,_cnt, _merr) <- stToIO $
     M.disassembleFn x86_64_linux_info stGen addr maxBound initAbsState
-  let blockMap = Map.fromList [ (M.blockLabel b, b) | b <- blocks ]
+  let blockMap = Map.fromList [ (M.blockLabel b, b) | b <- macawBlocks ]
   let Just macawParsedBlock = Map.lookup 0 blockMap
   ms' <- execStateT (M.block2SMT blockMap macawParsedBlock) ms0
   pfSt <- runVCG vcgCfg llvmArgDecls $ stateEq ls' ms'

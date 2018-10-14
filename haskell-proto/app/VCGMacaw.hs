@@ -36,7 +36,6 @@ import           Data.Parameterized.Some
 import           Data.Parameterized.TraversableF
 import           Data.Text (Text)
 import qualified Data.Text as Text
-import qualified Data.Text.Lazy.Builder as Builder
 import           Data.Word
 import           GHC.Stack
 import           System.IO
@@ -86,12 +85,13 @@ evalMemAddr m a =
 
 data MEvent
   = CmdEvent !SMT.Command
-  | CondReadEvent !SMT.Term !SMT.Term !Integer !Var
-    -- ^ `CondReadEvent c a w v` indicates that we read `w` bytes from `a` when
-    -- condition `c` holds, and the read returned the value `v`.
-    --
-    -- This can have a side effect, so we record the event.  When `c` is false,
-    -- then the read value `v` is irrelevant.
+  | ReadEvent !SMT.Term !Integer !Var
+    -- ^ `ReadEvent a w v` indicates that we read `w` bytes from `a`,
+    -- and assign the value returned to `v`.
+  | CondReadEvent !SMT.Term !SMT.Term !Integer !SMT.Term !Var
+    -- ^ `CondReadEvent c a w d v` indicates that we read `w` bytes from `a` when
+    -- condition `c` holds, and assign the return value to `v`.   When `c`
+    -- is false, then assign `d` to `v`.
   | WriteEvent !SMT.Term !Integer !SMT.Term
     -- ^ `WriteEvent a w v` indicates that we write the `w` byte value `v`  to `a`.
     --
@@ -105,7 +105,8 @@ data MEvent
 ppEvent :: MEvent
         -> String
 ppEvent CmdEvent{} = "cmd"
-ppEvent CondReadEvent{} = "read"
+ppEvent ReadEvent{} = "read"
+ppEvent CondReadEvent{} = "condRead"
 ppEvent WriteEvent{} = "write"
 ppEvent (FetchAndExecuteEvent _) = "fetchAndExecute"
 ppEvent (BranchEvent _ _ _) = "branch"
@@ -294,7 +295,7 @@ assignRhs2SMT aid rhs = do
       addrTerm <- primEval addr
       valVar <- setUndefined aid
       -- Add conditional read event.
-      addEvent $ CondReadEvent SMT.true addrTerm (natValue w) valVar
+      addEvent $ ReadEvent addrTerm (natValue w) valVar
 
     CondReadMem (BVMemRepr w end) cond addr def -> do
       when (end /= LittleEndian) $ do
@@ -308,9 +309,7 @@ assignRhs2SMT aid rhs = do
 
       -- Assert that value = default when cond is false
       -- Add conditional read event.
-      addEvent $ CondReadEvent condTerm addrTerm (natValue w) valVar
-      addEvent $ CmdEvent $ SMT.assert $
-        SMT.or [condTerm, SMT.eq [varTerm valVar, defTerm]]
+      addEvent $ CondReadEvent condTerm addrTerm (natValue w) defTerm valVar
 
     SetUndefined tp -> do
       var <- setUndefined aid

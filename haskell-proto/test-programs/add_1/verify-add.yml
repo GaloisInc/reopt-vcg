@@ -10,3 +10,7 @@ functions:
   macawFunName: add
   macawArgs: ['rdi_0']
   macawVars: []
+  blocks:
+  - blockLabel: '1'
+    blockAddr: 0x4004d6
+    blockSize: 0x1a
