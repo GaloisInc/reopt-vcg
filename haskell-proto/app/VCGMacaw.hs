@@ -7,25 +7,20 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 module VCGMacaw
-  ( {- functionHasName -}
-    inject
-  , getDiscState
-  , block2SMT
-  , MState(..)
-  , MEvent(..)
+  ( declRegs
+  , smtRegVar
+  , blockEvents
+  , Event(..)
   , ppEvent
   , memVar
   ) where
 
 import           Control.Lens
 import           Control.Monad
+import           Control.Monad.ST
 import           Control.Monad.State
-import qualified Data.ByteString as BS
-import           Data.ElfEdit
 import           Data.Macaw.CFG as M
 import           Data.Macaw.CFG.Block
-import           Data.Macaw.Discovery as M
-import           Data.Macaw.Memory.ElfLoader
 import qualified Data.Macaw.Types as M
 import           Data.Macaw.X86
 import           Data.Map.Strict (Map)
@@ -44,25 +39,6 @@ import qualified What4.Protocol.SMTLib2.Syntax as SMT
 
 import           VCGCommon
 
-
-
--- | Read an elf from a binary
-readElf :: FilePath -> IO (Elf 64)
-readElf path = do
-  contents <- BS.readFile path
-  case parseElf contents of
-    ElfHeaderError _ msg ->
-      fatalError msg
-    Elf32Res{} -> do
-      fatalError "Expected 64-bit elf file."
-    Elf64Res errs e -> do
-      mapM_ (warning . show) errs
-      unless (elfMachine e == EM_X86_64) $ do
-        fatalError "Expected a x86-64 binary"
-      unless (elfOSABI e `elem` [ELFOSABI_LINUX, ELFOSABI_SYSV]) $ do
-        warning "Expected Linux binary"
-      pure e
-
 memVar :: Integer -> Var
 memVar i = "x86mem_" <> Text.pack (show i)
 
@@ -75,6 +51,10 @@ smtLocalVar (AssignId n) = "x86local_" <> Text.pack (show (indexValue n))
 macawError :: HasCallStack => String -> a
 macawError msg = error $ "[Macaw Error] " ++ msg
 
+initReg :: X86Reg tp
+        -> Const SMT.Term tp
+initReg reg = Const $ varTerm (smtRegVar reg)
+
 evalMemAddr :: Map RegionIndex SMT.Term
             -> MemAddr 64
             -> SMT.Term
@@ -83,8 +63,10 @@ evalMemAddr m a =
     Nothing -> error "evalMemAddr given address with bad region index."
     Just b -> SMT.bvadd b [SMT.bvdecimal (toInteger (addrOffset a)) 64]
 
-data MEvent
+data Event
   = CmdEvent !SMT.Command
+  | InstructionEvent !(MemSegmentOff 64)
+    -- ^ Marker to indicate the instruction at the given address will be executed.
   | ReadEvent !SMT.Term !Integer !Var
     -- ^ `ReadEvent a w v` indicates that we read `w` bytes from `a`,
     -- and assign the value returned to `v`.
@@ -102,8 +84,9 @@ data MEvent
                 !(RegState (ArchReg X86_64) (Const SMT.Term))
                 !(RegState (ArchReg X86_64) (Const SMT.Term))
 
-ppEvent :: MEvent
+ppEvent :: Event
         -> String
+ppEvent (InstructionEvent _) = "instruction"
 ppEvent CmdEvent{} = "cmd"
 ppEvent ReadEvent{} = "read"
 ppEvent CondReadEvent{} = "condRead"
@@ -111,36 +94,28 @@ ppEvent WriteEvent{} = "write"
 ppEvent (FetchAndExecuteEvent _) = "fetchAndExecute"
 ppEvent (BranchEvent _ _ _) = "branch"
 
+instance Show Event where
+  show = ppEvent
+
 data MState = MState
-  { locals   :: !(Map Word64 SMT.Term)
+  { blockStartAddr :: !(MemSegmentOff 64)
+    -- ^ Initial address of block.
+  , locals   :: !(Map Word64 SMT.Term)
+    -- ^ Map from local indices to associated term.
   , initRegs :: !(RegState X86Reg (Const SMT.Term))
---  , memIndex  :: !Integer
---  , curMem      :: !SMem
-  , retval   :: Maybe (RegState X86Reg (Const SMT.Term))
-  , events   :: [MEvent]
+  , events   :: [Event]
   }
 
 initRegDecl :: X86Reg tp
             -> SMT.Command
 initRegDecl reg = SMT.declareFun (smtRegVar reg) [] (toSMTType (M.typeRepr reg))
 
-inject :: MState
-inject =
-  MState { locals = Map.empty
-         , initRegs = mkRegState initReg
-         --, curMem = SMem (varTerm (memVar 0))
-         --, memIndex = 1
-         , retval = Nothing
-         , events = ((\(Some r) -> CmdEvent (initRegDecl r)) <$> reverse archRegs)
---                 ++ [CmdEvent (SMT.declareFun (memVar 0) [] memType)]
-         }
-
 ------------------------------------------------------------------------
 -- MStateM
 
 type MStateM a = StateT MState IO a
 
-addEvent :: MEvent -> MStateM ()
+addEvent :: Event -> MStateM ()
 addEvent e = modify $ \s -> s { events = e : events s}
 
 ------------------------------------------------------------------------
@@ -175,13 +150,9 @@ primEval (SymbolValue _w _id) = do
 evalToMSymExpr :: Value X86_64 ids tp -> MStateM (Const SMT.Term tp)
 evalToMSymExpr v = Const <$> primEval v
 
-initReg :: X86Reg tp
-         -> Const SMT.Term tp
-initReg reg = Const $ varTerm (smtRegVar reg)
-
-toSMTType :: M.TypeRepr tp -> SMT.Type
-toSMTType (M.BVTypeRepr w) = SMT.bvType (natValue w)
-toSMTType M.BoolTypeRepr = SMT.boolType
+toSMTType :: M.TypeRepr tp -> SMT.Sort
+toSMTType (M.BVTypeRepr w) = SMT.bvSort (natValue w)
+toSMTType M.BoolTypeRepr = SMT.boolSort
 toSMTType tp = error $ "toSMTType: unsupported type " ++ show tp
 
 {-
@@ -332,11 +303,15 @@ stmt2SMT stmt =
       addrTerm <- primEval addr
       valTerm  <- primEval val
       addEvent $ WriteEvent addrTerm (natValue w) valTerm
-    InstructionStart _off _mnem -> return () -- NoOps
+    InstructionStart off _mnem -> do
+      blockAddr <- gets blockStartAddr
+      let Just addr = incSegmentOff blockAddr (toInteger off)
+      addEvent $ InstructionEvent addr
     Comment _s -> return ()                 -- NoOps
     ArchState _a _m -> return ()             -- NoOps
     ExecArchStmt{} -> error "stmt2SMT unsupported statement."
 
+{-
 -- | Attempt to interpret the statement list as just a jump to the given address with
 -- the registers provided.
 blockAsJump :: forall ids
@@ -354,45 +329,44 @@ blockAsJump blockMap off =
         FetchAndExecute s -> do
           traverseF evalToMSymExpr s
         s -> error $ "Unsupported branch terminal: " ++ show (pretty s)
+-}
 
-termStmt2SMT :: Map Word64 (Block X86_64 ids)
-             -> TermStmt X86_64 ids
+termStmt2SMT :: TermStmt X86_64 ids
              -> MStateM ()
-termStmt2SMT blockMap tstmt =
+termStmt2SMT tstmt =
   case tstmt of
     FetchAndExecute st -> do
       regs <- traverseF evalToMSymExpr st
       addEvent $ FetchAndExecuteEvent regs
-    Branch cnd thn els -> do
-      cndv <- primEval cnd
-      t <- blockAsJump blockMap thn
-      f <- blockAsJump blockMap els
-      addEvent $ BranchEvent cndv t f
+    Branch{} ->
+      error "Unexpected branch"
     TranslateError _regs msg ->
       error $ "TranslateError : " ++ Text.unpack msg
     ArchTermStmt stmt _regs ->
       error $ "Unsupported : " ++ show (prettyF stmt)
 
-block2SMT :: Map Word64 (Block X86_64 ids)
-          -> Block X86_64 ids
+block2SMT :: Block X86_64 ids
           -> MStateM ()
-block2SMT blockMap b = do
+block2SMT b = do
   mapM_ stmt2SMT (blockStmts b)
-  termStmt2SMT blockMap (blockTerm b)
+  termStmt2SMT (blockTerm b)
 
-getDiscState :: FilePath -> IO (DiscoveryState X86_64)
-getDiscState elfFilePath = do
-  e <- readElf elfFilePath
-  -- Construct memory representation of Elf file.
-  let loadOpts = defaultLoadOptions
+declRegs :: [SMT.Command]
+declRegs = (\(Some r) -> initRegDecl r) <$> archRegs
 
-  (warnings, mem, _entry, symbols) <- either fail pure $
-    resolveElfContents loadOpts e
-  forM_ warnings $ \w -> do
-    hPutStrLn stderr w
-
-  let ainfo = x86_64_linux_info
-  -- Create map from symbol addresses to name.
-  let addrSymMap = Map.fromList [ (memSymbolStart msym, memSymbolName msym) | msym <- symbols ]
-  -- Create initial discovery state.
-  pure $ emptyDiscoveryState mem addrSymMap ainfo
+blockEvents :: MemSegmentOff 64 -> Word64 -> IO [Event]
+blockEvents addr sz = do
+  Some stGen <- stToIO $ newSTNonceGenerator
+  let loc = rootLoc addr
+  mBlock <- stToIO $ disassembleFixedBlock stGen loc (fromIntegral sz)
+  case mBlock of
+    Left err -> error $ "Translation error: " ++ show err
+    Right b -> do
+      let regs = mkRegState initReg
+      let ms0 = MState { blockStartAddr = addr
+                       , locals = Map.empty
+                       , initRegs = regs
+                       , events = []
+                       }
+      ms <- execStateT (block2SMT b) ms0
+      pure $ reverse $ events ms

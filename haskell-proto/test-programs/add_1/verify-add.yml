@@ -4,13 +4,17 @@ llvmBCFilePath: add.bc
 binFilePath: add
 functions:
 - llvmFunName: add
-  llvmStartBlock: '1'
-  llvmArgs: ['0']
-  llvmVars: []
   macawFunName: add
-  macawArgs: ['rdi_0']
-  macawVars: []
+  allocaLimit: 16
+  stackSize: 0x20
   blocks:
-  - blockLabel: '1'
-    blockAddr: 0x4004d6
-    blockSize: 0x1a
+  - label: '1'
+    addr: 0x4004d6
+    size: 0x1a
+    events:
+    - addr: 0x4004d6
+      type: stack_reg_write
+    - addr: 0x4004ee
+      type: stack_reg_read
+    - addr: 0x4004ef
+      type: stack_reg_read

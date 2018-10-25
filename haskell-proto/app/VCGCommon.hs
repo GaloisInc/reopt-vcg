@@ -21,8 +21,6 @@ module VCGCommon
     Var
   , varTerm
     -- * Memory
-  , SMem(..)
-  , memType
   , readBVLE
   , writeBVLE
     -- * Error reporting
@@ -41,20 +39,13 @@ type Var = Text
 varTerm :: Var -> SMT.Term
 varTerm = SMT.T . Builder.fromText
 
-
--- | A term denoting an term with type @Array (bv 64) (bv 8)
-newtype SMem = SMem SMT.Term
-
-memType :: SMT.Type
-memType = SMT.arrayType (SMT.bvType 64) (SMT.bvType 8)
-
 -- | Read a number of bytes as a bitvector.
 -- Note. This refers repeatedly to ptr so, it should be a constant.
-readBVLE :: SMem
+readBVLE :: SMT.Term -- ^ Memory
          -> SMT.Term  -- ^ Address to read
          -> Integer -- ^ Number of bytes to read.
          -> SMT.Term
-readBVLE (SMem mem) ptr0 w = go (w-1)
+readBVLE mem ptr0 w = go (w-1)
   where go :: Integer -> SMT.Term
         go 0 = SMT.select mem ptr0
         go i =
@@ -63,12 +54,12 @@ readBVLE (SMem mem) ptr0 w = go (w-1)
 
 -- | Read a number of bytes as a bitvector.
 -- Note. This refers repeatedly to ptr so, it should be a constant.
-writeBVLE :: SMem
+writeBVLE :: SMT.Term
           -> SMT.Term  -- ^ Address to write
           -> SMT.Term  -- ^ Value to write
           -> Integer -- ^ Number of bytes to write.
-          -> SMem
-writeBVLE (SMem mem) ptr0 val w = SMem $ go (w-1)
+          -> SMT.Term
+writeBVLE mem ptr0 val w = go (w-1)
   where go :: Integer -> SMT.Term
         go 0 = SMT.store mem ptr0 (SMT.extract 7 0 val)
         go i =
