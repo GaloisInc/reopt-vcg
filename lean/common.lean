@@ -59,7 +59,7 @@ protected def do_add : nat_expr → nat_expr → nat_expr
 | (lit x) (lit y) := lit (x+y)
 | x y := add x y
 
-def do_sub : nat_expr → nat_expr → nat_expr
+protected def do_sub : nat_expr → nat_expr → nat_expr
 | (lit x) (lit y) := lit (x-y)
 | x y := sub x y
 
@@ -275,6 +275,7 @@ end lhs
 section
 
 def reg8l (i:fin 16) := lhs.reg $ reg.concrete_gpreg i gpreg_type.reg8l
+def reg8h (i:fin 16) := lhs.reg $ reg.concrete_gpreg (16+i) gpreg_type.reg8l
 
 def al  := reg8l 0
 def cl  := reg8l 1
@@ -284,8 +285,7 @@ def spl := reg8l 4
 def bpl := reg8l 5
 def sil := reg8l 6
 def dil := reg8l 7
- -- TODO: this order okay?
-def ah  := reg8l 8
+def ah  := reg8h 0
 
 def reg16 (i:fin 16) := lhs.reg $ reg.concrete_gpreg i gpreg_type.reg16
 
@@ -307,10 +307,10 @@ def rax := reg64 0
 def rcx := reg64 1
 def rdx := reg64 2
 def rbx := reg64 3
-def rsi := reg64 4
-def rdi := reg64 5
-def rsp := reg64 6
-def rbp := reg64 7
+def rsp := reg64 4
+def rbp := reg64 5
+def rsi := reg64 6
+def rdi := reg64 7
 def r8  := reg64 8
 def r9  := reg64 9
 def r10 := reg64 10
