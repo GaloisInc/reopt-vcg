@@ -754,7 +754,7 @@ def cwde : instruction :=
    pat_end
 
 ------------------------------------------------------------------------
--- cwde definition
+-- cdqe definition
 -- Convert Doubleword to Quadword
 def cdqe : instruction :=
  definst "cdqe" $ do
