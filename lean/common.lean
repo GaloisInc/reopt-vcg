@@ -46,6 +46,8 @@ inductive nat_expr : Type
 | add : nat_expr → nat_expr → nat_expr
 | sub : nat_expr → nat_expr → nat_expr
 | mul : nat_expr → nat_expr → nat_expr
+-- div x y is floor (x / y)
+| div : nat_expr → nat_expr → nat_expr
 
 namespace nat_expr
 
@@ -65,11 +67,16 @@ protected def do_mul : nat_expr → nat_expr → nat_expr
 | (lit x) (lit y) := lit (x*y)
 | x y := mul x y
 
+protected def do_div : nat_expr → nat_expr → nat_expr
+| (lit x) (lit y) := lit (x/y)
+| x y := div x y
+
 instance : has_zero nat_expr := ⟨nat_expr.zero⟩
 instance : has_one nat_expr := ⟨nat_expr.one⟩
 instance : has_add nat_expr := ⟨nat_expr.do_add⟩
 instance : has_sub nat_expr := ⟨nat_expr.do_sub⟩
 instance : has_mul nat_expr := ⟨nat_expr.do_mul⟩
+instance : has_div nat_expr := ⟨nat_expr.do_div⟩
 
 protected def pp : nat_expr → string
 | (lit x) := x.repr
@@ -77,6 +84,7 @@ protected def pp : nat_expr → string
 | (add x y) := sexp.app "addNat" [x.pp, y.pp]
 | (sub x y) := sexp.app "subNat" [x.pp, y.pp]
 | (mul x y) := sexp.app "mulNat" [x.pp, y.pp]
+| (div x y) := sexp.app "divNat" [x.pp, y.pp]
 
 instance : has_repr nat_expr := ⟨nat_expr.pp⟩
 
@@ -267,6 +275,7 @@ end lhs
 section
 
 def reg8l (i:fin 16) := lhs.reg $ reg.concrete_gpreg i gpreg_type.reg8l
+def reg8h (i:fin 16) := lhs.reg $ reg.concrete_gpreg (16+i) gpreg_type.reg8l
 
 def al  := reg8l 0
 def cl  := reg8l 1
@@ -276,6 +285,7 @@ def spl := reg8l 4
 def bpl := reg8l 5
 def sil := reg8l 6
 def dil := reg8l 7
+def ah  := reg8h 0
 
 def reg16 (i:fin 16) := lhs.reg $ reg.concrete_gpreg i gpreg_type.reg16
 
@@ -297,6 +307,18 @@ def rax := reg64 0
 def rcx := reg64 1
 def rdx := reg64 2
 def rbx := reg64 3
+def rsp := reg64 4
+def rbp := reg64 5
+def rsi := reg64 6
+def rdi := reg64 7
+def r8  := reg64 8
+def r9  := reg64 9
+def r10 := reg64 10
+def r11 := reg64 11
+def r12 := reg64 12
+def r13 := reg64 13
+def r14 := reg64 14
+def r15 := reg64 15
 
 def flagreg (i:fin 32) := lhs.reg $ reg.concrete_flagreg i
 
@@ -320,8 +342,18 @@ local infixr `.→`:30 := fn
 inductive prim : type → Type
 -- `(add i)` returns the sum of two i-bit numbers.
 | add (i:ℕ) : prim (bv i .→ bv i .→ bv i)
+-- `(adc i)` returns the sum of two i-bit numbers and a carry bit.
+| adc (i:ℕ) : prim (bv i .→ bv i .→ bit .→ bv i)
 -- `(mul i)` returns the product of two i-bit numbers.
 | mul (i:ℕ) : prim (bv i .→ bv i .→ bv i)
+-- `(quot i)` returns the quotient of two i-bit numbers.
+| quot (i:ℕ) : prim (bv i .→ bv i .→ bv i)
+-- `(rem i)` returns the remainder of two i-bit numbers.
+| rem (i:ℕ) : prim (bv i .→ bv i .→ bv i)
+-- `(squot i)` returns the signed quotient of two i-bit numbers.
+| squot (i:ℕ) : prim (bv i .→ bv i .→ bv i)
+-- `(srem i)` returns the signed remainder of two i-bit numbers.
+| srem (i:ℕ) : prim (bv i .→ bv i .→ bv i)
 -- `(slice w u l)` takes bits `u` through `l` out of a `w`-bit number.
 | slice (w:ℕ) (u:ℕ) (l:ℕ) : prim (bv w .→ bv (u+1-l))
 -- `(sext i o)` sign extends an `i`-bit number to a `o`-bit number.
@@ -330,10 +362,22 @@ inductive prim : type → Type
 | uext  (i:ℕ) (o:ℕ) : prim (bv i .→ bv o)
 -- `(trunc i o)` truncates an `i`-bit number to a `o`-bit number.
 | trunc (i:ℕ) (o:ℕ) : prim (bv i .→ bv o)
+-- `(bsf i)` returns the index of least-siginifant bit that is 1.
+| bsf   (i:ℕ) : prim (bv i .→ bv i)
+-- `(bsr i)` returns the index of most-siginifant bit that is 1.
+| bsr   (i:ℕ) : prim (bv i .→ bv i)
+-- `(bswap i)` reverses the bytes in the bitvector.
+| bswap (i:ℕ) : prim (bv i .→ bv i)
+-- `zero` is the zero bit
+| zero : prim bit
+-- `one` is the one bit
+| one : prim bit
 -- `(eq tp)` returns `true` if two values are equal.
 | eq (tp:type) : prim (tp .→ tp .→ bit)
 -- `(neq tp)` returns `true` if two values are not equal.
 | neq (tp:type) : prim (tp .→ tp .→ bit)
+-- `(neg tp)` Two's Complement negation.
+| neg (i:ℕ) : prim (bv i .→ bv i)
 -- `x87_fadd` adds two extended precision values using the flags in the x87 register.
 | x87_fadd : prim (x86_80 .→ x86_80 .→ x86_80)
 -- `float_to_x86_80` converts a float to an extended precision number (lossless)
@@ -342,87 +386,173 @@ inductive prim : type → Type
 | double_to_x86_80 : prim (double .→ x86_80)
 -- `bv_to_x86_80` converts a bitvector to an extended precision number (lossless)
 | bv_to_x86_80  (w : one_of [16,32]) : prim (bv w .→ x86_80)
+-- `bvnat` constructs a bit vector from a natural number.
+| bvnat (w:ℕ) : ℕ → prim (bv w)
+-- `(bvadd i)` adds two i-bit bitvectors.
+| bvadd (i:ℕ) : prim (bv i .→ bv i .→ bv i)
+-- `(bvsub i)` substracts two i-bit bitvectors.
+| bvsub (i:ℕ) : prim (bv i .→ bv i .→ bv i)
+-- `(ssbb_overflows i)` true if signed sub overflows, the bit
+-- is a borrow bit.
+| ssbb_overflows (i:ℕ) : prim (bv i .→ bv i .→ bit .→ bit)
+-- `(usbb_overflows i)` true if unsigned sub overflows,
+-- the bit is a borrow bit.
+| usbb_overflows (i:ℕ) : prim (bv i .→ bv i .→ bit .→ bit)
+| uadc_overflows (i:ℕ) : prim (bv i .→ bv i .→ bit .→ bit)
+| sadc_overflows (i:ℕ) : prim (bv i .→ bv i .→ bit .→ bit)
+| and (i:ℕ) : prim (bv i .→ bv i .→ bv i)
+| or (i:ℕ) : prim (bv i .→ bv i .→ bv i)
+| xor (i:ℕ) : prim (bv i .→ bv i .→ bv i)
+| shl (i:ℕ) : prim (bv i .→ bv i .→ bv i)
+-- `(bvbit i)` interprets the second argument as a bit index and returns
+-- that bit from the first argument.
+| bvbit (i:ℕ) : prim (bv i .→ bv i .→ bit)
+| complement (i:ℕ) : prim (bv i .→ bv i)
+| bvcat (i:ℕ) : prim (bv i .→ bv i .→ bv (2*i))
+| bv_least_nibble (i:ℕ) : prim (bv i .→ bv 4)
+| msb (i:ℕ) : prim (bv i .→ bit)
+| least_byte (i:ℕ) : prim (bv i .→ bv 8)
+| even_parity (i:ℕ) : prim (bv i .→ bit)
 
 namespace prim
 
 def pp : Π{tp:type}, prim tp → string
 | ._ (add i) := "add " ++ i.pp
+| ._ (adc i) := "adc " ++ i.pp
 | ._ (mul i) := "mul " ++ i.pp
+| ._ (quot i) := "quot " ++ i.pp
+| ._ (rem i) := "rem " ++ i.pp
+| ._ (squot i) := "squot " ++ i.pp
+| ._ (srem i) := "srem " ++ i.pp
 | ._ (slice w u l) := "slice " ++ w.pp ++ " " ++ u.pp ++ " " ++ l.pp
 | ._ (sext i o) := "sext " ++ i.pp ++ " " ++ o.pp
 | ._ (uext i o) := "uext " ++ i.pp ++ " " ++ o.pp
 | ._ (trunc i o) := "trunc " ++ i.pp ++ " " ++ o.pp
+| ._ (bsf i) := "bsf " ++ i.pp
+| ._ (bsr i) := "bsr " ++ i.pp
+| ._ (bswap i) := "bswap " ++ i.pp
+| ._ zero := "0"
+| ._ one  := "1"
 | ._ (eq tp) := "eq " ++ tp.pp
 | ._ (neq tp) := "neq " ++ tp.pp
+| ._ (neg tp) := "neg " ++ tp.pp
 | ._ x87_fadd := "x87_fadd"
 | ._ float_to_x86_80 := "float_to_x86_80"
 | ._ double_to_x86_80 := "double_to_X86_80"
 | ._ (bv_to_x86_80 w) := "sext " ++ w.pp
+| ._ (bvnat w n) := "bvnat " ++ n.pp
+| ._ (bvadd i) := "bvadd " ++ i.pp
+| ._ (bvsub i) := "bvsub " ++ i.pp
+| ._ (ssbb_overflows i) := "ssbb_overflows " ++ i.pp
+| ._ (usbb_overflows i) := "usbb_overflows " ++ i.pp
+| ._ (uadc_overflows i) := "uadc_overflows " ++ i.pp
+| ._ (sadc_overflows i) := "sadc_overflows " ++ i.pp
+| ._ (and i) := "and " ++ i.pp
+| ._ (or i) := "or " ++ i.pp
+| ._ (xor i) := "xor " ++ i.pp
+| ._ (shl i) := "shl " ++ i.pp
+| ._ (bvbit i) := "bvbit " ++ i.pp
+| ._ (complement i) := "complement " ++ i.pp
+| ._ (bvcat i) := "bvcat " ++ i.pp
+| ._ (bv_least_nibble i) := "bv_least_nibble" ++ i.pp
+| ._ (msb i) := "msb " ++ i.pp
+| ._ (least_byte i) := "least_byte " ++ i.pp
+| ._ (even_parity i) := "even_parity " ++ i.pp
+
 
 end prim
 
--- Type for expressions that may denote a value.
-inductive value : type → Type
--- Create a value our of a primitive
-| primitive {rtp:type} (o:prim rtp) : value rtp
+-- Type for expressions.
+inductive expression : type → Type
+-- Create a expression our of a primitive
+| primitive {rtp:type} (o:prim rtp) : expression rtp
 -- Apply a function to an argument.
-| app {rtp:type} {tp:type} (f : value (type.fn tp rtp)) (a : value tp) : value rtp
-  -- Get the value associated with the assignable value.
-| get {tp:type} (l:lhs tp) : value tp
-  -- Return the value in the local variable at the given index.
-| get_local (idx:ℕ) (tp:type) : value tp
+| app {rtp:type} {tp:type} (f : expression (type.fn tp rtp)) (a : expression tp) : expression rtp
+  -- Get the expression associated with the assignable expression.
+| get {tp:type} (l:lhs tp) : expression tp
+  -- Return the expression in the local variable at the given index.
+| get_local (idx:ℕ) (tp:type) : expression tp
 
-namespace value
+namespace expression
 
-instance (rtp:type) : has_coe (prim rtp) (value rtp) := ⟨value.primitive⟩
+instance (rtp:type) : has_coe (prim rtp) (expression rtp) := ⟨expression.primitive⟩
 
-instance (a:type) (f:type) : has_coe_to_fun (value (type.fn a f)) :=
-{ F := λ_, Π(y:value a), value f
+instance (a:type) (f:type) : has_coe_to_fun (expression (type.fn a f)) :=
+{ F := λ_, Π(y:expression a), expression f
 , coe := app
 }
 
-instance (w:ℕ) : has_zero (value (bv w)) := sorry
-instance (w:ℕ) : has_one  (value (bv w)) := sorry
-instance (w:ℕ) : has_add  (value (bv w)) := sorry
+def bvadd : Π{w:ℕ}, expression (bv w) → expression (bv w) → expression (bv w)
+  | ._ (primitive (prim.bvnat ._ n)) (primitive (prim.bvnat w m)) := prim.bvnat w (n + m)
+  | i x y := prim.bvadd i x y
+
+def bvsub : Π{w:ℕ}, expression (bv w) → expression (bv w) → expression (bv w)
+  | ._ (primitive (prim.bvnat ._ n)) (primitive (prim.bvnat w m)) := prim.bvnat w (n - m)
+  | i x y := prim.bvsub i x y
+
+def bvneg : Π{w:ℕ}, expression (bv w) → expression (bv w)
+  | _ x := app (primitive (prim.neg _)) x
+
+instance (w:ℕ) : has_zero (expression (bv w)) := ⟨prim.bvnat w 0⟩
+instance (w:ℕ) : has_one  (expression (bv w)) := ⟨prim.bvnat w 1⟩
+instance (w:ℕ) : has_add  (expression (bv w)) := ⟨bvadd⟩
+instance (w:ℕ) : has_sub  (expression (bv w)) := ⟨bvsub⟩
+instance (w:ℕ) : has_neg  (expression (bv w)) := ⟨bvneg⟩
+
+def adc         {w:ℕ} (x : expression (bv w)) (y : expression (bv w)) (b : expression bit) : expression (bv w) := prim.adc   w x y b
+def bswap       {w:ℕ} (v : expression (bv w))                                              : expression (bv w) := prim.bswap w v
+def quot        {w:ℕ} (x : expression (bv w)) (y : expression (bv w))                      : expression (bv w) := prim.quot  w x y
+def rem         {w:ℕ} (x : expression (bv w)) (y : expression (bv w))                      : expression (bv w) := prim.rem   w x y
+def signed_quot {w:ℕ} (x : expression (bv w)) (y : expression (bv w))                      : expression (bv w) := prim.squot w x y
+def signed_rem  {w:ℕ} (x : expression (bv w)) (y : expression (bv w))                      : expression (bv w) := prim.srem  w x y
 
 protected
-def is_app : Π{tp:type}, value tp → bool
+def is_app : Π{tp:type}, expression tp → bool
 | ._ (app _ _) := tt
 | _ _ := ff
 
 protected
-def pp_args : Π{tp:type}, value tp → string
+def pp_args : Π{tp:type}, expression tp → string
 | ._ (primitive o) := o.pp
 | ._ (app f a) := f.pp_args ++ " " ++ paren_if a.is_app a.pp_args
 | ._ (get lhs) := lhs.repr
 | ._ (get_local idx tp) := sexp.app "local" [idx.pp]
 
 protected
-def pp {tp:type} (v:value tp) := paren_if v.is_app v.pp_args
+def pp {tp:type} (v:expression tp) := paren_if v.is_app v.pp_args
 
-instance (tp:type) : has_repr (value tp) := ⟨value.pp⟩
+instance (tp:type) : has_repr (expression tp) := ⟨expression.pp⟩
 
-instance addr_is_value (tp:type) : has_coe (addr tp) (value tp) :=
-⟨ value.get ∘ lhs.addr ⟩
+instance addr_is_expression (tp:type) : has_coe (addr tp) (expression tp) :=
+⟨ expression.get ∘ lhs.addr ⟩
 
-instance type_is_sort     : has_coe_to_sort type := ⟨Type, value⟩
-instance all_lhs_is_value : has_coe1 lhs value := ⟨λ_, value.get⟩
-instance lhs_is_value (tp:type) : has_coe (lhs tp) (value tp) := ⟨value.get⟩
+instance type_is_sort     : has_coe_to_sort type := ⟨Type, expression⟩
+instance all_lhs_is_expression : has_coe1 lhs expression := ⟨λ_, expression.get⟩
+instance lhs_is_expression (tp:type) : has_coe (lhs tp) (expression tp) := ⟨expression.get⟩
 
-end value
+end expression
 
--- Operations on values
+-- Operations on expressions
 
-def slice {w:nat_expr} (x:value (bv w)) (u:nat_expr) (l:nat_expr)
-: value (bv (u+1-l)) := prim.slice w u l x
+def slice {w:nat_expr} (x:expression (bv w)) (u:nat_expr) (l:nat_expr)
+: expression (bv (u+1-l)) := prim.slice w u l x
 
 def trunc {w:nat_expr} (x: bv w) (o:nat_expr) : bv o := prim.trunc w o x
+
+def bsf {w:nat_expr} (x: bv w) : bv w := prim.bsf w x
+
+def bsr {w:nat_expr} (x: bv w) : bv w := prim.bsr w x
 
 def sext {w:nat_expr} (x: bv w) (o:nat_expr) : bv o := prim.sext w o x
 
 def uext {w:nat_expr} (x: bv w) (o:nat_expr) : bv o := prim.uext w o x
 
 def neq {tp:type} (x y : tp) : bit := prim.neq tp x y
+
+def eq {tp:type} (x y : tp) : bit := prim.eq tp x y
+
+def one  : bit := prim.one
+def zero : bit := prim.zero
 
 instance bv_has_mul (w:nat_expr) : has_mul (bv w) := ⟨λx y, prim.mul w x y⟩
 
@@ -445,6 +575,11 @@ inductive event
 | syscall : event
 | unsupported (msg:string) : event
 | pop_x87_register_stack : event
+| call (addr: bv 64) : event
+| jmp  (addr: bv 64) : event
+| ret : event
+| hlt : event
+| xchg {w : nat_expr} (addr1: bv w) (addr2: bv w) : event
 
 namespace event
 
@@ -452,6 +587,11 @@ protected def pp : event → string
 | syscall := "(syscall)"
 | (unsupported msg) := "(unsupported " ++ msg ++ ")"
 | pop_x87_register_stack := "(pop_x87_register_stack)"
+| (call addr) := "(call " ++ addr.pp ++ ")"
+| (jmp  addr) := "(jmp " ++ addr.pp ++ ")"
+| ret := "(ret)"
+| hlt := "(hlt)"
+| (xchg addr1 addr2) := "(xchg " ++ addr1.pp ++ " " ++ addr2.pp ++ ")"
 
 end event
 
@@ -460,8 +600,8 @@ end event
 
 -- Denotes updates to program state from register.
 inductive action
-| set {tp:type} (l:lhs tp) (v:value tp) : action
-| local_def {tp:type} (idx:ℕ) (v:value tp) : action
+| set {tp:type} (l:lhs tp) (v:expression tp) : action
+| local_def {tp:type} (idx:ℕ) (v:expression tp) : action
 | event (e:event) : action
 | mk_undef {tp:type} (l:lhs tp) : action
 
@@ -481,14 +621,14 @@ end action
 inductive binding
 | one_of : list nat → binding
 | lhs : type → binding
-| value : type → binding
+| expression : type → binding
 
 namespace binding
 
 def pp : binding → string
 | (one_of l) := sexp.app "one_of" (nat.repr <$> l)
 | (lhs tp) := sexp.app "lhs" [tp.pp]
-| (value tp) := sexp.app "value" [tp.pp]
+| (expression tp) := sexp.app "expression" [tp.pp]
 
 end binding
 
@@ -572,9 +712,9 @@ instance lhs_is_bound_var (tp:type) : is_bound_var (lhs tp) :=
 , mk_arg := λi, lhs.arg i tp
 }
 
-instance value_is_bound_var (tp:type) : is_bound_var (value tp) :=
-{ to_binding := binding.value tp
-, mk_arg := λi, value.get (lhs.arg i tp)
+instance expression_is_bound_var (tp:type) : is_bound_var (expression tp) :=
+{ to_binding := binding.expression tp
+, mk_arg := λi, expression.get (lhs.arg i tp)
 }
 
 ------------------------------------------------------------------------
@@ -626,15 +766,15 @@ def record_event (e:event) : semantics unit :=
 -- Record that some code path is unsupported.
 def unsupported (msg:string) := record_event (event.unsupported msg)
 
---- Set the value of the left-hand side to the value.
-def set {tp:type} (l:lhs tp) (v:value tp) : semantics unit :=
+--- Set the expression of the left-hand side to the expression.
+def set {tp:type} (l:lhs tp) (v:expression tp) : semantics unit :=
   semantics.add_action (action.set l v)
 
---- Evaluate the given value and return a local value that will not mutate.
-def eval {tp : type} (v:value tp) : semantics (value tp) := do
+--- Evaluate the given expression and return a local expression that will not mutate.
+def eval {tp : type} (v:expression tp) : semantics (expression tp) := do
   idx ← semantics.next_local_index,
   semantics.add_action (action.local_def idx v),
-  return (value.get_local idx tp)
+  return (expression.get_local idx tp)
 
 protected
 def run (m:semantics unit) : list action := do
