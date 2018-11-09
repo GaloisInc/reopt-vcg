@@ -18,6 +18,9 @@ def from_list : list string → string
 | [] := "()"
 | (s::l) := app s l
 
+def indent : string → string
+  | s := "  " ++ s
+
 end sexp
 
 def paren_if : bool → string → string
@@ -35,7 +38,7 @@ namespace mc_semantics
 @[reducible]
 def arg_index := nat
 
-def arg_index.pp (idx:arg_index) : string := "arg" ++ idx.repr
+def arg_index.pp (idx:arg_index) : string := sexp.app "arg" [idx.repr]
 
 ------------------------------------------------------------------------
 -- nat_expr
@@ -431,8 +434,8 @@ def pp : Π{tp:type}, prim tp → string
 | ._ (bsf i) := "bsf " ++ i.pp
 | ._ (bsr i) := "bsr " ++ i.pp
 | ._ (bswap i) := "bswap " ++ i.pp
-| ._ zero := "0"
-| ._ one  := "1"
+| ._ zero := sexp.app "bit" ["0"]
+| ._ one  := sexp.app "bit" ["1"]
 | ._ (eq tp) := "eq " ++ tp.pp
 | ._ (neq tp) := "neq " ++ tp.pp
 | ._ (neg tp) := "neg " ++ tp.pp
@@ -440,7 +443,7 @@ def pp : Π{tp:type}, prim tp → string
 | ._ float_to_x86_80 := "float_to_x86_80"
 | ._ double_to_x86_80 := "double_to_X86_80"
 | ._ (bv_to_x86_80 w) := "sext " ++ w.pp
-| ._ (bvnat w n) := "bvnat " ++ n.pp
+| ._ (bvnat w n) := sexp.app "bvnat" [w.pp, n.pp]
 | ._ (bvadd i) := "bvadd " ++ i.pp
 | ._ (bvsub i) := "bvsub " ++ i.pp
 | ._ (ssbb_overflows i) := "ssbb_overflows " ++ i.pp
@@ -661,18 +664,18 @@ private
 def pp_bindings : nat → list binding → string
 | i [] := ""
 | i (b::r)
-  := "  " ++ sexp.app "arg" [i.repr, b.pp] ++ "\n"
+  := sexp.indent (sexp.indent (sexp.app "arg" [i.repr, b.pp] ++ "\n"))
   ++ pp_bindings (i+1) r
 
 private
-def pp_action (m:action) : string := "  " ++ m.repr
+def pp_action (m:action) : string := sexp.indent (sexp.indent m.repr)
 
 protected
 def pp (p:pattern) : string
-  := "pattern\n"
+  := "(pattern\n"
   ++ pp_bindings 0 p.context.bindings.reverse
   ++ unlines (pp_action <$> p.actions)
-  ++ "end_pat"
+  ++ sexp.indent ")"
 
 end pattern
 
@@ -686,9 +689,9 @@ structure instruction :=
 namespace instruction
 
 def repr (i:instruction) : string :=
-  "instruction " ++ i.mnemonic ++ "\n"
-   ++ unlines (pattern.pp <$> i.patterns)
-   ++ "end instruction"
+  "(instruction " ++ i.mnemonic ++ "\n"
+   ++ unlines (sexp.indent <$> pattern.pp <$> i.patterns)
+   ++ ")"
 
 instance : has_repr instruction := ⟨instruction.repr⟩
 
