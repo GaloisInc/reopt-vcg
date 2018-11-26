@@ -160,7 +160,6 @@ local notation ℕ := nat_expr
 -- Denotes the type of a register.
 inductive gpreg_type : Type
 | reg8l : gpreg_type
---| reg8h : gpreg_type
 | reg16 : gpreg_type
 | reg32 : gpreg_type
 | reg64 : gpreg_type
@@ -170,7 +169,6 @@ namespace gpreg_type
 @[reducible]
 def width : gpreg_type → ℕ
 | reg8l  := 8
---| reg8h  := 8
 | reg16 := 16
 | reg32 := 32
 | reg64 := 64
@@ -362,9 +360,9 @@ inductive prim : type → Type
 | uext  (i:ℕ) (o:ℕ) : prim (bv i .→ bv o)
 -- `(trunc i o)` truncates an `i`-bit number to a `o`-bit number.
 | trunc (i:ℕ) (o:ℕ) : prim (bv i .→ bv o)
--- `(bsf i)` returns the index of least-siginifant bit that is 1.
+-- `(bsf i)` returns the index of least-significant bit that is 1.
 | bsf   (i:ℕ) : prim (bv i .→ bv i)
--- `(bsr i)` returns the index of most-siginifant bit that is 1.
+-- `(bsr i)` returns the index of most-significant bit that is 1.
 | bsr   (i:ℕ) : prim (bv i .→ bv i)
 -- `(bswap i)` reverses the bytes in the bitvector.
 | bswap (i:ℕ) : prim (bv i .→ bv i)
@@ -499,12 +497,12 @@ instance (w:ℕ) : has_add  (expression (bv w)) := ⟨bvadd⟩
 instance (w:ℕ) : has_sub  (expression (bv w)) := ⟨bvsub⟩
 instance (w:ℕ) : has_neg  (expression (bv w)) := ⟨bvneg⟩
 
-def adc         {w:ℕ} (x : expression (bv w)) (y : expression (bv w)) (b : expression bit) : expression (bv w) := prim.adc   w x y b
-def bswap       {w:ℕ} (v : expression (bv w))                                              : expression (bv w) := prim.bswap w v
-def quot        {w:ℕ} (x : expression (bv w)) (y : expression (bv w))                      : expression (bv w) := prim.quot  w x y
-def rem         {w:ℕ} (x : expression (bv w)) (y : expression (bv w))                      : expression (bv w) := prim.rem   w x y
-def signed_quot {w:ℕ} (x : expression (bv w)) (y : expression (bv w))                      : expression (bv w) := prim.squot w x y
-def signed_rem  {w:ℕ} (x : expression (bv w)) (y : expression (bv w))                      : expression (bv w) := prim.srem  w x y
+def adc         {w:ℕ} (x y : expression (bv w)) (b : expression bit) : expression (bv w) := prim.adc   w x y b
+def bswap       {w:ℕ} (v : expression (bv w))                        : expression (bv w) := prim.bswap w v
+def quot        {w:ℕ} (x y : expression (bv w))                      : expression (bv w) := prim.quot  w x y
+def rem         {w:ℕ} (x y : expression (bv w))                      : expression (bv w) := prim.rem   w x y
+def signed_quot {w:ℕ} (x y : expression (bv w))                      : expression (bv w) := prim.squot w x y
+def signed_rem  {w:ℕ} (x y : expression (bv w))                      : expression (bv w) := prim.srem  w x y
 
 protected
 def is_app : Π{tp:type}, expression tp → bool
