@@ -5,6 +5,7 @@ Elf
 import system.io
 import init.category.reader
 import init.category.state
+import decodex86
 import .imap
 import .file_input
 
@@ -243,6 +244,10 @@ class elf_file_data (α:Type) :=
 instance uint16_si_elf_file_data : elf_file_data uint16 :=
 { read := file_reader.read_u16 }
 
+/- Elf defines a set of types depending on the class, e.g. Elf32_Word, Elf32_Addr, etc.  
+   Some of these are independent of the class, e.g. Elf32_Word = Elf64_Word = uint32.  
+-/
+
 -- A 32 or 64-bit word dependent on the class.
 def word (c:elf_class) := fin (nat.succ (2^c.bits-1))
 
@@ -320,7 +325,6 @@ instance (c:elf_class) : elf_file_data (word c) :=
 }
 
 end word
-
 
 ------------------------------------------------------------------------
 -- phdr
@@ -590,7 +594,7 @@ def pp_phdrs {c:elf_class} (phdrs:list (phdr c)) : io unit := do
     io.put_str_ln $ "Index:            " ++ idx.repr,
     io.put_str_ln phdr.snd.pp)
 
-def region := char_buffer
+@[reducible] def region := char_buffer
 
 def elfmem : Type := data.imap ℕ region
 
@@ -615,28 +619,40 @@ def read_elfmem {c : elf_class} (path : string) (phdrs : list (phdr c)) : io elf
 Read the elf file from the given path, and print out ehdr and
 program headers.
 -/
-def read_info_from_file (path:string) : io unit := do
+def read_info_from_file (path:string) : io elfmem := do
   bracket (io.mk_file_handle path io.mode.read tt) io.fs.close $ λh, do
   e ← read_ehdr_from_handle h,
   let i := e.info in do
   let ehdr_size := ehdr.size i.elf_class in do
   move_to_target h ehdr_size e.phoff.val,
   phdrs ← read_phdrs_from_handle e h,
-  _ <- read_elfmem path phdrs,
-  pp_phdrs phdrs
+  read_elfmem path phdrs
+  -- pp_phdrs phdrs
 
 end elf
 
-def get_filename_arg : io string := do
+def get_filename_arg : io (string × string × ℕ × ℕ) := do
   args ← io.cmdline_args,
   match args with
-  | [name] := do
-      return name
+  | [name, decoder, first, last_plus_1 ] := do
+      return ( name, decoder, string.to_nat first, string.to_nat last_plus_1 )
   | _ := do
-      io.fail "Please provide single argument containing path to elf file."
+      io.fail "Usage: CMD elf_file decoder first_byte last_byte_plus_1"
   end
 
 def main : io unit := do
-  args ← get_filename_arg,
-  io.print_ln args,
-  elf.read_info_from_file args
+  (file, decoder, first, last_plus_1) ← get_filename_arg,
+  mem <- elf.read_info_from_file file,
+  match data.imap.lookup first mem with
+  | none := io.fail ("Could not find start address: " ++ repr first)
+  | (some (buf_start, buf)) :=
+    if last_plus_1 - buf_start > buffer.size buf then
+      io.fail ("Last byte outside buffer: " ++ repr last_plus_1)
+    else do
+      buf' <- return (buffer.take (buffer.drop buf (first - buf_start)) (last_plus_1 - first)),
+      res  <- decodex86.decode decoder buf',
+      match res with
+      | (sum.inl e) := io.fail ("Decode error: " ++ e)
+      | (sum.inr r) := io.put_str_ln (repr r)
+      end
+  end
