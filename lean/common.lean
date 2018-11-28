@@ -160,6 +160,7 @@ local notation ℕ := nat_expr
 -- Denotes the type of a register.
 inductive gpreg_type : Type
 | reg8l : gpreg_type
+| reg8h : gpreg_type
 | reg16 : gpreg_type
 | reg32 : gpreg_type
 | reg64 : gpreg_type
@@ -168,7 +169,8 @@ namespace gpreg_type
 
 @[reducible]
 def width : gpreg_type → ℕ
-| reg8l  := 8
+| reg8l := 8
+| reg8h := 8
 | reg16 := 16
 | reg32 := 32
 | reg64 := 64
@@ -273,7 +275,7 @@ end lhs
 section
 
 def reg8l (i:fin 16) := lhs.reg $ reg.concrete_gpreg i gpreg_type.reg8l
-def reg8h (i:fin 16) := lhs.reg $ reg.concrete_gpreg (16+i) gpreg_type.reg8l
+def reg8h (i:fin 16) := lhs.reg $ reg.concrete_gpreg i gpreg_type.reg8h
 
 def al  := reg8l 0
 def cl  := reg8l 1
