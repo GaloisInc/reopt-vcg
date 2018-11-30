@@ -113,24 +113,53 @@ end one_of
 
 local notation ℕ := nat_expr
 
+inductive base_type
+| bv (w:ℕ) : base_type
+| bit      : base_type
+| float    : base_type
+| double   : base_type
+| x86_80   : base_type
+
+namespace base_type
+
+protected
+def pp : base_type → string
+| (bv w) := sexp.app "bv" [w.pp]
+| bit    := "bit"
+| float  := "float"
+| double := "double"
+| x86_80 := "x86_80"
+
+end base_type
+
 inductive type
-| bv (w:ℕ) : type
-| bit : type
-| float  : type
-| double : type
-| x86_80 : type
+| base (bt : base_type) : type
 -- A function from arg to res
 | fn (arg:type) (res:type) : type
 
 namespace type
 
+-- Export all the base_type constructors as type constructors to keep instructions.lean happy
+@[reducible]
+def bv (w : nat_expr) := base (base_type.bv w)
+@[reducible]
+def bit    := base base_type.bit
+@[reducible]
+def float  := base base_type.float
+@[reducible]
+def double := base base_type.double
+@[reducible]
+def x86_80 := base base_type.x86_80
+
+end type
+
+instance base_type_type_coe : has_coe base_type type := ⟨type.base⟩
+
+namespace type
+
 protected
 def pp' : Π(in_fun:bool), type → string
-| _ (bv w) := sexp.app "bv" [w.pp]
-| _ bit    := "bit"
-| _ float  := "float"
-| _ double := "double"
-| _ x86_80 := "x86_80"
+| _ (base bt) := bt.pp
 | in_fun (fn a r) :=
   if in_fun then
      a.pp' ff ++ " " ++ r.pp' tt
@@ -168,7 +197,7 @@ inductive gpreg_type : Type
 namespace gpreg_type
 
 @[reducible]
-def width : gpreg_type → ℕ
+def width : gpreg_type → nat
 | reg8l := 8
 | reg8h := 8
 | reg16 := 16
@@ -195,6 +224,13 @@ protected def r8l_names : list string :=
   , "spl",  "bpl",  "sil",  "dil"
   , "r8b" , "r9b" , "r10b", "r11b"
   , "r12b", "r13b", "r14b", "r15b"
+  ]
+
+protected def r8h_names : list string :=
+  [ "ah",   "ch",   "dh",   "bh"
+  , "sph_undefined",  "bph_undefined",  "sih_undefined",  "dih_undefined"
+  , "r8h_undefined" , "r9h_undefined" , "r10h_undefined", "r11h_undefined"
+  , "r12h_undefined", "r13h_undefined", "r14h_undefined", "r15h_undefined"
   ]
 
 protected def r16_names : list string :=
@@ -228,6 +264,7 @@ protected def repr : Π{tp:type}, reg tp → string
 | ._ (concrete_gpreg idx tp) := "$" ++
   match tp with
   | gpreg_type.reg8l := list.nth_le reg.r8l_names idx.val idx.is_lt
+  | gpreg_type.reg8h := list.nth_le reg.r8h_names idx.val idx.is_lt
   | gpreg_type.reg16 := list.nth_le reg.r16_names idx.val idx.is_lt
   | gpreg_type.reg32 := list.nth_le reg.r32_names idx.val idx.is_lt
   | gpreg_type.reg64 := list.nth_le reg.r64_names idx.val idx.is_lt
@@ -241,12 +278,12 @@ protected def repr : Π{tp:type}, reg tp → string
 end reg
 
 -- Denotes an address.
-inductive addr (tp:type) : Type
+inductive addr (tp:base_type) : Type
 | arg {} (idx: arg_index) : addr
 
 namespace addr
 
-protected def repr {tp:type} : addr tp → string
+protected def repr {tp:base_type} : addr tp → string
 | (arg idx) := idx.pp
 
 end addr
@@ -255,7 +292,7 @@ end addr
 inductive lhs : type → Type
 | reg {tp:type} (r:reg tp) : lhs tp
 -- A value that must be an address.
-| addr {tp:type} (a:addr tp) : lhs tp
+| addr {tp:base_type} (a:addr tp) : lhs tp
 -- An argument that may be either a register or address.
 | arg (idx:arg_index) (tp:type) : lhs tp
 -- ST reg with the offset relative to the current stack top value.
@@ -515,7 +552,7 @@ protected
 def pp_args : Π{tp:type}, expression tp → string
 | ._ (primitive o) := o.pp
 | ._ (app f a) := f.pp_args ++ " " ++ paren_if a.is_app a.pp_args
-| ._ (get lhs) := lhs.repr
+| _  (get lhs) := lhs.repr
 | ._ (get_local idx tp) := sexp.app "local" [idx.pp]
 
 protected
@@ -523,7 +560,7 @@ def pp {tp:type} (v:expression tp) := paren_if v.is_app v.pp_args
 
 instance (tp:type) : has_repr (expression tp) := ⟨expression.pp⟩
 
-instance addr_is_expression (tp:type) : has_coe (addr tp) (expression tp) :=
+instance addr_is_expression (tp:base_type) : has_coe (addr tp) (expression tp) :=
 ⟨ expression.get ∘ lhs.addr ⟩
 
 instance type_is_sort     : has_coe_to_sort type := ⟨Type, expression⟩
@@ -551,8 +588,8 @@ def neq {tp:type} (x y : tp) : bit := prim.neq tp x y
 
 def eq {tp:type} (x y : tp) : bit := prim.eq tp x y
 
-def one  : bit := prim.one
-def zero : bit := prim.zero
+def one  : expression bit := prim.one
+def zero : expression bit := prim.zero
 
 instance bv_has_mul (w:nat_expr) : has_mul (bv w) := ⟨λx y, prim.mul w x y⟩
 
