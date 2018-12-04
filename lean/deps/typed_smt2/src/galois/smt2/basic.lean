@@ -121,13 +121,13 @@ namespace model
 section
 parameter {l:logic}
 
-/-- Add a binding -/
+/-- Bind a function to symbol name in the module. -/
 def bind (ctx:model l)  (nm:symbol) {args: list sort} {r:sort} (v:l.fun_domain args r) : model l :=
   ctx.insert nm ⟨args, r, v⟩
 
-/-- Add a binding -/
+/-- Bind a constant to a symbol name in the module. -/
 def bind_const (ctx:model l)  (nm:symbol) {r:sort} (v:l.type_of r) : model l :=
-  ctx.insert nm ⟨[], r, v⟩
+  @bind ctx nm [] r v
 
 /-- Return the value associated with a symbol, or a default value if not defined. -/
 def symbol_value (m:model l) (nm:symbol) (args:list sort) (res:sort) : l.fun_domain args res :=
