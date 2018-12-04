@@ -88,6 +88,8 @@ instance : has_repr nat_expr := ⟨nat_expr.pp⟩
 
 instance nat_coe_nat_expr : has_coe ℕ nat_expr := ⟨λx, lit x⟩
 
+instance : decidable_eq nat_expr := by tactic.mk_dec_eq_instance
+
 end nat_expr
 
 ------------------------------------------------------------------------
@@ -112,13 +114,15 @@ end one_of
 local notation ℕ := nat_expr
 
 inductive base_type
-| bv (w:ℕ) : base_type
-| bit      : base_type
-| float    : base_type
-| double   : base_type
-| x86_80   : base_type
+| bv (w:nat_expr) : base_type
+| bit             : base_type
+| float           : base_type
+| double          : base_type
+| x86_80          : base_type
 
 namespace base_type
+
+instance : decidable_eq base_type := by tactic.mk_dec_eq_instance
 
 protected
 def pp : base_type → string
@@ -136,6 +140,8 @@ inductive type
 | fn (arg:type) (res:type) : type
 
 namespace type
+
+instance : decidable_eq base_type := by tactic.mk_dec_eq_instance
 
 -- Export all the base_type constructors as type constructors to keep instructions.lean happy
 @[reducible]
@@ -276,12 +282,12 @@ protected def repr : Π{tp:type}, reg tp → string
 end reg
 
 -- Denotes an address.
-inductive addr (tp:base_type) : Type
+inductive addr (n:nat) : Type
 | arg {} (idx: arg_index) : addr
 
 namespace addr
 
-protected def repr {tp:base_type} : addr tp → string
+protected def repr {n:nat} : addr n → string
 | (arg idx) := idx.pp
 
 end addr
@@ -290,7 +296,7 @@ end addr
 inductive lhs : type → Type
 | reg {tp:type} (r:reg tp) : lhs tp
 -- A value that must be an address.
-| addr {tp:base_type} (a:addr tp) : lhs tp
+| addr {n:nat} (a:addr n) : lhs (bv (8 * n))
 -- An argument that may be either a register or address.
 | arg (idx:arg_index) (tp:type) : lhs tp
 -- ST reg with the offset relative to the current stack top value.
@@ -559,7 +565,7 @@ def pp {tp:type} (v:expression tp) := paren_if v.is_app v.pp_args
 
 instance (tp:type) : has_repr (expression tp) := ⟨expression.pp⟩
 
-instance addr_is_expression (tp:base_type) : has_coe (addr tp) (expression tp) :=
+instance addr_is_expression (n:nat) : has_coe (addr n) (expression (bv (8 * n))) :=
 ⟨ expression.get ∘ lhs.addr ⟩
 
 instance type_is_sort     : has_coe_to_sort type := ⟨Type, expression⟩
