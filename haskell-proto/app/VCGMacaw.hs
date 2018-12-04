@@ -246,6 +246,51 @@ evalApp2SMT aid a = do
       xv <- primEval x
       -- Given the assumption that all data are 64bv, treat it as no ops for the moment.
       doSet $ SMT.extract (natValue w-1) 0 xv
+    SExt x w -> do
+      xv <- primEval x
+      -- This sign extends x
+      doSet $ SMT.bvsignExtend (natValue w-natValue (M.typeWidth x)) xv
+    UExt x w -> do
+      xv <- primEval x
+      -- This sign extends x
+      doSet $ SMT.bvzeroExtend (natValue w-natValue (M.typeWidth x)) xv
+    UadcOverflows x y c -> do
+      -- We check for unsigned overflow by zero-extending x, y, and c, performing the
+      -- addition, and seeing if the most signicant bit is non-zero.
+      xv <- primEval x
+      yv <- primEval y
+      cv <- primEval c
+      let w :: Integer
+          w = natValue (M.typeWidth x)
+      -- Do zero extensions
+      let xext = SMT.bvzeroExtend 1 xv
+      let yext = SMT.bvzeroExtend 1 yv
+      let cext = SMT.bvzeroExtend w (SMT.ite cv SMT.bit1 SMT.bit0)
+      -- Perform addition
+      let rext = SMT.bvadd xext [yext, cext]
+      -- Unsigned overflow occurs if most-significant bit is set.
+      doSet $ SMT.eq [SMT.extract w w rext, SMT.bit1]
+    SadcOverflows x y c -> do
+      -- We check for signed overflow by adding x, y, and c, checking two things:
+      -- x & y have the same sign, and c has t
+
+      -- addition, and seeing if the most signicant bit is non-zero.
+      xv <- primEval x
+      yv <- primEval y
+      cv <- primEval c
+      let w :: Integer
+          w = natValue (M.typeWidth x)
+      -- Carry is positive.
+      let cext = SMT.bvzeroExtend (w-1) (SMT.ite cv SMT.bit1 SMT.bit0)
+      -- Perform addition
+      let r = SMT.bvadd xv [yv, cext]
+      -- Check sign property.
+      let xmsb = SMT.extract (w-1) (w-1) xv
+      let ymsb = SMT.extract (w-1) (w-1) yv
+      let rmsb = SMT.extract (w-1) (w-1) r
+
+      doSet $ SMT.and [SMT.eq [xmsb, ymsb], SMT.distinct [xmsb, rmsb]]
+
     _app -> do
       liftIO $ hPutStrLn stderr $ show (ppApp (\_ -> text "*") a) ++ ": Not implemented yet"
       var <- setUndefined aid
