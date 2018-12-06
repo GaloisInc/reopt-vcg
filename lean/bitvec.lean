@@ -145,8 +145,8 @@ section shift
   def ushr (x : bitvec n) (i : ℕ) : bitvec n := ⟨x.val / 2^i, by exact div_pow_mono x.property⟩
 
   section listlike
-    -- This is really listlike operations, but we define them early so
-    -- so that we can use them to define sshr.
+    -- This is really a listlike operation, but we define it early so
+    -- so that we can use it to define sshr.
     def msb {n:ℕ} (x: bitvec n) : bool := (ushr x (n-1)).val = 1
   end listlike
 
@@ -360,7 +360,7 @@ section conversion
 end conversion
 
 section instances
-  -- misc. instacnes that don't belong in one of the sections above
+  -- misc. instances that don't belong in one of the sections above
 
   instance (n : nat) : has_repr (bitvec n) := ⟨repr⟩
 
