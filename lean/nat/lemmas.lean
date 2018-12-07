@@ -106,9 +106,3 @@ lemma pow_mod_superfluous {x n m : ℕ} (H : x < 2 ^ n) (Hm: m ≤ n): (x / 2 ^ 
 begin
   apply mod_eq_of_lt, apply (div_pow_mono' H Hm)
 end
-
-lemma nat_sub_le_self (a b : ℕ) (h: a ≥ b) : a - b ≤ a :=
-  begin
-    apply le_of_lt_succ,
-    apply sub_lt_succ
-  end

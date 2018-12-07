@@ -262,7 +262,7 @@ section listlike
     have : 2^(n - m) ≤ 2^n,
     { apply pow_le_pow_of_le_right,
       { dec_trivial_tac },
-      { apply nat_sub_le_self _ _ H, },
+      { apply nat.sub_le, },
     },
     have : x.val / 2 ^ m < 2 ^ n, { apply div_pow_mono x.property },
     rw mod_eq_of_lt this,
