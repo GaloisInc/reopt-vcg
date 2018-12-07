@@ -22,6 +22,7 @@ def bitvec (sz:ℕ) :=
 
 namespace bitvec
 open nat
+open int
 open vector
 
 section zero
@@ -50,7 +51,7 @@ section one
   -- Create a bitvector with the constant one, doing so requires
   -- the bitvector to have positive length.
   protected
-  def one_of_pos_len (n: ℕ) {H : n > 0} : bitvec n :=
+  def one_of_pos_len (n: ℕ) (H : n > 0) : bitvec n :=
     ⟨1, calc
           1   < 2^1 : by dec_trivial_tac
           ... ≤ 2^n : by apply (pow_le_pow_of_le_right (zero_lt_succ _) (succ_le_of_lt H))⟩
@@ -59,14 +60,9 @@ section one
   -- as well. This leads to a special case where the 0-length bitvector
   -- 1 is really just 0. This turns out to simplify things.
   protected
-  def one (n:ℕ) : bitvec n :=
-    begin
-      cases n,
-      case nat.zero
-      { apply bitvec.zero },
-      case nat.succ
-      { apply bitvec.one_of_pos_len, apply zero_lt_succ }
-    end
+  def one : Π(n:ℕ), bitvec n
+  | 0        := bitvec.zero 0
+  | (succ m) := bitvec.one_of_pos_len (succ m) (nat.zero_lt_succ m)
 
   instance {n:ℕ} : has_one (bitvec n)  := ⟨bitvec.one n⟩
 
@@ -75,45 +71,60 @@ end one
 protected def cong {a b : ℕ} (h : a = b) : bitvec a → bitvec b
 | ⟨x, p⟩ := ⟨x, h ▸ p⟩
 
+-- Most significant bit
+def msb {n:ℕ} (x: bitvec n) : bool := (nat.shiftl x (n-1)) = 1
+
+-- 2s complement negation
+protected def neg {n:ℕ} (x : bitvec n) : bitvec n :=
+  ⟨if x.val = 0 then 0 else 2^n - x.val,
+   begin
+     by_cases (x.val = 0),
+     { simp [h], apply pos_pow_of_pos, dec_trivial_tac },
+     { simp [h],
+       have pos : 0 < 2^n - x.val, { apply nat.sub_pos_of_lt x.property },
+       have x_val_pos: 0 < x.val, { apply nat.pos_of_ne_zero h },
+       apply sub_lt_of_pos_le x.val (2^n) x_val_pos,
+       apply le_of_lt x.property,
+     }
+    end⟩
+
+section conversion
+  -- Operations for converting to/from bitvectors
+  variable {α : Type}
+
+  protected def to_nat {n : nat} (v : bitvec n) : nat := v.val
+
+  protected def to_int {n:ℕ} (x: bitvec n) : int :=
+    match msb x with
+    | ff := int.of_nat x.val
+    | tt := int.neg_of_nat (bitvec.neg x).val
+  end
+
+  protected def of_nat (n : ℕ) (x:ℕ) : bitvec n := ⟨ x % 2^n, by simp ⟩
+
+  protected def of_int : Π (n : ℕ), int → bitvec (succ n)
+  | n (int.of_nat m)          := bitvec.of_nat (succ n) m
+  | n (int.neg_succ_of_nat m) := bitvec.neg (bitvec.of_nat (succ n) m)
+
+  theorem of_nat_to_nat {n : ℕ} (x : bitvec n)
+  : bitvec.of_nat n (bitvec.to_nat x) = x :=
+    begin
+      cases x,
+      simp [bitvec.to_nat, bitvec.of_nat],
+      apply mod_eq_of_lt x_property,
+    end
+
+  theorem to_nat_of_nat {k n : ℕ}
+  : bitvec.to_nat (bitvec.of_nat k n) = n % 2^k :=
+    begin
+      simp [bitvec.of_nat, bitvec.to_nat]
+    end
+
+end conversion
+
 section bitwise
 
-  -- A fixed width version of nat.bitwise
-  -- This applies `f` to each bit in tthe vectors.
-  def fin_bitwise (f: bool → bool → bool) : ℕ → ℕ → ℕ → ℕ
-    | 0 _  _:= 0
-    | (nat.succ w) x y :=
-      let xr := x.bodd_div2 in
-      let yr := y.bodd_div2 in
-      nat.bit (f xr.fst yr.fst) (fin_bitwise w xr.snd yr.snd)
-
-  -- A theorem that nat.bit is less than a power of two, when the input
-  -- is.
-  --
-  -- The implicit parameters are chosen so that apply is useful here.
-  theorem bit_lt_pow2  {w:ℕ} {b : bool} {x : ℕ} (h : x < 2^w)
-  : nat.bit b x < 2^(w+1) :=
-  begin
-    -- Simplify 2^(w+1)
-    simp [nat.add_succ, nat.pow_succ, nat.mul_comm _ 2, eq.symm (nat.bit0_val _)],
-    -- Split on b and simplify bit
-    cases b; simp [bit],
-    case ff { apply nat.bit0_lt h, },
-    case tt { apply nat.bit1_lt_bit0 h, }
-  end
-
-  theorem bitwise_lt (f: bool → bool → bool) (w:ℕ)
-  : ∀(x y : ℕ),  fin_bitwise f w x y < 2^w :=
-  begin
-    induction w with w p,
-    { intros, dec_trivial_tac, },
-    intros,
-    unfold fin_bitwise,
-    apply bit_lt_pow2 (p _ _),
-  end
-
-  def bitwise {w:ℕ} (f: bool → bool → bool) (x y : bitvec w) : bitvec w :=
-    ⟨fin_bitwise f w x.val y.val, bitwise_lt _ _ _ _⟩
-
+  -- bitwise negation
   def not {w:ℕ} (x: bitvec w) : bitvec w := ⟨2^w - x.val - 1,
     begin
       have xval_pos : 0 < x.val + 1,
@@ -123,15 +134,54 @@ section bitwise
       apply (succ_pos 1)
     end⟩
 
-  def and {w:ℕ} : bitvec w → bitvec w → bitvec w := bitwise band
-  def or  {w:ℕ} : bitvec w → bitvec w → bitvec w := bitwise bor
-  def xor {w:ℕ} : bitvec w → bitvec w → bitvec w := bitwise bxor
+  -- logical bitwise and
+  def and {w:ℕ} (x y : bitvec w) : bitvec w := bitvec.of_nat w (nat.land x.val y.val)
+  -- logical bitwise or
+  def or  {w:ℕ} (x y : bitvec w) : bitvec w := bitvec.of_nat w (nat.lor  x.val y.val)
+  -- logical bitwise xor
+  def xor {w:ℕ} (x y : bitvec w) : bitvec w := bitvec.of_nat w (nat.lxor x.val y.val)
 
   infix `.&&.`:70 := and
   infix `.||.`:65 := or
 
 end bitwise
 
+section arith
+  -- Arithmetic operations on bitvectors
+  variable {n : ℕ}
+
+  -- Add with carry (no overflow)
+  def adc (x y : bitvec n) (c : bool) : bitvec n × bool :=
+    let c₁ := if c then 1 else 0,
+        r  := x.val + y.val + c₁ in
+    ⟨ bitvec.of_nat n r, r ≥ 2^n ⟩
+
+  protected def add (x y : bitvec n) : bitvec n := (adc x y ff).1
+
+  -- Subtract with borrow
+  def sbb (x y : bitvec n) (b : bool) : bool × bitvec n :=
+    let b₁ : bitvec n := if b then 1 else 0,
+        r  := match bitvec.adc x (bitvec.neg y) ff with
+              | (z, b₂) := bitvec.adc z (bitvec.neg b₁) ff
+              end
+    in ⟨ if b then y.val + 1 > x.val else y.val > x.val , r.1 ⟩
+
+  -- Usual arithmetic subtraction
+  protected def sub (x y : bitvec n) : bitvec n := (sbb x y ff).2
+
+  instance : has_add (bitvec n)  := ⟨bitvec.add⟩
+  instance : has_sub (bitvec n)  := ⟨bitvec.sub⟩
+  instance : has_neg (bitvec n)  := ⟨bitvec.neg⟩
+
+  protected def mul (x y : bitvec n) : bitvec n := bitvec.of_nat n (x.val * y.val)
+
+  instance : has_mul (bitvec n) := ⟨bitvec.mul⟩
+
+  def bitvec_pow (x: bitvec n) (k:ℕ) : bitvec n := bitvec.of_nat n (x.val^k)
+
+  instance bitvec_has_pow : has_pow (bitvec n) ℕ := ⟨bitvec_pow⟩
+
+end arith
 
 section shift
   -- Shift related operations, including signed and unsigned shift.
@@ -139,36 +189,17 @@ section shift
   variable {n : ℕ}
 
   -- shift left
-  def shl (x : bitvec n) (i : ℕ) : bitvec n := ⟨x.val * 2^i % 2^n, by simp⟩
+  def shl (x : bitvec n) (i : ℕ) : bitvec n := bitvec.of_nat n (nat.shiftl x.val i)
 
   -- unsigned shift right
-  def ushr (x : bitvec n) (i : ℕ) : bitvec n := ⟨x.val / 2^i, by exact div_pow_mono x.property⟩
-
-  section listlike
-    -- This is really a listlike operation, but we define it early so
-    -- so that we can use it to define sshr.
-    def msb {n:ℕ} (x: bitvec n) : bool := (ushr x (n-1)).val = 1
-  end listlike
+  def ushr (x : bitvec n) (i : ℕ) : bitvec n := bitvec.of_nat n (nat.shiftr x.val i)
 
   -- signed shift right
   def sshr (x: bitvec n) (i:ℕ) : bitvec n :=
-    -- When the sign bit is set in x, (msb x = 1), then we would like
-    -- the result of sshr x i, to have the top i bits set.
-    -- We can calculate a number that will do this in steps:
-    -- 1) (2 ^ n) - 1, will have all the bits set.
-    -- 2) (2 ^ (n-i)) - 1, will be a number with the lower (n-i) bits set.
-    -- 3) subtract the previous two numbers (1) - (2), to get a
-    -- number where only the top i bits are set.
-    let upper_bits := 2 ^ n - 2 ^ (n-i) in
-    let sign := if msb x then upper_bits else 0 in
-    ⟨ sign + (ushr x i).val,
-      begin
-        simp [sign], cases (msb x),
-        case bool.ff
-        { simp [ushr], apply div_pow_mono x.property },
-        case bool.tt
-        { apply sshr_in_range x.property }
-      end⟩
+    match n with
+    | 0      := bitvec.of_nat 0 0
+    | succ m := bitvec.of_int m (int.shiftr (bitvec.to_int x) i)
+    end
 
 end shift
 
@@ -191,8 +222,7 @@ section listlike
   def append {m n} (x: bitvec m) (y: bitvec n) : bitvec (m + n)
     := ⟨ x.val * 2^n + y.val, mul_pow_add_lt_pow x.property y.property ⟩
 
-  def trunc {n : ℕ} (x : bitvec n) (m : ℕ) : bitvec (min n m) :=
-    ⟨ x.val % 2 ^ (min n m), by simp ⟩
+  def trunc {n : ℕ} (x : bitvec n) (m : ℕ) : bitvec (min n m) := bitvec.of_nat (min n m) x.val
 
   -- splits a bitvector into {n .. m} {m - 1 .. 0} sub bitvectors
   def split_at {n : ℕ} (m : ℕ) (x : bitvec n) : bitvec (n - m) × bitvec (min n m) := -- upper × lower
@@ -228,7 +258,14 @@ section listlike
   lemma trunc_add_ushr {n m : ℕ} (H : m ≤ n) (x : bitvec n)
   : (trunc x m).val + (trunc (ushr x m) (n - m)).val * 2 ^ m = x.val :=
   begin
-    simp [ trunc, min_eq_right H, min_eq_right (sub_le n m), ushr ],
+    simp [ trunc, min_eq_right H, min_eq_right (sub_le n m), ushr, bitvec.of_nat, shiftr_eq_div_pow],
+    have : 2^(n - m) ≤ 2^n,
+    { apply pow_le_pow_of_le_right,
+      { dec_trivial_tac },
+      { apply nat_sub_le_self _ _ H, },
+    },
+    have : x.val / 2 ^ m < 2 ^ n, { apply div_pow_mono x.property },
+    rw mod_eq_of_lt this,
     rw (pow_mod_superfluous x.property H),
     { rw mul_comm, apply mod_add_div }
   end
@@ -242,59 +279,6 @@ section listlike
   end
 
 end listlike
-
-section arith
-  -- Arithmetic operations on bitvectors
-  variable {n : ℕ}
-
-  -- 2s complement negation
-  protected def neg (x : bitvec n) : bitvec n :=
-    ⟨if x.val = 0 then 0 else 2^n - x.val,
-     begin
-       by_cases (x.val = 0),
-       { simp [h], apply pos_pow_of_pos, dec_trivial_tac },
-       { simp [h],
-         have pos : 0 < 2^n - x.val, { apply nat.sub_pos_of_lt x.property },
-         have x_val_pos: 0 < x.val, { apply nat.pos_of_ne_zero h },
-         apply sub_lt_of_pos_le x.val (2^n) x_val_pos,
-         apply le_of_lt x.property,
-       }
-      end⟩
-
-  -- Add with carry (no overflow)
-  def adc (x y : bitvec n) (c : bool) : bitvec n × bool :=
-    let c₁ := if c then 1 else 0,
-        r  := x.val + y.val + c₁ in
-    ⟨ ⟨r % 2^n, by simp ⟩, r ≥ 2^n ⟩
-
-  protected def add (x y : bitvec n) : bitvec n := (adc x y ff).1
-
-  -- Subtract with borrow
-  def sbb (x y : bitvec n) (b : bool) : bool × bitvec n :=
-    let b₁ : bitvec n := if b then 1 else 0,
-        r  := match bitvec.adc x (bitvec.neg y) ff with
-              | (z, b₂) := bitvec.adc z (bitvec.neg b₁) ff
-              end
-    in ⟨ if b then y.val + 1 > x.val else y.val > x.val , r.1 ⟩
-
-  -- Usual arithmetic subtraction
-  protected def sub (x y : bitvec n) : bitvec n := (sbb x y ff).2
-
-  instance : has_add (bitvec n)  := ⟨bitvec.add⟩
-  instance : has_sub (bitvec n)  := ⟨bitvec.sub⟩
-  instance : has_neg (bitvec n)  := ⟨bitvec.neg⟩
-
-  protected def mul (x y : bitvec n) : bitvec n :=
-    ⟨ (x.val * y.val) % 2^n, by simp ⟩
-
-  instance : has_mul (bitvec n)  := ⟨bitvec.mul⟩
-
-  def bitvec_pow {n:ℕ} : bitvec n → ℕ → bitvec n
-    | x k := ⟨ (x.val^k) % 2^n, by simp ⟩
-
-  instance bitvec_has_pow {n:ℕ} : has_pow (bitvec n) ℕ := ⟨bitvec_pow⟩
-
-end arith
 
 section comparison
   -- Comparison operations, including signed and unsigned versions
@@ -325,40 +309,6 @@ section comparison
 
 end comparison
 
-section conversion
-  -- Operations for converting to/from bitvectors
-  variable {α : Type}
-
-  protected def of_nat (n : ℕ) (x:ℕ) : bitvec n := ⟨ x % 2^n, by simp ⟩
-
-  protected def of_int : Π (n : ℕ), int → bitvec (succ n)
-  | n (int.of_nat m)          := bitvec.of_nat (succ n) m
-  | n (int.neg_succ_of_nat m) := bitvec.neg (bitvec.of_nat (succ n) m)
-
-  protected def to_nat {n : nat} (v : bitvec n) : nat := v.val
-
-  theorem of_nat_to_nat {n : ℕ} (x : bitvec n)
-  : bitvec.of_nat n (bitvec.to_nat x) = x :=
-    begin
-      cases x,
-      simp [bitvec.to_nat, bitvec.of_nat],
-      apply mod_eq_of_lt x_property,
-    end
-
-  theorem to_nat_of_nat {k n : ℕ}
-  : bitvec.to_nat (bitvec.of_nat k n) = n % 2^k :=
-    begin
-      simp [bitvec.of_nat, bitvec.to_nat]
-    end
-
-  protected def to_int {n:ℕ} (x: bitvec n) : int :=
-    match msb x with
-    | ff := int.of_nat x.val
-    | tt := int.neg_of_nat (bitvec.neg x).val
-    end
-
-end conversion
-
 section instances
   -- misc. instances that don't belong in one of the sections above
 
@@ -368,7 +318,7 @@ section instances
 
   instance decidable_ugt {n} {x y : bitvec n} : decidable (bitvec.ugt x y) := bool.decidable_eq _ _
 
-  instance {n:ℕ} : decidable_eq (bitvec n) := subtype.decidable_eq
+  instance decidable_eq {n:ℕ} : decidable_eq (bitvec n) := subtype.decidable_eq
 
 end instances
 
