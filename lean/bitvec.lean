@@ -197,7 +197,7 @@ section shift
   -- signed shift right
   def sshr (x: bitvec n) (i:ℕ) : bitvec n :=
     match n with
-    | 0      := bitvec.of_nat 0 0
+    | 0      := 0
     | succ m := bitvec.of_int m (int.shiftr (bitvec.to_int x) i)
     end
 
