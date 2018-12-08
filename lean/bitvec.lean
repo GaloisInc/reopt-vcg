@@ -48,21 +48,13 @@ end zero
 
 section one
 
-  -- Create a bitvector with the constant one, doing so requires
-  -- the bitvector to have positive length.
-  protected
-  def one_of_pos_len (n: ℕ) (H : n > 0) : bitvec n :=
-    ⟨1, calc
-          1   < 2^1 : by dec_trivial_tac
-          ... ≤ 2^n : by apply (pow_le_pow_of_le_right (zero_lt_succ _) (succ_le_of_lt H))⟩
-
   -- In pratice, it's more useful to allow 0 length bitvectors to have 1
   -- as well. This leads to a special case where the 0-length bitvector
   -- 1 is really just 0. This turns out to simplify things.
   protected
   def one : Π(n:ℕ), bitvec n
-  | 0        := bitvec.zero 0
-  | (succ m) := bitvec.one_of_pos_len (succ m) (nat.zero_lt_succ m)
+  | 0        := 0
+  | (succ _) := ⟨1, one_le_pow_2 (nat.zero_lt_succ _)⟩
 
   instance {n:ℕ} : has_one (bitvec n)  := ⟨bitvec.one n⟩
 
@@ -102,9 +94,9 @@ section conversion
 
   protected def of_nat (n : ℕ) (x:ℕ) : bitvec n := ⟨ x % 2^n, by simp ⟩
 
-  protected def of_int : Π (n : ℕ), int → bitvec (succ n)
-  | n (int.of_nat m)          := bitvec.of_nat (succ n) m
-  | n (int.neg_succ_of_nat m) := bitvec.neg (bitvec.of_nat (succ n) m)
+  protected def of_int : Π(n : ℕ), ℤ → bitvec n
+  | n (int.of_nat m)          := bitvec.of_nat n m
+  | n (int.neg_succ_of_nat m) := bitvec.neg (bitvec.of_nat n m)
 
   theorem of_nat_to_nat {n : ℕ} (x : bitvec n)
   : bitvec.of_nat n (bitvec.to_nat x) = x :=
@@ -156,18 +148,16 @@ section arith
         r  := x.val + y.val + c₁ in
     ⟨ bitvec.of_nat n r, r ≥ 2^n ⟩
 
-  protected def add (x y : bitvec n) : bitvec n := (adc x y ff).1
+  protected def add (x y : bitvec n) : bitvec n := bitvec.of_nat n (x.to_nat + y.to_nat)
 
   -- Subtract with borrow
   def sbb (x y : bitvec n) (b : bool) : bool × bitvec n :=
-    let b₁ : bitvec n := if b then 1 else 0,
-        r  := match bitvec.adc x (bitvec.neg y) ff with
-              | (z, b₂) := bitvec.adc z (bitvec.neg b₁) ff
-              end
-    in ⟨ if b then y.val + 1 > x.val else y.val > x.val , r.1 ⟩
+    let b₁ := if b then 1 else 0,
+        r  := x.to_int - (y.to_int + b₁)
+    in ⟨ y.to_nat + b₁ > x.to_nat, bitvec.of_int n r ⟩
 
   -- Usual arithmetic subtraction
-  protected def sub (x y : bitvec n) : bitvec n := (sbb x y ff).2
+  protected def sub (x y : bitvec n) : bitvec n := bitvec.of_int n (x.to_int - y.to_int)
 
   instance : has_add (bitvec n)  := ⟨bitvec.add⟩
   instance : has_sub (bitvec n)  := ⟨bitvec.sub⟩
@@ -195,11 +185,7 @@ section shift
   def ushr (x : bitvec n) (i : ℕ) : bitvec n := bitvec.of_nat n (nat.shiftr x.val i)
 
   -- signed shift right
-  def sshr (x: bitvec n) (i:ℕ) : bitvec n :=
-    match n with
-    | 0      := 0
-    | succ m := bitvec.of_int m (int.shiftr (bitvec.to_int x) i)
-    end
+  def sshr (x: bitvec n) (i:ℕ) : bitvec n := bitvec.of_int n (int.shiftr (bitvec.to_int x) i)
 
 end shift
 
@@ -210,13 +196,11 @@ section listlike
   def nth {w:ℕ} (x : bitvec w) (idx : ℕ) : bool :=
       x .&&. (shl 1 idx) ≠ 0
 
-  def zext {n:ℕ} (m:ℕ) (x: bitvec n) : bitvec (n+m) :=
-    ⟨ x.val, calc
-               x.val < 2^n     : x.property
-                 ... ≤ 2^(n+m) : begin
-                                   apply pow_le_pow_of_le_right, dec_trivial_tac,
-                                   apply le_add_right
-                                 end⟩
+  -- Unsigned extension
+  def uext {n:ℕ} (m:ℕ) (x: bitvec n) : bitvec (n+m) := bitvec.of_nat (n+m) x.to_nat
+
+  -- Signed extension
+  def sext {n:ℕ} (m:ℕ) (x: bitvec n) : bitvec (n+m) := bitvec.of_int (n+m) x.to_int
 
   -- bitvec specific version of vector.append
   def append {m n} (x: bitvec m) (y: bitvec n) : bitvec (m + n)
@@ -284,7 +268,7 @@ section comparison
   -- Comparison operations, including signed and unsigned versions
   variable {n : ℕ}
 
-  def uborrow (x y : bitvec n) : bool := prod.fst (sbb x y ff)
+  def uborrow (x y : bitvec n) : bool := x.to_nat < y.to_nat
 
   def ult (x y : bitvec n) : Prop := uborrow x y
   def ugt (x y : bitvec n) : Prop := ult y x
@@ -293,14 +277,7 @@ section comparison
   def uge (x y : bitvec n) : Prop := ule y x
 
   def sborrow : Π {n : ℕ}, bitvec n → bitvec n → bool
-  | 0        _ _ := ff
-  | (succ n) x y :=
-    match (msb x, msb y) with
-    | (tt, ff) := tt
-    | (ff, tt) := ff
-    | (ff, ff) := uborrow x y
-    | (tt, tt) := uborrow (bitvec.neg y) (bitvec.neg x) -- -x < -y when y < x
-    end
+  | _ x y := x.to_int < y.to_int
 
   def slt (x y : bitvec n) : Prop := sborrow x y
   def sgt (x y : bitvec n) : Prop := slt y x

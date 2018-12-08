@@ -21,6 +21,10 @@ lemma lt_one_is_zero {x:ℕ} : x < 1 ↔ x = 0 :=
     { intros, simp [a], dec_trivial_tac }
   end
 
+lemma one_le_pow_2 {n: ℕ} (h : n > 0) : 1 < 2^n :=
+  calc 1   < 2^1 : by dec_trivial_tac
+       ... ≤ 2^n : nat.pow_le_pow_of_le_right (by dec_trivial_tac) h
+
 lemma pow_mul {b n m :ℕ} : b^n * b^m = b^(n+m) :=
   begin
     induction m with m,
