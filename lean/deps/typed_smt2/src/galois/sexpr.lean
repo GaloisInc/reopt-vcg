@@ -1,20 +1,42 @@
+/-
+This declares an s-expression datatype for generating
+expressions and reasoning about their interpretation.
+-/
 import system.io
 import galois.data.buffer
 
 
-/--  Data-structure for representing s-expressions that can be -/
+/--
+Data-structure for representing s-expressions.
+
+The internal types are strictly general than what one may ordinarily
+expect of s-expressions to allow arbitrary strings to be converted into
+s-expressions, and concatenating two s-expressions.
+
+We do add a decidable_eq instance for s-expressions, but it is structural
+and two s expressions may be distinct, but render to the same string.
+The intent is to allow one to efficiently generate s-expressions,
+do lightweight pattern matching on them, and write them to handles.
+-/
 inductive sexpr : Type
 | atom : char_buffer → sexpr
 | parens : sexpr → sexpr
+-- This appends two s-expressions with a space in between.
 | append : sexpr → sexpr → sexpr
 
 namespace sexpr
 
 instance : has_append sexpr := { append := sexpr.append }
 
-def of_string (c:string) : sexpr := sexpr.atom c.to_char_buffer
+protected
+def of_string : string → sexpr := λc, sexpr.atom c.to_char_buffer
 
-instance : has_coe string sexpr := { coe := of_string }
+instance : has_coe string sexpr := { coe := sexpr.of_string }
+
+protected
+def of_list : list sexpr → sexpr
+| [] := parens (sexpr.of_string "")
+| (h::r) := parens (r.foldl sexpr.append h)
 
 /-- Write the sexpression to the file. -/
 def write (h:io.handle) : sexpr → io unit

@@ -1,3 +1,7 @@
+/-
+This declares sorts, terms, and semantics for generating SMTLIB
+expressions and reasoning about their interpretation.
+-/
 import galois.sexpr
 
 namespace smt2
@@ -111,7 +115,6 @@ can give an incorrect interpretation to an expression.
 We recommend users only construct terms manually if they must, and
 otherwise use existing definitions.
 -/
-
 structure term (s : sort) :=
 (repr : sexpr)
 (interp : Π{l:logic}, model l → l.type_of s)
