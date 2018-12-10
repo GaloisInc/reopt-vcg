@@ -18,6 +18,9 @@ def from_list : list string → string
 | [] := "()"
 | (s::l) := app s l
 
+def indent : string → string
+  | s := "  " ++ s
+
 end sexp
 
 def paren_if : bool → string → string
@@ -35,7 +38,7 @@ namespace mc_semantics
 @[reducible]
 def arg_index := nat
 
-def arg_index.pp (idx:arg_index) : string := "arg" ++ idx.repr
+def arg_index.pp (idx:arg_index) : string := sexp.app "arg" [idx.repr]
 
 ------------------------------------------------------------------------
 -- nat_expr
@@ -160,7 +163,6 @@ local notation ℕ := nat_expr
 -- Denotes the type of a register.
 inductive gpreg_type : Type
 | reg8l : gpreg_type
---| reg8h : gpreg_type
 | reg16 : gpreg_type
 | reg32 : gpreg_type
 | reg64 : gpreg_type
@@ -170,7 +172,6 @@ namespace gpreg_type
 @[reducible]
 def width : gpreg_type → ℕ
 | reg8l  := 8
---| reg8h  := 8
 | reg16 := 16
 | reg32 := 32
 | reg64 := 64
@@ -362,9 +363,9 @@ inductive prim : type → Type
 | uext  (i:ℕ) (o:ℕ) : prim (bv i .→ bv o)
 -- `(trunc i o)` truncates an `i`-bit number to a `o`-bit number.
 | trunc (i:ℕ) (o:ℕ) : prim (bv i .→ bv o)
--- `(bsf i)` returns the index of least-siginifant bit that is 1.
+-- `(bsf i)` returns the index of least-significant bit that is 1.
 | bsf   (i:ℕ) : prim (bv i .→ bv i)
--- `(bsr i)` returns the index of most-siginifant bit that is 1.
+-- `(bsr i)` returns the index of most-significant bit that is 1.
 | bsr   (i:ℕ) : prim (bv i .→ bv i)
 -- `(bswap i)` reverses the bytes in the bitvector.
 | bswap (i:ℕ) : prim (bv i .→ bv i)
@@ -431,8 +432,8 @@ def pp : Π{tp:type}, prim tp → string
 | ._ (bsf i) := "bsf " ++ i.pp
 | ._ (bsr i) := "bsr " ++ i.pp
 | ._ (bswap i) := "bswap " ++ i.pp
-| ._ zero := "0"
-| ._ one  := "1"
+| ._ zero := sexp.app "bit" ["0"]
+| ._ one  := sexp.app "bit" ["1"]
 | ._ (eq tp) := "eq " ++ tp.pp
 | ._ (neq tp) := "neq " ++ tp.pp
 | ._ (neg tp) := "neg " ++ tp.pp
@@ -440,7 +441,7 @@ def pp : Π{tp:type}, prim tp → string
 | ._ float_to_x86_80 := "float_to_x86_80"
 | ._ double_to_x86_80 := "double_to_X86_80"
 | ._ (bv_to_x86_80 w) := "sext " ++ w.pp
-| ._ (bvnat w n) := "bvnat " ++ n.pp
+| ._ (bvnat w n) := sexp.app "bvnat" [w.pp, n.pp]
 | ._ (bvadd i) := "bvadd " ++ i.pp
 | ._ (bvsub i) := "bvsub " ++ i.pp
 | ._ (ssbb_overflows i) := "ssbb_overflows " ++ i.pp
@@ -499,12 +500,12 @@ instance (w:ℕ) : has_add  (expression (bv w)) := ⟨bvadd⟩
 instance (w:ℕ) : has_sub  (expression (bv w)) := ⟨bvsub⟩
 instance (w:ℕ) : has_neg  (expression (bv w)) := ⟨bvneg⟩
 
-def adc         {w:ℕ} (x : expression (bv w)) (y : expression (bv w)) (b : expression bit) : expression (bv w) := prim.adc   w x y b
-def bswap       {w:ℕ} (v : expression (bv w))                                              : expression (bv w) := prim.bswap w v
-def quot        {w:ℕ} (x : expression (bv w)) (y : expression (bv w))                      : expression (bv w) := prim.quot  w x y
-def rem         {w:ℕ} (x : expression (bv w)) (y : expression (bv w))                      : expression (bv w) := prim.rem   w x y
-def signed_quot {w:ℕ} (x : expression (bv w)) (y : expression (bv w))                      : expression (bv w) := prim.squot w x y
-def signed_rem  {w:ℕ} (x : expression (bv w)) (y : expression (bv w))                      : expression (bv w) := prim.srem  w x y
+def adc         {w:ℕ} (x y : expression (bv w)) (b : expression bit) : expression (bv w) := prim.adc   w x y b
+def bswap       {w:ℕ} (v : expression (bv w))                        : expression (bv w) := prim.bswap w v
+def quot        {w:ℕ} (x y : expression (bv w))                      : expression (bv w) := prim.quot  w x y
+def rem         {w:ℕ} (x y : expression (bv w))                      : expression (bv w) := prim.rem   w x y
+def signed_quot {w:ℕ} (x y : expression (bv w))                      : expression (bv w) := prim.squot w x y
+def signed_rem  {w:ℕ} (x y : expression (bv w))                      : expression (bv w) := prim.srem  w x y
 
 protected
 def is_app : Π{tp:type}, expression tp → bool
@@ -661,18 +662,18 @@ private
 def pp_bindings : nat → list binding → string
 | i [] := ""
 | i (b::r)
-  := "  " ++ sexp.app "arg" [i.repr, b.pp] ++ "\n"
+  := sexp.indent (sexp.indent (sexp.app "arg" [i.repr, b.pp] ++ "\n"))
   ++ pp_bindings (i+1) r
 
 private
-def pp_action (m:action) : string := "  " ++ m.repr
+def pp_action (m:action) : string := sexp.indent (sexp.indent m.repr)
 
 protected
 def pp (p:pattern) : string
-  := "pattern\n"
+  := "(pattern\n"
   ++ pp_bindings 0 p.context.bindings.reverse
   ++ unlines (pp_action <$> p.actions)
-  ++ "end_pat"
+  ++ sexp.indent ")"
 
 end pattern
 
@@ -686,9 +687,9 @@ structure instruction :=
 namespace instruction
 
 def repr (i:instruction) : string :=
-  "instruction " ++ i.mnemonic ++ "\n"
-   ++ unlines (pattern.pp <$> i.patterns)
-   ++ "end instruction"
+  "(instruction " ++ i.mnemonic ++ "\n"
+   ++ unlines (sexp.indent <$> pattern.pp <$> i.patterns)
+   ++ ")"
 
 instance : has_repr instruction := ⟨instruction.repr⟩
 
