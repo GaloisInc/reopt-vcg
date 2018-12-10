@@ -6,21 +6,12 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 module VCGCommon
-  ( {-
-    SymBV64
-  , Ptr
-  , BaseBV64Type
-  , newUserSymbol
-  , bv64
-  , nat64
-  , SymMemory
-  , readMemBVLE
-  , writeMemBVLE
--}
-    -- * SMT
+  (  -- * SMT
     Var
   , varTerm
     -- * Memory
+  , ptrSort
+  , memSort
   , readBVLE
   , writeBVLE
     -- * Error reporting
@@ -38,6 +29,14 @@ type Var = Text
 
 varTerm :: Var -> SMT.Term
 varTerm = SMT.T . Builder.fromText
+
+-- | Sort for pointers
+ptrSort :: SMT.Sort
+ptrSort = SMT.bvSort 64
+
+memSort :: SMT.Sort
+memSort = SMT.arraySort ptrSort (SMT.bvSort 8)
+
 
 -- | Read a number of bytes as a bitvector.
 -- Note. This refers repeatedly to ptr so, it should be a constant.

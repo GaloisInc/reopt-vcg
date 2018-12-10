@@ -4,14 +4,19 @@ module Reopt.VCG.Config
   ( MetaVCGConfig(..)
   , VCGFunInfo(..)
   , VCGBlockInfo(..)
+  , AllocaInfo(..)
+  , AllocaName(..)
   , BlockEvent(..)
-  , BlockEventType(..)
+  , BlockEventInfo(..)
   ) where
 
 import qualified Data.HashMap.Strict as HMap
 import           Data.HashSet (HashSet)
 import qualified Data.HashSet as HSet
+import           Data.Scientific (toBoundedInteger)
+import           Data.String
 import           Data.Text (Text)
+import qualified Data.Text as Text
 import           Data.Word
 import           Data.Yaml ((.:))
 import qualified Data.Yaml as Yaml
@@ -27,7 +32,7 @@ type FieldList = HashSet Text
 fields :: [Text] -> FieldList
 fields = HSet.fromList
 
--- | Parse a YAML and fail if our fields are wrong.
+-- | Parse a YAML and fail if there are any fields not in the set.
 withFixedObject :: String -> FieldList -> (Yaml.Object -> Yaml.Parser a) -> Yaml.Value -> Yaml.Parser a
 withFixedObject nm flds f (Yaml.Object o) =
   case HMap.foldrWithKey badFields [] o of
@@ -40,35 +45,91 @@ withFixedObject nm flds f (Yaml.Object o) =
            else
             f:l
 
-
 ------------------------------------------------------------------------
--- Block declarations
+-- AllocaInfo
 
-data BlockEventType
-   = StackRegRead
-   | StackRegWrite
-  deriving (Show)
+-- | Identifier associated with an LLVM allocation.
+newtype AllocaName = AllocaName { allocaNameText :: Text }
+  deriving (Eq, Ord)
 
-instance Yaml.FromJSON BlockEventType where
-  parseJSON (Yaml.String "stack_reg_read")  = pure StackRegRead
-  parseJSON (Yaml.String "stack_reg_write") = pure StackRegWrite
-  parseJSON v = fail $ "Expected block event type, encountered " ++ show v
+instance IsString AllocaName where
+  fromString = AllocaName . Text.pack
 
-data BlockEvent = BlockEvent
-  { eventAddr :: !Integer
-  , eventType :: !BlockEventType
+instance Show AllocaName where
+  show (AllocaName nm) = Text.unpack nm
+
+instance Yaml.FromJSON AllocaName where
+  parseJSON (Yaml.String nm) = pure $ AllocaName nm
+  parseJSON (Yaml.Number n)
+    | Just off <- toBoundedInteger n :: Maybe Word64 =
+        pure $ AllocaName (Text.pack (show off))
+  parseJSON v =
+    fail $ "Allocation name Expected integer or string, not " ++ show v
+
+
+-- | Annotes an event at a given address.
+data AllocaInfo = AllocaInfo
+  { allocaName :: !AllocaName
+    -- ^ Name of allocation.
+  , allocaBinaryOffset :: !Integer
+    -- ^ Number of bytes from start of alloca to offset of stack
+    -- pointer in machine code.
   }
   deriving (Show)
 
+allocaInfoFields :: FieldList
+allocaInfoFields = fields ["name", "offset"]
 
+instance Yaml.FromJSON AllocaInfo where
+  parseJSON = withFixedObject "AllocaInfo" allocaInfoFields $ \v ->
+    AllocaInfo
+      <$> v .: "name"
+      <*> v .: "offset"
+
+------------------------------------------------------------------------
+-- BlockEventType
+
+data BlockEventInfo
+   = BinaryOnlyAccess
+     -- ^ The instruction at the address updates the binary
+     -- stack, but does not affect LLVM memory.
+   | JointStackAccess !AllocaName
+     -- ^ The instructions at the address access the LLVM allocation
+     -- associated with the given name.
+   | HeapAccess
+     -- ^ There is an access to heap memory.
+  deriving (Show)
+
+------------------------------------------------------------------------
+-- BlockEvent
+
+-- | Annotes an event at a given address.
+data BlockEvent = BlockEvent
+  { eventAddr :: !Integer
+  , eventInfo :: !BlockEventInfo
+  }
+  deriving (Show)
+
+-- | Lift of fields
 blockEventFields :: FieldList
-blockEventFields = fields ["addr", "type"]
+blockEventFields = fields ["addr", "type", "alloca"]
 
 instance Yaml.FromJSON BlockEvent where
-  parseJSON = withFixedObject "BlockEvent" blockEventFields $ \v ->
-    BlockEvent
-      <$> v .: "addr"
-      <*> v .: "type"
+  parseJSON = withFixedObject "BlockEvent" blockEventFields $ \v -> do
+    addr <- v .: "addr"
+    tp <- v .: "type"
+    info <-
+      case (tp :: Text) of
+        "binary_only_access" -> pure BinaryOnlyAccess
+        "joint_stack_access" -> do
+          JointStackAccess <$> v .: "alloca"
+        "heap_access" -> pure HeapAccess
+    pure $ BlockEvent { eventAddr = addr
+                      , eventInfo = info
+                      }
+
+------------------------------------------------------------------------
+-- VCGBlockInfo
 
 -- | Our VCG supports cases where each LLVM block corresponds to a contiguous range
 -- of instructions.
@@ -79,13 +140,16 @@ data VCGBlockInfo = VCGBlockInfo
     -- ^ Address of start of block
   , blockSize :: !Word64
     -- ^ Number of bytes in block
+  , blockAllocas :: ![AllocaInfo]
+    -- ^ Maps LLVM allocations to an offset of the stack where it starts.
   , blockEvents :: ![BlockEvent]
+    -- ^ Annotates events within the block.
   }
   deriving (Show, Generic)
 
 
 blockInfoFields :: FieldList
-blockInfoFields = fields ["label", "addr", "size", "events"]
+blockInfoFields = fields ["label", "addr", "size", "allocas", "events"]
 
 instance Yaml.FromJSON VCGBlockInfo where
   parseJSON = withFixedObject "BlockInfo" blockInfoFields $ \v ->
@@ -93,6 +157,7 @@ instance Yaml.FromJSON VCGBlockInfo where
       <$> v .: "label"
       <*> v .: "addr"
       <*> v .: "size"
+      <*> v .: "allocas"
       <*> v .: "events"
 
 data VCGFunInfo = VCGFunInfo

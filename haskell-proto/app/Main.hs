@@ -17,7 +17,7 @@ import           Control.Monad.Reader
 import           Control.Monad.State
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BSC
-import           Data.ElfEdit
+import qualified Data.ElfEdit as Elf
 import           Data.IORef
 import           Data.List as List
 import           Data.Macaw.CFG
@@ -31,6 +31,7 @@ import           Data.Maybe
 import           Data.Set (Set)
 import qualified Data.Set as Set
 import           Data.String
+import           Data.Text (Text)
 import           Data.Text.Lazy.Builder (Builder)
 import qualified Data.Text.Lazy.Builder as Builder
 import qualified Data.Text.Lazy.IO as LText
@@ -43,6 +44,7 @@ import           System.IO
 import           System.Process
 import           Text.LLVM hiding (comment, (:>), Value)
 import           Text.LLVM.PP
+import           Text.Printf
 import qualified What4.Protocol.SMTLib2.Parse as SMTP
 import qualified What4.Protocol.SMTLib2.Syntax as SMT
 
@@ -60,12 +62,13 @@ ppBlock (Named (Ident s)) = s
 ppBlock (Anon i) = show i
 
 
+-- | Information about verification of a function.
 data VCGConfig = VCGConfig
   { blockMapping :: !BlockMapping
   , llvmMod      :: !Module
   }
 
-
+-- | Find a block with the given label in the config.
 findBlock :: VCGConfig -> BlockLabel -> VCGBlockInfo
 findBlock cfg lbl =
   case Map.lookup (ppBlock lbl) (blockMapping cfg) of
@@ -76,28 +79,44 @@ findBlock cfg lbl =
 -- | Callback functions for interacting with SMT solver.
 data CallbackFns = CallbackFns
   { addCommandCallback :: !(SMT.Command -> IO ())
-  , addNegGoalCallback :: !(SMT.Term -> IO ())
-  , addGoalCallback :: !(SMT.Term -> IO ())
+    -- ^ Invoked to add an SMT command.
+    --
+    -- These commands must not change the solver out of assert mode.
+  , proveFalseCallback :: !(SMT.Term -> String -> IO ())
+    -- ^ Invoked when we have a proposition to prove is false for all interprettions.
+    --
+    -- The message is provide so the user knows the source of the check.
+  , proveTrueCallback  :: !(SMT.Term -> String -> IO ())
+    -- ^ Invoked when we have a proposition to prove is true for all interprettions.
+    --
+    -- The message is provide so the user knows the source of the check.
   }
 
+-- | Information that does not during execution of @VCGMonad@.
 data PfConfig = PfConfig
   { cfgConfig :: !VCGConfig
-    -- ^ The current configuration
-  , mcOnlyAddrs :: !(Set (MemSegmentOff 64))
+    -- ^ The current configuration for the function.
+  , addrEventMap :: !(Map (MemSegmentOff 64) BlockEventInfo)
     -- ^ Set of instruction addresses in this block where reads/writes
     -- should only affect
   , callbackFns :: !CallbackFns
+    -- ^ Functions for interacting with SMT solver.
+  , allocaOffsetMap :: !(Map AllocaName Integer)
+    -- ^ Map from allocation names to the offset the allocation is
+    -- relative to in machine code.
   }
 
+-- | State that changes during execution of @VCGMonad@.
 data PfState = PfState
   { mcCurAddr :: !(MemSegmentOff 64)
+    -- ^ Current instruction address
   , mcMemIndex :: !Integer
+    -- ^ Index to give to next memory index
+  , mcUsedAllocas :: !(Set AllocaName)
+    -- ^ Map names used for allocations to @(b,e)@ where @[b,e)@
+    -- represents the hardware range for addresses in the binary.
+  , mcOnlyStackFrameIndex :: !Integer
   }
-
--- | Return true if memory reads/writes at the acceses at the current instruction
--- should appear only in the machine code, and not the LLVM.
-mcOnlyAccess :: PfConfig -> PfState -> Bool
-mcOnlyAccess cfg s = Set.member (mcCurAddr s) (mcOnlyAddrs cfg)
 
 type VCGMonad = ReaderT PfConfig (StateT PfState IO)
 
@@ -106,16 +125,21 @@ addCommand cmd = do
   fns <- asks callbackFns
   liftIO $ addCommandCallback fns cmd
 
-addNegGoal :: SMT.Term -> VCGMonad ()
-addNegGoal g = do
+-- | @proveFalse p msg@ adds a proof obligation @p@ is false for all interpretations
+-- of constants with the message @msg@.
+proveFalse :: SMT.Term -> String -> VCGMonad ()
+proveFalse p msg = do
   fns <- asks callbackFns
-  liftIO $ addNegGoalCallback fns g
+  liftIO $ proveFalseCallback fns p msg
 
-addGoal :: SMT.Term -> VCGMonad ()
-addGoal g = do
+-- | @proveTrue p msg@ adds a proof obligation @p@ is true for all interpretations
+-- of constants with the message @msg@.
+proveTrue :: SMT.Term -> String -> VCGMonad ()
+proveTrue p msg = do
   fns <- asks callbackFns
-  liftIO $ addGoalCallback fns g
+  liftIO $ proveTrueCallback fns p msg
 
+-- | Assume the propositon is true without requiring it to be proven.
 assume :: SMT.Term -> VCGMonad ()
 assume p = addCommand $ SMT.assert p
 
@@ -127,20 +151,26 @@ assertFnNameEq llvmFun macawIP = undefined llvmFun macawIP
 x86ArgRegs :: [X86Reg (M.BVType 64)]
 x86ArgRegs = [ RDI, RSI, RDX, RCX, R8, R9 ]
 
-getMacawMem :: VCGMonad SMT.Term
-getMacawMem = do
+-- | Get SMT term that currently represents memory.
+getMCMem :: VCGMonad SMT.Term
+getMCMem = do
   idx <- gets mcMemIndex
   pure $! varTerm (M.memVar idx)
 
+-- | @MmacwRead addr cnt var@ reads @cnt@ bytes from machine code
+-- memory and assigns them to @var@.
 macawRead :: SMT.Term -> Integer -> Var -> VCGMonad ()
 macawRead addr byteCount valVar = do
-  mem <- getMacawMem
+  mem <- getMCMem
   let valType = SMT.bvSort (8*byteCount)
   let val | byteCount `elem` [1,2,4,8] =
               SMT.term_app (memReadName byteCount) [mem, addr]
           | otherwise = readBVLE mem addr byteCount
   addCommand $ SMT.defineFun valVar [] valType val
 
+-- | @macawWrite addr cnt val@ writes @cnt@ bytes to memory.
+--
+-- The value written is the @8*cnt@-length bitvector term @val@.
 macawWrite :: SMT.Term -> Integer -> SMT.Term -> VCGMonad ()
 macawWrite addr byteCount val = do
   idx <- gets mcMemIndex
@@ -151,19 +181,6 @@ macawWrite addr byteCount val = do
              | otherwise =
                  writeBVLE (varTerm (M.memVar idx)) addr val byteCount
   addCommand $ SMT.defineFun (M.memVar (idx+1)) [] memSort newMem
-
--- | A SMT predicate that holds if all the bytes [addr, addr+sz)` is in the current stack frame.
---
--- Note. This predicate can assume that `sz > 0` and `sz < 2^64`, but still
--- be correct if the computation of `addr+sz` overflows.
-onThisStackFrame :: SMT.Term -> Integer -> SMT.Term
-onThisStackFrame addr sz = SMT.term_app "on_this_stack_frame" [addr, SMT.bvdecimal sz 64]
-
-ptrSort :: SMT.Sort
-ptrSort = SMT.bvSort 64
-
-memSort :: SMT.Sort
-memSort = SMT.arraySort (SMT.bvSort 64) (SMT.bvSort 8)
 
 -- | Name of function in SMTLIB for reading given number of bytes
 memReadName :: (IsString a, Semigroup a) => Integer -> a
@@ -189,36 +206,77 @@ memWriteDecl w = do
 comment :: Builder -> SMT.Command
 comment r = SMT.Cmd $ "; " <> r
 
--- | Define a SMT function which
-onThisStackFrameDecl :: SMT.Command
-onThisStackFrameDecl = do
-  let args = [("a", ptrSort), ("sz", SMT.bvSort 64)]
-  SMT.defineFun "on_this_stack_frame" args SMT.boolSort $
-    SMT.letBinder [ ("e", SMT.bvadd (varTerm "a") [varTerm "sz"]) ] $
-      SMT.and [ SMT.bvule (varTerm "stack_low") (varTerm "a")
-              , SMT.bvule (varTerm "a") (varTerm "e")
-              , SMT.bvule (varTerm "e") (varTerm "stack_high")
-              ]
 
+initRSP :: SMT.Term
+initRSP = varTerm (M.smtRegVar RSP)
 
--- | Declaration for defining current stack frame bounds.
+-- | Name of SMT predicate that holds if all the bytes [addr, addr+sz)` are
+-- in a region of the stack frame marked as only accessible to the binary code.
 --
+-- Note. The correctness property above assumes that @sz > 0@.
+onMCOnlyStackFrame :: (Monoid a, IsString a) => Integer -> a
+onMCOnlyStackFrame varNum | varNum < 0 = error "onMCOnlyStackFrame given negative number."
+                          | otherwise = "on_mconly_stack_frame" <> fromString (show varNum)
+
+-- | @mcMemDecls sz@ adds declarations about the memory.
+--
+-- It assumes that there is a fresh constant x86reg_RSP declared for the initial RSP, and
+-- asserts that @sz < x86reg_RSP < 2^64 - 8@
+--
+-- It defines @stack_low@ to be @x86reg_RSP - sz@.
+-- It defines @stack_high@ to be @x86reg_RSP + 8@.
+--
+-- It also defines @heap_low@, @heap_high@, and @in_heap_segment@.
+--
+-- It defines @on_this_stack_frame@
 -- Note. This assumes X86 registers are already declared.
-mcStackBoundDecls :: Integer -> [SMT.Command]
-mcStackBoundDecls sz = do
-  let initRSP = varTerm (M.smtRegVar RSP)
-   in [ SMT.defineFun "stack_low"  [] (SMT.bvSort 64)
-        (SMT.bvsub initRSP (SMT.bvdecimal sz 64))
-      -- High water stack pointer includes 8 bytes for return address.
-      , comment "stack_high is the initial stack pointer plus 8 for the return address."
-      , SMT.defineFun "stack_high"  [] (SMT.bvSort 64)
-        (SMT.bvadd initRSP [SMT.bvdecimal 8 64])
-        -- Assert RSP has enough room to hold the return address.
-      , SMT.assert $ SMT.bvult initRSP (SMT.bvdecimal (2^(64::Int) - 8) 64)
-        -- Assert RSP has enough room to hold the given number of bytes.
-      , SMT.assert $ SMT.bvugt initRSP (SMT.bvdecimal sz 64)
-      , onThisStackFrameDecl
-      ]
+mcMemDecls :: Integer -> Integer -> [SMT.Command]
+mcMemDecls currentStackHeight sz =
+  [ -- Assert RSP has enough room to hold the return address.
+    SMT.assert $ SMT.bvult initRSP (SMT.bvhexadecimal (2^(64::Int) - 8) 64)
+    -- Assert RSP has enough room to hold the given number of bytes.
+  , SMT.assert $ SMT.bvugt initRSP (SMT.bvdecimal sz 64)
+  , SMT.defineFun "stack_low"  [] (SMT.bvSort 64)
+      (SMT.bvsub initRSP (SMT.bvdecimal sz 64))
+    -- High water stack pointer includes 8 bytes for return address.
+  , comment "stack_high is the initial stack pointer plus 8 for the return address."
+  , SMT.defineFun "stack_high"  [] (SMT.bvSort 64)
+      (SMT.bvadd initRSP [SMT.bvdecimal currentStackHeight 64])
+    -- stack_high must be aligned to a 16-byte boundary.
+    -- This is done by asserting the 4 low-order bits are 0.
+  , SMT.assert $ SMT.eq [ SMT.extract 3 0 (varTerm "stack_high"), SMT.bvhexadecimal 0 4]
+    -- Declare on_this_stack_frame
+  , do let args = [("a", ptrSort), ("sz", SMT.bvSort 64)]
+       SMT.defineFun (onMCOnlyStackFrame 0) args SMT.boolSort $
+         SMT.letBinder [ ("e", SMT.bvadd (varTerm "a") [varTerm "sz"]) ] $
+           SMT.and [ SMT.bvule (varTerm "stack_low") (varTerm "a")
+                   , SMT.bvule (varTerm "a") (varTerm "e")
+                   , SMT.bvule (varTerm "e") (varTerm "stack_high")
+                   ]
+    -- Declare lower and upper bounds for heap.
+  , SMT.declareConst "heap_low" (SMT.bvSort 64)
+  , SMT.declareConst "heap_high" (SMT.bvSort 64)
+  , SMT.assert $ SMT.bvult (varTerm "heap_low") (varTerm "heap_high")
+    -- Declare in_heap_segment
+  , do let args = [("a", ptrSort), ("sz", SMT.bvSort 64)]
+       SMT.defineFun "in_heap_segment" args SMT.boolSort $
+         SMT.letBinder [ ("e", SMT.bvadd (varTerm "a") [varTerm "sz"]) ] $
+           SMT.and [ SMT.bvule (varTerm "heap_low") (varTerm "a")
+                   , SMT.bvule (varTerm "a") (varTerm "e")
+                   , SMT.bvule (varTerm "e") (varTerm "heap_high")
+                   ]
+  ]
+
+-- | A SMT predicate that holds if all the bytes [addr, addr+sz)` is in the heap.
+--
+-- Note. This predicate can assume that `sz > 0` and `sz < 2^64`, but still
+-- be correct if the computation of `addr+sz` overflows.
+inHeapSegment :: SMT.Term -> Integer -> SMT.Term
+inHeapSegment addr sz = SMT.term_app "in_heap_segment" [addr, SMT.bvdecimal sz 64]
+
+------------------------------------------------------------------------
+
+
 
 
 -- | Handler for when eventsEq doesn't match events.
@@ -240,9 +298,50 @@ eventsDone (lev:_) (mev:_) = do
 missingFeature :: String -> VCGMonad ()
 missingFeature msg = liftIO $ hPutStrLn stderr $ "TODO: " ++ msg
 
--- | @assertEq x y@ add a goal asserting that @x@ equals @y@.
-assertEq :: SMT.Term -> SMT.Term -> VCGMonad ()
-assertEq x y = addNegGoal (SMT.distinct [x,y])
+-- | @assertEq x y msg@ add a proof obligation named @msg@ asserting that @x@ equals @y@.
+assertEq :: SMT.Term -> SMT.Term -> String -> VCGMonad ()
+assertEq x y msg = proveFalse (SMT.distinct [x,y]) msg
+
+getCurrentEventInfo :: VCGMonad BlockEventInfo
+getCurrentEventInfo = do
+  cfg <- ask
+  a <- gets mcCurAddr
+  case Map.lookup a (addrEventMap cfg) of
+    Just info -> pure info
+    Nothing -> error $ "Unannotated memory event at " ++ show a
+
+-- | Identifies the LLVM base address of an allocation.
+allocaLLVMBaseVar :: AllocaName -> Text
+allocaLLVMBaseVar (AllocaName nm) = mconcat ["alloca_", nm, "_llvm_base"]
+
+-- | Identifies the LLVM end address of an allocation.
+allocaLLVMEndVar :: AllocaName -> Text
+allocaLLVMEndVar (AllocaName nm)  = mconcat ["alloca_", nm, "_llvm_end"]
+
+-- | Identifies the machine code base address of an allocation.
+allocaMCBaseVar :: AllocaName -> Text
+allocaMCBaseVar (AllocaName nm) = mconcat ["alloca_", nm, "_mc_base"]
+
+-- | Identifies the LLVM end address of an allocation.
+allocaMCEndVar :: AllocaName -> Text
+allocaMCEndVar (AllocaName nm)  = mconcat ["alloca_", nm, "_mc_end"]
+
+-- | A range @(b,e)@ representing the addresses @[b..e)@.
+-- We assume that @b ule e@.
+type Range = (SMT.Term, SMT.Term)
+
+-- | @isDisjoint x y@ returns a predicate that holds if the ranges denoted by @x@ and @y@
+-- do not overlap.
+isDisjoint :: Range -> Range -> SMT.Term
+isDisjoint (b0, e0) (b1, e1) = SMT.or [ SMT.bvule e0 b1, SMT.bvule e1 b0 ]
+
+-- | @assumeLLVMDisjoint (base, end) nm@ adds assumptions that @[base,end)@
+-- is disjoint from allocation identified by @nm@.
+--
+-- We can assume @end >= base@ for all allocations
+assumeLLVMDisjoint :: Range -> AllocaName -> VCGMonad ()
+assumeLLVMDisjoint r nm = do
+  assume $ isDisjoint r (varTerm (allocaLLVMBaseVar nm), varTerm (allocaLLVMEndVar nm))
 
 eventsEq :: [L.Event]
          -> [M.Event]
@@ -257,93 +356,173 @@ eventsEq levs (M.InstructionEvent curAddr:mevs) = do
 eventsEq (L.CmdEvent cmd:levs) mevs = do
   addCommand cmd
   eventsEq levs mevs
-eventsEq (L.AllocaEvent{}:levs) mevs =
-  eventsEq levs mevs --Skip alloca events
-eventsEq levs0 mevs0@(M.ReadEvent macawAddr macawCount macawValVar:mevs) = do
-  cfg <- ask
-  s <- get
-  case levs0 of
-    levs | mcOnlyAccess cfg s -> do
-      -- Define value from reading Macaw heap
-      macawRead macawAddr macawCount macawValVar
+eventsEq (L.AllocaEvent nm sz _align:levs) mevs = do
+  -- Define base of alloca
+  addCommand $ SMT.declareConst (allocaLLVMBaseVar nm) ptrSort
+  let llvmBase = varTerm (allocaLLVMBaseVar nm)
+  -- Define register alloca is returned to.
+  addCommand $ SMT.defineFun ("llvm_" <> allocaNameText nm) [] ptrSort llvmBase
+  -- Define end of alloca
+  addCommand $ SMT.defineFun (allocaLLVMEndVar nm) [] ptrSort $ SMT.bvadd llvmBase [sz]
+  let llvmEnd = varTerm (allocaLLVMEndVar nm)
+  -- Assert end calculation did not wrap around.
+  assume $ SMT.bvule llvmBase llvmEnd
+  -- Get machine code offset.
+  mcOffset <-
+    do allocaMap <- asks $ allocaOffsetMap
+       case Map.lookup nm allocaMap of
+         Nothing ->
+           error $ "Could not find offset of alloca with name: " ++ show nm ++ "\n"
+             ++ "Names: " ++ show (Map.keys allocaMap)
+         Just o -> pure o
+  -- Validate mcOffset is less than stack higher
+  -- Define machine code base
+  addCommand $ SMT.defineFun (allocaMCBaseVar nm) [] ptrSort $
+    SMT.bvsub initRSP (SMT.bvdecimal mcOffset 64)
+  let mcAllocBase = varTerm (allocaMCBaseVar nm)
+
+  addCommand $ SMT.defineFun (allocaMCEndVar nm) [] ptrSort $
+    SMT.bvadd mcAllocBase [sz]
+  let mcAllocEnd = varTerm (allocaMCEndVar nm)
+  -- Check stack space is unallocated
+  do idx <- gets mcOnlyStackFrameIndex
+     proveTrue (SMT.term_app (onMCOnlyStackFrame idx) [mcAllocBase, sz])
+       (printf "Machine code space for %s in unreserved stack space." (show nm))
+  -- Update region of unallocated stack space.
+  do idx <- gets mcOnlyStackFrameIndex
+     modify $ \s -> s { mcOnlyStackFrameIndex = idx + 1 }
+     let args = [("a", ptrSort), ("sz", SMT.bvSort 64)]
+     addCommand $ SMT.defineFun (onMCOnlyStackFrame (idx+1)) args SMT.boolSort $
+       let e = SMT.bvadd (varTerm "a") [varTerm "sz"]
+        in SMT.and [ isDisjoint (varTerm "a", e) (mcAllocBase, mcAllocEnd)
+                   , SMT.term_app (onMCOnlyStackFrame idx) [varTerm "a", varTerm "sz"]
+                   ]
+  -- Adding assumptions about non-overlap.
+  do used <- gets mcUsedAllocas
+     when (Set.member nm used) $ error $ show nm ++ " is already used an allocation."
+     mapM_ (assumeLLVMDisjoint (llvmBase,llvmEnd)) used
+     modify $ \s -> s { mcUsedAllocas = Set.insert nm (mcUsedAllocas s) }
+  -- Process next events
+  eventsEq levs mevs
+eventsEq levs0 mevs0@(M.ReadEvent mcAddr mcCount macawValVar:mevs) = do
+  memEventInfo <- getCurrentEventInfo
+  case (memEventInfo, levs0) of
+    -- If macaw only access
+    (BinaryOnlyAccess, levs) -> do
       -- Assert address is on stack
-      addGoal $ onThisStackFrame macawAddr macawCount
+      do addr <- gets mcCurAddr
+         idx <- gets mcOnlyStackFrameIndex
+         proveTrue (SMT.term_app (onMCOnlyStackFrame idx) [mcAddr, SMT.bvdecimal mcCount 64])
+           (printf "Machine code read at %s is in unreserved stack space." (show addr))
+      -- Define value from reading Macaw heap
+      macawRead mcAddr mcCount macawValVar
       -- Process future events.
       eventsEq levs mevs
-    L.LoadEvent _llvmAddr llvmCount llvmValVar:levs -> do
-      -- Define value from reading Macaw heap
-      macawRead macawAddr macawCount macawValVar
+    (JointStackAccess (aname :: AllocaName), L.LoadEvent llvmLoadAddr llvmCount llvmValVar:levs) -> do
+      -- Check alloca is defined
+      do used <- gets $ mcUsedAllocas
+         when (not (Set.member aname used)) $ error $ "Unknown alloca: " ++ show aname
+      -- Assert LLVM address is within @allocaName@
+      let llvmAllocBase = varTerm $ allocaLLVMBaseVar aname
+      let llvmAllocEnd  = varTerm $ allocaLLVMEndVar  aname
+      let mcBase   = varTerm $ allocaMCBaseVar   aname
+      let llvmLoadEnd = SMT.bvadd llvmLoadAddr [SMT.bvdecimal llvmCount 64]
+      proveTrue (SMT.bvult llvmLoadAddr (SMT.bvhexadecimal (negate llvmCount) 64))
+        ("LLVM load address does not overflow")
+      proveTrue (SMT.and [ SMT.bvule llvmLoadAddr llvmAllocBase
+                         , SMT.bvule llvmLoadEnd  llvmAllocEnd
+                         ])
+        (printf "LLVM load address is within allocation %s" (show aname))
+      -- Assert machine code address is same offset of machine code region as LLVM address.
+      assertEq mcAddr (SMT.bvadd mcBase [SMT.bvsub llvmLoadAddr llvmAllocBase])
+        ("Machine code stack load address matches expected from LLVM")
       -- Check size of writes are equivalent.
-      when (macawCount /= llvmCount) $ do
+      when (mcCount /= llvmCount) $ do
         error "Bytes read with different number of bytes."
-      missingFeature "Assert addresses are equal."
+      -- Define value from reading Macaw heap
+      macawRead mcAddr mcCount macawValVar
+      -- Define LLVM value
+      addCommand $ SMT.defineFun llvmValVar [] (SMT.bvSort (8*mcCount)) (varTerm macawValVar)
+      -- Process future events.
+      eventsEq levs mevs
+    (JointStackAccess _,levs) -> do
+      eventsDone levs mevs0
+    (HeapAccess, L.LoadEvent llvmAddr llvmCount llvmValVar:levs) -> do
+      -- Assert addresses are the same
+      assertEq mcAddr llvmAddr
+        ("Machine code heap load address matches expected from LLVM")
+      -- Add that macaw points to the heap
+      do addr <- gets mcCurAddr
+         proveTrue (inHeapSegment mcAddr mcCount)
+           (printf "Read from heap at %s is valid." (show addr))
+
+      -- Check size of writes are equivalent.
+      when (mcCount /= llvmCount) $ do
+        error "Bytes read with different number of bytes."
+      -- Define value from reading Macaw heap
+      macawRead mcAddr mcCount macawValVar
 
       -- Define LLVM value returned in terms of macaw value
-      addCommand $ SMT.defineFun llvmValVar [] (SMT.bvSort (8*macawCount)) (varTerm macawValVar)
+      addCommand $ SMT.defineFun llvmValVar [] (SMT.bvSort (8*mcCount)) (varTerm macawValVar)
       -- Process future events.
       eventsEq levs mevs
-    levs -> do
+    (HeapAccess,levs) -> do
       eventsDone levs mevs0
 
-eventsEq (L.LoadEvent _llvmAddr llvmCount llvmValVar:levs)
-         (M.CondReadEvent macawCond macawReadAddr macawCount _macawDef macawValVar:mevs) = do
-  -- Require that write occurs.
-  addGoal $ macawCond
-  -- Check size of writes are equivalent.
-  when (macawCount /= llvmCount) $ do
-    error "Bytes read with different number of bytes."
-  missingFeature "Assert addresses are equal."
-  --  addNegGoal $ SMT.distinct [ llvmAddr, macawAddr ]
-  -- Define Macaw value returned
-  macawRead macawReadAddr macawCount macawValVar
-  -- Define LLVM value returned in terms of macaw value
-  addCommand $ SMT.defineFun llvmValVar [] (SMT.bvSort (8*macawCount)) (varTerm macawValVar)
+eventsEq (L.LoadEvent _llvmAddr _llvmCount _llvmValVar:levs)
+         (M.CondReadEvent _macawCond _mcAddr _mcCount _macawDef _macawValVar:mevs) = do
+  missingFeature "Cond reads are not yet supported."
   -- Process future events.
   eventsEq levs mevs
 
 -- This doesn't match a LLVM read, so we will require it either
 -- doesn't occur or is a write to the stack.
 eventsEq levs
-         (M.CondReadEvent macawCond addr byteCount defTerm macawValVar:mevs) = do
-
-  -- Declare macaw value variable
-  mem <- getMacawMem
-  let valType = SMT.bvSort (8*byteCount)
-  -- Assert that there are at least byteCount bytes available to read at address addr.
-  addGoal $ SMT.implies [macawCond] (onThisStackFrame addr byteCount)
-
-  addCommand $ SMT.defineFun macawValVar [] valType $
-     SMT.ite macawCond (readBVLE mem addr byteCount) defTerm
-
+         (M.CondReadEvent _macawCond _addr _byteCount _defTerm _macawValVar:mevs) = do
+  missingFeature "Cond reads are not yet supported."
   eventsEq levs mevs
 
-eventsEq levs0 mevs0@(M.WriteEvent macawAddr macawCount macawVal:mevs) = do
-  cfg <- ask
-  s <- get
-  case levs0 of
+eventsEq levs0 mevs0@(M.WriteEvent mcAddr mcCount macawVal:mevs) = do
+  memEventInfo <- getCurrentEventInfo
+  case (memEventInfo, levs0) of
     -- If we are at a stack address, then do following.
-    levs | mcOnlyAccess cfg s -> do
+    (BinaryOnlyAccess, levs) -> do
       -- Update stack with write.
-      macawWrite macawAddr macawCount macawVal
+      macawWrite mcAddr mcCount macawVal
       -- Assert address is on stack
-      addGoal $ onThisStackFrame macawAddr macawCount
+      do addr <- gets mcCurAddr
+         idx <- gets mcOnlyStackFrameIndex
+         proveTrue (SMT.term_app (onMCOnlyStackFrame idx) [mcAddr, SMT.bvdecimal mcCount 64])
+           (printf "Machine code write at %s is in unreserved stack space." (show addr))
       -- Process next events
       eventsEq levs mevs
 
-    L.StoreEvent _llvmAddr llvmCount llvmVal:levs -> do
+    (JointStackAccess _allocName, L.StoreEvent _llvmAddr llvmCount _llvmVal:levs) -> do
+      when (llvmCount /= mcCount) $ do
+        error "Bytes written have different number of bytes."
 
-      when (llvmCount /= macawCount) $ do
+      missingFeature "Assert write addresses are equal."
+
+      -- Update macaw memory
+      macawWrite mcAddr mcCount macawVal
+
+      eventsEq levs mevs
+    (JointStackAccess _, levs) -> do
+      eventsDone levs mevs0
+
+    (HeapAccess, L.StoreEvent _llvmAddr llvmCount llvmVal:levs) -> do
+      when (llvmCount /= mcCount) $ do
         error "Bytes written have different number of bytes."
       missingFeature "Assert write addresses are equal."
 
       -- Assert values are equal
       assertEq llvmVal macawVal
-
+        ("Machine code heap store matches expected from LLVM")
       -- Update macaw memory
-      macawWrite macawAddr macawCount macawVal
+      macawWrite mcAddr mcCount macawVal
 
       eventsEq levs mevs
-    levs ->
+    (HeapAccess, levs) ->
       eventsDone levs mevs0
 
 eventsEq [L.InvokeEvent _ f lArgs _lRet] [M.FetchAndExecuteEvent regs] = do
@@ -360,20 +539,25 @@ eventsEq [L.InvokeEvent _ f lArgs _lRet] [M.FetchAndExecuteEvent regs] = do
       compareArg la reg = do
         let Const ma = regs^.boundValue reg
         assertEq la ma
+         ("Register matches LLVM")
   zipWithM_ compareArg lArgs x86ArgRegs
 eventsEq [L.JumpEvent lbl] [M.FetchAndExecuteEvent regs] = do
   cfg <- asks $ cfgConfig
   let blockInfo = findBlock cfg lbl
   -- Get term for address associated with this label.
-  let llvmMemAddr = SMT.bvdecimal (toInteger (blockAddr blockInfo)) 64
+  let llvmMemAddr = SMT.bvhexadecimal (toInteger (blockAddr blockInfo)) 64
   let Const mRegIP = regs ^. boundValue X86_IP
   assertEq llvmMemAddr mRegIP
+    ("Jump targets match")
   missingFeature "Assert preconditions for block."
 eventsEq [L.ReturnEvent mlret] [M.FetchAndExecuteEvent regs] = do
   -- Assert the IP after the fetch and execute is the return address
   assertEq (getConst (regs^.curIP)) (varTerm "return_addr")
+    "Return addresses match"
+
   -- Assert the stack height at the return is the peak stack height
   assertEq (getConst (regs^.boundValue RSP)) (varTerm "stack_high")
+    "Stack height at return matches init"
   --  TODO: Assert callee saved registers have not changed.
 
   -- Assert the value in RAX is the return value.
@@ -382,49 +566,8 @@ eventsEq [L.ReturnEvent mlret] [M.FetchAndExecuteEvent regs] = do
     Just lret -> do
       let Const mret = regs^.boundValue RAX
       assertEq lret mret
-
+       "Return values match"
 eventsEq levs mevs = eventsDone levs mevs
-
-
-{-
-retValugeEq :: IsSymExprBuilder sym
-           => sym -> Maybe (SymBV64 sym) -> Maybe (SymBV64 sym)
-           -> VCGMonad sym ids ()
-retValueEq sym (Just bv1) (Just bv2) = do
-  eq <- liftIO $ bvEq sym bv1 bv2
-  addProofGoal sym eq
-retValueEq _sym (Just _) _ = do
-  liftIO $ warning "LLVM block does not have return value, proof failed"
-retValueEq _sym _ (Just _) = do
-  liftIO $ warning "Macaw block does not have return value, proof failed"
-retValueEq _sym _ _ = do
-  liftIO $ warning "return value is not provided"
--}
-
-{-
-simulateAndCheck :: IsSymExprBuilder sym
-                 => sym
-                 -> VCGFunInfo
-                 -> BasicBlock
-                 -> DiscoveryFunInfo X86_64 ids
-                 -> L.LState sym
-                 -> M.MState sym ids
-                 -> VCGMonad sym ids ()
-simulateAndCheck sym _vfi bb discInfo ls0 ms0 = do
-  liftIO $ putStrLn "Simulating LLVM program ..."
-  ls' <- liftIO $ execStateT (L.bb2SMT sym bb) ls0
-
-  liftIO $ putStrLn "Simulating Macaw program ..."
-  ms' <- liftIO $ execStateT (M.blocks2SMT sym discInfo) ms0
-
-  -- Build disjointness constraints and variable mapping constraints,
-  -- which will be used as pre-conditions
-  disCons <- liftIO $  disjointConstraints sym ls' ms'
-  addProofPreConds sym disCons
-
-  -- Check state equality
-  stateEq sym ls' ms'
--}
 
 forceResolveAddr :: Memory w -> MemWord w -> MemSegmentOff w
 forceResolveAddr mem a =
@@ -432,17 +575,21 @@ forceResolveAddr mem a =
     Just segOff -> segOff
     Nothing -> error $ "Could not resolve " ++ show a
 
-extractStackAddresses :: Memory 64 -> BlockEvent -> Maybe (MemSegmentOff 64)
-extractStackAddresses mem evt =
-  case eventType evt of
-    StackRegRead -> Just $ forceResolveAddr mem (fromInteger (eventAddr evt))
-    StackRegWrite -> Just $ forceResolveAddr mem (fromInteger (eventAddr evt))
+-- | Analyze block events in annotations to associated each address
+--with a read with the type of read (mconly stack, translated stack or heap).
+extractMemEvents :: Memory 64 -> [BlockEvent] -> Map (MemSegmentOff 64) BlockEventInfo
+extractMemEvents mem events = Map.fromList
+  [ (forceResolveAddr mem (fromInteger (eventAddr evt)), eventInfo evt)
+  | evt <- events
+  ]
 
+-- | Read output from solver @stderr@ and print it to our @stderr@.
 reportSMTErrors :: Handle -> IO ()
 reportSMTErrors h = forever $ do
   msg <- hGetLine h
   hPutStrLn stderr $ "Solver: " ++ msg
 
+-- | Kill thrad and terminate process.
 cleanup :: ProcessHandle -> ThreadId -> IO ()
 cleanup ph tid = do
   killThread tid
@@ -453,17 +600,18 @@ interactiveVerifyGoal :: String -- ^ Name of function to verify
                       -> IORef Integer -- ^ Index of goal to discharge within block
                       -> Handle -- ^ Command handle
                       -> Handle -- ^ Response handle
+                      -> String
                       -> SMT.Term
                          -- ^ Negation of goal to verify
                       -> IO ()
-interactiveVerifyGoal funName lbl goalCounter cmdHandle respHandle ng =do
+interactiveVerifyGoal funName lbl goalCounter cmdHandle respHandle propName ng =do
   cnt <- readIORef goalCounter
   modifyIORef' goalCounter (+1)
   let fname = standaloneGoalFilename funName lbl cnt
-  hPutStrLn stderr $ "Sending check-sat command"
+  hPutStrLn stderr $ "Verifying: " ++ propName
   writeCommand cmdHandle $ SMT.checkSatAssuming [ng]
   hFlush cmdHandle
-  hPutStrLn stderr $ "Waiting for response"
+  hPutStrLn stderr $ "  Waiting for response"
   resp <- SMTP.readCheckSatResponse respHandle
   case resp of
     SMTP.SatResponse -> do
@@ -472,7 +620,7 @@ interactiveVerifyGoal funName lbl goalCounter cmdHandle respHandle ng =do
       hPutStrLn stderr $ "To see output, run reopt-vcg in standalone mode."
       hPutStrLn stderr $ "The result will be stored in " ++ fname
     SMTP.UnsatResponse -> do
-      hPutStrLn stdout $ "Verified " ++ fname
+      hPutStrLn stdout $ "  Verified " ++ fname
     SMTP.UnknownResponse -> do
       hPutStrLn stderr $ "Unknown verification result"
       hPutStrLn stderr ""
@@ -512,10 +660,10 @@ runCallbacks cmdline funName lbl action = do
         let fns = CallbackFns
               { addCommandCallback = \cmd -> do
                   writeCommand cmdHandle cmd
-              , addNegGoalCallback = \ng -> do
-                  interactiveVerifyGoal funName lbl goalCounter cmdHandle respHandle ng
-              , addGoalCallback = \g -> do
-                  interactiveVerifyGoal funName lbl goalCounter cmdHandle respHandle (SMT.not g)
+              , proveFalseCallback = \p msg -> do
+                  interactiveVerifyGoal funName lbl goalCounter cmdHandle respHandle msg p
+              , proveTrueCallback = \p msg -> do
+                  interactiveVerifyGoal funName lbl goalCounter cmdHandle respHandle msg (SMT.not p)
               }
         action fns
     Right _ -> do
@@ -531,6 +679,23 @@ type FunctionName = String
 newtype CallbackGenerator
    = CBG { blockCallbacks :: forall a . FunctionName -> BlockLabel -> (CallbackFns -> IO a) -> IO a }
 
+writeChecksatProblem :: FilePath -- ^ Directory to write file to
+                     -> FilePath -- ^ Name of file to export.
+                     -> String -- ^ Message to print out with file.
+                     -> [SMT.Command] -- ^ Commands
+                     -> SMT.Term -- ^ Predicate to assume in final @check-sat-assuming@ call.
+                     -> IO ()
+writeChecksatProblem outDir fname msg cmds negGoal = do
+  hPutStrLn stdout $ fname ++ ": " ++ msg
+  bracket (openFile (outDir </> fname) WriteMode) hClose $ \h -> do
+    writeCommand h $ comment (fromString msg)
+    writeCommand h $ SMT.setLogic SMT.allSupported
+    writeCommand h $ SMT.setProduceModels True
+    -- Write commands from proof state
+    mapM_ (writeCommand h) (reverse cmds)
+    writeCommand h $ SMT.checkSatAssuming [negGoal]
+    writeCommand h $ SMT.exit
+
 exportCallbacks :: FilePath
                    -- ^ Directory to run file to.
                 -> String -- ^ Name of function
@@ -543,18 +708,18 @@ exportCallbacks outDir fn lbl action = do
   action $! CallbackFns
     { addCommandCallback = \cmd -> do
         modifyIORef' cmdRef $ (cmd:)
-    , addNegGoalCallback = \ng -> do
+    , proveFalseCallback = \p msg -> do
         cnt <- readIORef goalCounter
         modifyIORef' goalCounter (+1)
         cmds <- readIORef cmdRef
         let fname = standaloneGoalFilename fn lbl cnt
-        verifyGoal outDir fname cmds ng
-    , addGoalCallback = \g -> do
+        writeChecksatProblem outDir fname msg cmds p
+    , proveTrueCallback = \p msg -> do
         cnt <- readIORef goalCounter
         modifyIORef' goalCounter (+1)
         cmds <- readIORef cmdRef
         let fname = standaloneGoalFilename fn lbl cnt
-        verifyGoal outDir fname cmds (SMT.not g)
+        writeChecksatProblem outDir fname msg cmds (SMT.not p)
     }
 
 runVCGs :: CallbackFns
@@ -567,15 +732,21 @@ runVCGs :: CallbackFns
        -> IO ()
 runVCGs fns cfg mem lbl addr action = do
   let thisBlockCfg = findBlock cfg lbl
+  let allocaMap = Map.fromList
+       [ (allocaName a, allocaBinaryOffset a)
+       | a <- blockAllocas thisBlockCfg
+       ]
   let pfCfg = PfConfig { cfgConfig = cfg
-                       , mcOnlyAddrs
-                         = Set.fromList
-                         $ mapMaybe (extractStackAddresses mem)
+                       , addrEventMap
+                         = extractMemEvents mem
                          $ blockEvents thisBlockCfg
                        , callbackFns = fns
+                       , allocaOffsetMap = allocaMap
                        }
   let s = PfState { mcCurAddr = addr
                   , mcMemIndex = 0
+                  , mcUsedAllocas = Set.empty
+                  , mcOnlyStackFrameIndex = 0
                   }
   evalStateT (runReaderT action pfCfg) s
 
@@ -694,20 +865,6 @@ standaloneGoalFilename :: String -- ^ Name of function to verify
 standaloneGoalFilename fn lbl i =
  fn ++ "_" ++ ppBlock lbl ++ "_" ++ show i ++ ".smt2"
 
-verifyGoal :: FilePath
-           -> FilePath
-           -> [SMT.Command]
-           -> SMT.Term -> IO ()
-verifyGoal outDir fname cmds negGoal = do
-  hPutStrLn stdout $ "Writing goal to " ++ show fname
-  bracket (openFile (outDir </> fname) WriteMode) hClose $ \h -> do
-    writeCommand h $ SMT.setLogic SMT.allSupported
-    writeCommand h $ SMT.setProduceModels True
-    -- Write commands from proof state
-    mapM_ (writeCommand h) (reverse cmds)
-    writeCommand h $ SMT.checkSatAssuming [negGoal]
-    writeCommand h $ SMT.exit
-
 verifyFunction :: Module
                -> Memory 64
                -> Map BSC.ByteString (MemSegmentOff 64)
@@ -767,12 +924,12 @@ verifyFunction lMod mem funMap gen vfi = do
     mevents <- M.blockEvents addr (blockSize blockInfo)
     putStrLn $ "Macaw events: " ++ show mevents
 
-
     -- Assert arguments are equal
     runVCGs fns vcgCfg mem lbl addr $ do
       -- Declare registers
       mapM_ addCommand M.declRegs
-      -- Declare machine memory operations
+      -- Declare memory operations
+      mapM_ addCommand $ mcMemDecls 8 (stackSize vfi)
       mapM_ (addCommand . memReadDecl) [1,2,4,8]
       mapM_ (addCommand . memWriteDecl) [1,2,4,8]
       -- Declare memory
@@ -780,10 +937,8 @@ verifyFunction lMod mem funMap gen vfi = do
       -- Declare stack_high, stack_low and on_this_stack_Frame
       when (stackSize vfi < 0) $ do
         error "Expected non-negative stack size"
-      mapM_ addCommand $ mcStackBoundDecls (stackSize vfi)
       -- Declare constant representing where we return to.
       macawRead (varTerm (M.smtRegVar RSP)) 8 "return_addr"
-
       -- Declare LLVM operations
       let mkLLVMDecl :: Typed Ident -> VCGMonad ()
           mkLLVMDecl (Typed (PrimType (Integer 64)) val) =
@@ -796,26 +951,24 @@ verifyFunction lMod mem funMap gen vfi = do
       zipWithM_ assertRegsEq (defArgs lFun) x86ArgRegs
       eventsEq levents mevents
 
-    -- write proof to smt file
-
   forM_ restBlocks $ \_bb -> do
     pure ()
 
 
 -- | Read an elf from a binary
-readElf :: FilePath -> IO (Elf 64)
+readElf :: FilePath -> IO (Elf.Elf 64)
 readElf path = do
   contents <- BS.readFile path
-  case parseElf contents of
-    ElfHeaderError _ msg ->
+  case Elf.parseElf contents of
+    Elf.ElfHeaderError _ msg ->
       fatalError msg
-    Elf32Res{} -> do
+    Elf.Elf32Res{} -> do
       fatalError "Expected 64-bit elf file."
-    Elf64Res errs e -> do
+    Elf.Elf64Res errs e -> do
       mapM_ (warning . show) errs
-      unless (elfMachine e == EM_X86_64) $ do
+      unless (Elf.elfMachine e == Elf.EM_X86_64) $ do
         fatalError "Expected a x86-64 binary"
-      unless (elfOSABI e `elem` [ELFOSABI_LINUX, ELFOSABI_SYSV]) $ do
+      unless (Elf.elfOSABI e `elem` [Elf.ELFOSABI_LINUX, Elf.ELFOSABI_SYSV]) $ do
         warning "Expected Linux binary"
       pure e
 

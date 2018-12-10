@@ -173,7 +173,7 @@ writeMem :: SMT.Term
 writeMem ptr (BVMemRepr w LittleEndian) val = do
   modify' $ \s ->
     let SMem newMem = writeBVLE (curMem s) ptr val (natValue w)
-        cmd = SMT.defineFun (memVar (memIndex s)) [] memType newMem
+        cmd = SMT.defineFun (memVar (memIndex s)) [] memSort newMem
      in s { curMem = SMem (varTerm (memVar (memIndex s)))
           , memIndex = memIndex s + 1
           , events = CmdEvent cmd : events s

@@ -17,6 +17,7 @@ library
       src
   build-depends:
                 base >=4.7 && <5
+              , scientific
               , text
               , unordered-containers
               , yaml >= 0.10.0

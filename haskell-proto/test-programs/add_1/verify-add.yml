@@ -11,10 +11,27 @@ functions:
   - label: '1'
     addr: 0x4004d6
     size: 0x1a
+    allocas:
+    - name: 2
+      offset: 0x20
+    - name: 3
+      offset: 0x10
     events:
     - addr: 0x4004d6
-      type: stack_reg_write
+      type: binary_only_access
+    - addr: 0x4004da
+      type: joint_stack_access
+      alloca: 2
+    - addr: 0x4004de
+      type: joint_stack_access
+      alloca: 2
+    - addr: 0x4004e2
+      type: joint_stack_access
+      alloca: 3
+    - addr: 0x4004e6
+      type: joint_stack_access
+      alloca: 3
     - addr: 0x4004ee
-      type: stack_reg_read
+      type: binary_only_access
     - addr: 0x4004ef
-      type: stack_reg_read
+      type: binary_only_access

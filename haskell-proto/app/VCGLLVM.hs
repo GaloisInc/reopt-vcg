@@ -22,31 +22,37 @@ module VCGLLVM
   , getFunctionNameFromValSymbol
   , Event(..)
   , ppEvent
+  , AllocaName
   ) where
 
 import           Control.Monad.State
 import           Data.Bits
 import           Data.LLVM.BitCode
 import qualified Data.List as List
-import           Data.Text (Text)
+import           Data.String
 import qualified Data.Text as Text
 import           GHC.Stack
 import           Text.LLVM hiding ((:>))
 import qualified What4.Protocol.SMTLib2.Syntax as SMT
 
-import VCGCommon
+import           VCGCommon
 
+import           Reopt.VCG.Config (AllocaName)
+
+-- | Event from stepping through LLVM block.
 data Event
   = CmdEvent !SMT.Command
-  | AllocaEvent !Ident !SMT.Term !Integer !Var
-    -- ^ `AllocaEvent nm w align v` indicates that we should allocate `w` bytes on the stack
-    -- and assign the address to `v`.
+  | AllocaEvent !AllocaName !SMT.Term !Integer
+    -- ^ `AllocaEvent nm w align` indicates that we should allocate `w` bytes on the stack
+    -- and assign the address to @identVar nm@.
     --
     -- The address should be a multiple of `align`.
     --
     -- The identifier is stored so that we can uniquely refer to this identifier.
+    --
+    -- Users should define @identVar nm@ to a useful value.
   | LoadEvent !SMT.Term !Integer !Var
-    -- ^ `LoadEvent a w v` indicates that we read `w` bytes from address `a`,
+    -- ^ `LoadEvent a w v` indicates that we read `w` bytes fMairom address `a`,
     -- and the value should be assigned to `v` in the SMTLIB.
     --
     -- The variable is a bitvector with width @8*w@.
@@ -102,7 +108,7 @@ byteCount (PtrTo _) = 8
 byteCount tp = do
   error $ "byteCount: unsupported type " ++ show tp
 
-identVar :: Ident -> Text
+identVar :: Ident -> Var
 identVar (Ident nm) = "llvm_" <> Text.pack nm
 
 -- Inject initial (symbolic) arguments
@@ -137,7 +143,7 @@ arithOpFunc (Mul _uw _sw) x y = SMT.bvmul x [y]
 arithOpFunc _ _ _ = llvmError "Not implemented yet"
 
 asSMTType :: Type -> Maybe SMT.Sort
-asSMTType (PtrTo _) = Just (SMT.bvSort 64)
+asSMTType (PtrTo _) = Just ptrSort
 asSMTType (PrimType (Integer i)) | i > 0 = Just $ SMT.bvSort (toInteger i)
 asSMTType _ = Nothing
 
@@ -180,7 +186,7 @@ assign2SMT ident (ICmp op (Typed lty@(PrimType (Integer w)) lhs) rhs) = do
           Islt -> SMT.bvslt lhsv rhsv
           Isle -> SMT.bvsle lhsv rhsv
   defineTerm ident (SMT.bvSort (toInteger w)) r
-assign2SMT nm (Alloca ty eltCount malign) = do
+assign2SMT (Ident vnm) (Alloca ty eltCount malign) = do
   -- LLVM Size
   let eltSize :: Integer
       eltSize =
@@ -198,18 +204,10 @@ assign2SMT nm (Alloca ty eltCount malign) = do
       Just (Typed itp _) -> do
         error $ "Unexpected count type " ++ show itp
 
-  let base = identVar nm
   let align = case malign of
                 Nothing -> 1
                 Just a -> toInteger a
-  addEvent $ AllocaEvent nm totalSize align base
-{-
-  addDisjointPtr (varTerm base) totalSize
-  -- Add assertion about alignment.
-  when (align /= 1) $ do
-    addCommand $ SMT.assert $
-      SMT.eq [SMT.bvand (varTerm base) [SMT.bvdecimal (toInteger a-1) 64], SMT.bvdecimal 0 64]
--}
+  addEvent $ AllocaEvent (fromString vnm) totalSize align
 assign2SMT ident (Load (Typed (PtrTo lty) src) _ord _align) = do
   addrTerm <- primEval (PtrTo lty) src
   let w = byteCount lty
