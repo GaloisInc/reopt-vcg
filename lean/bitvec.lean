@@ -142,19 +142,7 @@ section arith
   -- Arithmetic operations on bitvectors
   variable {n : ℕ}
 
-  -- Add with carry (no overflow)
-  def adc (x y : bitvec n) (c : bool) : bitvec n × bool :=
-    let c₁ := if c then 1 else 0,
-        r  := x.val + y.val + c₁ in
-    ⟨ bitvec.of_nat n r, r ≥ 2^n ⟩
-
   protected def add (x y : bitvec n) : bitvec n := bitvec.of_nat n (x.to_nat + y.to_nat)
-
-  -- Subtract with borrow
-  def sbb (x y : bitvec n) (b : bool) : bool × bitvec n :=
-    let b₁ := if b then 1 else 0,
-        r  := x.to_int - (y.to_int + b₁)
-    in ⟨ y.to_nat + b₁ > x.to_nat, bitvec.of_int n r ⟩
 
   -- Usual arithmetic subtraction
   protected def sub (x y : bitvec n) : bitvec n := bitvec.of_int n (x.to_int - y.to_int)
