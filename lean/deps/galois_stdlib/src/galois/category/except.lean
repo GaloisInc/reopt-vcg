@@ -28,5 +28,13 @@ section
   { throw := @except.throw
   , catch := @except.catch
   }
+
+  protected def to_repr {ε} {α} [has_repr ε] [has_repr α] : except ε α → string
+  | (ok a)    := "(ok " ++ repr a ++ ")"
+  | (error e) := "(error " ++ repr e ++ ")"
+
+  instance {ε} {α} [has_repr ε] [has_repr α] : has_repr (except ε α) :=
+  { repr := except.to_repr }
+
 end
 end except

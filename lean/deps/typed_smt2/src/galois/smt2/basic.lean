@@ -9,6 +9,10 @@ namespace smt2
 /-- This represents either function or sort symbol names. -/
 def symbol := string
 
+/-- Convert a symbol to an s-expression; this is currently unchecked. -/
+protected
+def symbol.to_sexpr (s:symbol) : sexpr := sexpr.mk_atom ⟨s.to_char_buffer⟩
+
 namespace symbol
 
 /--
@@ -29,11 +33,10 @@ end symbol
 /-- A type for terms in SMTLIB -/
 def sort : Type := sexpr
 
-instance : has_coe string sort := begin unfold sort, apply_instance end
-instance : decidable_eq sort := by apply_instance
+instance : decidable_eq sort := by { unfold sort, apply_instance }
 
 /-- Denotes Booleans -/
-def bool : sort := "bool"
+def bool : sort := (by coerce "bool" sexpr)
 
 /-- A type with a default value in that type. -/
 structure inhabited_type :=
@@ -159,13 +162,13 @@ section term
 
 /-- Create a term from a  symbol and sort -/
 def var (nm : symbol) {s:sort} : term s :=
-{ repr := sexpr.of_string nm
+{ repr := sexpr.mk_atom ⟨nm.to_char_buffer⟩
 , interp := λ_ m, m.symbol_value nm [] s
 }
 
 /-- Generate term that two terms are equal. -/
 def eq {s:sort} (x y : term s) : term bool :=
-{ repr := sexpr.bin_app "=" x.repr y.repr
+{ repr := sexpr.bin_app (by coerce "=" sexpr) x.repr y.repr
 , interp := λ_ m, x.interp m = y.interp m
 }
 
