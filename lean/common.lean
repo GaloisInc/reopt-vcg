@@ -1,10 +1,5 @@
 import .coe1
-
--- This tries to prove a property by just running the evaluator.
-meta def dec_trivial_tac : tactic unit := do
-  tgt ← tactic.target,
-  tactic.apply $ (`(@of_as_true) : expr) tgt,
-  tactic.triv
+import .tactic
 
 def unlines : list string → string := list.foldr (λx r, x ++ "\n" ++ r) ""
 
@@ -502,6 +497,7 @@ instance (w:ℕ) : has_neg  (expression (bv w)) := ⟨bvneg⟩
 
 def adc         {w:ℕ} (x y : expression (bv w)) (b : expression bit) : expression (bv w) := prim.adc   w x y b
 def bswap       {w:ℕ} (v : expression (bv w))                        : expression (bv w) := prim.bswap w v
+-- TODO: quot should probably be an action to emulate generating an interrupt
 def quot        {w:ℕ} (x y : expression (bv w))                      : expression (bv w) := prim.quot  w x y
 def rem         {w:ℕ} (x y : expression (bv w))                      : expression (bv w) := prim.rem   w x y
 def signed_quot {w:ℕ} (x y : expression (bv w))                      : expression (bv w) := prim.squot w x y
