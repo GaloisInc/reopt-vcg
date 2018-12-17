@@ -4,9 +4,7 @@ import data.bitvec
 namespace smt2
 section bv
 
-/-- SMTLIB bitvec sorts -/
-def bv (w : ℕ) : sort :=
-  sexpr.bin_app (by coerce "_" sexpr) (by coerce "BitVec" sexpr) (sexpr.from_nat w)
+def bv (w : ℕ) : sort := ("(_ BitVec " ++ w.repr ++ ")" : string)
 
 /-- Class for typings that interpret bitvectors correctly. -/
 class is_bv_logic (l:logic) :=

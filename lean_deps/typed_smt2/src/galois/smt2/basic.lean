@@ -1,17 +1,9 @@
-/-
-This declares sorts, terms, and semantics for generating SMTLIB
-expressions and reasoning about their interpretation.
--/
 import galois.sexpr
 
 namespace smt2
 
 /-- This represents either function or sort symbol names. -/
-def symbol := sexpr.atom
-
-/-- Convert a symbol to an s-expression; this is currently unchecked. -/
-protected
-def symbol.to_sexpr (s:symbol) : sexpr := sexpr.mk_atom s
+def symbol := string
 
 namespace symbol
 
@@ -28,17 +20,16 @@ begin
   apply_instance
 end
 
-instance : has_repr symbol := { repr := λs, s.to_repr }
-
 end symbol
 
 /-- A type for terms in SMTLIB -/
 def sort : Type := sexpr
 
-instance : decidable_eq sort := by { unfold sort, apply_instance }
+instance : has_coe string sort := begin unfold sort, apply_instance end
+instance : decidable_eq sort := by apply_instance
 
 /-- Denotes Booleans -/
-def bool : sort := (by coerce "bool" sexpr)
+def bool : sort := "bool"
 
 /-- A type with a default value in that type. -/
 structure inhabited_type :=
@@ -120,6 +111,7 @@ can give an incorrect interpretation to an expression.
 We recommend users only construct terms manually if they must, and
 otherwise use existing definitions.
 -/
+
 structure term (s : sort) :=
 (repr : sexpr)
 (interp : Π{l:logic}, model l → l.type_of s)
@@ -129,13 +121,13 @@ namespace model
 section
 parameter {l:logic}
 
-/-- Bind a function to symbol name in the module. -/
+/-- Add a binding -/
 def bind (ctx:model l)  (nm:symbol) {args: list sort} {r:sort} (v:l.fun_domain args r) : model l :=
   ctx.insert nm ⟨args, r, v⟩
 
-/-- Bind a constant to a symbol name in the module. -/
+/-- Add a binding -/
 def bind_const (ctx:model l)  (nm:symbol) {r:sort} (v:l.type_of r) : model l :=
-  @bind ctx nm [] r v
+  ctx.insert nm ⟨[], r, v⟩
 
 /-- Return the value associated with a symbol, or a default value if not defined. -/
 def symbol_value (m:model l) (nm:symbol) (args:list sort) (res:sort) : l.fun_domain args res :=
@@ -164,13 +156,13 @@ section term
 
 /-- Create a term from a  symbol and sort -/
 def var (nm : symbol) {s:sort} : term s :=
-{ repr := nm.to_sexpr
+{ repr := sexpr.of_string nm
 , interp := λ_ m, m.symbol_value nm [] s
 }
 
 /-- Generate term that two terms are equal. -/
 def eq {s:sort} (x y : term s) : term bool :=
-{ repr := sexpr.bin_app (by coerce "=" sexpr) x.repr y.repr
+{ repr := sexpr.bin_app "=" x.repr y.repr
 , interp := λ_ m, x.interp m = y.interp m
 }
 

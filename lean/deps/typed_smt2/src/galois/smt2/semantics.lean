@@ -76,10 +76,10 @@ def quantify_bindings {l:logic} : list binding → (model l → Prop) → Prop
 /-- Registers that a symbol is defined. -/
 def register_symbol {l:logic} (nm:symbol) : semantics l punit := do
   -- Check symbol is valid
-  pwhen (nm.is_valid = ff) (throw ("Invalid name: " ++ nm)),
+  pwhen (nm.is_valid = ff) (throw ("Invalid name: " ++ repr nm)),
   -- Check symbol is not already defined
   s ← get,
-  pwhen (nm ∈ s.defined_symbols) (throw ("Already defined: " ++ nm)),
+  pwhen (nm ∈ s.defined_symbols) (throw ("Already defined: " ++ repr nm)),
   -- Insert symbol into defined_symbols
   put $ { s with defined_symbols := s.defined_symbols.insert nm () }
 

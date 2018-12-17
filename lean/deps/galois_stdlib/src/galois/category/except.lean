@@ -38,3 +38,12 @@ section
 
 end
 end except
+
+namespace except_t
+
+instance is_monad_state {s : Type _} {m : Type _ → Type _} {ε : Type _} [functor m] [monad_state s m]
+: monad_state s (except_t ε m) :=
+{ lift := λ_ f, ⟨except.ok <$> monad_state.lift f⟩
+}
+
+end except_t
