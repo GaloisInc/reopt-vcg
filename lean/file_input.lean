@@ -1,12 +1,12 @@
 
 import system.io -- init.category.lift
 
-/- A monad for dealing with the fact that lean doesn't support seeking backwards -/
 structure file_input_state := 
   (handle : io.handle)
   (pos : ℕ)
   (filename : string) -- for reopening 
 
+/- A monad for dealing with the fact that lean doesn't support seeking backwards -/
 @[reducible]
 def file_input := state_t file_input_state (except_t string io)
 
