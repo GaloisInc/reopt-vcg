@@ -595,7 +595,7 @@ def region := char_buffer
 
 -- An elfmem represeents the load-time address space represented by
 -- the elf file.  It is indexed by virtual address
-def elfmem : Type := data.imap ℕ region
+def elfmem : Type := data.imap ℕ region (<)
 
 -- Helper for read_elfmem: add the region corresponding to the phdr in ph
 def read_one_elfmem {c : elf_class} (m : elfmem) (ph : phdr c) : file_input elfmem :=
