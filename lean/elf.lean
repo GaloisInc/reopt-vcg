@@ -590,10 +590,14 @@ def pp_phdrs {c:elf_class} (phdrs:list (phdr c)) : io unit := do
     io.put_str_ln $ "Index:            " ++ idx.repr,
     io.put_str_ln phdr.snd.pp)
 
+-- A region is the contents of memory as it appears at load time.
 def region := char_buffer
 
+-- An elfmem represeents the load-time address space represented by
+-- the elf file.  It is indexed by virtual address
 def elfmem : Type := data.imap ℕ region
 
+-- Helper for read_elfmem: add the region corresponding to the phdr in ph
 def read_one_elfmem {c : elf_class} (m : elfmem) (ph : phdr c) : file_input elfmem :=
   match ph.phdr_type with
   | phdr_type.PT_LOAD := do
