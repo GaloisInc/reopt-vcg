@@ -141,7 +141,7 @@ inductive type
 
 namespace type
 
-instance : decidable_eq base_type := by tactic.mk_dec_eq_instance
+instance : decidable_eq type := by tactic.mk_dec_eq_instance
 
 -- Export all the base_type constructors as type constructors to keep instructions.lean happy
 @[reducible]

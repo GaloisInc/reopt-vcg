@@ -33,6 +33,58 @@ def update_flag (idx : fin 32) (f : bool -> bool) (s : machine_state) : machine_
 def store_bytes (addr : machine_word) (bs : list (bitvec 8)) (s : machine_state) : machine_state := 
   { s with mem := (list.foldl (λ(v : memory × machine_word) b, (rbmap.insert v.fst v.snd b, v.snd + 1)) (s.mem, addr) bs).fst }
 
+-- [0 ..< x]
+def upto0_lt : Π(m : ℕ), list ℕ
+  | 0            := []
+  | (nat.succ n) := upto0_lt n ++ [n]
+
+namespace upto0_lt
+
+lemma length_is_n : Π{n : ℕ}, (upto0_lt n).length = n :=
+begin
+  intros n, 
+  induction n,
+  { refl },
+  { simp [upto0_lt, n_ih] }
+end
+
+end upto0_lt
+
+lemma {u v} option.bind.is_some {a : Type u} {b : Type v} {v : option a} {f : a -> option b} {x : b}:
+  option.bind v f = some x -> (∃v', v = some v' ∧ f v' = some x) :=
+begin
+  cases v,
+  { simp [option.bind] },
+  { simp [option.bind], intros, apply exists.intro v, simp, assumption }
+end
+
+lemma list.mmap.length_at_option {a b : Type} {f : a -> option b} : Π{xs : list a} {ys : list b},
+  list.mmap f xs = some ys -> xs.length = ys.length :=
+begin
+  intros,
+  induction xs generalizing ys,
+  { simp [list.mmap, option_t.pure, return, pure] at a_1, rw <- a_1, refl},
+  { simp, simp [list.mmap, bind, option.bind] at a_1, 
+    have H := option.bind.is_some a_1, destruct H, intros, 
+    destruct h, simp, intros, have H' := option.bind.is_some right, destruct H', simp, intros, 
+    destruct h_1, intros, rw (xs_ih left_1),
+    simp [return, pure] at right_1, rw <- right_1, simp 
+  }
+end
+
+def read_bytes (s : machine_state) (addr : machine_word) (n : ℕ) : option (list (bitvec 8)) :=
+  monad.mapm (λn, s.mem.find (addr + bitvec.of_nat 64 n)) (upto0_lt n)
+
+lemma read_bytes_length {s : machine_state} {addr : machine_word} {n : ℕ} {bs : list (bitvec 8)}
+  : read_bytes s addr n = some bs -> bs.length = n :=
+begin
+  intros H,
+  simp [read_bytes] at H,
+  have H' := list.mmap.length_at_option H,
+  simp [upto0_lt.length_is_n] at H',
+  rw H'
+end
+
 def split_word : Π{n : ℕ}, bitvec (8 * n) -> list (bitvec 8) -- array n ...
   | 0             _  := []
   | (nat.succ n)  bv := 
@@ -40,8 +92,25 @@ def split_word : Π{n : ℕ}, bitvec (8 * n) -> list (bitvec 8) -- array n ...
                    ... ≤ 8 * (nat.succ n) : begin apply nat.mul_le_mul_left, apply nat.succ_le_succ, apply nat.zero_le end
     in let v := bitvec.split_at' pf bv in v.snd :: split_word v.fst
 
+lemma split_word_zero {n:ℕ} {x: bitvec (n * 0) }: @split_word 0 x = [] :=
+  by simp [split_word]
+
+def concat_word : Π{n : ℕ} ( bs : list (bitvec n) ), bitvec (n * bs.length) := sorry
+
 def store_word {n : ℕ} (s : machine_state) (addr : machine_word) (b : bitvec (8 * n)) : machine_state := 
   store_bytes addr (split_word b) s
+
+def read_word (s : machine_state) (addr : machine_word) (n : ℕ) : option (bitvec (8 * n)) :=
+begin
+  intros, 
+  let bs := (read_bytes s addr n),
+  have H : bs = read_bytes s addr n := rfl,
+  cases (read_bytes s addr n),
+  {exact none},
+  {simp [bs] at H, have rbl := read_bytes_length H, have r := concat_word val, 
+   rw rbl at r, exact (some r) 
+  }
+end  
 
 end machine_state
 
@@ -59,7 +128,7 @@ def environment := list arg_value
 structure evaluator_state : Type :=
   (machine_state : machine_state)
   (environment : environment) -- read only, but reading can fail
-  (locals : rbmap ℕ (bitvec 64))
+  (locals : rbmap ℕ (sigma value))
 
 -- Monad for evaluating with failure
 @[reducible]
@@ -70,6 +139,18 @@ def arg_at_idx (idx : ℕ) : evaluator arg_value :=
      match s.environment.nth idx with
        | (some a) := return a
        | none     := throw "evaluator.arg_at_idx: no arg at idx"
+     end
+
+-- We should factor out the type check, although it might depend on
+-- the functor (value in this case) if we generalise equality
+def local_at_idx (idx : ℕ) (tp : type) : evaluator (value tp) :=
+  do s <- get,
+     match s.locals.find idx with
+       | (some (sigma.mk tp' v)) :=
+         if H : tp' = tp
+         then return (eq.rec v H)
+         else throw "local_at_idx: arg type mismatch"
+       | none     := throw "local_at_idx: no arg at idx"
      end
 
 -- Replaces the lower n bits of the second argument with those from the first.
@@ -147,6 +228,10 @@ def read : Π{n : ℕ}, addr n -> evaluator (value (bv (8 * n)))
       av <- arg_at_idx idx,
       match av with 
         | (arg_value.bv 64 addr) := do s <- get, 
+                                       match s.machine_state.read_word addr n with
+                                         | none := throw "addr.read: no bytes at addr" 
+                                         | (some w) := return (value.bv w)
+                                       end
         | _                      := throw "addr.read: not a 64-bit bitvecor"
       end
 
@@ -172,28 +257,46 @@ def read : Π{tp : type}, lhs tp -> evaluator (value tp)
   | ._ (reg r)       := r.read
   | ._ (addr a)      := a.read
   | ._ (arg idx tp)  := do av <- arg_at_idx idx, av.to_value tp
-  | ._ (streg idx)   := throw "lhs.set: unsupported FP write"
+  | ._ (streg idx)   := throw "lhs.read: unsupported FP read"
 
 end lhs
+
+namespace prim
+
+def eval : Π{tp : type}, prim tp -> evaluator (value tp)
+  | ._ zero        := return (value.bit false)
+  | ._ one         := return (value.bit true)
+  | ._ (bvnat (nat_expr.lit w) (nat_expr.lit n)) := return (value.bv (bitvec.of_nat w n))
+  | _ _          := throw "prim.eval: non-fully applied prim"
+
+def 
+
+end prim
 
 namespace expression
 
 def eval : Π{tp : type}, expression tp -> evaluator (value tp)
-  | ._ (primitive o) := throw "eval: raw primitive"
+  | ._ (primitive p) := p.eval
   | ._ (app f a) := throw "eval: app"
   | ._ (get l)   := l.read
   -- Return the expression in the local variable at the given index.
-  | ._ (get_local idx tp) := sorry
+  | ._ (get_local (nat_expr.lit idx) tp) := local_at_idx idx tp -- fixme: why nat_expr here over nat?
+  | _ _ := throw "expression.eval: missing case"
 
 end expression
 
 namespace action
 
 def eval : action -> evaluator unit
-  | (set l v) := sorry
-  | (local_def idx v) := sorry
-  | (event e) := sorry
-  | (mk_undef l) := sorry
+  | (set l e) := do v <- e.eval,
+                    l.set v
+  | (@local_def tp (nat_expr.lit idx) e) := do 
+    v <- e.eval,
+    modify (λs, { s with locals := s.locals.insert idx (sigma.mk tp v)})
+  | (event e) := throw "event"
+  | (mk_undef l) := throw "mk_undef"
+  | _ := throw "action.eval: missing case"
 
 end action
+end x86
 
