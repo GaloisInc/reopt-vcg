@@ -82,6 +82,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <locale> // tolower
 #include "X86BaseInfo.h"
 #include "X86DisassemblerDecoder.h"
 #include "llvm/Support/TargetRegistry.h"
@@ -121,6 +122,18 @@ namespace X86 {
 }
 
 static void
+print_register_lowercase(unsigned reg, std::ostream &out, const llvm::MCRegisterInfo *reginfo)
+{
+  // from http://www.cplusplus.com/reference/locale/tolower/
+  std::locale loc;
+  for(const char *regname = reginfo->getName(reg);
+      *regname;
+      regname++) {
+    out << std::tolower(*regname,loc);  
+  }
+}
+
+static void
 print_sexp_for_register(unsigned reg, std::ostream &out, const llvm::MCRegisterInfo *reginfo)
 {
   if (reg == X86::NoRegister)
@@ -134,7 +147,11 @@ print_sexp_for_register(unsigned reg, std::ostream &out, const llvm::MCRegisterI
             top = *I;
 
     unsigned subidx = reginfo->getSubRegIndex(top, reg);
-    out << "(register " << reginfo->getName(top) << " " << reginfo->getName(reg) << " ";
+    out << "(register ";
+    print_register_lowercase(top, out, reginfo);
+    out << " ";
+    print_register_lowercase(reg, out, reginfo);
+    out << " ";
     
     if (subidx) 
         out << reginfo->getSubRegIdxSize(subidx) << " " << reginfo->getSubRegIdxOffset(subidx);
