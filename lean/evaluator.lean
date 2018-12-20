@@ -17,6 +17,7 @@ structure machine_state : Type :=
   (mem    : memory)
   (gpregs : array 16 machine_word)
   (flags  : array 32 bool)
+  (ip     : machine_word)
 
 namespace machine_state
 
@@ -268,8 +269,6 @@ def eval : Π{tp : type}, prim tp -> evaluator (value tp)
   | ._ one         := return (value.bit true)
   | ._ (bvnat (nat_expr.lit w) (nat_expr.lit n)) := return (value.bv (bitvec.of_nat w n))
   | _ _          := throw "prim.eval: non-fully applied prim"
-
-def 
 
 end prim
 
