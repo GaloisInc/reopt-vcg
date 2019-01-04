@@ -1,3 +1,6 @@
+/-
+This defines an interface for reading characters with one-character lookahead.
+-/
 import data.buffer
 import system.io
 import galois.data.list
@@ -58,9 +61,13 @@ def read_while_f :
 def read_append_while : ℕ → char_buffer → m char_buffer := do
   well_founded.fix nat.lt_wf read_while_f
 
+/-- @read_append_while n c@ reads up to @n@-characters satisfying @p@ and appends them to @c@. -/
+def read_while (max_count:ℕ) : m char_buffer := do
+  read_append_while max_count buffer.nil
+
 end read_while
 
-/-- Read to newline -/
+/-- Read whitespace characters until a newline is encountered, then consume the newline. -/
 def read_to_newline {m} [char_reader string m] : ℕ → m unit
 | nat.zero := throw "out of gas"
 | (nat.succ n) := do
@@ -81,8 +88,6 @@ def read_to_end {m} [char_reader string m] : ℕ → m unit
     pure ()
   else
     consume_char, read_to_end n
-
-end char_reader
 
 ------------------------------------------------------------------------
 -- handle_char_reader
@@ -177,15 +182,16 @@ def string_is_char_reader : char_reader string (handle_char_reader string) :=
 
 local attribute [instance] string_is_char_reader
 
-def read_to_newline {α} (h:io.handle) (m:handle_char_reader string α)
+end handle_char_reader
+
+def read_from_handle {α} (h:io.handle) (m:handle_char_reader string α)
 : io (except string α) := do
-  (e, mc) ← handle_char_reader.read h option.none (m <* char_reader.read_to_newline (2^64)),
+  (e, mc) ← handle_char_reader.read h option.none m,
   match mc with
   | option.none := pure e
   | (option.some _) := pure (except.error "")
   end
 
-end handle_char_reader
 
 ------------------------------------------------------------------------
 -- string_char_reader
@@ -252,12 +258,13 @@ instance is_char_reader (ε:Type) [is_parse_error ε] : char_reader ε (string_c
 }
 
 /-- For some reason, instance resolution fails below without this instance. -/
-def string_is_char_reader : char_reader string (string_char_reader string) :=
+instance string_is_char_reader : char_reader string (string_char_reader string) :=
   @string_char_reader.is_char_reader string is_parse_error.string_is_parse_error
 
-local attribute [instance] string_is_char_reader
+end string_char_reader
 
-def read_to_end {α} (s:string) (m:string_char_reader string α)
+/-- Read a string -/
+def read_from_string {α} (s:string) (m:string_char_reader string α)
 : except string α := (string_char_reader.read s m).1
 
-end string_char_reader
+end char_reader

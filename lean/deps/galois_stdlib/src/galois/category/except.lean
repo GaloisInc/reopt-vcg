@@ -37,6 +37,17 @@ section
   { repr := except.to_repr }
 
 end
+
+/- Reduces to true iff except reduces to a ok -/
+def is_ok {α} {β} : except α β → Prop
+| (except.error l) := false
+| (except.ok a) := true
+
+/- Return the value given a proof the result is ok -/
+def is_ok.value {α} {β} : Π{e:except α β}, is_ok e → β
+| (except.error l) p := false.elim p
+| (except.ok r) p := r
+
 end except
 
 namespace except_t

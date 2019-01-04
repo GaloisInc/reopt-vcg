@@ -1,32 +1,21 @@
+-- Lemmas primarily about nth_le
 import data.list.basic -- from mathlib
-
-import galois.data.nat
+import galois.data.nat.basic
 
 namespace list
 
-/-- Take conjunction of all propositions in list. -/
-protected
-def forall_prop : list Prop → Prop
-| [] := true
-| (h::r) := h ∧ forall_prop r
-
-section is_empty
-
-/-- Return true if list is empty -/
-def is_empty {α: Type _} : list α → Prop
-| [] := true
-| (_::_) := false
-
-/-- Decide whether list is empty -/
-instance is_empty.decidable (α: Type _) : decidable_pred (@is_empty α)
-| [] := decidable.is_true trivial
-| (_::_) := decidable.is_false id
-
-end is_empty
-
-theorem map_eq_nil {α} {β} (f : α → β)  (l:list α) : (list.map f l = nil) ↔ (l = nil) :=
+/-- Simplify a singleton list -/
+theorem nth_le_singleton {α: Type _} (x : α) (i : ℕ) (p : i < 1)
+: list.nth_le [x] i p = x :=
 begin
-  cases l; simp [map],
+  cases i,
+  case nat.zero {
+    simp [list.nth_le],
+  },
+  case nat.succ : i {
+    have q := nat.not_succ_le_zero _ (nat.le_of_lt_succ p),
+    exact (false.elim q),
+  },
 end
 
 section nth_le_reverse
@@ -112,10 +101,8 @@ begin
       { intro l_eq,
         have ite_cond : i < length (lh :: l_rest),
         { simp [length, l_eq, nat.zero_lt_succ], },
-        simp only [ dif_pos ite_cond
-                  , nat.succ_add, nat.add_succ, l_eq, nat.zero_add, nat.add_zero, nat.sub_self
-                  , nth_le
-                  ],
+        simp only [ dif_pos, ite_cond ],
+        simp [nat.succ_add, l_eq],
       },
       {
         intro l_lt,
@@ -123,9 +110,10 @@ begin
         { simp only [ length, not_lt],
           exact l_lt,
         },
+        simp [ite_cond],
         have pr : 0 < i - length l_rest,
         { simp [nat.lt_sub_iff], exact l_lt, },
-        simp [dif_neg ite_cond, nth_le_cons_rest _ pr, nat.sub_sub],
+        simp [nth_le_cons_rest _ pr, nat.sub_sub],
       },
     },
   },
