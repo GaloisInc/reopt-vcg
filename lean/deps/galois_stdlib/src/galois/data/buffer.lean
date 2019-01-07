@@ -230,6 +230,7 @@ begin
   },
 end
 
+/- Lexicographic reflexive ordering of buffers -/
 protected
 def le {α} [h:linear_order α] : buffer α → buffer α → Prop
 | ⟨m,a⟩ ⟨n,b⟩ := array.lex_le a b
@@ -244,6 +245,7 @@ begin
   apply_instance,
 end
 
+/- Lexicographic strict ordering of buffers -/
 protected
 def lt {α} [h:linear_order α] : buffer α → buffer α → Prop
 | ⟨m,a⟩ ⟨n,b⟩ := array.lex_lt a b
@@ -258,15 +260,118 @@ begin
   apply_instance,
 end
 
-/- Slice a buffer. -/
-def slice {α} : Π(a : buffer α) (k l : ℕ) (k_le_l : k ≤ l), buffer α
-| ⟨n, a⟩ k l k_le_l :=
-  if l_lt_n : l ≤ n then
-    ⟨l - k, a.slice k l k_le_l l_lt_n⟩
-  else if p : k ≤ n then
-    ⟨n - k, a.slice k n p (nat.le_refl _)⟩
+/- Take a specific range of elements out of a buffer. -/
+def slice {α} : Π(b : buffer α) (s e : ℕ) (s_le_e : s ≤ e), buffer α
+| ⟨n, a⟩ s e s_le_e :=
+  if e_le_n : e ≤ n then
+    ⟨e - s, a.slice s e s_le_e e_le_n⟩
+  else if s_le_n : s ≤ n then
+    ⟨n - s, a.slice s n s_le_n (nat.le_refl _)⟩
   else
     ⟨0, array.nil⟩
+
+/- Take a specific range of elements out of a buffer. -/
+@[simp]
+theorem size_slice {α} (b : buffer α) (s e : ℕ) (s_le_e : s ≤ e) :
+  size (slice b s e s_le_e) = min e b.size - s :=
+begin
+  cases b with n a,
+  cases (decide (e ≤ n)),
+  case decidable.is_true : e_le_n {
+    simp [slice, e_le_n, size, min_eq_left],
+  },
+  case decidable.is_false : not_e_le_n {
+    have n_le_e : n ≤ e := le_of_not_ge not_e_le_n,
+    simp [slice, not_e_le_n, size, min_eq_right n_le_e],
+    cases (decide (s ≤ n)),
+    case decidable.is_true : s_le_n {
+      simp [s_le_n, n_le_e, min_eq_right],
+    },
+    case decidable.is_false : not_s_le_n {
+      simp [not_s_le_n],
+      have n_le_s : n ≤ s := le_of_not_ge not_s_le_n,
+      apply (eq.symm (nat.sub_eq_zero_of_le n_le_s)),
+    },
+  },
+end
+
+/-- Introduce a non-dependent function for reading. -/
+def try_read {α} (b:buffer α) (i:ℕ) : option α :=
+  if i_lt : i < b.size then
+    option.some (b.read ⟨i, i_lt⟩)
+  else
+    option.none
+
+/- Simplify some (read ...) -/
+theorem some_read_is_try_read {α} (x:buffer α) (i:fin x.size)
+: option.some (read x i) = try_read x i.val :=
+begin
+  simp [try_read, i.is_lt],
+end
+
+/-- Lemma to force simplification of size, but only when buffer uses explicit constructor. -/
+theorem size_ctor {α} (m:ℕ) (a:array m α) : size (⟨m,a⟩) = m := by trivial
+
+/- Lemma that uses the index to a slice to show it is bounded by size of buffer. -/
+theorem slice_index_bound {α} {b:buffer α} {s e :ℕ} {pr : s ≤ e}
+   (i:fin (size (slice b s e pr)))
+: s + i.val < b.size :=
+begin
+  cases b with m a,
+  cases i with i i_lt,
+  simp [size_slice, nat.lt_sub_right_iff_add_lt] at i_lt,
+  exact calc s + i < min e m : i_lt
+               ... ≤ m : min_le_right _ _,
+end
+
+/- Simplify reading from slice -/
+theorem read_slice {α} {b:buffer α} {s e :ℕ} {s_le_e : s ≤ e} (i:fin (size (slice b s e s_le_e)))
+: read (slice b s e s_le_e) i = read b ⟨s + i.val, slice_index_bound i⟩ :=
+begin
+  cases b with m a,
+  cases i with i i_lt,
+  apply option.some.inj,
+  simp [some_read_is_try_read],
+
+  cases (decide (e ≤ m)),
+  case decidable.is_true : e_le_m {
+    simp [size_slice, size_ctor, min_eq_left e_le_m] at i_lt,
+    -- Reduce to array slice
+    simp [slice, e_le_m, read],
+    -- Simplify away try_read
+    have s_i_lt_m : s+i < m :=
+      calc s + i < e : nat.add_lt_of_lt_sub_left i_lt
+                   ... ≤ m : e_le_m,
+    simp [try_read, size_ctor, i_lt, s_i_lt_m, read],
+    -- Simplify array theorem
+    simp [array.read_slice],
+    apply congr_arg _ (fin.eq_of_veq (eq.refl _)),
+  },
+  case decidable.is_false : not_e_le_m {
+    have m_le_e : m ≤ e := le_of_not_ge not_e_le_m,
+    simp [size_slice, size_ctor, min_eq_right m_le_e] at i_lt,
+    simp [slice, not_e_le_m, read],
+    cases (decide (s ≤ m)),
+    case decidable.is_true : s_le_m {
+      -- Reduce to array slice
+      simp [s_le_m],
+      -- Simplify away try_read
+      have s_i_lt_m : s+i < m := nat.add_lt_of_lt_sub_left i_lt,
+      simp [try_read, size_ctor, i_lt, s_i_lt_m, read],
+      -- Simplify array theorem
+      simp [array.read_slice],
+      apply congr_arg _ (fin.eq_of_veq (eq.refl _)),
+    },
+    case decidable.is_false : not_s_le_m {
+      -- Show i must be less than zero.
+      have m_le_s : m ≤ s := le_of_not_ge not_s_le_m,
+      have m_sub_s_eq_0 := nat.sub_eq_zero_of_le m_le_s,
+      simp [m_sub_s_eq_0] at i_lt,
+      -- Use i_lt : i < 0 to discharge proof
+      exact (false.elim (nat.not_lt_zero _ i_lt)),
+    },
+  },
+end
 
 end buffer
 

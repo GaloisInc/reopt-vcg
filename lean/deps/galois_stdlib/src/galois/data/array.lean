@@ -30,6 +30,21 @@ begin
  },
 end
 
+/-- Lemma needed for stating read_slice below -/
+theorem read_slice.len (s:ℕ) {e n:ℕ} (e_le_n : e ≤ n) (i:fin (e - s))
+: s + i.val < n :=
+    calc s + i.val = i.val + s : add_comm _ _
+               ... < e : nat.add_lt_of_lt_sub_right i.is_lt
+               ... ≤ n : e_le_n
+
+/- Simplify read (slice ...) -/
+theorem read_slice {n:ℕ} {α} (a:array n α) (s e :ℕ) (s_le_e : s ≤ e) (e_le_n : e ≤ n) (i:fin (e - s))
+: read (slice a s e s_le_e e_le_n) i = read a ⟨s + i.val, read_slice.len s e_le_n i⟩ :=
+begin
+   cases a with f,
+   cases i,
+   simp [read, d_array.read, slice],
+end
 
 /-- Empty buffer converted to array is same as array.nil -/
 @[simp]
