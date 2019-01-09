@@ -11,18 +11,18 @@ namespace smt2
 
 namespace semantics
 
-inductive binding : Type 1
-| declare_fun (nm:symbol) (args:list sort) (res:sort) : binding
-| define_fun  (nm:symbol) (args:list (symbol × sort)) (res:sort) (rhs : term res) : binding
+inductive binding (l:logic) : Type 1
+| declare_fun {} (nm:symbol) (args:list sort) (res:sort) : binding
+| define_fun  (nm:symbol) (args:list (symbol × sort)) (res:sort) (rhs : term l res) : binding
 
 /-- State built up so far in generating an SMT file -/
 structure context (l:logic) : Type 1 :=
 -- Map of symbols created so far.  TODO:
 (defined_symbols : rbmap symbol unit)
 -- List of bindings
-(bindings : list binding)
+(bindings : list (binding l))
 -- Conjunction of all asserted propositions
-(asserted : list (term bool))
+(asserted : list (term l bool))
 -- List of propositions we called check_sat with;  most recent first.
 (checked : list Prop)
 
@@ -36,7 +36,7 @@ def initial (l:logic) : context l :=
 }
 
 /-- Low-level utility that adds a binding. -/
-def add_binding {l:logic} (b:binding) (s:context l) : context l :=
+def add_binding {l:logic} (b:binding l) (s:context l) : context l :=
   { s with bindings := b::s.bindings }
 
 end context
@@ -60,9 +60,9 @@ universe u
 /-- Given a proposition @p@ that expects a model with the symbol
     in the binding @b@ defined, this calls p by adding the symbol to it.
 -/
-def quantify_binding {l:logic} : model l → binding → (model l → Prop) → Prop
-| mdl (binding.declare_fun sym args tp) p := do
-   ∃(x : l.fun_domain args tp), p (mdl.bind sym x)
+def quantify_binding {l:logic} : model l → binding l → (model l → Prop) → Prop
+| mdl (binding.declare_fun sym arg_sorts return_sort) p := do
+   ∃(x : l.fun_domain arg_sorts return_sort), p (mdl.bind sym x)
 | mdl (binding.define_fun sym args tp rhs) p := do
    let val := mdl.fun_value args rhs in
    p (mdl.bind sym val)
@@ -83,7 +83,7 @@ def register_symbol {l:logic} (nm:symbol) : semantics l punit := do
 
 
 protected
-def interp_bool {l:logic} (m:model l) (p:term bool) : Prop := eq.rec (p.interp m) l.prop_is_bool_type
+def interp_bool {l:logic} (m:model l) (p:term l bool) : Prop := eq.rec (p.interp m) l.prop_is_bool_type
 
 /-- Assert a term is true. -/
 protected

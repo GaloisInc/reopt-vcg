@@ -15,25 +15,6 @@ import .char_reader
 
 universes u v w
 
-meta class has_to_expr (α : Type _) :=
-(to_expr : α → expr)
-
-/--
-Meta class for compile-time parsing of strings to data types.
--/
-meta class is_meta_string (α : Type) extends has_to_expr α :=
-(parse : string → except string α)
-
-/-- Tactic for constructing a term by parsing a string. -/
-meta def coerce (s:string) (α:Type) [is_meta_string α]  : tactic unit := do
-  match is_meta_string.parse α s with
-  | (except.ok r) := do
-    tactic.exact (has_to_expr.to_expr r)
-  | (except.error msg) := do
-    tactic.fail msg
-  end
-
-
 namespace sexpr
 
 class is_atom (α : Type _) :=
@@ -177,23 +158,6 @@ def read_from_handle {α} [i:is_atom α] (h:io.handle) : io (except string (sexp
 def parse {α:Type} [i:is_atom α] (s:string) : except string (sexpr α) :=
   let gas : ℕ := 2^64-1 in
   char_reader.read_from_string s (@sexpr.read α i _ _ gas)
-
-/-- Render s-expression as a string -/
-meta
-mutual def to_expr, list_to_expr {α:Type} [r:reflected α] [h:has_to_expr α]
-with to_expr : Π(s:sexpr α), expr
-     | (atom a) := `(@sexpr.atom α).to_expr.app (has_to_expr.to_expr a)
-     | (parens s) := `(@sexpr.parens α).to_expr.app (list_to_expr s)
-with list_to_expr  : Π(s:list (sexpr α)), expr
-     | [] := `(@list.nil α).to_expr
-     | (h :: t) := (`(@list.cons α).to_expr.subst (to_expr h)).subst (list_to_expr t)
-
-
-meta instance (α:Type) [h:is_atom α] [reflected α] [has_to_expr α]
-: is_meta_string (sexpr α) :=
-{ parse := @sexpr.parse α h
-, to_expr := sexpr.to_expr
-}
 
 /-- Write the s-expression to the handle. -/
 def write {α} [is_atom α] (h:io.handle) (s:sexpr α) : io unit :=
