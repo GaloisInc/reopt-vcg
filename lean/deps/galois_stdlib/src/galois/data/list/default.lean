@@ -1,6 +1,7 @@
 import data.list.basic -- from mathlib
 
 import .nth_le
+import .with_mem
 
 namespace list
 

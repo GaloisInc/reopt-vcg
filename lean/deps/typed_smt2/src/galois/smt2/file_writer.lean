@@ -1,47 +1,53 @@
 import .cmd
+import system.io
 
 namespace smt2
 
 /-- Interface for writing SMTLIB expressions to a handle or file. -/
-def file_writer (l:logic) := reader_t io.handle io
+def file_writer := reader_t io.handle io
 
 namespace file_writer
 
-instance (l:logic) : monad (file_writer l) := by { unfold file_writer, apply_instance }
-instance (l:logic) : has_monad_lift io (file_writer l) := by { unfold file_writer, apply_instance }
-instance (l:logic) : monad_reader io.handle (file_writer l) := by { unfold file_writer, apply_instance }
+section
+local attribute [reducible] file_writer
+instance : monad file_writer := by apply_instance
+instance : has_monad_lift io file_writer := by apply_instance
+instance : monad_reader io.handle file_writer := by apply_instance
+end
+
+#print bind
 
 /-- Write a command to the file handle. -/
-def write {l:logic} (c:cmd) : file_writer l punit := do
-  h ← read,
+def write (c:cmd) : file_writer punit := do
+  h <- read,
   monad_lift $ do
-    c.write h,
+    c.write (h : io.handle),
     io.fs.put_str h "\n"
 
 /-- Assert a term is true. -/
 protected
-def assert {l:logic} (p:term l bool) : file_writer l punit := write (cmd.assert p)
+def assert (p:term bool) : file_writer punit := write (cmd.assert p)
 
 /-- Declare a function -/
-def declare_fun {l:logic} (nm:symbol) (args:list sort) (res:sort) : file_writer l punit :=
+def declare_fun (nm:symbol) (args:list sort) (res:sort) : file_writer punit :=
   write (cmd.declare_fun nm args res)
 
 /-- Declare a constant -/
-def declare_const {l:logic} (nm:symbol) (res:sort) : file_writer l punit :=
+def declare_const (nm:symbol) (res:sort) : file_writer punit :=
   write (cmd.declare_const nm res)
 
 /-- Define a function in terms of inputs -/
-def define_fun {l:logic} (nm:symbol) (args:list (symbol × sort)) {res:sort} (rhs : term l res)
-: file_writer l punit := do
+def define_fun (nm:symbol) (args:list (symbol × sort)) {res:sort} (rhs : term res)
+: file_writer punit := do
   write (cmd.define_fun nm args rhs)
 
 /-- Define a function in terms of inputs -/
-def check_sat{l:logic}  : file_writer l punit := do
+def check_sat : file_writer punit := do
   write cmd.check_sat
 
 /-- Run the file writer -/
 protected
-def run {α} (l:logic) (path:string) (m:file_writer l α) : io α := do
+def run {α} (path:string) (m:file_writer α) : io α := do
   h ← io.mk_file_handle path io.mode.write tt,
   v ← m.run h,
   io.fs.close h,

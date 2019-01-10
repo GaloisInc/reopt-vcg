@@ -9,3 +9,6 @@ theorem  of_as_false {P : Prop} [h:decidable P] (p:P) (q : as_false P) {α : Pro
 begin
   simp [as_false] at q, contradiction,
 end
+
+inductive PropExists {α : Prop} (p : α → Prop) : Prop
+| intro (w : α) (h : p w) : PropExists

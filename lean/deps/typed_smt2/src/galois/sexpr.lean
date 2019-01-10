@@ -174,9 +174,11 @@ def bin_app {α} (op:sexpr α) (x y : sexpr α) : sexpr α := sexpr.parens [op, 
 
 instance (α) [decidable_eq α] : decidable_eq (sexpr α) := by tactic.mk_dec_eq_instance
 
+meta def exact_trivial_tac : tactic unit := `[exact trivial]
+
 /- Construct an atom from a string literal. -/
 def of_string {α} [i:is_atom α] (nm:string)
-      (p : except.is_ok (char_reader.read_from_string nm (@sexpr.read α i _ _ 1024)))
+      (p : except.is_ok (char_reader.read_from_string nm (@sexpr.read α i _ _ 1024)) . exact_trivial_tac)
 : sexpr α := p.value
 
 end sexpr
