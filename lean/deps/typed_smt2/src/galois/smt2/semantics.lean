@@ -1,8 +1,9 @@
-import .interface
 import galois.category.combinators
 import galois.category.except
 import galois.data.list
 import galois.data.rbmap
+
+import .interface
 
 ------------------------------------------------------------------------
 -- Semantics
@@ -22,7 +23,7 @@ structure context  : Type 1 :=
 -- List of bindings
 (bindings : list binding)
 -- Conjunction of all asserted propositions
-(asserted : list (term bool))
+(asserted : list (term Bool))
 -- List of propositions we called check_sat with;  most recent first.
 (checked : list Prop)
 
@@ -80,11 +81,11 @@ def register_symbol (nm:symbol) : semantics punit := do
 
 
 --protected
---def interp_bool (m:interpretation) (p:term bool) : Prop := p.interp m
+--def interp_bool (m:interpretation) (p:term Bool) : Prop := p.interp m
 
 /-- Assert a term is true. -/
 protected
-def assert (p:term bool) : semantics punit := do
+def assert (p:term Bool) : semantics punit := do
  modify $ λctx,
    { ctx with asserted := p :: ctx.asserted
    }
@@ -104,7 +105,7 @@ def define_fun (nm:symbol) (args:list (symbol × sort)) {res:sort} (rhs : term r
 
 /-- Invoke check-sat-assuming command -/
 protected
-def check_sat_assuming (preds : list (term bool)) : semantics punit := do
+def check_sat_assuming (preds : list (term Bool)) : semantics punit := do
   modify $ λctx,
   -- Build list containing previous assertions plus current predicates
   let all_preds := list.reverse_core ctx.asserted preds in

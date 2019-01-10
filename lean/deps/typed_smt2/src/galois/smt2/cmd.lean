@@ -15,7 +15,7 @@ def write (c:cmd) (h:io.handle) : io punit := sexpr.write h (c.expr)
 
 /-- Construct assert command. -/
 protected
-def assert (p:term bool) : cmd := ⟨sexpr.app (reserved_word.of_string "assert") [p]⟩
+def assert (p:term Bool) : cmd := ⟨sexpr.app (reserved_word.of_string "assert") [p]⟩
 
 /-- Construct check-sat command. -/
 protected

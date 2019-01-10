@@ -153,27 +153,38 @@ end ident_arg
 /--
 Sorts in SMTLIB.
 -/
-structure sort  : Type 1 :=
-(name  : symbol)
-(args  : list ident_arg)
--- The domain of values in the sort
-(domain : Type) -- Domain decidable_Eq
--- Value to use if we need a value in the sort domain.
-(default : domain)
+inductive sort  : Type
+| Bool : sort
+| BitVec (w:ℕ) : sort
 
 namespace sort
-protected def to_arg (s:sort) : ident_arg := ident_arg.sort s.name s.args
-instance : has_coe sort ident_arg := ⟨sort.to_arg⟩
 
-protected def to_sexpr (s:sort) : sexpr atom := s.to_arg.to_sexpr
+protected def to_sexpr : sort → sexpr atom
+| Bool := symbol.of_string "Bool"
+| (BitVec w) := sexpr.parens [reserved_word.of_string "_", symbol.of_string "BitVec", atom.numeral w]
+
 instance sort_is_sexpr : has_coe sort (sexpr atom) := ⟨sort.to_sexpr⟩
+
+instance : decidable_eq sort := by tactic.mk_dec_eq_instance
+
+def domain : sort → Type
+| Bool := bool
+| (BitVec w) := bitvec w
+
+def default : Π(s:sort), s.domain
+| sort.Bool := tt
+| (BitVec w) := (0 : bitvec w)
+
 end sort
+
+export sort(Bool)
+export sort(BitVec)
 
 ------------------------------------------------------------------------
 -- rank
 
 /- The input sorts and output associated with a user-defined symbol. -/
-structure rank : Type 1 :=
+structure rank : Type :=
 (inputs : list sort)
 (return : sort)
 
@@ -200,8 +211,12 @@ namespace interpretation
 protected
 def lookup_var (i:interpretation) (nm:symbol) (s:sort) : option s.domain :=
   match i.var_map.find nm with
-  | none := none
-  | (some ⟨t,d⟩) := sorry
+  | (some ⟨⟨[],t⟩,d⟩) :=
+    if h : t = s then
+      some (cast (congr_arg sort.domain h) d)
+    else
+      none
+  | _ := none
   end
 
 protected
@@ -237,7 +252,11 @@ def function_def
 
 def var (nm:symbol) (s:sort) : term s :=
 { to_sexpr := nm
-, interp   := sorry
+, interp   := λctx,
+   match ctx.lookup_var nm s with
+   | (some v) := v
+   | none := s.default
+   end
 }
 
 ------------------------------------------------------------------------
@@ -272,48 +291,39 @@ def apply_pairwise {α} (p : α → α → bool) : list α → bool
 ------------------------------------------------------------------------
 -- Core theory
 
-/-- Sort associated with Boolean values. -/
-def bool : sort :=
-  { name := symbol.of_string "Bool"
-  , args := []
-  , domain := bool
-  , default := tt
-  }
-
-
 /-- True predicate. -/
 protected
-def true : term bool :=
+def true : term Bool :=
 { to_sexpr := sexpr.of_string "true"
 , interp := λm, tt
 }
 
 /-- False predicate. -/
 protected
-def false : term bool :=
+def false : term Bool :=
 { to_sexpr := sexpr.of_string "false"
 , interp := λm, ff
 }
 
 /-- False predicate. -/
 protected
-def not (x : term bool) : term bool :=
+def not (x : term Bool) : term Bool :=
 { to_sexpr := sexpr.parens [sexpr.of_string "false", x]
 , interp := λm, bnot (x.interp m)
 }
 
 protected
-def implies (c : list (term bool)) (p : term bool) : term bool :=
+def implies (c : list (term Bool)) (p : term Bool) : term Bool :=
 { to_sexpr := sexpr.parens (sexpr.of_string "=>" :: (c.map term.to_sexpr ++ [p]))
 , interp := λm, apply_right_assoc m bimplies c p
 }
 
 protected
-def and_all_interp (m:interpretation) (l:list (term bool)) :=
-  l.foldl (λa (b:term bool), band a (b.interp m)) tt
+def and_all_interp (m:interpretation) (l:list (term Bool)) :=
+  l.foldl (λa (b:term Bool), band a (b.interp m)) tt
 
 protected
-def and_all : list (term bool) → term bool
+def and_all : list (term Bool) → term Bool
 | [] := smt2.true
 | (h::r) :=
   { to_sexpr := sexpr.parens (sexpr.of_string "and" :: (h::r).map term.to_sexpr)
@@ -322,7 +332,7 @@ def and_all : list (term bool) → term bool
 
 /-- Return true if any terms in the arguments are true. -/
 protected
-def any : list (term bool) → term bool
+def any : list (term Bool) → term Bool
 | [] := smt2.false
 | (h::r) :=
   { to_sexpr := sexpr.parens (sexpr.of_string "or" :: (h::r).map term.to_sexpr)
@@ -331,7 +341,7 @@ def any : list (term bool) → term bool
 
 /-- Holds if an odd number of Booleans in the list are true. -/
 protected
-def xor_list : list (term bool) → term bool
+def xor_list : list (term Bool) → term Bool
 | [] := smt2.false
 | [h] := h
 | (h::r) :=
@@ -340,7 +350,7 @@ def xor_list : list (term bool) → term bool
   }
 
 /-- Return true if all terms in list are equal. -/
-def all_equal {s:sort} [h : decidable_eq s.domain] : list (term s) → term bool
+def all_equal {s:sort} [h : decidable_eq s.domain] : list (term s) → term Bool
 | [] := smt2.true
 | [x] := smt2.true
 | (x::l) :=
@@ -350,7 +360,7 @@ def all_equal {s:sort} [h : decidable_eq s.domain] : list (term s) → term bool
 
 /-- Assert all terms in list are pairwise distinct. -/
 protected
-def distinct {s:sort} [h : decidable_eq s.domain] : list (term s) → term bool
+def distinct {s:sort} [h : decidable_eq s.domain] : list (term s) → term Bool
 | [] := smt2.true
 | [x] := smt2.true
 | l := { to_sexpr := sexpr.parens (sexpr.of_string "=" :: l.map term.to_sexpr)
@@ -359,7 +369,7 @@ def distinct {s:sort} [h : decidable_eq s.domain] : list (term s) → term bool
 
 /-- Return one term or another depending on Boolean predicate. -/
 protected
-def ite {s:sort} (c : term bool) (x y : term s) : term s :=
+def ite {s:sort} (c : term Bool) (x y : term s) : term s :=
 { to_sexpr := sexpr.parens [sexpr.of_string "ite", c, x, y]
 , interp   := λm, cond (c.interp m) (x.interp m) (y.interp m)
 }

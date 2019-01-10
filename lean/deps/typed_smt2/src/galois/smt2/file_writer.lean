@@ -15,8 +15,6 @@ instance : has_monad_lift io file_writer := by apply_instance
 instance : monad_reader io.handle file_writer := by apply_instance
 end
 
-#print bind
-
 /-- Write a command to the file handle. -/
 def write (c:cmd) : file_writer punit := do
   h <- read,
@@ -26,7 +24,7 @@ def write (c:cmd) : file_writer punit := do
 
 /-- Assert a term is true. -/
 protected
-def assert (p:term bool) : file_writer punit := write (cmd.assert p)
+def assert (p:term Bool) : file_writer punit := write (cmd.assert p)
 
 /-- Declare a function -/
 def declare_fun (nm:symbol) (args:list sort) (res:sort) : file_writer punit :=

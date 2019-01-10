@@ -7,7 +7,7 @@ namespace smt2
 /-- This is a class for generating SMTLIB definitions -/
 class is_generator (m : Type u → Type v) extends monad m :=
 -- Assert a Boolean term is true.
-(assert {} : term bool → m punit)
+(assert {} : term Bool → m punit)
 -- Declare a function
 (declare_fun {} : symbol → list sort → sort → m punit)
 -- Declare a constant with the given name
