@@ -12,12 +12,12 @@ namespace smt2
 
 namespace semantics
 
-inductive binding : Type 1
+inductive binding : Type
 | declare_fun {} (nm:symbol) (args:list sort) (res:sort) : binding
 | define_fun  (nm:symbol) (args:list (symbol × sort)) (res:sort) (rhs : term res) : binding
 
 /-- State built up so far in generating an SMT file -/
-structure context  : Type 1 :=
+structure context  : Type :=
 -- Map of symbols created so far.  TODO:
 (defined_symbols : rbmap symbol unit)
 -- List of bindings
@@ -43,7 +43,7 @@ def add_binding (b:binding) (s:context) : context :=
 end context
 end semantics
 
-def semantics : Type 1 → Type 1 := state_t semantics.context (except string)
+def semantics : Type → Type := state_t semantics.context (except string)
 
 namespace semantics
 

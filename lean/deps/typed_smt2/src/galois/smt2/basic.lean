@@ -203,7 +203,7 @@ end sort
 -- interpretation
 
 /-- This represents a mapping from constants to the associated sybol. -/
-structure interpretation : Type 1 :=
+structure interpretation : Type :=
 (var_map : rbmap symbol (sigma rank.domain))
 
 namespace interpretation
@@ -233,7 +233,7 @@ end interpretation
 -- term
 
 /- Defines a term in our logic. -/
-structure term (s:sort) : Type 1 :=
+structure term (s:sort) : Type :=
 (to_sexpr : sexpr atom)
 (interp : interpretation → s.domain)
 
@@ -374,7 +374,7 @@ def ite {s:sort} (c : term Bool) (x y : term s) : term s :=
 , interp   := λm, cond (c.interp m) (x.interp m) (y.interp m)
 }
 
-def binding : Type 1 := symbol × sigma term
+def binding := symbol × sigma term
 
 namespace binding
 
