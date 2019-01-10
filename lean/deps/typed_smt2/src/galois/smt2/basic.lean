@@ -294,14 +294,14 @@ def apply_pairwise {α} (p : α → α → bool) : list α → bool
 /-- True predicate. -/
 protected
 def true : term Bool :=
-{ to_sexpr := sexpr.of_string "true"
+{ to_sexpr := symbol.of_string "true"
 , interp := λm, tt
 }
 
 /-- False predicate. -/
 protected
 def false : term Bool :=
-{ to_sexpr := sexpr.of_string "false"
+{ to_sexpr := symbol.of_string "false"
 , interp := λm, ff
 }
 
@@ -319,34 +319,42 @@ def implies (c : list (term Bool)) (p : term Bool) : term Bool :=
 }
 
 protected
-def and_all_interp (m:interpretation) (l:list (term Bool)) :=
-  l.foldl (λa (b:term Bool), band a (b.interp m)) tt
+def and_all_interp (m:interpretation) (l:list (term Bool)) := band_all (l.map (λb, term.interp b m))
 
+/-- Check if all terms in the arguments are true. -/
 protected
-def and_all : list (term Bool) → term Bool
-| [] := smt2.true
-| (h::r) :=
-  { to_sexpr := sexpr.parens (sexpr.of_string "and" :: (h::r).map term.to_sexpr)
-  , interp := λm, smt2.and_all_interp m (h::r)
+def all (l:list (term Bool)) : term Bool :=
+  { to_sexpr :=
+    match l with
+    | [] := symbol.of_string "true"
+    | [h] := h
+    | l := sexpr.parens (sexpr.of_string "and" :: l.map term.to_sexpr)
+    end
+  , interp := λm, ball (l.map (λb, term.interp b m))
   }
 
-/-- Return true if any terms in the arguments are true. -/
+/-- Check if any terms in the arguments are true. -/
 protected
-def any : list (term Bool) → term Bool
-| [] := smt2.false
-| (h::r) :=
-  { to_sexpr := sexpr.parens (sexpr.of_string "or" :: (h::r).map term.to_sexpr)
-  , interp := λm, apply_left_assoc m bor h r
+def any (l:list (term Bool)) : term Bool :=
+  { to_sexpr :=
+    match l with
+    | [] := symbol.of_string "false"
+    | [h] := h
+    | l := sexpr.parens (sexpr.of_string "or" :: l.map term.to_sexpr)
+    end
+  , interp := λm, bany (l.map (λb, term.interp b m))
   }
 
-/-- Holds if an odd number of Booleans in the list are true. -/
+/-- Check if an odd number of Booleans in the list are true. -/
 protected
-def xor_list : list (term Bool) → term Bool
-| [] := smt2.false
-| [h] := h
-| (h::r) :=
-  { to_sexpr := sexpr.parens (sexpr.of_string "xor" :: (h::r).map term.to_sexpr)
-  , interp := λm, apply_left_assoc m bxor h r
+def xor_list (l:list (term Bool)) : term Bool :=
+  { to_sexpr :=
+    match l with
+    | [] := symbol.of_string "false"
+    | [h] := h
+    | l := sexpr.parens (sexpr.of_string "xor" :: l.map term.to_sexpr)
+    end
+  , interp := λm, list.foldl bxor ff (l.map (λb, term.interp b m))
   }
 
 /-- Return true if all terms in list are equal. -/
@@ -355,7 +363,10 @@ def all_equal {s:sort} [h : decidable_eq s.domain] : list (term s) → term Bool
 | [x] := smt2.true
 | (x::l) :=
   { to_sexpr := sexpr.parens (sexpr.of_string "=" :: x :: l.map term.to_sexpr)
-  , interp := λm, apply_chainable (λ(x y : term s), decidable.to_bool (x.interp m = y.interp m)) x l
+  , interp := λm,
+      apply_chainable (λ(x y : s.domain), decidable.to_bool (x = y))
+                      (x.interp m)
+                      (l.map (λb, b.interp m))
   }
 
 /-- Assert all terms in list are pairwise distinct. -/
@@ -364,7 +375,9 @@ def distinct {s:sort} [h : decidable_eq s.domain] : list (term s) → term Bool
 | [] := smt2.true
 | [x] := smt2.true
 | l := { to_sexpr := sexpr.parens (sexpr.of_string "=" :: l.map term.to_sexpr)
-       , interp   := λm, apply_pairwise (λ(x y : term s), decidable.to_bool (x.interp m ≠ y.interp m)) l
+       , interp   := λm,
+          apply_pairwise (λ(x y : s.domain), decidable.to_bool (x ≠ y))
+                         (l.map (λb, b.interp m))
        }
 
 /-- Return one term or another depending on Boolean predicate. -/

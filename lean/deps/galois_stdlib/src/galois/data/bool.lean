@@ -1,10 +1,18 @@
-/- Boolean operations. -/
+-- Boolean operations.
 
+/- Implication over Booleans. -/
 def bimplies : bool → bool → bool
 | tt y := y
 | ff _ := tt
 
-def band_all : list bool → bool
+/- Return conjunction of all elements in list. -/
+def ball : list bool → bool
 | [] := tt
-| (tt::r) := band_all r
+| (tt::r) := ball r
+| (ff::r) := ff
+
+/- Return conjunction of all elements in list. -/
+def bany : list bool → bool
+| [] := tt
+| (tt::r) := ball r
 | (ff::r) := ff

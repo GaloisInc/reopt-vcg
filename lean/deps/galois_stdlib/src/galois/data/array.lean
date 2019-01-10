@@ -5,8 +5,6 @@ import .array.lex_order
 
 import ..logic
 
-import tactic.find
-
 namespace array
 
 /- Simplification rule for reading from an array constructed by push_back with a less-than test. -/
