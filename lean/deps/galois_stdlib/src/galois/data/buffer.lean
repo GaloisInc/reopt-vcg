@@ -28,6 +28,7 @@ begin
   },
 end
 
+/- Size of appending to buffers is sum of their sizes.-/
 @[simp]
 theorem size_append {α} (x y : buffer α)
 : (x ++ y).size = x.size + y.size :=

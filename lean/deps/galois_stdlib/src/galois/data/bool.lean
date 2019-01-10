@@ -11,8 +11,8 @@ def ball : list bool → bool
 | (tt::r) := ball r
 | (ff::r) := ff
 
-/- Return conjunction of all elements in list. -/
+/- Return disjunction of all elements in list. -/
 def bany : list bool → bool
-| [] := tt
-| (tt::r) := ball r
-| (ff::r) := ff
+| [] := ff
+| (tt::r) := tt
+| (ff::r) := bany r
