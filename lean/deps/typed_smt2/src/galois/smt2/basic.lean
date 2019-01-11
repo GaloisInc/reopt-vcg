@@ -1,185 +1,416 @@
+/-
+This declares sorts, terms, and semantics for generating SMTLIB
+expressions and reasoning about their interpretation.
+-/
+import data.bitvec
+import galois.category.except
+import galois.data.bool
+import galois.data.buffer
+import galois.data.list
+import galois.data.option
+import galois.logic
 import galois.sexpr
+
+import .atom
+
+universes u v
+
+/- A list whose element types are constructed from applying a function to another list. -/
+inductive indexed_list {α:Type u} (f:α → Sort v) : list α → Sort (max (u+1) v)
+| nil {} : indexed_list []
+| cons {h:α} {r:list α} : f h → indexed_list r → indexed_list (h::r)
+
+namespace indexed_list
+section
+
+parameter {α:Type u}
+parameter {f:α → Sort v}
+
+/- Return the nth_le element in the list. -/
+def nth_le : Π{l:list α}, indexed_list f l → Π(i:ℕ) (i_lt:i < l.length), f (l.nth_le i i_lt)
+| ._ nil      n     h := absurd h (nat.not_lt_zero n)
+| ._ (cons a l) 0     h := a
+| ._ (cons a l) (n+1) h := nth_le l n (nat.le_of_succ_le_succ h)
+
+end
+end indexed_list
+
+------------------------------------------------------------------------
+-- SMT theory
 
 namespace smt2
 
-/-- This represents either function or sort symbol names. -/
-def symbol := string
+------------------------------------------------------------------------
+-- ident_arg
 
-namespace symbol
-
-/--
-Return true if this symbol is a legal name.
-
-TODO: Fix this to ensure symbol is not a reserved word, and characters are valid.
+/-
+A identifier arg represents either a number or a
+symbol (possibly with arguments provided).
 -/
-def is_valid (nm:symbol) : bool := tt
+inductive ident_arg : Type
+| nat   {} : ℕ → ident_arg
+| sort  {} : symbol → list ident_arg → ident_arg
 
-instance : has_lt symbol :=
-begin
-  unfold symbol,
-  apply_instance
-end
-
-end symbol
-
-/-- A type for terms in SMTLIB -/
-def sort : Type := sexpr
-
-instance : has_coe string sort := begin unfold sort, apply_instance end
-instance : decidable_eq sort := by apply_instance
-
-/-- Denotes Booleans -/
-def bool : sort := "bool"
-
-/-- A type with a default value in that type. -/
-structure inhabited_type :=
-(type : Type)
-(value : type)
-
-/-- A type with natural numbers that can be used for uninterpreted values. -/
-def inhabited_type.uninterpreted : inhabited_type := { type := ℕ, value := 0 }
-
-/--
-This defines an interpretation of sorts.
-
-It maps each sort to an inhabited type, and the mapping for bool must
-be Prop.
-
-As there are an unbounded number of sorts, implementations should map
-the ones they recognize to the appropriate type, then map the others
-to `inhabited_type.uninterpreted` to represent uninterpreted types.
-
-We use a function rather than finite map to deal with polymorphic
-types such as bitvectors.
--/
-structure logic :=
-(eval : sort → inhabited_type)
-(bool_eqn : (eval bool).type = Prop)
-
-namespace logic
-
-/-- Return the type associated with the given sort or Prop if not defined -/
-def type_of (l:logic) (s:sort) : Type := (l.eval s).type
-
-/-- Assert proposition is assigned to Booleans -/
-def prop_is_bool_type (l:logic) : l.type_of bool = Prop := l.bool_eqn
-
-/-- Return the type associated with the given sort or Prop if not defined -/
-def value_of (l:logic) (s:sort) : l.type_of s := (l.eval s).value
-
-/-- @fun_type args res@ dReturn the type assigned to functions. -/
-def fun_domain (l:logic) : list sort → sort → Type
-| [] res := l.type_of res
-| (h::r) tp := l.type_of h → fun_domain r tp
-
-/-- Default value for a function -/
-def fun_default_value (l:logic) : Π(args:list sort) (res:sort), l.fun_domain args res
-| [] res := l.value_of res
-| (h::r) tp := λ(x : l.type_of h), fun_default_value r tp
-
-/-- Coercision from prop to l.type_of bool -/
-instance bool_coe (l:logic) : has_coe Prop (l.type_of bool) :=
-{ coe := λ(x:Prop), eq.rec x l.prop_is_bool_type.symm }
-
-end logic
+namespace ident_arg
 
 ------------------------------------------------------------------------
--- Model
+-- is_child
 
-/--
-Provides a valuation of symbols in a SMT formula.  This is parameterized by a logic, which
-defines how SMTLIB sorts should be mapped to Lean types.
+/- is_child c x holds if one ident_arg appears as an argument to another. -/
+inductive is_child : ident_arg → ident_arg → Prop
+| mem : Π{x : ident_arg} {nm : symbol} {args : list ident_arg}
+          (is_mem : x ∈ args),
+          is_child x (ident_arg.sort nm args)
 
-This maps symbols (which could be functions) to their type information and a valuation with
-the write domain according to the logic.
--/
-def model (l:logic) : Type := rbmap symbol (Σ(args:list sort) (s:sort), l.fun_domain args s)
+/- Prove is_child relationship is well-founded. -/
+def is_child.wf : well_founded is_child :=
+begin
+  apply well_founded.intro,
+  intro z,
+  apply well_founded.fix (sizeof_measure_wf ident_arg) _ z,
+  intros y rec,
+  dsimp [sizeof_measure, measure, inv_image] at rec,
+  apply acc.intro,
+  intros x x_lt_y,
+  cases y with n nm args,
+  { cases x_lt_y, },
+  { cases x_lt_y with a b c x_in_args,
+    apply rec,
+    simp [sizeof, has_sizeof.sizeof, ident_arg.sizeof, nat.succ_add ],
+    transitivity, exact (list.mem_sizeof x_in_args),
+    apply nat.lt_of_le_of_lt (nat.le_add_left _ nm.sizeof),
+    exact (nat.succ_le_succ (nat.le_refl _)),
+  },
+end
 
-instance (l:logic) : has_emptyc (model l) :=
-{ emptyc := mk_rbmap _ _ }
-
-/--
-A term in SMTLIB representation.
-
-Our term represnetation is extensible so that one can easily construct
-terms with arbitrary sexpression respresentations and interpretations.
-
-This is designed to make it easy to introduce new theories without
-changing the core of how the language works, but has the risk that one
-can give an incorrect interpretation to an expression.
-
-We recommend users only construct terms manually if they must, and
-otherwise use existing definitions.
--/
-
-structure term (s : sort) :=
-(repr : sexpr)
-(interp : Π{l:logic}, model l → l.type_of s)
-
-namespace model
+------------------------------------------------------------------------
+-- fixpoint function based on is_child.
 
 section
-parameter {l:logic}
 
-/-- Bind a function to symbol name in the module. -/
-def bind (ctx:model l)  (nm:symbol) {args: list sort} {r:sort} (v:l.fun_domain args r) : model l :=
-  ctx.insert nm ⟨args, r, v⟩
+parameter {C : ident_arg → Sort _}
+parameter (nat_eval : Π(n:ℕ), C (nat n))
+parameter (sort_eval : Π(nm:symbol) (args:list ident_arg),
+               (Π(y : ident_arg), y ∈ args → C y)
+               → C (sort nm args))
 
-/-- Bind a constant to a symbol name in the module. -/
-def bind_const (ctx:model l)  (nm:symbol) {r:sort} (v:l.type_of r) : model l :=
-  @bind ctx nm [] r v
+def fix.f
+  : Π (x : ident_arg), (Π (y : ident_arg), ident_arg.is_child y x → C y) -> C x
+| (nat n) _ := nat_eval n
+| (sort nm args) ind := sort_eval nm args (λy h, ind y (is_child.mem h))
 
-/-- Return the value associated with a symbol, or a default value if not defined. -/
-def symbol_value (m:model l) (nm:symbol) (args:list sort) (res:sort) : l.fun_domain args res :=
-  match rbmap.find m nm with
-  | option.none := l.fun_default_value args res
-  | option.some ⟨nm_args, nm_res, nm_val⟩ :=
-    if h : nm_args = args ∧ nm_res = res then
-      eq.rec (eq.rec nm_val h.left) h.right
-     else
-      l.fun_default_value args res
-  end
-
-/-- @mdl.fun_value args rhs@ returns the value associated with a
-function that takes the given  arguments and returns the value denoted by @rhs@.
--/
-def fun_value {l:logic}
-: Π(mdl : model l) (args : list (symbol × sort)) {res : sort} (rhs : term res),
-   l.fun_domain (args.map prod.snd) res
-| mdl [] res rhs := rhs.interp mdl
-| mdl (⟨nm,s⟩::args) res rhs := λ(x:l.type_of s), (mdl.bind_const nm x).fun_value args rhs
+@[elab_with_expected_type]
+def fix : Π(x : ident_arg), C x := well_founded.fix is_child.wf fix.f
 
 end
-end model
-
-section term
-
-/-- Create a term from a  symbol and sort -/
-def var (nm : symbol) {s:sort} : term s :=
-{ repr := sexpr.of_string nm
-, interp := λ_ m, m.symbol_value nm [] s
-}
-
-/-- Generate term that two terms are equal. -/
-def eq {s:sort} (x y : term s) : term bool :=
-{ repr := sexpr.bin_app "=" x.repr y.repr
-, interp := λ_ m, x.interp m = y.interp m
-}
-
-end term
 
 ------------------------------------------------------------------------
--- Additional data types
+--
+
+/-- Convert a ident_arg to an s-expression. -/
+protected
+def to_sexpr : ident_arg → sexpr atom :=
+  let num (n:ℕ) := sexpr.atom (atom.numeral n) in
+  let app (nm : symbol) (args : list ident_arg) rec :=
+        sexpr.parens
+          (sexpr.atom (atom.symbol nm) :: args.map_with_mem rec) in
+  fix num app
+
+def decidable_eq.nat (m:ℕ) : Π(y:ident_arg), decidable (nat m = y)
+| (nat n) :=
+  if p : m = n then
+    is_true (congr_arg nat p)
+  else
+    is_false (λh, p (ident_arg.nat.inj h))
+| (sort nm args) := is_false (by contradiction)
+
+def decidable_eq.app (nm : symbol) (args : list ident_arg)
+        (rec : Π(y:ident_arg), y ∈ args → Πz, decidable (y = z))
+ : Π(y:ident_arg), decidable (sort nm args = y)
+ | (nat n) := is_false (by contradiction)
+ | (sort ynm yargs) :=
+   if pnm : nm = ynm then
+     let p (xe) (xmem) (ye) (ymem : ye ∈ yargs)
+          : decidable (xe = ye) := rec xe xmem ye in
+     match list.has_dec_eq_with_mem args yargs p with
+     | is_true pr   := is_true (eq.subst pnm (eq.subst pr rfl))
+     | is_false npr := is_false (λh, npr (ident_arg.sort.inj h).right)
+     end
+   else
+     is_false (λh, pnm (ident_arg.sort.inj h).left)
+
+protected
+def has_dec_eq : decidable_eq ident_arg :=
+  fix decidable_eq.nat decidable_eq.app
+
+instance : decidable_eq ident_arg := ident_arg.has_dec_eq
+instance : has_coe ℕ ident_arg := ⟨ident_arg.nat⟩
+end ident_arg
+
+------------------------------------------------------------------------
+-- sort
 
 /--
-A symbol representing a Boolean name or its negation.
-
-Used in check-sat-ass
+Sorts in SMTLIB.
 -/
-inductive literal
--- Assertion named predicate is true
-| is_true : symbol → literal
--- Assertion named predicate is false.
-| is_false : symbol → literal
+inductive sort  : Type
+| Bool : sort
+| BitVec (w:ℕ) : sort
+
+namespace sort
+
+protected def to_sexpr : sort → sexpr atom
+| Bool := symbol.of_string "Bool"
+| (BitVec w) := sexpr.parens [reserved_word.of_string "_", symbol.of_string "BitVec", atom.numeral w]
+
+instance sort_is_sexpr : has_coe sort (sexpr atom) := ⟨sort.to_sexpr⟩
+
+instance : decidable_eq sort := by tactic.mk_dec_eq_instance
+
+def domain : sort → Type
+| Bool := bool
+| (BitVec w) := bitvec w
+
+def default : Π(s:sort), s.domain
+| sort.Bool := tt
+| (BitVec w) := (0 : bitvec w)
+
+end sort
+
+export sort(Bool)
+export sort(BitVec)
+
+------------------------------------------------------------------------
+-- rank
+
+/- The input sorts and output associated with a user-defined symbol. -/
+structure rank : Type :=
+(inputs : list sort)
+(return : sort)
+
+namespace rank
+/- Returns the type of values in the domain. -/
+def domain (r:rank) : Type := r.inputs.foldr (λa r, a.domain → r) r.return.domain
+end rank
+
+namespace sort
+/- Returns the rank with no arguments and the given sort. -/
+protected def to_rank (s:sort) : rank := ⟨[],s⟩
+instance sort_is_rank : has_coe sort rank := ⟨sort.to_rank⟩
+end sort
+
+------------------------------------------------------------------------
+-- interpretation
+
+/-- This represents a mapping from constants to the associated sybol. -/
+structure interpretation : Type :=
+(var_map : rbmap symbol (sigma rank.domain))
+
+namespace interpretation
+
+protected
+def lookup_var (i:interpretation) (nm:symbol) (s:sort) : option s.domain :=
+  match i.var_map.find nm with
+  | (some ⟨⟨[],t⟩,d⟩) :=
+    if h : t = s then
+      some (cast (congr_arg sort.domain h) d)
+    else
+      none
+  | _ := none
+  end
+
+protected
+def bind (i:interpretation) (nm:symbol) (r:rank) (d:r.domain) : interpretation
+:= { i with var_map := i.var_map.insert nm ⟨r, d⟩ }
+
+protected def empty : interpretation := { var_map := mk_rbmap _ _ _ }
+
+instance : has_emptyc interpretation := ⟨interpretation.empty⟩
+
+end interpretation
+
+------------------------------------------------------------------------
+-- term
+
+/- Defines a term in our logic. -/
+structure term (s:sort) : Type :=
+(to_sexpr : sexpr atom)
+(interp : interpretation → s.domain)
+
+namespace term
+instance (s:sort) : has_coe (term s) (sexpr atom) := ⟨term.to_sexpr⟩
+end term
+
+/- Return the rank associated with a function with the given arguments and return type. -/
+def arg_rank (args: list (symbol × sort)) (r:sort) : rank := ⟨args.map prod.snd, r⟩
+
+/- Return the function defined by the given arguments and term.  -/
+def function_def
+: Π(i:interpretation) (args:list (symbol × sort)) {r:sort} (rhs : term r), (arg_rank args r).domain
+| i [] r rhs := rhs.interp i
+| i (⟨nm,s⟩::l) r rhs := λ(x:s.domain), function_def (i.bind nm s.to_rank x) l rhs
+
+def var (nm:symbol) (s:sort) : term s :=
+{ to_sexpr := nm
+, interp   := λctx,
+   match ctx.lookup_var nm s with
+   | (some v) := v
+   | none := s.default
+   end
+}
+
+------------------------------------------------------------------------
+-- Apply predicates
+
+/- Apply function to elements in list with a left associative operation. -/
+def apply_left_assoc (m:interpretation) {s:sort}
+      (f : s.domain → s.domain → s.domain)
+      (x:term s) (l:list (term s)) : s.domain :=
+  list.foldl (λa (b:term s), f a (b.interp m)) (x.interp m) l
+
+/- Apply function to elements in list with a right associative operation. -/
+def apply_right_assoc (m:interpretation) {s:sort} (f : s.domain → s.domain → s.domain)
+      (l:list (term s)) (x:term s) : s.domain :=
+  list.foldr (λ(a:term s) b, f (a.interp m) b) (x.interp m) l
+
+/- Apply predicate to each two pair of elements in list and return conjunction. -/
+def apply_chainable {α} (p : α → α → bool) : α → list α → bool
+| x [] := tt
+| x (h::r) := p x h && apply_chainable h r
+
+/- Apply predicate to all elements in list, and return conjunction. -/
+def all_band {α} (p : α → bool) : list α → bool
+| [] := tt
+| (h::r) :=  p h && all_band r
+
+/- Apply predicate to each two pair of elements in list and return conjunction. -/
+def apply_pairwise {α} (p : α → α → bool) : list α → bool
+| [] := tt
+| (h::r) := all_band (p h) r && apply_pairwise r
+
+------------------------------------------------------------------------
+-- Core theory
+
+/-- True predicate. -/
+protected
+def true : term Bool :=
+{ to_sexpr := symbol.of_string "true"
+, interp := λm, tt
+}
+
+/-- False predicate. -/
+protected
+def false : term Bool :=
+{ to_sexpr := symbol.of_string "false"
+, interp := λm, ff
+}
+
+/-- False predicate. -/
+protected
+def not (x : term Bool) : term Bool :=
+{ to_sexpr := sexpr.parens [sexpr.of_string "false", x]
+, interp := λm, bnot (x.interp m)
+}
+
+protected
+def implies (c : list (term Bool)) (p : term Bool) : term Bool :=
+{ to_sexpr := sexpr.parens (sexpr.of_string "=>" :: (c.map term.to_sexpr ++ [p]))
+, interp := λm, apply_right_assoc m bimplies c p
+}
+
+protected
+def and_all_interp (m:interpretation) (l:list (term Bool)) := band_all (l.map (λb, term.interp b m))
+
+/-- Check if all terms in the arguments are true. -/
+protected
+def all (l:list (term Bool)) : term Bool :=
+  { to_sexpr :=
+    match l with
+    | [] := symbol.of_string "true"
+    | [h] := h
+    | l := sexpr.parens (sexpr.of_string "and" :: l.map term.to_sexpr)
+    end
+  , interp := λm, ball (l.map (λb, term.interp b m))
+  }
+
+/-- Check if any terms in the arguments are true. -/
+protected
+def any (l:list (term Bool)) : term Bool :=
+  { to_sexpr :=
+    match l with
+    | [] := symbol.of_string "false"
+    | [h] := h
+    | l := sexpr.parens (sexpr.of_string "or" :: l.map term.to_sexpr)
+    end
+  , interp := λm, bany (l.map (λb, term.interp b m))
+  }
+
+/-- Check if an odd number of Booleans in the list are true. -/
+protected
+def xor_list (l:list (term Bool)) : term Bool :=
+  { to_sexpr :=
+    match l with
+    | [] := symbol.of_string "false"
+    | [h] := h
+    | l := sexpr.parens (sexpr.of_string "xor" :: l.map term.to_sexpr)
+    end
+  , interp := λm, list.foldl bxor ff (l.map (λb, term.interp b m))
+  }
+
+/-- Return true if all terms in list are equal. -/
+def all_equal {s:sort} [h : decidable_eq s.domain] : list (term s) → term Bool
+| [] := smt2.true
+| [x] := smt2.true
+| (x::l) :=
+  { to_sexpr := sexpr.parens (sexpr.of_string "=" :: x :: l.map term.to_sexpr)
+  , interp := λm,
+      apply_chainable (λ(x y : s.domain), decidable.to_bool (x = y))
+                      (x.interp m)
+                      (l.map (λb, b.interp m))
+  }
+
+/-- Assert all terms in list are pairwise distinct. -/
+protected
+def distinct {s:sort} [h : decidable_eq s.domain] : list (term s) → term Bool
+| [] := smt2.true
+| [x] := smt2.true
+| l := { to_sexpr := sexpr.parens (sexpr.of_string "=" :: l.map term.to_sexpr)
+       , interp   := λm,
+          apply_pairwise (λ(x y : s.domain), decidable.to_bool (x ≠ y))
+                         (l.map (λb, b.interp m))
+       }
+
+/-- Return one term or another depending on Boolean predicate. -/
+protected
+def ite {s:sort} (c : term Bool) (x y : term s) : term s :=
+{ to_sexpr := sexpr.parens [sexpr.of_string "ite", c, x, y]
+, interp   := λm, cond (c.interp m) (x.interp m) (y.interp m)
+}
+
+def binding := symbol × sigma term
+
+namespace binding
+
+protected
+def to_sexpr : binding → sexpr atom
+| (nm, ⟨s, t⟩) := sexpr.parens [nm, t]
+
+instance : has_coe binding (sexpr atom) := ⟨binding.to_sexpr⟩
+
+end binding
+
+/- Extend the model with a list of bindings. -/
+def extend_model (scope:interpretation) : interpretation → list binding → interpretation
+| i [] := i
+| i ((nm, ⟨s, t⟩)::r) := extend_model (i.bind nm (s.to_rank) (t.interp scope)) r
+
+/- Generate a term that with let bindings. -/
+protected
+def term_let {s:sort} : list binding → term s → term s
+| [] t := t
+| l t :=
+   { to_sexpr := sexpr.parens [sexpr.of_string "let", sexpr.parens (l.map binding.to_sexpr), t]
+   , interp := λm, t.interp (extend_model m m l)
+  }
 
 end smt2
