@@ -130,7 +130,7 @@ misuse or the proposition that was asserted.
 -/
 protected
 def run_and_collect_unsat (m:semantics punit) : except string Prop :=
-  let f (r:punit × context) : Prop := (r.snd.checked.map (λp, p = false)).forall_prop in
+  let f (r:punit × context) : Prop := (r.snd.checked.map (λp, not p)).forall_prop in
   (m.run context.initial).map_poly f
 
 end semantics
