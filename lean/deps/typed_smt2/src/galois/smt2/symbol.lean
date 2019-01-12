@@ -172,6 +172,8 @@ structure symbol :=
 (to_char_buffer : char_buffer)
 (valid : symbol.is_symbol to_char_buffer)
 
+#print prefix smt2.symbol
+
 namespace symbol
 
 instance decidable_eq : decidable_eq symbol := by tactic.mk_dec_eq_instance
@@ -376,10 +378,76 @@ def parse (s:string) : except string symbol := do
   else
     throw "Invalid symbol"
 
+/-- Check all characters in buffer can appear in quoted symbols. -/
+def string_is_symbol (s:string) : Prop := symbol.is_symbol s.to_char_buffer
+
+@[simp]
+theorem string_to_char_buffer (b:char_buffer) : string.to_char_buffer (buffer.to_string b) = b :=
+begin
+  apply buffer.ext,
+  simp [buffer.to_string],
+  simp [string.to_char_buffer_as_string],
+  simp [buffer.to_list_to_buffer],
+  simp [buffer.to_list],
+end
+
+/- This parses the string as a symbol -/
+protected
+def fast_parse (s:string) : except string string := do
+  let b := s.to_char_buffer,
+  if pr:is_quoted_symbol b then
+    pure (b.slice 1 (b.size - 1) (is_quoted_symbol.size_ok pr)).to_string
+  else if p:is_simple_symbol b then
+    pure b.to_string
+  else
+    throw "Invalid symbol"
+
 end parsing
+
+--def is_ok {α} {β} : except α β → Prop
+
+axiom by_reflection (α:Prop)  : α
+
+section tactic
+open tactic
+
+-- meta constant eval_expr (α : Type u) [reflected α] : expr → tactic α
+
+/- Return the value given a proof the result is ok -/
+def is_ok_value : Π{e:except string symbol}, except.is_ok e → string
+| (except.error l) p := false.elim p
+| (except.ok r) p := r.to_char_buffer.to_string
 
 /- Construct a symbol from a string literal. -/
 def of_string (nm:string) (p : (symbol.parse nm).is_ok  . exact_trivial_tac) : symbol := p.value
+
+meta def enable_vm_tac : tactic unit := do
+  opt ← get_options,
+  set_options (opt.set_bool "vm_tac" tt)
+
+meta def disable_vm_tac : tactic unit := do
+  opt ← get_options,
+  set_options (opt.set_bool "vm_tac" ff)
+
+meta def use_vm_tac : tactic bool := do
+  opt ← get_options,
+  pure $ opt.get_bool "vm_tac" ff
+
+/- This generate a symbol from a string using a tactic that runs in the VM. -/
+meta def of_string_tac (s:string) : tactic unit := do
+  disable_vm_tac,
+  b <- use_vm_tac,
+  if b then
+    match symbol.parse s with
+    | (except.error e) := fail e
+    | (except.ok sym) :=
+       let r : expr := sym.to_char_buffer.to_string.reflect in
+       exact `(smt2.symbol.mk (string.to_char_buffer %%r) (by_reflection _))
+    end
+  else
+    exact (expr.app (`(@of_string %%(s.reflect))) `(trivial))
+
+end tactic
 
 theorem is_symbol_append {x y : char_buffer}
 : is_symbol x → is_symbol y → is_symbol (x ++ y) :=

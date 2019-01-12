@@ -71,7 +71,7 @@ begin
 end
 
 /-- Converting list to bufer and back is round trip. -/
-theorem to_list_to_buffer {α} (l:list α) : l.to_buffer.to_list = l :=
+theorem to_list_to_buffer {α} (l:list α) : buffer.to_list (list.to_buffer l) = l :=
 begin
   unfold list.to_buffer,
   simp only [to_list_append_list],
