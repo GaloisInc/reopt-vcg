@@ -1,4 +1,5 @@
 import data.nat.basic
+import tactic.find
 
 -- This  file contains basic lemmas for nat
 namespace nat
@@ -75,5 +76,22 @@ begin
     },
   },
 end
+
+lemma lt_one_is_zero (x:ℕ) : x < 1 ↔ x = 0 :=
+begin
+  constructor,
+  { intros x_lt_1,
+    apply eq_zero_of_le_zero (le_of_lt_succ x_lt_1),
+  },
+  { intros, simp [a], exact (of_as_true trivial),
+  }
+end
+
+lemma mul_pow_add_lt_pow {x y n m:ℕ} (Hx: x < 2^m) (Hy: y < 2^n) : x * 2^n + y < 2^(m + n) :=
+  calc
+    x*2^n + y < x*2^n + 2^n   : nat.add_lt_add_left Hy (x*2^n)
+          ... = (x + 1) * 2^n : begin rw right_distrib, simp end
+          ... ≤ 2^m * 2^n     : nat.mul_le_mul_right (2^n) (succ_le_of_lt Hx)
+          ... = 2^(m + n)     : eq.symm (nat.pow_add _ _ _)
 
 end nat
