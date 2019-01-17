@@ -63,18 +63,18 @@ end one
 protected def cong {a b : ℕ} (h : a = b) : bitvec a → bitvec b
 | ⟨x, p⟩ := ⟨x, h ▸ p⟩
 
+lemma cong_val {n m : ℕ} {H : n = m} (x : bitvec n)
+: (bitvec.cong H x).to_nat = x.to_nat :=
+begin
+  cases x, simp [bitvec.cong]
+end
+
 protected
 lemma intro {n : ℕ} (x y : bitvec n) : x.to_nat = y.to_nat → x = y :=
 begin
   intro H,
   cases x, cases y, congr,
   simp at H, assumption
-end
-
-lemma cong_val {n m : ℕ} {H : n = m} (x : bitvec n)
-: (bitvec.cong H x).to_nat = x.to_nat :=
-begin
-  cases x, simp [bitvec.cong]
 end
 
 protected def of_nat (n : ℕ) (x:ℕ) : bitvec n :=
@@ -100,21 +100,6 @@ def msb {n:ℕ} (x: bitvec n) : bool := (nat.shiftr x.to_nat (n-1)) = 1
 
 --- Least significant bit.
 def lsb {n:ℕ} (x: bitvec n) : bool := nat.bodd x.to_nat
-
--- 2s complement negation
-protected def neg {n:ℕ} (x : bitvec n) : bitvec n :=
-  ⟨if x.to_nat = 0 then 0 else 2^n - x.to_nat,
-   begin
-     by_cases (x.to_nat = 0),
-     { simp [h], apply nat.pos_pow_of_pos, exact (of_as_true trivial), },
-     { simp [h],
-       --x.to_nat (2^n) x_to_nat_pos,
-       have pos : 0 < 2^n - x.to_nat, { apply nat.sub_pos_of_lt x.property },
-       have x_to_nat_pos: 0 < x.to_nat, { apply nat.pos_of_ne_zero h },
-       apply nat.sub_lt_of_pos_le x.to_nat (2^n) x_to_nat_pos,
-       apply le_of_lt x.property,
-     }
-    end⟩
 
 section conversion
   -- Operations for converting to/from bitvectors
@@ -172,6 +157,22 @@ section arith
   -- Usual arithmetic subtraction
   protected def sub (x y : bitvec n) : bitvec n := bitvec.of_int n (x.to_int - y.to_int)
 
+
+  -- 2s complement negation
+  protected def neg {n:ℕ} (x : bitvec n) : bitvec n :=
+    ⟨if x.to_nat = 0 then 0 else 2^n - x.to_nat,
+     begin
+       by_cases (x.to_nat = 0),
+       { simp [h], apply nat.pos_pow_of_pos, exact (of_as_true trivial), },
+       { simp [h],
+         --x.to_nat (2^n) x_to_nat_pos,
+         have pos : 0 < 2^n - x.to_nat, { apply nat.sub_pos_of_lt x.property },
+         have x_to_nat_pos: 0 < x.to_nat, { apply nat.pos_of_ne_zero h },
+         apply nat.sub_lt_of_pos_le x.to_nat (2^n) x_to_nat_pos,
+         apply le_of_lt x.property,
+       }
+     end⟩
+
   instance : has_add (bitvec n)  := ⟨bitvec.add⟩
   instance : has_sub (bitvec n)  := ⟨bitvec.sub⟩
   instance : has_neg (bitvec n)  := ⟨bitvec.neg⟩
@@ -207,8 +208,7 @@ instance (w:ℕ) : decidable_eq (bitvec w) := by tactic.mk_dec_eq_instance
 section listlike
   -- Operations that treat bitvectors as a list of bits.
 
-
-  -- Test a specific bit in bitvector.
+  --- Test if a specific bit with given index is set.
   def nth {w:ℕ} (x : bitvec w) (idx : ℕ) : bool := nat.test_bit x.to_nat idx
 
   -- Change number of bits result while preserving unsigned value modulo output width.
@@ -217,7 +217,7 @@ section listlike
   -- Change number of bits result while preserving signed value modulo output width.
   def sresize {n:ℕ} (x: bitvec n) (m:ℕ) : bitvec m := bitvec.of_int m x.to_int
 
-open nat
+  open nat
 
   -- bitvec specific version of vector.append
   def append {m n} (x: bitvec m) (y: bitvec n) : bitvec (m + n)
@@ -232,7 +232,7 @@ open nat
       else
         bsf' m (idx+1) x
 
-  -- index of least-significant bit that is 1.
+  --- index of least-significant bit that is 1.
   def bsf : Π{n:ℕ}, bitvec n → option ℕ
     | n x := bitvec.bsf' n 0 x.to_nat
 
@@ -245,16 +245,18 @@ open nat
       else
         bsr' x idx
 
-  -- index of the most-significant bit that is 1.
+  --- index of the most-significant bit that is 1.
   def bsr : Π{n:ℕ}, bitvec n → option ℕ
     | n x := bitvec.bsr' x.to_nat n
 
-example : bsf (bitvec.of_nat 3 5) = some 0 := of_as_true trivial
-example : bsr (bitvec.of_nat 3 5) = some 2 := of_as_true trivial
+  example : bsf (bitvec.of_nat 3 0) = none := of_as_true trivial
+  example : bsr (bitvec.of_nat 3 0) = none := of_as_true trivial
+
+  example : bsf (bitvec.of_nat 3 5) = some 0 := of_as_true trivial
+  example : bsr (bitvec.of_nat 3 5) = some 2 := of_as_true trivial
 
   def slice {w: ℕ} (u l k:ℕ) (H: w = k + (u + 1 - l)) (x: bitvec w) : bitvec (u + 1 - l) :=
      bitvec.of_nat _ (nat.shiftr x.to_nat l)
-
 
 end listlike
 
