@@ -17,6 +17,8 @@ structure bitvec (sz:ℕ) :=
 
 namespace bitvec
 
+instance (w:ℕ) : decidable_eq (bitvec w) := by tactic.mk_dec_eq_instance
+
 -- By default just show a bitvector as a nat.
 instance (w:ℕ) : has_repr (bitvec w) := ⟨λv, repr (v.to_nat)⟩
 
@@ -69,16 +71,11 @@ begin
 end
 
 protected
-lemma intro {n : ℕ} (x y : bitvec n) : x.to_nat = y.to_nat → x = y :=
-begin
-  intro H,
-  cases x, cases y, congr,
-  simp at H, assumption
-end
+lemma intro {n:ℕ} : Π(x y : bitvec n), x.to_nat = y.to_nat → x = y
+| ⟨x, h1⟩ ⟨.(_), h2⟩ rfl := rfl
 
 protected def of_nat (n : ℕ) (x:ℕ) : bitvec n :=
-  ⟨ x % 2^n,
-    nat.mod_lt _ (nat.pos_pow_of_pos n (by exact of_as_true trivial : 0 < 2))⟩
+  ⟨ x % 2^n, nat.mod_lt _ (nat.pos_pow_of_pos n (of_as_true trivial))⟩
 
 theorem of_nat_to_nat {n : ℕ} (x : bitvec n)
 : bitvec.of_nat n (bitvec.to_nat x) = x :=
@@ -102,11 +99,6 @@ def lsb {n:ℕ} (x: bitvec n) : bool := nat.bodd x.to_nat
 
 section conversion
   -- Operations for converting to/from bitvectors
-  variable {α : Type}
-
-  lemma eq {n:ℕ} : Π(x y : bitvec n) (p : x.to_nat = y.to_nat), x = y
-  | ⟨x, h1⟩ ⟨.(_), h2⟩ rfl := rfl
-
 
   protected def to_int {n:ℕ} (x: bitvec n) : int :=
     match msb x with
@@ -162,7 +154,7 @@ section arith
     ⟨if x.to_nat = 0 then 0 else 2^n - x.to_nat,
      begin
        by_cases (x.to_nat = 0),
-       { simp [h], apply nat.pos_pow_of_pos, exact (of_as_true trivial), },
+       { simp [h], exact nat.pos_pow_of_pos _ (of_as_true trivial), },
        { simp [h],
          --x.to_nat (2^n) x_to_nat_pos,
          have pos : 0 < 2^n - x.to_nat, { apply nat.sub_pos_of_lt x.property },
@@ -201,8 +193,6 @@ section shift
   def sshr (x: bitvec n) (i:ℕ) : bitvec n := bitvec.of_int n (int.shiftr (bitvec.to_int x) i)
 
 end shift
-
-instance (w:ℕ) : decidable_eq (bitvec w) := by tactic.mk_dec_eq_instance
 
 section listlike
   -- Operations that treat bitvectors as a list of bits.
