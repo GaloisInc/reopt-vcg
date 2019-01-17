@@ -296,8 +296,7 @@ def concat_list {m : ℕ}(input: list (bitvec m)) (n : ℕ) : bitvec n :=
 def concat_vec {w m : ℕ}(input: vector (bitvec w) m) (n : ℕ) : bitvec m :=
   bitvec.of_nat m (concat' input.to_list)
 
-#eval concat_list [(1 : bitvec 4), 0] 8
-
+example : concat_list [(1 : bitvec 4), 0] 8 = (16 : bitvec 8) := by exact (of_as_true trivial)
 
 --- Forms a list of bitvectors by taking a specific number of bits from parts of the
 -- first argument.
@@ -320,5 +319,7 @@ def split_list {n :ℕ} (x:bitvec n) (w:ℕ) : list (bitvec w) := split_to_list 
 /- Split a single bitvector into a vector of bitvectors with most-significant bits first. -/
 def split_vec {n :ℕ} (x:bitvec n) (w:ℕ) (m : ℕ) : vector (bitvec w) m :=
  ⟨split_to_list x.to_nat w m, length_split_to_list _ _ _⟩
+
+example : split_list (16 : bitvec 8) 4 = [(1 : bitvec 4), 0] := by exact (of_as_true trivial)
 
 end bitvec
