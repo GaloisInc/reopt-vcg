@@ -8,6 +8,7 @@ Basic operations on bitvectors.
 This is a work-in-progress, and contains additions to other theories.
 -/
 import galois.data.nat.basic
+import data.vector
 
 -- A `bitvec n` is a subtype of natural numbers such that the value of
 -- the bitvec is strictly less than 2^n.
@@ -284,5 +285,40 @@ section comparison
   instance decidable_sge {n} {x y : bitvec n} : decidable (bitvec.sge x y) := by apply_instance
 
 end comparison
+
+
+def concat' {n : ℕ}(input: list (bitvec n)): ℕ :=
+  list.foldl (λv (a:bitvec n), nat.shiftl v n + a.to_nat) 0 input
+
+def concat_list {m : ℕ}(input: list (bitvec m)) (n : ℕ) : bitvec n :=
+  bitvec.of_nat n (concat' input)
+
+def concat_vec {w m : ℕ}(input: vector (bitvec w) m) (n : ℕ) : bitvec m :=
+  bitvec.of_nat m (concat' input.to_list)
+
+#eval concat_list [(1 : bitvec 4), 0] 8
+
+
+--- Forms a list of bitvectors by taking a specific number of bits from parts of the
+-- first argument.
+--
+-- The head of the list has the most-significant bits.
+def split_to_list (x:ℕ) (w : ℕ) : ℕ → list (bitvec w)
+| nat.zero := []
+| (nat.succ n) := bitvec.of_nat w (nat.shiftr x (n*w)) :: split_to_list n
+
+theorem length_split_to_list (x:ℕ) (w : ℕ) (m:ℕ) : list.length (split_to_list x w m) = m :=
+begin
+  induction m,
+  case nat.zero { simp [split_to_list], },
+  case nat.succ : m ind { simp [split_to_list, ind, nat.succ_add], },
+end
+
+/- Split a single bitvector into a list of bitvectors with most-significant bits first. -/
+def split_list {n :ℕ} (x:bitvec n) (w:ℕ) : list (bitvec w) := split_to_list x.to_nat w (nat.div n w)
+
+/- Split a single bitvector into a vector of bitvectors with most-significant bits first. -/
+def split_vec {n :ℕ} (x:bitvec n) (w:ℕ) (m : ℕ) : vector (bitvec w) m :=
+ ⟨split_to_list x.to_nat w m, length_split_to_list _ _ _⟩
 
 end bitvec
