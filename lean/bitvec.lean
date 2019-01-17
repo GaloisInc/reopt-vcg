@@ -514,7 +514,7 @@ section listlike
    ⟨concat_nat 0 input, concat_nat_zero_bound input⟩
 
   lemma chunks_nat_concat_nat_eq {n m:ℕ} (x: ℕ)
-  : concat_nat 0 (chunks_nat n m x) = x % 2^n :=
+  : concat_nat 0 (chunks_nat n m x) = x % 2^(m * n) :=
   begin
     induction n with n ih,
     case nat.zero
