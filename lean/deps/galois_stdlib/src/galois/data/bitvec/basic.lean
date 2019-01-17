@@ -7,7 +7,6 @@ Basic operations on bitvectors.
 
 This is a work-in-progress, and contains additions to other theories.
 -/
-import data.vector
 import galois.data.nat.basic
 
 -- A `bitvec n` is a subtype of natural numbers such that the value of

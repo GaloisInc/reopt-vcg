@@ -1,5 +1,4 @@
 import data.nat.basic
-import tactic.find
 
 -- This  file contains basic lemmas for nat
 namespace nat
