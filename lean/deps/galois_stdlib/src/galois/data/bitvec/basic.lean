@@ -202,10 +202,10 @@ section listlike
   def nth {w:ℕ} (x : bitvec w) (idx : ℕ) : bool := nat.test_bit x.to_nat idx
 
   -- Change number of bits result while preserving unsigned value modulo output width.
-  def uresize {n:ℕ} (x: bitvec n) (m:ℕ) : bitvec m := bitvec.of_nat _ x.to_nat
+  def uresize {m:ℕ} (x: bitvec m) (n:ℕ) : bitvec n := bitvec.of_nat _ x.to_nat
 
   -- Change number of bits result while preserving signed value modulo output width.
-  def sresize {n:ℕ} (x: bitvec n) (m:ℕ) : bitvec m := bitvec.of_int m x.to_int
+  def sresize {m:ℕ} (x: bitvec m) (n:ℕ) : bitvec n := bitvec.of_int _ x.to_int
 
   open nat
 
@@ -287,14 +287,23 @@ section comparison
 end comparison
 
 
-def concat' {n : ℕ}(input: list (bitvec n)): ℕ :=
+def concat' {n:ℕ} (input: list (bitvec n)): ℕ :=
   list.foldl (λv (a:bitvec n), nat.shiftl v n + a.to_nat) 0 input
 
-def concat_list {m : ℕ}(input: list (bitvec m)) (n : ℕ) : bitvec n :=
-  bitvec.of_nat n (concat' input)
+--- Concatenation all bitvectors in the list together and return a new bitvector.
+--
+-- The most significant bits of are returned first.
+def concat_list {m:ℕ}(input: list (bitvec m)) (n:ℕ) : bitvec n :=
+  bitvec.of_nat _ (concat' input)
 
-def concat_vec {w m : ℕ}(input: vector (bitvec w) m) (n : ℕ) : bitvec m :=
-  bitvec.of_nat m (concat' input.to_list)
+--- Concatenation all bitvectors in the vector together and return a new bitvector.
+--
+-- The most significant bits of are returned first.
+--
+-- To minimize the need for proofs, we intentionally do not force that the output
+-- has a specific length.
+def concat_vec {w m : ℕ}(input: vector (bitvec w) m) (n:ℕ) : bitvec n :=
+  bitvec.of_nat _ (concat' input.to_list)
 
 example : concat_list [(1 : bitvec 4), 0] 8 = (16 : bitvec 8) := by exact (of_as_true trivial)
 
@@ -302,7 +311,7 @@ example : concat_list [(1 : bitvec 4), 0] 8 = (16 : bitvec 8) := by exact (of_as
 -- first argument.
 --
 -- The head of the list has the most-significant bits.
-def split_to_list (x:ℕ) (w : ℕ) : ℕ → list (bitvec w)
+def split_to_list (x:ℕ) (w:ℕ) : ℕ → list (bitvec w)
 | nat.zero := []
 | (nat.succ n) := bitvec.of_nat w (nat.shiftr x (n*w)) :: split_to_list n
 
@@ -314,10 +323,10 @@ begin
 end
 
 /- Split a single bitvector into a list of bitvectors with most-significant bits first. -/
-def split_list {n :ℕ} (x:bitvec n) (w:ℕ) : list (bitvec w) := split_to_list x.to_nat w (nat.div n w)
+def split_list {n:ℕ} (x:bitvec n) (w:ℕ) : list (bitvec w) := split_to_list x.to_nat w (nat.div n w)
 
 /- Split a single bitvector into a vector of bitvectors with most-significant bits first. -/
-def split_vec {n :ℕ} (x:bitvec n) (w:ℕ) (m : ℕ) : vector (bitvec w) m :=
+def split_vec {n:ℕ} (x:bitvec n) (w m:ℕ) : vector (bitvec w) m :=
  ⟨split_to_list x.to_nat w m, length_split_to_list _ _ _⟩
 
 example : split_list (16 : bitvec 8) 4 = [(1 : bitvec 4), 0] := by exact (of_as_true trivial)
