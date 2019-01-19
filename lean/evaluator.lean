@@ -1,4 +1,4 @@
--- Evaluend qates actions in an environment.
+-- Evaluates actions in an environment.
 import .bitvec
 import .common
 import tactic.find
@@ -117,8 +117,8 @@ end machine_state
 
 inductive arg_value 
   | natv : ℕ -> arg_value
-  | bv  (n : ℕ) : bitvec n -> arg_value -- Do we always have n?
-  | reg (tp : type) : reg tp -> arg_value
+  | bv  {n : ℕ} : bitvec n -> arg_value -- Do we always have n?
+  | reg {tp : type} : reg tp -> arg_value
 
 inductive value : type -> Type
   | bv {n : ℕ} : bitvec n -> value (bv n)
@@ -195,12 +195,12 @@ namespace arg_value
 -- Can fail if types mismatch
 def to_value : arg_value -> Π(tp : type), evaluator (value tp)
   | (arg_value.natv _)  _ := throw "to_value: natv"
-  | (arg_value.bv n b)   (base (base_type.bv (nat_expr.lit m))) := 
+  | (@arg_value.bv n b)   (base (base_type.bv (nat_expr.lit m))) := 
         if H : n = m
         then return (value.bv (bitvec.cong H b))
         else throw "to_value: nat size mismatch"
-  | (arg_value.bv n b)   _ := throw "to_value: Non-lit type"
-  | (arg_value.reg tp r) tp' := 
+  | (@arg_value.bv n b)   _ := throw "to_value: Non-lit type"
+  | (@arg_value.reg tp r) tp' := 
          if H : tp = tp'
          then eq.rec r.read H
          else throw "to_value: reg type mismatch"
@@ -208,14 +208,14 @@ def to_value : arg_value -> Π(tp : type), evaluator (value tp)
 def set_value : arg_value -> Π{tp : type}, value tp -> evaluator unit
   | (natv _) _ _ := throw "set_value: nat"
   -- is an address
-  | (bv 64 addr) (base (base_type.bv _)) (@value.bv n bytes) := 
+  | (@bv 64 addr) (base (base_type.bv _)) (@value.bv n bytes) := 
     if H : n % 8 = 0 
     then let pf := calc n   = n % 8 + 8 * (n / 8) : eq.symm (nat.mod_add_div n 8)
                         ... = 8 * (n / 8) : by simp [H]
          in modify (λs, { s with machine_state := s.machine_state.store_word addr (bitvec.cong pf bytes) })
     else throw "set_value: value size not a mutiple of 8"
-  | (bv n b)   _   _ := throw "arg_value.set_value: addr isn't 64 bits"
-  | (reg tp r) tp' v :=
+  | (@bv n b)   _   _ := throw "arg_value.set_value: addr isn't 64 bits"
+  | (@reg tp r) tp' v :=
     if H : tp' = tp
     then r.set (eq.rec v H)
     else throw "assert_arg_type: reg type mismatch"
@@ -228,7 +228,7 @@ def read : Π{n : ℕ}, addr n -> evaluator (value (bv (8 * n)))
   | n (addr.arg idx) := do 
       av <- arg_at_idx idx,
       match av with 
-        | (arg_value.bv 64 addr) := do s <- get, 
+        | (@arg_value.bv 64 addr) := do s <- get, 
                                        match s.machine_state.read_word addr n with
                                          | none := throw "addr.read: no bytes at addr" 
                                          | (some w) := return (value.bv w)
@@ -240,7 +240,7 @@ def set : Π{n : ℕ}, addr n -> value (bv (8 * n)) -> evaluator unit
   | n (addr.arg idx) (value.bv bytes) := do 
       av <- arg_at_idx idx,
       match av with 
-        | (arg_value.bv 64 addr) := modify (λs, { s with machine_state := s.machine_state.store_word addr bytes })
+        | (@arg_value.bv 64 addr) := modify (λs, { s with machine_state := s.machine_state.store_word addr bytes })
         | _                      := throw "addr.set: not a 64-bit bitvecor"
       end
     
