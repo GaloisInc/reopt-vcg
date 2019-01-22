@@ -187,7 +187,7 @@ eventsEq (L.JumpEvent lbl:levs) (M.FetchAndExecuteEvent regs:mevs) = do
   case Map.lookup lbl m of
     Just off -> do
       let regionMap = error "region index map is not defined."
-      let llvmMemAddr = evalMemAddr regionMap (relativeSegmentAddr off)
+      let llvmMemAddr = evalMemAddr regionMap (segoffAddr off)
       let Const mRegIP = regs ^. boundValue X86_IP
       proveLLVMAndMacawEq llvmMemAddr mRegIP
 
@@ -370,17 +370,19 @@ writeCommand :: Handle -> SMT.Command -> IO ()
 writeCommand h (SMT.Cmd b) =
   LText.hPutStrLn h (Builder.toLazyText b)
 
+-- | Verify a particular function satisfies its specification.
 verifyFunction :: Module
-               -> DiscoveryState X86_64
+               -- ^ LLVM Module
                -> Map BSC.ByteString (MemSegmentOff 64)
                   -- ^ Maps symbol names to addresses
                   --
-                  -- Used so user-generated verification files can refer to names rather than addresses.
+                  -- Used so that verification info can refer to function names.
                -> FilePath
+               -- ^ Directory to write SMTLIB to.
                -> VCGFunInfo
+                  -- ^ Specification of function.
                -> IO ()
-verifyFunction lMod discState funMap outDir vfi = do
-  let mem = memory discState
+verifyFunction lMod funMap outDir vfi = do
   addr <-
     case Map.lookup (BSC.pack (macawFunName vfi)) funMap of
       Just addr ->
@@ -400,10 +402,11 @@ verifyFunction lMod discState funMap outDir vfi = do
       [] -> error $ "Expected function to have at least one basic block."
       f:r -> pure (f,r)
 
+  -- Create a LLVM declration from an argument.
   let mkLLVMDecl :: Typed Ident -> SMT.Command
       mkLLVMDecl (Typed (PrimType (Integer 64)) (Ident arg)) =
         let vnm = "llvmarg_" <> Text.pack arg
-         in SMT.declareFun vnm [] (SMT.bvType 64)
+         in SMT.declareFun vnm [] (SMT.bvSort 64)
       mkLLVMDecl  (Typed tp _) =
         error $ "Unexpected type " ++ show tp
 
@@ -424,7 +427,6 @@ verifyFunction lMod discState funMap outDir vfi = do
   let ls0 = L.inject $ zip (typedValue <$> defArgs lFun) llvmVals
   let ms0 = M.inject
 
-
   let vcgCfg =  VCGConfig { blockMapping = Map.empty
                           , llvmMod = lMod
                           }
@@ -433,12 +435,20 @@ verifyFunction lMod discState funMap outDir vfi = do
      putStrLn $ show $ ppBasicBlock firstBlock
   ls' <- execStateT (L.bb2SMT firstBlock) ls0
   putStrLn "Simulating Macaw program ..."
-  let initAbsState = M.mkInitialAbsState x86_64_linux_info mem addr
-  (blocks,_cnt, _merr) <- stToIO $
-    M.disassembleFn x86_64_linux_info stGen addr maxBound initAbsState
-  let blockMap = Map.fromList [ (M.blockLabel b, b) | b <- blocks ]
-  let Just macawParsedBlock = Map.lookup 0 blockMap
-  ms' <- execStateT (M.block2SMT blockMap macawParsedBlock) ms0
+  blk <- stToIO $ do
+    let initRegs = initX86State ExploreLoc { loc_ip = addr
+                                           , loc_x87_top = 7
+                                           , loc_df_flag = False
+                                           }
+    mr <- runExceptT $ tryDisassembleBlock stGen addr initRegs maxBound
+    case mr of
+      Left msg ->
+        fail $ "Could not disassemble at " ++ show addr ++ ": " ++ msg
+      Right (b, _sz, Nothing) -> pure b
+      Right (_, _sz, Just msg) ->
+        fail $ "Error when disassembling at " ++ show addr ++ ": " ++ msg
+  when (M.blockLabel blk /= 0) $ error "internal: Expected block to have index 0"
+  ms' <- execStateT (M.block2SMT (Map.singleton (M.blockLabel blk) blk) blk) ms0
   pfSt <- runVCG vcgCfg $ stateEq ls' ms'
 
   -- write proof to smt file
@@ -448,7 +458,7 @@ verifyFunction lMod discState funMap outDir vfi = do
     let fname = llvmFunName vfi ++ "_" ++ ppBlock lbl ++ "_" ++ show (i::Integer) ++ ".smt"
     bracket (openFile (outDir </> fname) WriteMode) hClose $ \h -> do
       writeCommand h $ SMT.setLogic SMT.allSupported
-      writeCommand h $ SMT.setOption (SMT.produceModels True)
+      writeCommand h $ SMT.setOption "produce-models" "true"
 
       -- Generate LLVM arguments
       mapM_ (writeCommand h) llvmArgDecls
@@ -481,4 +491,4 @@ main = do
   lMod <- L.getLLVMMod (llvmBCFilePath metaCfg)
   let funMap = Map.fromList [ (sym, addr) | (addr,sym) <- Map.toList $ symbolNames mDiscState ]
   forM_ (functions metaCfg) $ \vfi -> do
-    verifyFunction lMod mDiscState funMap outDir vfi
+    verifyFunction lMod funMap outDir vfi

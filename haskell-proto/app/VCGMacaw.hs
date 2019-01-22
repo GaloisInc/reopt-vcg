@@ -75,8 +75,8 @@ evalMemAddr m a =
 memVar :: Integer -> Text
 memVar i = "x86mem_" <> Text.pack (show i)
 
-memType :: SMT.Type
-memType = SMT.arrayType (SMT.bvType 64) (SMT.bvType 8)
+memType :: SMT.Sort
+memType = SMT.arraySort (SMT.bvSort 64) (SMT.bvSort 8)
 
 data MEvent
   = CmdEvent !SMT.Command
@@ -169,9 +169,9 @@ initReg :: X86Reg tp
          -> Const SMT.Term tp
 initReg reg = Const $ varTerm (smtRegVar reg)
 
-toSMTType :: M.TypeRepr tp -> SMT.Type
-toSMTType (M.BVTypeRepr w) = SMT.bvType (natValue w)
-toSMTType M.BoolTypeRepr = SMT.boolType
+toSMTType :: M.TypeRepr tp -> SMT.Sort
+toSMTType (M.BVTypeRepr w) = SMT.bvSort (natValue w)
+toSMTType M.BoolTypeRepr = SMT.boolSort
 toSMTType tp = error $ "toSMTType: unsupported type " ++ show tp
 
 readMem :: SMT.Term

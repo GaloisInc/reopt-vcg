@@ -121,8 +121,8 @@ $(pure [])
 memVar :: Integer -> Text
 memVar i = "llvmmem_" <> Text.pack (show i)
 
-memType :: SMT.Type
-memType = SMT.arrayType (SMT.bvType 64) (SMT.bvType 8)
+memType :: SMT.Sort
+memType = SMT.arraySort (SMT.bvSort 64) (SMT.bvSort 8)
 
 -- Inject initial (symbolic) arguments
 -- The [String] are arugment name used for this function
@@ -171,9 +171,9 @@ arithOpFunc _ _ _ = llvmError "Not implemented yet"
 
 $(pure [])
 
-asSMTType :: Type -> Maybe SMT.Type
-asSMTType (PtrTo _) = Just (SMT.bvType 64)
-asSMTType (PrimType (Integer i)) | i > 0 = Just $ SMT.bvType (toInteger i)
+asSMTType :: Type -> Maybe SMT.Sort
+asSMTType (PtrTo _) = Just (SMT.bvSort 64)
+asSMTType (PrimType (Integer i)) | i > 0 = Just $ SMT.bvSort (toInteger i)
 asSMTType _ = Nothing
 
 $(pure [])
@@ -204,7 +204,7 @@ $(pure [])
 identVar :: Ident -> Text
 identVar (Ident nm) = "llvm_" <> Text.pack nm
 
-defineTerm :: Ident -> SMT.Type -> SMT.Term -> LStateM ()
+defineTerm :: Ident -> SMT.Sort -> SMT.Term -> LStateM ()
 defineTerm nm tp t = do
   let vnm = identVar nm
   addCommand $ SMT.defineFun vnm [] tp t
@@ -232,10 +232,10 @@ assign2SMT ident (ICmp op (Typed lty@(PrimType (Integer w)) lhs) rhs) = do
           Isge -> SMT.bvsge lhsv rhsv
           Islt -> SMT.bvslt lhsv rhsv
           Isle -> SMT.bvsle lhsv rhsv
-  defineTerm ident (SMT.bvType (toInteger w)) r
+  defineTerm ident (SMT.bvSort (toInteger w)) r
 assign2SMT nm (Alloca ty eltCount malign) = do
   let vnm = identVar nm
-  addCommand $ SMT.declareFun vnm [] (SMT.bvType 64)
+  addCommand $ SMT.declareFun vnm [] (SMT.bvSort 64)
   let base = smtVar vnm
 
   let eltSize :: Integer
