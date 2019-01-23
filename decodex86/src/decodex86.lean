@@ -5,7 +5,15 @@ import .instruction
 import .sexp -- debugging
 
 namespace decodex86
+/- 
+ This function decodes the contents of input using the helper binary
+ located at path.  The binary is expected to be llvm-tablegen-support
+ (from this same repo).  The result of this function is a
+ decodex86.document, i.e. a list of instructions (or unknown bytes)
+ along with their offset from the start of the buffer.
 
+  In the case of error a string is returned.
+-/
 def decode (path : string) (input : char_buffer) : io (sum string decodex86.document) :=
   -- Create process with piped stdin/stdout.
   let piped_args : io.process.spawn_args :=
