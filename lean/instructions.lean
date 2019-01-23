@@ -1,4 +1,5 @@
 import .common
+import system.io
 
 namespace x86
 
@@ -780,4 +781,60 @@ def cld : instruction :=
      df .= zero
    pat_end
 
+def all_instructions :=
+  [ imul
+  , mul
+  , mov
+  , movsx
+  , movsxd
+  , movzx
+  , xchg
+  , cmp
+  , dec
+  , inc
+  , neg
+  , nop
+  , pause
+  , div
+  , idiv
+  , and
+  , not
+  , or
+  , bt
+  , btc
+  , btr
+  , bts
+  , bsf_def
+  , bsr_def
+  , bswap
+  , add
+  , adc
+  , xadd
+  , fadd
+  , faddp
+  , fiadd
+  , syscall
+  , hlt
+  , lea
+  , call
+  , jmp
+  , ret
+  , leave
+  , pop_def
+  , push_def
+  , cwd
+  , cdq
+  , cqo
+  , cbw
+  , cwde
+  , cdqe
+  , clc
+  , cld
+  ]
+
 end x86
+
+open x86
+
+def main : io unit := do
+  monad.mapm' (io.put_str_ln ∘ repr) all_instructions

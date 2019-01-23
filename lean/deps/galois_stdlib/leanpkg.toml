@@ -1,0 +1,9 @@
+[package]
+name = "galois_stdlib"
+version = "0.1"
+lean_version = "master"
+path="src"
+
+[dependencies]
+mathlib = { git = "https://github.com/leanprover/mathlib"
+          , rev = "9506e6c6c9fdc1f7f5f5de9fdd159e7920bccffb"}
