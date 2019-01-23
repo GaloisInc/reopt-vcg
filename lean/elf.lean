@@ -329,81 +329,46 @@ end word
 ------------------------------------------------------------------------
 -- phdr
 
-inductive phdr_type : Type
-  | PT_NULL    : phdr_type
-  | PT_LOAD    : phdr_type
-  | PT_DYNAMIC : phdr_type
-  | PT_INTERP  : phdr_type
-  | PT_NOTE    : phdr_type 
-  | PT_SHLIB   : phdr_type
-  | PT_PHDR    : phdr_type
-  | PT_PROC    : uint32 -> phdr_type
+structure phdr_type :=
+(val : uint32)
 
 namespace phdr_type
 
+instance : elf_file_data phdr_type :=
+{ read := mk <$> file_reader.read_u32 }
+
 def repr (pht : phdr_type) : string :=
-  match pht with
-  | PT_NULL    := "PT_NULL"
-  | PT_LOAD    := "PT_LOAD"  
-  | PT_DYNAMIC := "PT_DYNAMIC"
-  | PT_INTERP  := "PT_INTERP" 
-  | PT_NOTE    := "PT_NOTE"   
-  | PT_SHLIB   := "PT_SHLIB"  
-  | PT_PHDR    := "PT_PHDR" 
-  | PT_PROC n  := "PT_PROC " ++ n.val.repr
+  match pht.val.val with
+  | 0 := "PT_NULL"                
+  | 1 := "PT_LOAD"                 
+  | 2 := "PT_DYNAMIC"              
+  | 3 := "PT_INTERP"               
+  | 4 := "PT_NOTE"                 
+  | 5 := "PT_SHLIB"                
+  | 6 := "PT_PHDR"                 
+  | _ := "PT_PROC " ++ pht.val.val.repr 
   end
 
 instance : has_repr phdr_type := ⟨repr⟩
-  
-instance : elf_file_data phdr_type :=
-{ read := do 
-    w <- file_reader.read_u32,
-    pure $ match w.val with 
-            | 0 := PT_NULL
-            | 1 := PT_LOAD    
-            | 2 := PT_DYNAMIC 
-            | 3 := PT_INTERP  
-            | 4 := PT_NOTE    
-            | 5 := PT_SHLIB   
-            | 6 := PT_PHDR    
-            | _ := PT_PROC w
-           end
-}
+
+instance : decidable_eq phdr_type := by tactic.mk_dec_eq_instance
+
+def PT_LOAD : phdr_type := mk 0
 
 end phdr_type
 
 /-- Flags for a program header. -/
-inductive phdr_flag
-  | PF_X : phdr_flag
-  | PF_W : phdr_flag
-  | PF_R : phdr_flag
-/-  | PF_PROC : word c -> phdr_flag -/
-
-@[reducible]
-def phdr_flags := list phdr_flag
+structure phdr_flags :=
+(val : uint32)
 
 namespace phdr_flags
 
-open phdr_flag
-
 instance : elf_file_data phdr_flags :=
-{ read := do
-  w <- file_reader.read_u32,
-  pure $ (if w.val.test_bit 0 then [ PF_X ] else [])
-        ++ (if w.val.test_bit 1 then [ PF_W ] else [])
-        ++ (if w.val.test_bit 2 then [ PF_R ] else [])
-}
+{ read := mk <$> file_reader.read_u32 }
 
-def repr1 (f : phdr_flag) : string :=
-  match f with
-  | PF_X := "PF_X"
-  | PF_W := "PF_W"
-  | PF_R := "PF_R"
-  end
+def repr (phfs : phdr_flags) :  string := phfs.val.val.repr
 
-instance : has_repr phdr_flag := ⟨repr1⟩
-
-def repr : phdr_flags -> string := has_repr.repr
+instance : has_repr phdr_flags := ⟨repr⟩
 
 end phdr_flags
 
@@ -603,15 +568,14 @@ def elfmem : Type := data.imap ℕ region (<)
 
 -- Helper for read_elfmem: add the region corresponding to the phdr in ph
 def read_one_elfmem {c : elf_class} (m : elfmem) (ph : phdr c) : file_input elfmem :=
-  match ph.phdr_type with
-  | phdr_type.PT_LOAD := do
+  if ph.phdr_type = phdr_type.PT_LOAD 
+  then do
     file_input.seek ph.offset.val,
     fbs <- file_input.read (min ph.filesz.val ph.memsz.val),
     monad_lift (io.put_str_ln ("read_one_elfmem: read " ++ fbs.size.repr ++ " bytes")),
     let val := buffer.append_list fbs (list.repeat (char.of_nat 0) (ph.memsz.val - ph.filesz.val)) 
     in pure $ data.imap.insert ph.vaddr.val ph.memsz.val val m
-  | _       := pure m
-  end
+  else pure m
 
 def read_elfmem {c : elf_class} (path : string) (phdrs : list (phdr c)) : io elfmem  := do
     r <- file_input.run_file_input path $ list.mfoldl read_one_elfmem [] phdrs,
