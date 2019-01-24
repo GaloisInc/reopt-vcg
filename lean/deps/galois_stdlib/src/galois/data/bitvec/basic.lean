@@ -331,4 +331,18 @@ def split_vec {n:ℕ} (x:bitvec n) (w m:ℕ) : vector (bitvec w) m :=
 
 example : split_list (16 : bitvec 8) 4 = [(1 : bitvec 4), 0] := by exact (of_as_true trivial)
 
+--- Git bits [i..i+m] out of n.
+def get_bits {n} (x:bitvec n) (i m : ℕ) (p:i+m ≤ n) : bitvec m :=
+  bitvec.of_nat m (nat.shiftr x.to_nat i)
+
+--#eval ((get_bits (0x01234567 : bitvec 32) 8 16 (of_as_true trivial) = 0x2345) : bool)
+
+--- Set bits at given index.
+def set_bits {n} (x:bitvec n) (i:ℕ) {m} (y:bitvec m) (p:i+m ≤ n) : bitvec n :=
+  let mask : ℕ := nat.shiftl ((2^m)-1) i in
+  bitvec.of_nat n (nat.lor (nat.ldiff x.to_nat mask) (nat.shiftl y.to_nat i))
+
+--#eval ((set_bits (0x01234567 : bitvec 32) 8 (0x5432 : bitvec 16) (of_as_true trivial) = 0x01543267) : bool)
+
+
 end bitvec
