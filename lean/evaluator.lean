@@ -1,5 +1,5 @@
 -- Evaluates actions in an environment.
-import .bitvec
+import galois.data.bitvec
 import .common
 import tactic.find
 
@@ -20,6 +20,14 @@ structure machine_state : Type :=
   (ip     : machine_word)
 
 namespace machine_state
+
+-- Constructs an empty machine state, with 0 where we need a value.
+def empty : machine_state := 
+  { mem    := mk_rbmap machine_word (bitvec 8) (bitvec.ult)
+  , gpregs := mk_array 16 0
+  , flags  := mk_array 32 ff
+  , ip     := 0
+  }
 
 def get_gpreg  (s : machine_state) (idx : fin 16) : machine_word := array.read s.gpregs idx
 
@@ -56,7 +64,7 @@ lemma {u v} option.bind.is_some {a : Type u} {b : Type v} {v : option a} {f : a 
 begin
   cases v,
   { simp [option.bind] },
-  { simp [option.bind], intros, apply exists.intro v, simp, assumption }
+  { simp [option.bind] }
 end
 
 lemma list.mmap.length_at_option {a b : Type} {f : a -> option b} : Π{xs : list a} {ys : list b},
@@ -66,10 +74,9 @@ begin
   induction xs generalizing ys,
   { simp [list.mmap, option_t.pure, return, pure] at a_1, rw <- a_1, refl},
   { simp, simp [list.mmap, bind, option.bind] at a_1, 
-    have H := option.bind.is_some a_1, destruct H, intros, 
-    destruct h, simp, intros, have H' := option.bind.is_some right, destruct H', simp, intros, 
-    destruct h_1, intros, rw (xs_ih left_1),
-    simp [return, pure] at right_1, rw <- right_1, simp 
+    destruct a_1, intros, 
+    destruct h, simp, intros, simp [return, pure] at a_3,
+    rw (xs_ih a_2), rw <- a_3, simp [list.length]
   }
 end
 
@@ -86,32 +93,23 @@ begin
   rw H'
 end
 
-def split_word : Π{n : ℕ}, bitvec (8 * n) -> list (bitvec 8) -- array n ...
-  | 0             _  := []
-  | (nat.succ n)  bv := 
-    let pf := calc 8   ≤ 8 * 1            : by dec_trivial_tac
-                   ... ≤ 8 * (nat.succ n) : begin apply nat.mul_le_mul_left, apply nat.succ_le_succ, apply nat.zero_le end
-    in let v := bitvec.split_at' pf bv in v.snd :: split_word v.fst
+-- def split_word : Π{n : ℕ}, bitvec (8 * n) -> list (bitvec 8) -- array n ...
+--   | 0             _  := []
+--   | (nat.succ n)  bv := 
+--     let pf := calc 8   ≤ 8 * 1            : by dec_trivial_tac
+--                    ... ≤ 8 * (nat.succ n) : begin apply nat.mul_le_mul_left, apply nat.succ_le_succ, apply nat.zero_le end
+--     in let v := bitvec.split_at' pf bv in v.snd :: split_word v.fst
 
-lemma split_word_zero {n:ℕ} {x: bitvec (n * 0) }: @split_word 0 x = [] :=
-  by simp [split_word]
+-- lemma split_word_zero {n:ℕ} {x: bitvec (n * 0) }: @split_word 0 x = [] :=
+--   by simp [split_word]
 
-def concat_word : Π{n : ℕ} ( bs : list (bitvec n) ), bitvec (n * bs.length) := sorry
+-- def concat_word : Π{n : ℕ} ( bs : list (bitvec n) ), bitvec (n * bs.length) := sorry
 
 def store_word {n : ℕ} (s : machine_state) (addr : machine_word) (b : bitvec (8 * n)) : machine_state := 
-  store_bytes addr (split_word b) s
+  store_bytes addr (b.split_list 8) s
 
 def read_word (s : machine_state) (addr : machine_word) (n : ℕ) : option (bitvec (8 * n)) :=
-begin
-  intros, 
-  let bs := (read_bytes s addr n),
-  have H : bs = read_bytes s addr n := rfl,
-  cases (read_bytes s addr n),
-  {exact none},
-  {simp [bs] at H, have rbl := read_bytes_length H, have r := concat_word val, 
-   rw rbl at r, exact (some r) 
-  }
-end  
+  (λbs, bitvec.concat_list bs (8 * n)) <$> read_bytes s addr n
 
 end machine_state
 
@@ -120,10 +118,21 @@ inductive arg_value
   | bv  {n : ℕ} : bitvec n -> arg_value -- Do we always have n?
   | reg {tp : type} : reg tp -> arg_value
 
+namespace arg_value
+
+def repr : arg_value -> string 
+  | (natv n) := n.repr
+  | (bv b)   := sexp.app "bv" [has_repr.repr b]
+  | (reg r)  := sexp.app "reg" [r.repr]
+
+instance arg_value_repr : has_repr arg_value := ⟨repr⟩
+end arg_value
+
 inductive value : type -> Type
   | bv {n : ℕ} : bitvec n -> value (bv n)
   | bit : bool -> value bit
 
+@[reducible]
 def environment := list arg_value
 
 structure evaluator_state : Type :=
@@ -131,9 +140,26 @@ structure evaluator_state : Type :=
   (environment : environment) -- read only, but reading can fail
   (locals : rbmap ℕ (sigma value))
 
--- Monad for evaluating with failure
+namespace evaluator_state
+
+def empty : evaluator_state := 
+  { machine_state := machine_state.empty
+  , environment   := []
+  , locals        := mk_rbmap ℕ (sigma value)
+  }
+
+end evaluator_state
+
+-- Monad for evaluating with failure.  This nesting might be useful to get the ip where things break?
 @[reducible]
 def evaluator := except_t string (state evaluator_state)
+
+namespace evaluator
+
+def run {a : Type} (m : evaluator a) (s : evaluator_state) : except string a × evaluator_state :=
+  m.run.run s
+
+end evaluator
 
 def arg_at_idx (idx : ℕ) : evaluator arg_value :=
   do s <- get,
@@ -154,8 +180,10 @@ def local_at_idx (idx : ℕ) (tp : type) : evaluator (value tp) :=
        | none     := throw "local_at_idx: no arg at idx"
      end
 
+def bitvec.split_at' {m n : ℕ} (H : n ≤ m) (b : bitvec m) : bitvec (m - n) × bitvec n := sorry
+
 -- Replaces the lower n bits of the second argument with those from the first.
-def inject_subvec {n m : ℕ} (H : n ≤ m . dec_trivial_tac) (b : bitvec n) (b' : bitvec m) : bitvec m :=
+def inject_subvec {n m : ℕ} (H : n ≤ m . dec_trivial_tac) (b : bitvec n) (b' : bitvec m) : bitvec m := 
   bitvec.cong (nat.sub_add_cancel H)
               (bitvec.append (bitvec.split_at' H b').fst b)
 
@@ -220,6 +248,16 @@ def set_value : arg_value -> Π{tp : type}, value tp -> evaluator unit
     then r.set (eq.rec v H)
     else throw "assert_arg_type: reg type mismatch"
 
+def read_memory_at (av : arg_value) (n : ℕ) : evaluator (bitvec (8 * n)) :=
+  match av with 
+  | (@arg_value.bv 64 addr) := do s <- get, 
+                                  match s.machine_state.read_word addr n with
+                                  | none := throw "addr.read: no bytes at addr" 
+                                  | (some w) := return w
+                                  end
+  | _                      := throw "addr.read: not a 64-bit bitvecor"
+  end
+
 end arg_value
 
 namespace addr
@@ -227,14 +265,8 @@ namespace addr
 def read : Π{n : ℕ}, addr n -> evaluator (value (bv (8 * n)))
   | n (addr.arg idx) := do 
       av <- arg_at_idx idx,
-      match av with 
-        | (@arg_value.bv 64 addr) := do s <- get, 
-                                       match s.machine_state.read_word addr n with
-                                         | none := throw "addr.read: no bytes at addr" 
-                                         | (some w) := return (value.bv w)
-                                       end
-        | _                      := throw "addr.read: not a 64-bit bitvecor"
-      end
+      w  <- av.read_memory_at n,
+      return (value.bv w)
 
 def set : Π{n : ℕ}, addr n -> value (bv (8 * n)) -> evaluator unit
   | n (addr.arg idx) (value.bv bytes) := do 
