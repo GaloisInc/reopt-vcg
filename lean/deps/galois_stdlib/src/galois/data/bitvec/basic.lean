@@ -128,6 +128,8 @@ section bitwise
 
   -- logical bitwise and
   def and {w:ℕ} (x y : bitvec w) : bitvec w := bitvec.of_nat w (nat.land x.to_nat y.to_nat)
+  -- diff x y = x & not y
+  def diff {w:ℕ} (x y : bitvec w) : bitvec w := bitvec.of_nat w (nat.ldiff x.to_nat y.to_nat)
   -- logical bitwise or
   def or  {w:ℕ} (x y : bitvec w) : bitvec w := bitvec.of_nat w (nat.lor  x.to_nat y.to_nat)
   -- logical bitwise xor
@@ -330,5 +332,19 @@ def split_vec {n:ℕ} (x:bitvec n) (w m:ℕ) : vector (bitvec w) m :=
  ⟨split_to_list x.to_nat w m, length_split_to_list _ _ _⟩
 
 example : split_list (16 : bitvec 8) 4 = [(1 : bitvec 4), 0] := by exact (of_as_true trivial)
+
+--- Git bits [i..i+m] out of n.
+def get_bits {n} (x:bitvec n) (i m : ℕ) (p:i+m ≤ n) : bitvec m :=
+  bitvec.of_nat m (nat.shiftr x.to_nat i)
+
+--#eval ((get_bits (0x01234567 : bitvec 32) 8 16 (of_as_true trivial) = 0x2345) : bool)
+
+--- Set bits at given index.
+def set_bits {n} (x:bitvec n) (i:ℕ) {m} (y:bitvec m) (p:i+m ≤ n) : bitvec n :=
+  let mask := bitvec.of_nat n (nat.shiftl ((2^m)-1) i) in
+  or (diff x mask) (bitvec.of_nat n (nat.shiftl y.to_nat i))
+
+--#eval ((set_bits (0x01234567 : bitvec 32) 8 (0x5432 : bitvec 16) (of_as_true trivial) = 0x01543267) : bool)
+
 
 end bitvec
