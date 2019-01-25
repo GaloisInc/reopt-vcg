@@ -93,18 +93,6 @@ begin
   rw H'
 end
 
--- def split_word : Π{n : ℕ}, bitvec (8 * n) -> list (bitvec 8) -- array n ...
---   | 0             _  := []
---   | (nat.succ n)  bv := 
---     let pf := calc 8   ≤ 8 * 1            : by dec_trivial_tac
---                    ... ≤ 8 * (nat.succ n) : begin apply nat.mul_le_mul_left, apply nat.succ_le_succ, apply nat.zero_le end
---     in let v := bitvec.split_at' pf bv in v.snd :: split_word v.fst
-
--- lemma split_word_zero {n:ℕ} {x: bitvec (n * 0) }: @split_word 0 x = [] :=
---   by simp [split_word]
-
--- def concat_word : Π{n : ℕ} ( bs : list (bitvec n) ), bitvec (n * bs.length) := sorry
-
 def store_word {n : ℕ} (s : machine_state) (addr : machine_word) (b : bitvec (8 * n)) : machine_state := 
   store_bytes addr (b.split_list 8) s
 
@@ -113,24 +101,50 @@ def read_word (s : machine_state) (addr : machine_word) (n : ℕ) : option (bitv
 
 end machine_state
 
+inductive value : type -> Type
+  | bv {n : ℕ} : bitvec n -> value (bv n)
+  | bit : bool -> value bit
+
+namespace value
+
+def repr : Π{tp : type}, value tp -> string
+  | ._ (bv b)  := has_repr.repr b
+  | ._ (bit b) := has_repr.repr b
+
+instance value_repr {tp : type} : has_repr (value tp) := ⟨repr⟩
+
+end value
+
+inductive arg_lval 
+  | reg {tp : type} : reg tp -> arg_lval
+  | memloc (width : ℕ) (addr : machine_word) : arg_lval
+
+namespace arg_lval
+
+def repr : arg_lval -> string
+  | (reg r)             := r.repr
+  | (memloc width addr) := has_repr.repr addr ++ "@" ++ has_repr.repr width
+
+instance arg_lval_repr : has_repr arg_lval := ⟨repr⟩
+
+end arg_lval
+
+-- Corresponding to the binder type, more or less.
 inductive arg_value 
-  | natv : ℕ -> arg_value
-  | bv  {n : ℕ} : bitvec n -> arg_value -- Do we always have n?
-  | reg {tp : type} : reg tp -> arg_value
+  | natv             : ℕ -> arg_value
+  | lval             : arg_lval -> arg_value
+  | rval {tp : type} : value tp -> arg_value
 
 namespace arg_value
 
 def repr : arg_value -> string 
   | (natv n) := n.repr
-  | (bv b)   := sexp.app "bv" [has_repr.repr b]
-  | (reg r)  := sexp.app "reg" [r.repr]
+  | (lval l) := l.repr
+  | (rval v)  := v.repr
 
 instance arg_value_repr : has_repr arg_value := ⟨repr⟩
-end arg_value
 
-inductive value : type -> Type
-  | bv {n : ℕ} : bitvec n -> value (bv n)
-  | bit : bool -> value bit
+end arg_value
 
 @[reducible]
 def environment := list arg_value
@@ -154,12 +168,27 @@ end evaluator_state
 @[reducible]
 def evaluator := except_t string (state evaluator_state)
 
+namespace value
+
+-- This allows us to resolve arith in nat_exprs
+def type_check {tp : type} (v : value tp) (tp' : type) : evaluator (value tp') :=
+  if H : tp = tp'
+  then return (eq.rec v H)
+  else throw "type_check: arg type mismatch"
+
+end value
+
 namespace evaluator
 
 def run {a : Type} (m : evaluator a) (s : evaluator_state) : except string a × evaluator_state :=
   m.run.run s
 
-end evaluator
+def read_memory_at (addr : machine_word) (n : ℕ) : evaluator (bitvec (8 * n)) := do
+    s <- get, 
+    match s.machine_state.read_word addr n with
+    | none := throw "read_memory_at: no bytes at addr" 
+    | (some w) := return w
+    end
 
 def arg_at_idx (idx : ℕ) : evaluator arg_value :=
   do s <- get,
@@ -173,36 +202,23 @@ def arg_at_idx (idx : ℕ) : evaluator arg_value :=
 def local_at_idx (idx : ℕ) (tp : type) : evaluator (value tp) :=
   do s <- get,
      match s.locals.find idx with
-       | (some (sigma.mk tp' v)) :=
-         if H : tp' = tp
-         then return (eq.rec v H)
-         else throw "local_at_idx: arg type mismatch"
-       | none     := throw "local_at_idx: no arg at idx"
+     | (some (sigma.mk tp' v)) := v.type_check tp
+     | none     := throw "local_at_idx: no arg at idx"
      end
 
-def bitvec.split_at' {m n : ℕ} (H : n ≤ m) (b : bitvec m) : bitvec (m - n) × bitvec n := sorry
+end evaluator
 
--- Replaces the lower n bits of the second argument with those from the first.
-def inject_subvec {n m : ℕ} (H : n ≤ m . dec_trivial_tac) (b : bitvec n) (b' : bitvec m) : bitvec m := 
-  bitvec.cong (nat.sub_add_cancel H)
-              (bitvec.append (bitvec.split_at' H b').fst b)
-
+  
 namespace reg
 
 def inject : Π(rtp : gpreg_type), bitvec rtp.width -> machine_word -> machine_word
   | gpreg_type.reg32 bv _   := bitvec.append (bitvec.zero 32) bv
-  | gpreg_type.reg8h bv old := 
-    let upper48 := (@bitvec.split_at' _ 16 (begin dec_trivial_tac end) old).fst in
-    let lower8  := (@bitvec.split_at' _ 8  (begin dec_trivial_tac end) old).snd
-    in bitvec.cong (begin dec_trivial_tac end) (bitvec.append upper48 (bitvec.append bv lower8))
-  | rtp              bv old := inject_subvec (begin cases rtp; dec_trivial_tac end) bv old
+  | gpreg_type.reg8h bv old := old.set_bits 48 bv (of_as_true trivial)
+  | rtp              bv old := old.set_bits (64 - rtp.width) bv (begin cases rtp; dec_trivial_tac end)
 
 def project : Π(rtp : gpreg_type), machine_word -> bitvec rtp.width
-  | gpreg_type.reg8h bv := 
-    let lower16 := (@bitvec.split_at' _ 16 (by dec_trivial_tac) bv).snd 
-    in (@bitvec.split_at' _ 8  (by dec_trivial_tac) lower16).fst
-  | rtp              bv := (@bitvec.split_at' _ rtp.width (begin cases rtp; dec_trivial_tac end) bv).snd
-
+  | gpreg_type.reg8h bv := bv.get_bits 48 8 (by dec_trivial_tac)
+  | rtp              bv := bv.get_bits (64 - rtp.width) rtp.width (begin cases rtp; dec_trivial_tac end)
 
 def set : Π{tp : type}, reg tp -> value tp -> evaluator unit
   | ._ (concrete_gpreg idx rtp) (value.bv b) := 
@@ -218,45 +234,45 @@ def read : Π{tp : type}, reg tp -> evaluator (value tp)
 
 end reg
 
+namespace arg_lval 
+
+def to_value : arg_lval -> Π(tp : type), evaluator (value tp)
+  | (@reg tp r) tp' := 
+    if H : tp = tp'
+    then eq.rec r.read H
+    else throw "to_value: reg type mismatch"
+  | (memloc width addr) tp' := do
+    v <- value.bv <$> evaluator.read_memory_at addr (width / 8),
+    v.type_check tp'
+
+def set_value : arg_lval -> Π{tp : type}, value tp -> evaluator unit
+  | (@reg tp r) tp' v := do v' <- v.type_check tp,
+                            r.set v'
+  | (memloc width addr) (base (base_type.bv _)) (@value.bv n bytes) := 
+    if H : n = 8 * (width / 8)
+    then modify (λs, { s with machine_state := s.machine_state.store_word addr (bitvec.cong H bytes) })
+    else throw "arg_lval.set_value: width mismatch"
+  | _ _ _ := throw "arg_lval.set_value: malformed set"
+
+end arg_lval 
+
 namespace arg_value
+
+-- def read_memory_at (av : arg_value) (n : ℕ) : evaluator (bitvec (8 * n)) :=
+--   match av with 
+--   | (@arg_value.bv 64 addr) := 
+--   | _                      := throw "addr.read: not a 64-bit bitvecor"
+--   end
 
 -- Can fail if types mismatch
 def to_value : arg_value -> Π(tp : type), evaluator (value tp)
-  | (arg_value.natv _)  _ := throw "to_value: natv"
-  | (@arg_value.bv n b)   (base (base_type.bv (nat_expr.lit m))) := 
-        if H : n = m
-        then return (value.bv (bitvec.cong H b))
-        else throw "to_value: nat size mismatch"
-  | (@arg_value.bv n b)   _ := throw "to_value: Non-lit type"
-  | (@arg_value.reg tp r) tp' := 
-         if H : tp = tp'
-         then eq.rec r.read H
-         else throw "to_value: reg type mismatch"
+  | (natv _) _ := throw "to_value: natv"
+  | (lval l) tp := l.to_value tp
+  | (rval v) tp := v.type_check tp
 
 def set_value : arg_value -> Π{tp : type}, value tp -> evaluator unit
-  | (natv _) _ _ := throw "set_value: nat"
-  -- is an address
-  | (@bv 64 addr) (base (base_type.bv _)) (@value.bv n bytes) := 
-    if H : n % 8 = 0 
-    then let pf := calc n   = n % 8 + 8 * (n / 8) : eq.symm (nat.mod_add_div n 8)
-                        ... = 8 * (n / 8) : by simp [H]
-         in modify (λs, { s with machine_state := s.machine_state.store_word addr (bitvec.cong pf bytes) })
-    else throw "set_value: value size not a mutiple of 8"
-  | (@bv n b)   _   _ := throw "arg_value.set_value: addr isn't 64 bits"
-  | (@reg tp r) tp' v :=
-    if H : tp' = tp
-    then r.set (eq.rec v H)
-    else throw "assert_arg_type: reg type mismatch"
-
-def read_memory_at (av : arg_value) (n : ℕ) : evaluator (bitvec (8 * n)) :=
-  match av with 
-  | (@arg_value.bv 64 addr) := do s <- get, 
-                                  match s.machine_state.read_word addr n with
-                                  | none := throw "addr.read: no bytes at addr" 
-                                  | (some w) := return w
-                                  end
-  | _                      := throw "addr.read: not a 64-bit bitvecor"
-  end
+  | (lval l) tp v := l.set_value v
+  | _ _ _ := throw "arg_value.set_value: not an lvalue"
 
 end arg_value
 
@@ -264,17 +280,15 @@ namespace addr
 
 def read : Π{n : ℕ}, addr n -> evaluator (value (bv (8 * n)))
   | n (addr.arg idx) := do 
-      av <- arg_at_idx idx,
-      w  <- av.read_memory_at n,
-      return (value.bv w)
+      av <- evaluator.arg_at_idx idx,
+      av.to_value (bv (8 * n)) -- FIXME: we should really check if this is a memloc first.
+      -- w  <- av.read_memory_at n,
+      -- return (value.bv w)
 
 def set : Π{n : ℕ}, addr n -> value (bv (8 * n)) -> evaluator unit
-  | n (addr.arg idx) (value.bv bytes) := do 
-      av <- arg_at_idx idx,
-      match av with 
-        | (@arg_value.bv 64 addr) := modify (λs, { s with machine_state := s.machine_state.store_word addr bytes })
-        | _                      := throw "addr.set: not a 64-bit bitvecor"
-      end
+  | n (addr.arg idx) v := do 
+      av <- evaluator.arg_at_idx idx, -- FIXME: we should really check if this is a memloc first.
+      av.set_value v
     
 end addr
 
@@ -283,13 +297,13 @@ namespace lhs
 def set : Π{tp : type}, lhs tp -> value tp -> evaluator unit
   | ._ (reg r) v      := r.set v
   | ._ (addr a) v     := a.set v
-  | ._ (arg idx _tp) v := do av <- arg_at_idx idx, av.set_value v -- fixme: we ignore tp here?
+  | ._ (arg idx _tp) v := do av <- evaluator.arg_at_idx idx, av.set_value v -- fixme: we ignore tp here?
   | ._ (streg idx) v  := throw "lhs.set: unsupported FP write"
 
 def read : Π{tp : type}, lhs tp -> evaluator (value tp)
   | ._ (reg r)       := r.read
   | ._ (addr a)      := a.read
-  | ._ (arg idx tp)  := do av <- arg_at_idx idx, av.to_value tp
+  | ._ (arg idx tp)  := do av <- evaluator.arg_at_idx idx, av.to_value tp
   | ._ (streg idx)   := throw "lhs.read: unsupported FP read"
 
 end lhs
@@ -311,7 +325,7 @@ def eval : Π{tp : type}, expression tp -> evaluator (value tp)
   | ._ (app f a) := throw "eval: app"
   | ._ (get l)   := l.read
   -- Return the expression in the local variable at the given index.
-  | ._ (get_local (nat_expr.lit idx) tp) := local_at_idx idx tp -- fixme: why nat_expr here over nat?
+  | ._ (get_local (nat_expr.lit idx) tp) := evaluator.local_at_idx idx tp -- fixme: why nat_expr here over nat?
   | _ _ := throw "expression.eval: missing case"
 
 end expression
@@ -329,5 +343,17 @@ def eval : action -> evaluator unit
   | _ := throw "action.eval: missing case"
 
 end action
+
+namespace pattern
+
+-- FIXME: check pattern.context |- environment
+def eval (p : pattern) (e : environment) : evaluator unit := do
+  -- only machine_state is preserved across instructions
+  modify (λs, { evaluator_state.empty with machine_state := s.machine_state, environment := e }),
+  monad.mapm' action.eval p.actions,
+  return ()
+
+end pattern
+
 end x86
 
