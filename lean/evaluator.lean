@@ -166,7 +166,69 @@ end evaluator_state
 
 -- Monad for evaluating with failure.  This nesting might be useful to get the ip where things break?
 @[reducible]
-def evaluator := except_t string (state evaluator_state)
+def evaluator := state_t evaluator_state (except string)
+
+-- FIXME: are these an oversight in the stdlib? 
+instance (ε): monad_except ε (except ε) := 
+  { throw := λα e, except.error e, catch := λα m f, match m with | (except.error e) := f e | _ := m end }
+
+instance (ε) (m) [monad_except ε m] : has_orelse m := 
+  { orelse := λα, monad_except.orelse }
+
+instance (ε) [inhabited ε] : alternative (except ε) := 
+  { failure := λα, except.error (default ε)}
+
+
+
+/- Normalisation of types (containing nat_exprs) -/
+namespace arg_value
+
+def as_nat : arg_value -> option ℕ 
+  | (natv n) := some n
+  | _        := none
+
+end arg_value
+
+namespace nat_expr
+
+def eval (e : environment) : nat_expr -> option ℕ 
+  | (nat_expr.lit n)     := some n
+  | (nat_expr.var idx)   := list.nth e idx >>= λa, a.as_nat
+  | (nat_expr.add e1 e2) := (+) <$> (eval e1) <*> (eval e2) 
+  | (nat_expr.sub e1 e2) := (λx y, x - y) <$> (eval e1) <*> (eval e2) 
+  | (nat_expr.mul e1 e2) := (*) <$> (eval e1) <*> (eval e2) 
+  | (nat_expr.div e1 e2) := (/) <$> (eval e1) <*> (eval e2) 
+
+end nat_expr
+
+
+namespace base_type
+
+-- If evaluation of the expr fails, we return the original type.  
+def normalise (e : environment) : base_type -> base_type
+  | (base_type.bv expr) := 
+    base_type.bv (match nat_expr.eval e expr with 
+                 | none := expr
+                 | (some n) := nat_expr.lit n
+                 end)
+  | t        := t
+  
+end base_type
+
+namespace type
+
+-- If evaluation of the expr fails, we return the original type.  
+def normalise (e : environment) : type -> type
+  | (base b)     := base (base_type.normalise e b)
+  | (fn arg res) := fn (normalise arg) (normalise res)
+  
+def equiv (e : environment) (t1 : type) (t2 : type) : Prop :=
+  normalise e t1 = normalise e t2
+
+instance (e) : decidable_rel (equiv e) :=
+  λa b, begin simp [equiv], apply_instance end
+
+end type
 
 namespace value
 
@@ -180,8 +242,8 @@ end value
 
 namespace evaluator
 
-def run {a : Type} (m : evaluator a) (s : evaluator_state) : except string a × evaluator_state :=
-  m.run.run s
+def run {a : Type} (m : evaluator a) (s : evaluator_state) : except string (a × evaluator_state) :=
+  (m.run s)
 
 def read_memory_at (addr : machine_word) (n : ℕ) : evaluator (bitvec (8 * n)) := do
     s <- get, 
@@ -205,6 +267,14 @@ def local_at_idx (idx : ℕ) (tp : type) : evaluator (value tp) :=
      | (some (sigma.mk tp' v)) := v.type_check tp
      | none     := throw "local_at_idx: no arg at idx"
      end
+
+def normalise_type (t : type) : evaluator type :=
+  do s <- get,
+     return (type.normalise s.environment t)
+
+def type_as_bv : type -> evaluator ℕ
+ | (type.base (base_type.bv (nat_expr.lit n))) := return n
+ | _ := throw "type_as_bv: Not a lit BV"
 
 end evaluator
 

@@ -353,7 +353,7 @@ instance : has_repr phdr_type := ⟨repr⟩
 
 instance : decidable_eq phdr_type := by tactic.mk_dec_eq_instance
 
-def PT_LOAD : phdr_type := mk 0
+def PT_LOAD : phdr_type := mk 1
 
 end phdr_type
 
@@ -564,6 +564,7 @@ def pp_phdrs {c:elf_class} (phdrs:list (phdr c)) : io unit := do
 
 -- An elfmem represeents the load-time address space represented by
 -- the elf file.  It is indexed by virtual address
+@[reducible]
 def elfmem : Type := data.imap ℕ region (<)
 
 -- Helper for read_elfmem: add the region corresponding to the phdr in ph

@@ -145,8 +145,8 @@ def unknown_bytep : parser unknown_byte :=
   taggedp "unknown-byte" (unknown_byte.mk <$> natp <*> natp)
 
 def entryp : parser (ℕ × sum unknown_byte instruction) :=
-  listp ((λoff _ i, (off, i)) <$> natp <*> natp <*> 
-                                  ((sum.inl <$> unknown_bytep) <|> (sum.inr <$> instructionp)))
+  listp ((λ_ sz i, (sz, i)) <$> natp <*> natp <*> 
+                             ((sum.inl <$> unknown_bytep) <|> (sum.inr <$> instructionp)))
 
 def documentp : parser document := listp (manyp entryp)
 
