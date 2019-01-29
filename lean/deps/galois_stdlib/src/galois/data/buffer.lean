@@ -71,7 +71,7 @@ begin
 end
 
 /-- Converting list to bufer and back is round trip. -/
-theorem to_list_to_buffer {α} (l:list α) : l.to_buffer.to_list = l :=
+theorem to_list_to_buffer {α} (l:list α) : buffer.to_list (list.to_buffer l) = l :=
 begin
   unfold list.to_buffer,
   simp only [to_list_append_list],
@@ -380,6 +380,15 @@ namespace string
 
 /- Simplify functions calling through as_string -/
 theorem to_char_buffer_as_string (l:list char)
-: string.to_char_buffer (list.as_string l) = list.to_buffer l := eq.refl l.to_buffer
+: to_char_buffer (list.as_string l) = list.to_buffer l := eq.refl l.to_buffer
+
+theorem to_char_buffer_buffer_to_string (b:char_buffer) : to_char_buffer (buffer.to_string b) = b :=
+begin
+  apply buffer.ext,
+  simp [buffer.to_string],
+  simp [to_char_buffer_as_string],
+  simp [buffer.to_list_to_buffer],
+  simp [buffer.to_list],
+end
 
 end string
