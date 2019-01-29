@@ -1,8 +1,6 @@
-import galois.smt2.interface
-
 universes u v
 
-open smt2
+--open smt2
 
 -- A word 64
 def word64 := { x : ℕ // x < 2^64 }
@@ -14,10 +12,10 @@ def llvm_instruction_index := ℕ
 def mc_instruction_addr := word64
 
 -- The main interface to the verification condition generator.
-class is_vcg (m : Type u → Type v) extends smt2.is_generator m :=
+class is_vcg (m : Type u → Type v) :=
 (start_llvm_instruction : llvm_instruction_index → m punit)
 (start_mc_instruction   : mc_instruction_addr → m punit)
-(check_sat_assuming : string → list (term bool) → m punit)
+--(check_sat_assuming : string → list (term bool) → m punit)
 (fail : string → m punit)
 
 -- Use cases:
