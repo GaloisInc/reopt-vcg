@@ -23,9 +23,6 @@ return the property implied by the program.
 -/
 def mkprop : except string Prop := semantics.run_and_collect_unsat generate_problem
 
-/- TODO: Prove this. -/
-theorem buffer.lt_irrefl {α} [h:linear_order α] {x : buffer α} : buffer.lt x x = false := sorry
-
 /- This is a hack to show that mkprop can be evaluated into a simpler proof. -/
 example : mkprop = except.ok (¬∃(x : bitvec 32), x = bitvec.of_nat 32 3) :=
 begin
@@ -76,7 +73,6 @@ begin
        , rbnode.mk_insert_result
        , rbtree.find
        , cmp_using, rbmap_lt
-       , has_lt.lt
        , symbol.lt
        , symbol.of_string
        , except.is_ok.value
@@ -87,7 +83,6 @@ begin
        , bv.decimal
        , if_false
        , list.map
-       , buffer.lt_irrefl
        , dif_pos
        , band_tt
        , and_true

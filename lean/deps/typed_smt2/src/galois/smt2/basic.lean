@@ -2,8 +2,8 @@
 This declares sorts, terms, and semantics for generating SMTLIB
 expressions and reasoning about their interpretation.
 -/
-import data.bitvec
 import galois.category.except
+import galois.data.bitvec
 import galois.data.bool
 import galois.data.buffer
 import galois.data.list
