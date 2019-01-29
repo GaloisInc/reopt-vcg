@@ -378,8 +378,27 @@ def parse (s:string) : except string symbol := do
 
 end parsing
 
+-- meta constant eval_expr (α : Type u) [reflected α] : expr → tactic α
+
+/- Return the value given a proof the result is ok -/
+def is_ok_value : Π{e:except string symbol}, except.is_ok e → string
+| (except.error l) p := false.elim p
+| (except.ok r) p := r.to_char_buffer.to_string
+
 /- Construct a symbol from a string literal. -/
 def of_string (nm:string) (p : (symbol.parse nm).is_ok  . exact_trivial_tac) : symbol := p.value
+
+axiom by_reflection (α:Prop)  : α
+
+/- This generate a symbol from a string using a tactic that runs in the VM. -/
+meta def vm_string_tac (s:string) : tactic unit := do
+ match symbol.parse s with
+ | (except.error e) :=
+   tactic.fail e
+ | (except.ok sym) :=
+    let r : expr := sym.to_char_buffer.to_string.reflect in
+    tactic.exact `(smt2.symbol.mk (string.to_char_buffer %%r) (by_reflection _))
+ end
 
 theorem is_symbol_append {x y : char_buffer}
 : is_symbol x → is_symbol y → is_symbol (x ++ y) :=

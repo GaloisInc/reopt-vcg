@@ -1,4 +1,5 @@
 import .cmd
+import .interface
 import system.io
 
 namespace smt2
@@ -27,21 +28,33 @@ protected
 def assert (p:term Bool) : file_writer punit := write (cmd.assert p)
 
 /-- Declare a function -/
+protected
 def declare_fun (nm:symbol) (args:list sort) (res:sort) : file_writer punit :=
   write (cmd.declare_fun nm args res)
 
 /-- Declare a constant -/
+protected
 def declare_const (nm:symbol) (res:sort) : file_writer punit :=
   write (cmd.declare_const nm res)
 
 /-- Define a function in terms of inputs -/
+protected
 def define_fun (nm:symbol) (args:list (symbol × sort)) {res:sort} (rhs : term res)
 : file_writer punit := do
   write (cmd.define_fun nm args rhs)
 
 /-- Define a function in terms of inputs -/
+protected
 def check_sat : file_writer punit := do
   write cmd.check_sat
+
+instance : is_generator file_writer :=
+{ assert        := file_writer.assert
+, declare_fun   := file_writer.declare_fun
+, declare_const := file_writer.declare_const
+, define_fun    := file_writer.define_fun
+, check_sat     := file_writer.check_sat
+}
 
 /-- Run the file writer -/
 protected

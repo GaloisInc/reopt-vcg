@@ -1,5 +1,3 @@
-import data.bitvec
-
 import ..basic
 
 namespace smt2
