@@ -23,21 +23,23 @@ module VCGLLVM
   , Event(..)
   , ppEvent
   , AllocaName
+  , asSMTType
   ) where
 
 import           Control.Monad.State
 import           Data.Bits
 import           Data.LLVM.BitCode
 import qualified Data.List as List
-import           Data.String
+import           Data.Text (Text)
 import qualified Data.Text as Text
+import qualified Data.Text.Lazy.Builder as Builder
 import           GHC.Stack
 import           Text.LLVM hiding ((:>))
 import qualified What4.Protocol.SMTLib2.Syntax as SMT
 
 import           VCGCommon
 
-import           Reopt.VCG.Config (AllocaName)
+import           Reopt.VCG.Config (AllocaName(..))
 
 -- | Event from stepping through LLVM block.
 data Event
@@ -58,7 +60,7 @@ data Event
     -- The variable is a bitvector with width @8*w@.
   | StoreEvent !SMT.Term !Integer !SMT.Term
     -- ^ `StoreEvent a w v` indicates that we write the `w` byte value `v` to `a`.
-  | InvokeEvent !Bool !SMT.Term [SMT.Term] (Maybe (Ident, Var))
+  | InvokeEvent !Bool !SMT.Term [SMT.Term] (Maybe (Ident, Type))
     -- ^ The invoke event takes the address of the function that we are jumping to, the
     -- arguments that are passed in, and the return identifier and variable to assign the return value to
     -- (if any).
@@ -108,8 +110,14 @@ byteCount (PtrTo _) = 8
 byteCount tp = do
   error $ "byteCount: unsupported type " ++ show tp
 
-identVar :: Ident -> Var
-identVar (Ident nm) = "llvm_" <> Text.pack nm
+--smtVar :: Text -> SMT.Term
+--smtVar = SMT.T . Builder.fromText
+
+--memVar :: Integer -> Text
+--memVar i = "llvmmem_" <> Text.pack (show i)
+
+--memType :: SMT.Sort
+--memType = SMT.arraySort (SMT.bvSort 64) (SMT.bvSort 8)
 
 -- Inject initial (symbolic) arguments
 -- The [String] are arugment name used for this function
@@ -142,10 +150,14 @@ arithOpFunc (Sub _uw _sw) x y = SMT.bvsub x y
 arithOpFunc (Mul _uw _sw) x y = SMT.bvmul x [y]
 arithOpFunc _ _ _ = llvmError "Not implemented yet"
 
+
 asSMTType :: Type -> Maybe SMT.Sort
-asSMTType (PtrTo _) = Just ptrSort
+asSMTType (PtrTo _) = Just (SMT.bvSort 64)
 asSMTType (PrimType (Integer i)) | i > 0 = Just $ SMT.bvSort (toInteger i)
 asSMTType _ = Nothing
+
+identVar :: Ident -> Text
+identVar (Ident nm) = "llvm_" <> Text.pack nm
 
 primEval :: Type
          -> Value
@@ -158,6 +170,7 @@ primEval _ _ = error "TODO: Add more support in primEval"
 
 evalTyped :: Typed Value -> LStateM SMT.Term
 evalTyped (Typed tp var) = primEval tp var
+
 
 defineTerm :: Ident -> SMT.Sort -> SMT.Term -> LStateM ()
 defineTerm nm tp t = do
@@ -186,8 +199,10 @@ assign2SMT ident (ICmp op (Typed lty@(PrimType (Integer w)) lhs) rhs) = do
           Islt -> SMT.bvslt lhsv rhsv
           Isle -> SMT.bvsle lhsv rhsv
   defineTerm ident (SMT.bvSort (toInteger w)) r
-assign2SMT (Ident vnm) (Alloca ty eltCount malign) = do
-  -- LLVM Size
+assign2SMT nm (Alloca ty eltCount malign) = do
+  let vnm = identVar nm
+  addCommand $ SMT.declareFun vnm [] (SMT.bvSort 64)
+
   let eltSize :: Integer
       eltSize =
         case ty of
@@ -207,7 +222,7 @@ assign2SMT (Ident vnm) (Alloca ty eltCount malign) = do
   let align = case malign of
                 Nothing -> 1
                 Just a -> toInteger a
-  addEvent $ AllocaEvent (fromString vnm) totalSize align
+  addEvent $ AllocaEvent (AllocaName vnm) totalSize align
 assign2SMT ident (Load (Typed (PtrTo lty) src) _ord _align) = do
   addrTerm <- primEval (PtrTo lty) src
   let w = byteCount lty
@@ -216,13 +231,7 @@ assign2SMT ident (Call isTailCall retty f args) = do
   -- TODO: Add function called to invoke event.
   fPtrVal <- primEval (PrimType (Integer 64)) f
   argValues <- mapM evalTyped args
-  case asSMTType retty of
-    Just retType -> do
-      let returnVar = identVar ident
-      addCommand $ SMT.declareFun returnVar [] retType
-      addEvent $ InvokeEvent isTailCall fPtrVal argValues (Just (ident, returnVar))
-    Nothing -> do
-      error $ "assign2SMT given unsupported return type"
+  addEvent $ InvokeEvent isTailCall fPtrVal argValues (Just (ident, retty))
 assign2SMT _ instr  = do
   error $ "assign2SMT: unsupported instruction: " ++ show instr
 

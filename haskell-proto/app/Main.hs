@@ -525,7 +525,7 @@ eventsEq levs0 mevs0@(M.WriteEvent mcAddr mcCount macawVal:mevs) = do
     (HeapAccess, levs) ->
       eventsDone levs mevs0
 
-eventsEq [L.InvokeEvent _ f lArgs _lRet] [M.FetchAndExecuteEvent regs] = do
+eventsEq [L.InvokeEvent _ f lArgs lRet] [M.FetchAndExecuteEvent regs] = do
   let Const mRegIP = regs ^. boundValue X86_IP
   assertFnNameEq f mRegIP
   -- Verify that the arguments should be same.
@@ -541,6 +541,21 @@ eventsEq [L.InvokeEvent _ f lArgs _lRet] [M.FetchAndExecuteEvent regs] = do
         assertEq la ma
          ("Register matches LLVM")
   zipWithM_ compareArg lArgs x86ArgRegs
+
+  -- If LLVM side has a return value, then we assert lRet = mRet as precondition
+  -- for the rest program.
+  case lRet of
+    Just (llvmIdent, PtrTo _) -> do
+      -- Returned pointers are assumed to be on heap, so we can assume they are equal.
+      let Const mRetVal = regs^.boundValue RAX
+      addCommand $ SMT.defineFun (L.identVar llvmIdent) [] (SMT.bvSort 64) mRetVal
+    Just (llvmIdent, PrimType (Integer 64)) -> do
+      -- Returned pointers are assumed to be on heap, so we can assume they are equal.
+      let Const mRetVal = regs^.boundValue RAX
+      addCommand $ SMT.defineFun (L.identVar llvmIdent) [] (SMT.bvSort 64) mRetVal
+    Just (_llvmIdent, tp) -> do
+      error $ "TODO: Add support for return type " ++ show tp
+    Nothing -> pure ()
 eventsEq [L.JumpEvent lbl] [M.FetchAndExecuteEvent regs] = do
   cfg <- asks $ cfgConfig
   let blockInfo = findBlock cfg lbl
@@ -865,7 +880,9 @@ standaloneGoalFilename :: String -- ^ Name of function to verify
 standaloneGoalFilename fn lbl i =
  fn ++ "_" ++ ppBlock lbl ++ "_" ++ show i ++ ".smt2"
 
+-- | Verify a particular function satisfies its specification.
 verifyFunction :: Module
+               -- ^ LLVM Module
                -> Memory 64
                -> Map BSC.ByteString (MemSegmentOff 64)
                   -- ^ Maps symbol names to addresses
@@ -873,6 +890,7 @@ verifyFunction :: Module
                   -- Used so user-generated verification files can refer to names rather than addresses.
                -> CallbackGenerator
                -> VCGFunInfo
+                  -- ^ Specification of function.
                -> IO ()
 verifyFunction lMod mem funMap gen vfi = do
 

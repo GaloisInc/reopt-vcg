@@ -39,9 +39,6 @@ import qualified What4.Protocol.SMTLib2.Syntax as SMT
 
 import           VCGCommon
 
-memVar :: Integer -> Var
-memVar i = "x86mem_" <> Text.pack (show i)
-
 smtRegVar :: X86Reg tp -> Text
 smtRegVar reg = "x86reg_" <> Text.pack (show reg)
 
@@ -62,6 +59,9 @@ evalMemAddr m a =
   case Map.lookup (addrBase a) m of
     Nothing -> error "evalMemAddr given address with bad region index."
     Just b -> SMT.bvadd b [SMT.bvdecimal (toInteger (addrOffset a)) 64]
+
+memVar :: Integer -> Text
+memVar i = "x86mem_" <> Text.pack (show i)
 
 data Event
   = CmdEvent !SMT.Command

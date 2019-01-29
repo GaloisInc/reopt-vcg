@@ -6,3 +6,5 @@ path="src"
 
 [dependencies]
 galois_stdlib = { path = "../galois_stdlib" }
+mathlib = { git = "https://github.com/leanprover/mathlib"
+          , rev = "9506e6c6c9fdc1f7f5f5de9fdd159e7920bccffb"}
