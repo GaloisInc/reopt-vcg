@@ -7,3 +7,4 @@ path="src"
 [dependencies]
 galois_stdlib = { path = "deps/galois_stdlib" }
 typed_smt2    = { path = "deps/typed_smt2" }
+decodex86     = { path = "../decodex86/" }
