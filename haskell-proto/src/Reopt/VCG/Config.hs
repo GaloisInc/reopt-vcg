@@ -66,7 +66,6 @@ instance Yaml.FromJSON AllocaName where
   parseJSON v =
     fail $ "Allocation name Expected integer or string, not " ++ show v
 
-
 -- | Annotes an event at a given address.
 data AllocaInfo = AllocaInfo
   { allocaName :: !AllocaName

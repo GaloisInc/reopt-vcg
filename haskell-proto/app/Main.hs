@@ -32,6 +32,7 @@ import           Data.Set (Set)
 import qualified Data.Set as Set
 import           Data.String
 import           Data.Text (Text)
+import qualified Data.Text as Text
 import           Data.Text.Lazy.Builder (Builder)
 import qualified Data.Text.Lazy.Builder as Builder
 import qualified Data.Text.Lazy.IO as LText
@@ -356,7 +357,8 @@ eventsEq levs (M.InstructionEvent curAddr:mevs) = do
 eventsEq (L.CmdEvent cmd:levs) mevs = do
   addCommand cmd
   eventsEq levs mevs
-eventsEq (L.AllocaEvent nm sz _align:levs) mevs = do
+eventsEq (L.AllocaEvent (Ident nm0) sz _align:levs) mevs = do
+  let  nm = AllocaName (Text.pack nm0)
   -- Define base of alloca
   addCommand $ SMT.declareConst (allocaLLVMBaseVar nm) ptrSort
   let llvmBase = varTerm (allocaLLVMBaseVar nm)
@@ -541,9 +543,8 @@ eventsEq [L.InvokeEvent _ f lArgs lRet] [M.FetchAndExecuteEvent regs] = do
         assertEq la ma
          ("Register matches LLVM")
   zipWithM_ compareArg lArgs x86ArgRegs
-
-  -- If LLVM side has a return value, then we assert lRet = mRet as precondition
-  -- for the rest program.
+  -- If LLVM side has a return value, then we assert lRet = mRet as
+  -- precondition for the rest program.
   case lRet of
     Just (llvmIdent, PtrTo _) -> do
       -- Returned pointers are assumed to be on heap, so we can assume they are equal.

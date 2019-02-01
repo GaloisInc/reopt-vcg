@@ -32,7 +32,6 @@ import           Data.LLVM.BitCode
 import qualified Data.List as List
 import           Data.Text (Text)
 import qualified Data.Text as Text
-import qualified Data.Text.Lazy.Builder as Builder
 import           GHC.Stack
 import           Text.LLVM hiding ((:>))
 import qualified What4.Protocol.SMTLib2.Syntax as SMT
@@ -44,7 +43,7 @@ import           Reopt.VCG.Config (AllocaName(..))
 -- | Event from stepping through LLVM block.
 data Event
   = CmdEvent !SMT.Command
-  | AllocaEvent !AllocaName !SMT.Term !Integer
+  | AllocaEvent !Ident !SMT.Term !Integer
     -- ^ `AllocaEvent nm w align` indicates that we should allocate `w` bytes on the stack
     -- and assign the address to @identVar nm@.
     --
@@ -200,9 +199,6 @@ assign2SMT ident (ICmp op (Typed lty@(PrimType (Integer w)) lhs) rhs) = do
           Isle -> SMT.bvsle lhsv rhsv
   defineTerm ident (SMT.bvSort (toInteger w)) r
 assign2SMT nm (Alloca ty eltCount malign) = do
-  let vnm = identVar nm
-  addCommand $ SMT.declareFun vnm [] (SMT.bvSort 64)
-
   let eltSize :: Integer
       eltSize =
         case ty of
@@ -222,7 +218,7 @@ assign2SMT nm (Alloca ty eltCount malign) = do
   let align = case malign of
                 Nothing -> 1
                 Just a -> toInteger a
-  addEvent $ AllocaEvent (AllocaName vnm) totalSize align
+  addEvent $ AllocaEvent nm totalSize align
 assign2SMT ident (Load (Typed (PtrTo lty) src) _ord _align) = do
   addrTerm <- primEval (PtrTo lty) src
   let w = byteCount lty
