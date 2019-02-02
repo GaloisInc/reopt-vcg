@@ -26,7 +26,6 @@ before_install:
 
 install:
   - pushd haskell-proto
-  - cabal --version
   # Build stackage now, so that during the script phase we only see the project build.
   - travis_wait stack --no-terminal setup
   - stack --stack-yaml stack.yaml build --dependencies-only reopt-vcg
@@ -55,9 +54,6 @@ script:
 
   # Now go into the haskell-proto directory to test the Haskell side of things
   - pushd haskell-proto
-  # If we made it this far, everything builds on cabal, but we also have stack
-  # users to support, so let's try it one more time but building on stack
-  # w/stackage
   - stack --stack-yaml stack.yaml build --haddock reopt-vcg
   - stack --stack-yaml stack.yaml test  reopt-vcg
   - popd
