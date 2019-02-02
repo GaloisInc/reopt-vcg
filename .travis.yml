@@ -1,6 +1,6 @@
 sudo: false
 
-language: c
+language:  minimal
 
 git:
   submodules: false  # whether to recursively clone submodules
