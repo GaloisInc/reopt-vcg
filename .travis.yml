@@ -26,9 +26,10 @@ before_install:
 
 install:
   - pushd haskell-proto
+  # Setup GHC using stack
+  - travis_wait stack --stack-yaml stack.yaml setup
   # Build stackage now, so that during the script phase we only see the project build.
-  - travis_wait stack --no-terminal setup
-  - stack --stack-yaml stack.yaml build --dependencies-only reopt-vcg
+  - stack --stack-yaml stack.yaml build --haddock --dependencies-only reopt-vcg
   - popd
 
   # Setup elan so we can use it to install lean
