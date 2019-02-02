@@ -19,7 +19,7 @@ before_install:
   # we can do a read-only clone of our submodules without worrying about ssh
   # keys.
   - sed -i 's/git@github.com:/https:\/\/github.com\//' .gitmodules
-  - git submodule update --recursive --init
+  - git submodule update --init
 
   # Download stack
   - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
