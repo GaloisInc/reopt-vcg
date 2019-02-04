@@ -943,9 +943,11 @@ verifyBlock gen mem lFun bb vfi vcgCfg = do
       reverse . L.events <$> execStateT (L.bb2SMT bb) ls0
     -- Assert arguments are equal
     runVCGs fns vcgCfg blockHints mem addr $ do
-      -- Add read/write operations (independent of registers)
-      mapM_ (addCommand . memReadDecl) predefinedMemWidths
-      mapM_ (addCommand . memWriteDecl) predefinedMemWidths
+      -- Add builtin functions
+      do addCommand $ M.evenParityDecl
+         -- Add read/write operations (independent of registers)
+         mapM_ (addCommand . memReadDecl) predefinedMemWidths
+         mapM_ (addCommand . memWriteDecl) predefinedMemWidths
       -- Declare registers
       mapM_ addCommand M.declRegs
       -- Declare stack and heap declarations (depends on registers)

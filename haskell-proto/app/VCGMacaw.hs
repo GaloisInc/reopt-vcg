@@ -15,6 +15,7 @@ module VCGMacaw
   , Event(..)
   , ppEvent
   , memVar
+  , evenParityDecl
   ) where
 
 import           Control.Lens
@@ -33,6 +34,8 @@ import           Data.Parameterized.NatRepr
 import           Data.Parameterized.Nonce
 import           Data.Parameterized.Some
 import           Data.Parameterized.TraversableF
+import           Data.Set (Set)
+import qualified Data.Set as Set
 import           Data.Text (Text)
 import qualified Data.Text as Text
 import           Data.Word
@@ -121,8 +124,8 @@ data MState = MState
   { blockStartAddr :: !(MemSegmentOff 64)
     -- ^ Initial address of block.
   , initRegs :: !(RegState X86Reg (Const SMT.Term))
-  , locals   :: !(Map Word64 SMT.Term)
-    -- ^ Map from local indices to associated term.
+  , locals   :: !(Set Word64)
+    -- ^ Indices of assignments added so far.
   }
 
 newtype MStateM a = MStateM (ContT [Event] (Reader MState) a)
@@ -136,12 +139,15 @@ runMStateM :: MemSegmentOff 64 -> RegState X86Reg (Const SMT.Term) -> MStateM ()
 runMStateM addr regs (MStateM f) =
   let ms0 = MState { blockStartAddr = addr
                    , initRegs = regs
-                   , locals = Map.empty
+                   , locals = Set.empty
                    }
    in runReader (runContT f (\() -> pure [])) ms0
 
 addEvent :: Event -> MStateM ()
 addEvent e = MStateM $ ContT $ \c -> ReaderT $ \s -> Identity (e : runReader (c ()) s)
+
+addCommand :: SMT.Command -> MStateM ()
+addCommand cmd = addEvent $ CmdEvent cmd
 
 addWarning :: String -> MStateM ()
 addWarning msg = addEvent $ WarningEvent msg
@@ -159,9 +165,9 @@ primEval (BoolValue b) = do
 
 primEval (AssignedValue (Assignment (AssignId ident) _rhs)) = do
   m <- locals <$> get
-  case Map.lookup (indexValue ident) m of
-    Just v -> return v
-    Nothing -> macawError $ "Not contained in the locals: " ++ show ident
+  when (Set.notMember (indexValue ident) m) $ do
+    macawError $ "Not contained in the locals: " ++ show ident
+  return $! varTerm (smtLocalVar (AssignId ident))
 
 primEval (Initial reg) = do
   regs <- initRegs <$> get
@@ -208,31 +214,26 @@ writeMem ptr (BVMemRepr w LittleEndian) val = do
           }
 -}
 
-setDefined :: AssignId ids tp
-           -> M.TypeRepr tp
-           -> SMT.Term
-           -> MStateM ()
-setDefined (AssignId n) tp t = do
-  let nm = smtLocalVar (AssignId n)
-  let decl = SMT.defineFun nm [] (toSMTType tp) t
-  addEvent (CmdEvent decl)
-  modify $ \s -> s { locals = Map.insert (indexValue n) (varTerm nm) (locals s)
-                   }
+-- | Record that the given assign id has been set.
+recordLocal :: AssignId ids tp
+            -> MStateM ()
+recordLocal (AssignId n) = do
+  modify $ \s -> s { locals = Set.insert (indexValue n) (locals s) }
 
--- | The the local value to be undefined assign id to be undefined
+-- | Add a command to declare the SMT var with the given local name and Macaw type.
 setUndefined :: AssignId ids tp
-             -> MStateM Var
-setUndefined (AssignId n) = do
-  let nm = smtLocalVar (AssignId n)
-  modify $ \s -> s { locals = Map.insert (indexValue n) (varTerm nm) (locals s) }
-  pure $! nm
+             -> M.TypeRepr tp
+             -> MStateM ()
+setUndefined aid tp = do
+  addCommand $ SMT.declareFun (smtLocalVar aid) [] (toSMTType tp)
 
 evalApp2SMT :: AssignId ids tp
             -> App (Value X86_64 ids) tp
             -> MStateM ()
 evalApp2SMT aid a = do
   let doSet v = do
-        setDefined aid (M.typeRepr a) v
+        let tp = toSMTType (M.typeRepr a)
+        addCommand $ SMT.defineFun (smtLocalVar aid) [] tp v
   case a of
     BVAdd _w x y -> do
       xv  <- primEval x
@@ -321,9 +322,25 @@ evalApp2SMT aid a = do
 
     _app -> do
       addWarning $ "TODO: Implement " ++ show (ppApp (\_ -> text "*") a) ++ "."
-      var <- setUndefined aid
-      addEvent $ CmdEvent $ SMT.declareFun var [] (toSMTType (M.typeRepr a))
+      setUndefined aid (M.typeRepr a)
 
+-- | Declaration of even-parity function.
+evenParityDecl :: SMT.Command
+evenParityDecl =
+  let v = varTerm "v"
+      bitTerm = SMT.bvxor (SMT.extract 0 0 v) [ SMT.extract i i v | i <- [1..7] ]
+      r = SMT.eq [bitTerm, SMT.bvbinary 0 1]
+   in SMT.defineFun "even_parity" [("v", SMT.bvSort 8)] SMT.boolSort r
+
+x86PrimFnToSMT :: AssignId ids tp
+               -> X86PrimFn (Value X86_64 ids) tp
+               -> MStateM ()
+x86PrimFnToSMT aid (EvenParity a) = do
+  xv <- primEval a
+  addCommand $ SMT.defineFun (smtLocalVar aid) [] SMT.boolSort (SMT.term_app "even_parity" [xv])
+x86PrimFnToSMT aid prim = do
+  addWarning $ "TODO: Implement " ++ show (runIdentity (ppArchFn (Identity . ppValue 10) prim))
+  setUndefined aid (M.typeRepr prim)
 
 assignRhs2SMT :: AssignId ids tp
               -> AssignRhs X86_64 (Value X86_64 ids) tp
@@ -337,9 +354,8 @@ assignRhs2SMT aid rhs = do
       when (end /= LittleEndian) $ do
         error "reopt-vcg only encountered big endian read."
       addrTerm <- primEval addr
-      valVar <- setUndefined aid
       -- Add conditional read event.
-      addEvent $ ReadEvent addrTerm (natValue w) valVar
+      addEvent $ ReadEvent addrTerm (natValue w) (smtLocalVar aid)
 
     CondReadMem (BVMemRepr w end) cond addr def -> do
       when (end /= LittleEndian) $ do
@@ -348,26 +364,21 @@ assignRhs2SMT aid rhs = do
       addrTerm <- primEval addr
       defTerm <- primEval def
 
-      -- Set location of read to fresh constant.
-      valVar <- setUndefined aid
-
       -- Assert that value = default when cond is false
       -- Add conditional read event.
-      addEvent $ CondReadEvent condTerm addrTerm (natValue w) defTerm valVar
+      addEvent $ CondReadEvent condTerm addrTerm (natValue w) defTerm (smtLocalVar aid)
 
     SetUndefined tp -> do
-      var <- setUndefined aid
-      addEvent $ CmdEvent $ SMT.declareFun var [] (toSMTType tp)
+      setUndefined aid tp
 
-    EvalArchFn _f tp -> do
-      addWarning $ "TODO: Implement EvalArchFn."
-      var <- setUndefined aid
-      addEvent $ CmdEvent $ SMT.declareFun var [] (toSMTType tp)
+    EvalArchFn f _tp -> do
+      x86PrimFnToSMT aid f
 
 stmt2SMT :: Stmt X86_64 ids -> MStateM ()
 stmt2SMT stmt =
   case stmt of
     AssignStmt (Assignment aid rhs) -> do
+      recordLocal aid
       assignRhs2SMT aid rhs
     WriteMem addr (BVMemRepr w end) val -> do
       when (end /= LittleEndian) $ do
