@@ -14,9 +14,9 @@ functions:
     rsp_offset: 0
     allocas:
     - name: 2
-      offset: 0x20
+      offset: -32
     - name: 3
-      offset: 0x10
+      offset: -16
     events:
     - addr: 0x4004d6
       type: binary_only_access

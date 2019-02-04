@@ -383,7 +383,6 @@ stmt2SMT stmt =
     WriteMem addr (BVMemRepr w end) val -> do
       when (end /= LittleEndian) $ do
         error "reopt-vcg only encountered big endian read."
-      -- TODO: dealing with memory representation
       addrTerm <- primEval addr
       valTerm  <- primEval val
       addEvent $ WriteEvent addrTerm (natValue w) valTerm

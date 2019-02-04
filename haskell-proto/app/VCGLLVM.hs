@@ -234,7 +234,7 @@ assign2SMT _ instr  = do
 effect2SMT :: HasCallStack => Instr -> LStateM ()
 effect2SMT instr =
   case instr of
-    Store llvmVal llvmPtr _align -> do
+    Store llvmVal llvmPtr _ordering _align -> do
       addrTerm <- evalTyped llvmPtr
       valTerm  <- evalTyped llvmVal
       addEvent $ StoreEvent addrTerm (byteCount (typedType llvmVal)) valTerm

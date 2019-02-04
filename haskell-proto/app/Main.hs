@@ -96,8 +96,9 @@ data PfConfig = PfConfig
   , callbackFns :: !CallbackFns
     -- ^ Functions for interacting with SMT solver.
   , allocaOffsetMap :: !(Map AllocaName Integer)
-    -- ^ Map from allocation names to the offset the allocation is
-    -- relative to in machine code.
+    -- ^ This is a map from allocation names to the offset from the
+    -- value in the machine code register `rsp` when the machine code
+    -- for the current block starts execution.
   }
 
 -- | State that changes during execution of @VCGMonad@.
@@ -292,19 +293,16 @@ inHeapSegment addr sz = SMT.term_app "in_heap_segment" [addr, SMT.bvdecimal sz 6
 
 ------------------------------------------------------------------------
 
-
-
-
 -- | Handler for when eventsEq doesn't match events.
-eventsDone :: [L.Event] -> [M.Event] -> VCGMonad ()
-eventsDone [] [] = pure ()
-eventsDone (lev:_) [] = do
+handleEventMatchFailure :: [L.Event] -> [M.Event] -> VCGMonad ()
+handleEventMatchFailure [] [] = pure ()
+handleEventMatchFailure (lev:_) [] = do
   error $ "LLVM after end of Macaw events:\n"
     ++ L.ppEvent lev
-eventsDone [] (mev:_) = do
+handleEventMatchFailure [] (mev:_) = do
   error $ "Macaw event after end of LLVM events:\n"
     ++ M.ppEvent mev
-eventsDone (lev:_) (mev:_) = do
+handleEventMatchFailure (lev:_) (mev:_) = do
   addr <- gets mcCurAddr
   error $ "Incompatible LLVM and Macaw events:\n"
     ++ "LLVM:  " ++ L.ppEvent lev ++ "\n"
@@ -359,6 +357,21 @@ assumeLLVMDisjoint :: Range -> AllocaName -> VCGMonad ()
 assumeLLVMDisjoint r nm = do
   assume $ isDisjoint r (varTerm (allocaLLVMBaseVar nm), varTerm (allocaLLVMEndVar nm))
 
+-- | This returns an SMT term that denotes the address of an allocation.
+getAllocaMCAddr :: AllocaName -> VCGMonad SMT.Term
+getAllocaMCAddr nm = do
+  allocaMap <- asks $ allocaOffsetMap
+  case Map.lookup nm allocaMap of
+    Nothing ->
+      error $ "Could not find offset of alloca with name: " ++ show nm ++ "\n"
+         ++ "Names: " ++ show (Map.keys allocaMap)
+    Just o ->
+      pure $! if o >= 0 then
+                SMT.bvadd initRSP [SMT.bvdecimal o 64]
+               else
+                SMT.bvsub initRSP (SMT.bvdecimal (negate o) 64)
+
+-- | Process LLVM and macaw events to ensure they are equivalent.
 eventsEq :: [L.Event]
          -> [M.Event]
          -> VCGMonad ()
@@ -371,7 +384,6 @@ eventsEq levs (M.WarningEvent msg:mevs) = do
 eventsEq levs (M.InstructionEvent curAddr:mevs) = do
   modify $ \s -> s { mcCurAddr = curAddr }
   eventsEq levs mevs
-
 eventsEq (L.CmdEvent cmd:levs) mevs = do
   addCommand cmd
   eventsEq levs mevs
@@ -388,17 +400,11 @@ eventsEq (L.AllocaEvent (Ident nm0) sz _align:levs) mevs = do
   -- Assert end calculation did not wrap around.
   assume $ SMT.bvule llvmBase llvmEnd
   -- Get machine code offset.
-  mcOffset <-
-    do allocaMap <- asks $ allocaOffsetMap
-       case Map.lookup nm allocaMap of
-         Nothing ->
-           error $ "Could not find offset of alloca with name: " ++ show nm ++ "\n"
-             ++ "Names: " ++ show (Map.keys allocaMap)
-         Just o -> pure o
+  mcAddr <- getAllocaMCAddr nm
   -- Validate mcOffset is less than stack higher
   -- Define machine code base
-  addCommand $ SMT.defineFun (allocaMCBaseVar nm) [] ptrSort $
-    SMT.bvsub initRSP (SMT.bvdecimal mcOffset 64)
+  addCommand $ SMT.defineFun (allocaMCBaseVar nm) [] ptrSort mcAddr
+
   let mcAllocBase = varTerm (allocaMCBaseVar nm)
 
   addCommand $ SMT.defineFun (allocaMCEndVar nm) [] ptrSort $
@@ -466,7 +472,7 @@ eventsEq levs0 mevs0@(M.ReadEvent mcAddr mcCount macawValVar:mevs) = do
       -- Process future events.
       eventsEq levs mevs
     (JointStackAccess _,levs) -> do
-      eventsDone levs mevs0
+      handleEventMatchFailure levs mevs0
     (HeapAccess, L.LoadEvent llvmAddr llvmCount llvmValVar:levs) -> do
       -- Assert addresses are the same
       assertEq mcAddr llvmAddr
@@ -487,7 +493,7 @@ eventsEq levs0 mevs0@(M.ReadEvent mcAddr mcCount macawValVar:mevs) = do
       -- Process future events.
       eventsEq levs mevs
     (HeapAccess,levs) -> do
-      eventsDone levs mevs0
+      handleEventMatchFailure levs mevs0
 
 eventsEq (L.LoadEvent _llvmAddr _llvmCount _llvmValVar:levs)
          (M.CondReadEvent _macawCond _mcAddr _mcCount _macawDef _macawValVar:mevs) = do
@@ -502,6 +508,9 @@ eventsEq levs
   missingFeature "Cond reads are not yet supported."
   eventsEq levs mevs
 
+-- Every LLVM write should have a machine code write (but not
+-- necessarily vice versa), we first pattern match on machine code
+-- writes.
 eventsEq levs0 mevs0@(M.WriteEvent mcAddr mcCount macawVal:mevs) = do
   memEventInfo <- getCurrentEventInfo
   case (memEventInfo, levs0) of
@@ -517,23 +526,45 @@ eventsEq levs0 mevs0@(M.WriteEvent mcAddr mcCount macawVal:mevs) = do
       -- Process next events
       eventsEq levs mevs
 
-    (JointStackAccess _allocName, L.StoreEvent _llvmAddr llvmCount _llvmVal:levs) -> do
+    (JointStackAccess allocName, L.StoreEvent llvmAddr llvmCount _llvmVal:levs) -> do
+      -- Check the number of bytes written are the same.
       when (llvmCount /= mcCount) $ do
         error "Bytes written have different number of bytes."
-
-      missingFeature "Assert write addresses are equal."
-
-      -- Update macaw memory
+      let llvmAllocaBase :: SMT.Term
+          llvmAllocaBase = varTerm ("llvm_" <> allocaNameText allocName)
+      let mcAllocaBase :: SMT.Term
+          mcAllocaBase = varTerm (allocaMCBaseVar allocName)
+      let mcAllocaEnd :: SMT.Term
+          mcAllocaEnd = varTerm (allocaMCEndVar allocName)
+      -- Steps:
+      -- Prove: mcAllocaBase + mcCount computation will not overflow.
+      proveTrue (SMT.bvult mcAddr (SMT.bvhexadecimal (negate mcCount) 64))
+                "Check machine code address does not overflow."
+      -- Prove: mcAllocaBase <= mcAddr
+      proveTrue (SMT.bvule mcAllocaBase mcAddr)
+                "Check address of machine code stack write is at allocation base or higher."
+      -- Get address of end of write.
+      let mcWriteEnd :: SMT.Term
+          mcWriteEnd = SMT.bvadd mcAddr [SMT.bvhexadecimal mcCount 64]
+      -- Prove: mcWriteEnd <= allocation end
+      proveTrue (SMT.bvule mcWriteEnd mcAllocaEnd)
+                "Check machine code write ends before allocation end."
+      -- Prove: llvmAddr - llvmAllocaBase = mcAddr - mcAllocaBase
+      let llvmOffset = SMT.bvsub llvmAddr llvmAllocaBase
+      let mcOffset   = SMT.bvsub   mcAddr   mcAllocaBase
+      proveTrue (SMT.eq [llvmOffset, mcOffset])
+                "Check we are writing to the same allocation offsets."
+      -- Update macaw memory (TODO: See if we really need to do this)
       macawWrite mcAddr mcCount macawVal
-
+      -- Process future events
       eventsEq levs mevs
     (JointStackAccess _, levs) -> do
-      eventsDone levs mevs0
+      handleEventMatchFailure levs mevs0
 
     (HeapAccess, L.StoreEvent _llvmAddr llvmCount llvmVal:levs) -> do
       when (llvmCount /= mcCount) $ do
         error "Bytes written have different number of bytes."
-      missingFeature "Assert write addresses are equal."
+      missingFeature "Assert machine code and llvm heap write addresses are equal."
 
       -- Assert values are equal
       assertEq llvmVal macawVal
@@ -543,7 +574,7 @@ eventsEq levs0 mevs0@(M.WriteEvent mcAddr mcCount macawVal:mevs) = do
 
       eventsEq levs mevs
     (HeapAccess, levs) ->
-      eventsDone levs mevs0
+      handleEventMatchFailure levs mevs0
 
 eventsEq [L.InvokeEvent _ f lArgs lRet] [M.FetchAndExecuteEvent regs] = do
   let Const mRegIP = regs ^. boundValue X86_IP
@@ -558,8 +589,7 @@ eventsEq [L.InvokeEvent _ f lArgs lRet] [M.FetchAndExecuteEvent regs] = do
   let compareArg :: SMT.Term -> X86Reg (M.BVType 64) -> VCGMonad ()
       compareArg la reg = do
         let Const ma = regs^.boundValue reg
-        assertEq la ma
-         ("Register matches LLVM")
+        assertEq la ma "Register matches LLVM"
   zipWithM_ compareArg lArgs x86ArgRegs
   -- If LLVM side has a return value, then we assert lRet = mRet as
   -- precondition for the rest program.
@@ -605,7 +635,7 @@ eventsEq [L.ReturnEvent mlret] [M.FetchAndExecuteEvent regs] = do
       let Const mret = regs^.boundValue RAX
       assertEq lret mret
        "Return values match"
-eventsEq levs mevs = eventsDone levs mevs
+eventsEq levs mevs = handleEventMatchFailure levs mevs
 
 forceResolveAddr :: Memory w -> MemWord w -> MemSegmentOff w
 forceResolveAddr mem a =
