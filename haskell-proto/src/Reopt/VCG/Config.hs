@@ -136,9 +136,11 @@ data VCGBlockInfo = VCGBlockInfo
   { blockLabel :: !String
     -- ^ LLVM label of block
   , blockAddr :: !Word64
-    -- ^ Address of start of block
-  , blockSize :: !Word64
+    -- ^ Address of start of block in machine code
+  , blockCodeSize :: !Integer
     -- ^ Number of bytes in block
+  , blockHintsRSPOffset :: !Integer
+    -- ^ Offset of RSP when block starts versus initial RSP for function.
   , blockAllocas :: ![AllocaInfo]
     -- ^ Maps LLVM allocations to an offset of the stack where it starts.
   , blockEvents :: ![BlockEvent]
@@ -148,22 +150,21 @@ data VCGBlockInfo = VCGBlockInfo
 
 
 blockInfoFields :: FieldList
-blockInfoFields = fields ["label", "addr", "size", "allocas", "events"]
+blockInfoFields = fields ["label", "addr", "size", "rsp_offset", "allocas", "events"]
 
 instance Yaml.FromJSON VCGBlockInfo where
-  parseJSON = withFixedObject "BlockInfo" blockInfoFields $ \v ->
+  parseJSON = withFixedObject "block" blockInfoFields $ \v ->
     VCGBlockInfo
       <$> v .: "label"
       <*> v .: "addr"
       <*> v .: "size"
+      <*> v .: "rsp_offset"
       <*> v .: "allocas"
       <*> v .: "events"
 
 data VCGFunInfo = VCGFunInfo
   { llvmFunName    :: !String
     -- ^ LLVM function name
-  , macawFunName   :: !String
-    -- ^ Macaw function name
   , stackSize :: !Integer
     -- ^ Number of bytes in binary stack size.
   , blocks :: [VCGBlockInfo]

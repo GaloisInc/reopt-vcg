@@ -11,6 +11,7 @@ functions:
   - label: '1'
     addr: 0x4004d6
     size: 0x1a
+    rsp_offset: 0
     allocas:
     - name: 2
       offset: 0x20

@@ -12,7 +12,6 @@ module VCGCommon
     -- * Memory
   , ptrSort
   , memSort
-  , readBVLE
   , writeBVLE
     -- * Error reporting
   , warning
@@ -36,20 +35,6 @@ ptrSort = SMT.bvSort 64
 
 memSort :: SMT.Sort
 memSort = SMT.arraySort ptrSort (SMT.bvSort 8)
-
-
--- | Read a number of bytes as a bitvector.
--- Note. This refers repeatedly to ptr so, it should be a constant.
-readBVLE :: SMT.Term -- ^ Memory
-         -> SMT.Term  -- ^ Address to read
-         -> Integer -- ^ Number of bytes to read.
-         -> SMT.Term
-readBVLE mem ptr0 w = go (w-1)
-  where go :: Integer -> SMT.Term
-        go 0 = SMT.select mem ptr0
-        go i =
-          let ptr = SMT.bvadd ptr0 [SMT.bvdecimal i 64]
-           in SMT.concat (SMT.select mem ptr) (go (i-1))
 
 -- | Read a number of bytes as a bitvector.
 -- Note. This refers repeatedly to ptr so, it should be a constant.

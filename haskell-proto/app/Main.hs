@@ -16,7 +16,6 @@ import           Control.Monad.Except
 import           Control.Monad.Reader
 import           Control.Monad.State
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Char8 as BSC
 import qualified Data.ElfEdit as Elf
 import           Data.IORef
 import           Data.List as List
@@ -62,20 +61,14 @@ ppBlock :: BlockLabel -> String
 ppBlock (Named (Ident s)) = s
 ppBlock (Anon i) = show i
 
-
 -- | Information about verification of a function.
 data VCGConfig = VCGConfig
   { blockMapping :: !BlockMapping
-  , llvmMod      :: !Module
   }
 
 -- | Find a block with the given label in the config.
-findBlock :: VCGConfig -> BlockLabel -> VCGBlockInfo
-findBlock cfg lbl =
-  case Map.lookup (ppBlock lbl) (blockMapping cfg) of
-    Just blockInfo -> blockInfo
-    Nothing -> do
-      error $ "Could not find map for block " ++ show lbl
+findBlock :: VCGConfig -> BlockLabel -> Maybe VCGBlockInfo
+findBlock cfg lbl = Map.lookup (ppBlock lbl) (blockMapping cfg)
 
 -- | Callback functions for interacting with SMT solver.
 data CallbackFns = CallbackFns
@@ -93,7 +86,7 @@ data CallbackFns = CallbackFns
     -- The message is provide so the user knows the source of the check.
   }
 
--- | Information that does not during execution of @VCGMonad@.
+-- | Information that does not change during execution of @VCGMonad@.
 data PfConfig = PfConfig
   { cfgConfig :: !VCGConfig
     -- ^ The current configuration for the function.
@@ -158,17 +151,6 @@ getMCMem = do
   idx <- gets mcMemIndex
   pure $! varTerm (M.memVar idx)
 
--- | @MmacwRead addr cnt var@ reads @cnt@ bytes from machine code
--- memory and assigns them to @var@.
-macawRead :: SMT.Term -> Integer -> Var -> VCGMonad ()
-macawRead addr byteCount valVar = do
-  mem <- getMCMem
-  let valType = SMT.bvSort (8*byteCount)
-  let val | byteCount `elem` [1,2,4,8] =
-              SMT.term_app (memReadName byteCount) [mem, addr]
-          | otherwise = readBVLE mem addr byteCount
-  addCommand $ SMT.defineFun valVar [] valType val
-
 -- | @macawWrite addr cnt val@ writes @cnt@ bytes to memory.
 --
 -- The value written is the @8*cnt@-length bitvector term @val@.
@@ -183,19 +165,47 @@ macawWrite addr byteCount val = do
                  writeBVLE (varTerm (M.memVar idx)) addr val byteCount
   addCommand $ SMT.defineFun (M.memVar (idx+1)) [] memSort newMem
 
+-- | Name of function in SMTLIB for writing given number of bytes
+memWriteName :: (IsString a, Semigroup a) => Integer -> a
+memWriteName byteCount = "mem_write" <> fromString (show (8*byteCount))
+
 -- | Name of function in SMTLIB for reading given number of bytes
 memReadName :: (IsString a, Semigroup a) => Integer -> a
 memReadName byteCount = "mem_read" <> fromString (show (8*byteCount))
 
--- | Name of function in SMTLIB for writing given number of bytes
-memWriteName :: (IsString a, Semigroup a) => Integer -> a
-memWriteName byteCount = "mem_write" <> fromString (show (8*byteCount))
+-- | Read a number of bytes as a bitvector.
+-- Note. This refers repeatedly to ptr so, it should be a constant.
+readBVLE :: SMT.Term -- ^ Memory
+         -> SMT.Term  -- ^ Address to read
+         -> Integer -- ^ Number of bytes to read.
+         -> SMT.Term
+readBVLE mem ptr0 w = go (w-1)
+  where go :: Integer -> SMT.Term
+        go 0 = SMT.select mem ptr0
+        go i =
+          let ptr = SMT.bvadd ptr0 [SMT.bvdecimal i 64]
+           in SMT.concat (SMT.select mem ptr) (go (i-1))
 
 -- | Create mem write declaration given number of bytes to write
 memReadDecl :: Integer -> SMT.Command
 memReadDecl w = do
   SMT.defineFun (memReadName w) [("m", memSort), ("a", ptrSort)] (SMT.bvSort (8*w)) $
     readBVLE (varTerm "m") (varTerm "a") w
+
+-- | Number of bytes in reads that we define via functions.
+predefinedMemWidths :: [Integer]
+predefinedMemWidths = [1,2,4,8]
+
+-- | @MacawRead addr cnt var@ reads @cnt@ bytes from machine code
+-- memory and assigns them to @var@.
+macawRead :: SMT.Term -> Integer -> Var -> VCGMonad ()
+macawRead addr byteCount valVar = do
+  mem <- getMCMem
+  let valType = SMT.bvSort (8*byteCount)
+  let val | byteCount `elem` predefinedMemWidths  =
+              SMT.term_app (memReadName byteCount) [mem, addr]
+          | otherwise = readBVLE mem addr byteCount
+  addCommand $ SMT.defineFun valVar [] valType val
 
 -- | Create mem write declaration given number of bytes to write
 memWriteDecl :: Integer -> SMT.Command
@@ -215,8 +225,8 @@ initRSP = varTerm (M.smtRegVar RSP)
 -- in a region of the stack frame marked as only accessible to the binary code.
 --
 -- Note. The correctness property above assumes that @sz > 0@.
-onMCOnlyStackFrame :: (Monoid a, IsString a) => Integer -> a
-onMCOnlyStackFrame varNum | varNum < 0 = error "onMCOnlyStackFrame given negative number."
+onThisFunStack :: (Monoid a, IsString a) => Integer -> a
+onThisFunStack varNum | varNum < 0 = error "onThisFunStack given negative number."
                           | otherwise = "on_mconly_stack_frame" <> fromString (show varNum)
 
 -- | @mcMemDecls sz@ adds declarations about the memory.
@@ -231,24 +241,29 @@ onMCOnlyStackFrame varNum | varNum < 0 = error "onMCOnlyStackFrame given negativ
 --
 -- It defines @on_this_stack_frame@
 -- Note. This assumes X86 registers are already declared.
-mcMemDecls :: Integer -> Integer -> [SMT.Command]
-mcMemDecls currentStackHeight sz =
+mcMemDecls :: Integer
+              -- ^ The number of bytes above initRSP available to access on stack.
+           -> Integer
+              -- ^ The number of bytes below initRSP available to access on stack.
+           -> [SMT.Command]
+mcMemDecls bytesAbove bytesBelow =
   [ -- Assert RSP has enough room to hold the return address.
-    SMT.assert $ SMT.bvult initRSP (SMT.bvhexadecimal (2^(64::Int) - 8) 64)
+    SMT.assert $ SMT.bvult initRSP (SMT.bvhexadecimal (2^(64::Int) - bytesAbove) 64)
     -- Assert RSP has enough room to hold the given number of bytes.
-  , SMT.assert $ SMT.bvugt initRSP (SMT.bvdecimal sz 64)
+  , SMT.assert $ SMT.bvugt initRSP (SMT.bvdecimal bytesBelow 64)
+  , comment "stack_low is the minimum address on stack."
   , SMT.defineFun "stack_low"  [] (SMT.bvSort 64)
-      (SMT.bvsub initRSP (SMT.bvdecimal sz 64))
+      (SMT.bvsub initRSP (SMT.bvdecimal bytesBelow 64))
     -- High water stack pointer includes 8 bytes for return address.
-  , comment "stack_high is the initial stack pointer plus 8 for the return address."
+  , comment "stack_high is the maxium address on stack."
   , SMT.defineFun "stack_high"  [] (SMT.bvSort 64)
-      (SMT.bvadd initRSP [SMT.bvdecimal currentStackHeight 64])
+      (SMT.bvadd initRSP [SMT.bvdecimal bytesAbove 64])
     -- stack_high must be aligned to a 16-byte boundary.
     -- This is done by asserting the 4 low-order bits are 0.
   , SMT.assert $ SMT.eq [ SMT.extract 3 0 (varTerm "stack_high"), SMT.bvhexadecimal 0 4]
     -- Declare on_this_stack_frame
   , do let args = [("a", ptrSort), ("sz", SMT.bvSort 64)]
-       SMT.defineFun (onMCOnlyStackFrame 0) args SMT.boolSort $
+       SMT.defineFun (onThisFunStack 0) args SMT.boolSort $
          SMT.letBinder [ ("e", SMT.bvadd (varTerm "a") [varTerm "sz"]) ] $
            SMT.and [ SMT.bvule (varTerm "stack_low") (varTerm "a")
                    , SMT.bvule (varTerm "a") (varTerm "e")
@@ -350,6 +365,9 @@ eventsEq :: [L.Event]
 eventsEq levs (M.CmdEvent cmd:mevs) = do
   addCommand cmd
   eventsEq levs mevs
+eventsEq levs (M.WarningEvent msg:mevs) = do
+  liftIO $ hPutStrLn stderr msg
+  eventsEq levs mevs
 eventsEq levs (M.InstructionEvent curAddr:mevs) = do
   modify $ \s -> s { mcCurAddr = curAddr }
   eventsEq levs mevs
@@ -388,16 +406,16 @@ eventsEq (L.AllocaEvent (Ident nm0) sz _align:levs) mevs = do
   let mcAllocEnd = varTerm (allocaMCEndVar nm)
   -- Check stack space is unallocated
   do idx <- gets mcOnlyStackFrameIndex
-     proveTrue (SMT.term_app (onMCOnlyStackFrame idx) [mcAllocBase, sz])
+     proveTrue (SMT.term_app (onThisFunStack idx) [mcAllocBase, sz])
        (printf "Machine code space for %s in unreserved stack space." (show nm))
   -- Update region of unallocated stack space.
   do idx <- gets mcOnlyStackFrameIndex
      modify $ \s -> s { mcOnlyStackFrameIndex = idx + 1 }
      let args = [("a", ptrSort), ("sz", SMT.bvSort 64)]
-     addCommand $ SMT.defineFun (onMCOnlyStackFrame (idx+1)) args SMT.boolSort $
+     addCommand $ SMT.defineFun (onThisFunStack (idx+1)) args SMT.boolSort $
        let e = SMT.bvadd (varTerm "a") [varTerm "sz"]
         in SMT.and [ isDisjoint (varTerm "a", e) (mcAllocBase, mcAllocEnd)
-                   , SMT.term_app (onMCOnlyStackFrame idx) [varTerm "a", varTerm "sz"]
+                   , SMT.term_app (onThisFunStack idx) [varTerm "a", varTerm "sz"]
                    ]
   -- Adding assumptions about non-overlap.
   do used <- gets mcUsedAllocas
@@ -414,7 +432,7 @@ eventsEq levs0 mevs0@(M.ReadEvent mcAddr mcCount macawValVar:mevs) = do
       -- Assert address is on stack
       do addr <- gets mcCurAddr
          idx <- gets mcOnlyStackFrameIndex
-         proveTrue (SMT.term_app (onMCOnlyStackFrame idx) [mcAddr, SMT.bvdecimal mcCount 64])
+         proveTrue (SMT.term_app (onThisFunStack idx) [mcAddr, SMT.bvdecimal mcCount 64])
            (printf "Machine code read at %s is in unreserved stack space." (show addr))
       -- Define value from reading Macaw heap
       macawRead mcAddr mcCount macawValVar
@@ -494,7 +512,7 @@ eventsEq levs0 mevs0@(M.WriteEvent mcAddr mcCount macawVal:mevs) = do
       -- Assert address is on stack
       do addr <- gets mcCurAddr
          idx <- gets mcOnlyStackFrameIndex
-         proveTrue (SMT.term_app (onMCOnlyStackFrame idx) [mcAddr, SMT.bvdecimal mcCount 64])
+         proveTrue (SMT.term_app (onThisFunStack idx) [mcAddr, SMT.bvdecimal mcCount 64])
            (printf "Machine code write at %s is in unreserved stack space." (show addr))
       -- Process next events
       eventsEq levs mevs
@@ -559,7 +577,11 @@ eventsEq [L.InvokeEvent _ f lArgs lRet] [M.FetchAndExecuteEvent regs] = do
     Nothing -> pure ()
 eventsEq [L.JumpEvent lbl] [M.FetchAndExecuteEvent regs] = do
   cfg <- asks $ cfgConfig
-  let blockInfo = findBlock cfg lbl
+  blockInfo <-
+    case findBlock cfg lbl of
+      Just b -> pure b
+      Nothing -> do
+        fail $ "Could not find jump target " ++ show lbl
   -- Get term for address associated with this label.
   let llvmMemAddr = SMT.bvhexadecimal (toInteger (blockAddr blockInfo)) 64
   let Const mRegIP = regs ^. boundValue X86_IP
@@ -651,9 +673,6 @@ interactiveVerifyGoal funName lbl goalCounter cmdHandle respHandle propName ng =
       hPutStrLn stderr ""
       hPutStrLn stderr $ "  " ++ msg
 
-
-
-
 runCallbacks :: String -- ^ Command line
              -> String -- ^ Name of function
              -> BlockLabel
@@ -739,15 +758,14 @@ exportCallbacks outDir fn lbl action = do
     }
 
 runVCGs :: CallbackFns
-       -> VCGConfig
+       -> VCGConfig -- ^ Config for VCG
+       -> VCGBlockInfo -- ^ Config for this block
        -> Memory 64
-       -> BlockLabel
        -> MemSegmentOff 64
           -- ^ Address of first instruction in this block.
        -> VCGMonad ()
        -> IO ()
-runVCGs fns cfg mem lbl addr action = do
-  let thisBlockCfg = findBlock cfg lbl
+runVCGs fns cfg thisBlockCfg mem addr action = do
   let allocaMap = Map.fromList
        [ (allocaName a, allocaBinaryOffset a)
        | a <- blockAllocas thisBlockCfg
@@ -849,7 +867,6 @@ parseVCGArgs = do
             hPutStrLn stderr $ "  " ++ show warn
           exitFailure
         pure cfg
-
   gen <-
     case requestedMode args of
       DefaultMode ->
@@ -881,23 +898,84 @@ standaloneGoalFilename :: String -- ^ Name of function to verify
 standaloneGoalFilename fn lbl i =
  fn ++ "_" ++ ppBlock lbl ++ "_" ++ show i ++ ".smt2"
 
+
+defineLLVMArgs ::[Typed Ident]
+               -> [X86Reg (M.BVType 64)] -- ^ Remaining registers for arguments.
+               -> VCGMonad ()
+defineLLVMArgs [] _x86Regs = pure ()
+defineLLVMArgs (Typed (PrimType (Integer 64)) val : rest) x86Regs =
+  case x86Regs of
+    [] -> error $ "Ran out of register arguments."
+    (reg:restRegs) -> do
+      addCommand $ SMT.defineFun (L.identVar val) [] (SMT.bvSort 64)
+                                 (varTerm (M.smtRegVar reg))
+      defineLLVMArgs rest restRegs
+defineLLVMArgs (Typed tp _val : _rest) _x86Regs =
+  error $ "Unexpected type " ++ show tp
+
+-- | Verify a block satisfies its specification.
+verifyBlock :: CallbackGenerator
+            -> Memory 64
+            -> Define
+            -> BasicBlock
+            -> VCGFunInfo
+            -> VCGConfig
+            -> IO ()
+verifyBlock gen mem lFun bb vfi vcgCfg = do
+  let Just lbl = bbLabel bb
+  blockCallbacks gen (llvmFunName vfi) lbl $ \fns -> do
+    blockHints <-
+      case findBlock vcgCfg lbl of
+        Just b -> pure b
+        Nothing -> do
+          error $ "Could not find map for block " ++ show lbl
+    let absAddr = fromIntegral (blockAddr blockHints)
+    addr <-
+      case resolveAbsoluteAddr mem absAddr of
+        Just o -> pure o
+        Nothing -> fail $ "Could not resolve " ++ show absAddr
+
+    putStrLn "Simulating LLVM blocks ..."
+    levents <- do
+      do let ?config = Config True True True
+         putStrLn $ show $ ppBasicBlock bb
+      let ls0 = L.inject lFun
+      reverse . L.events <$> execStateT (L.bb2SMT bb) ls0
+    -- Assert arguments are equal
+    runVCGs fns vcgCfg blockHints mem addr $ do
+      -- Add read/write operations (independent of registers)
+      mapM_ (addCommand . memReadDecl) predefinedMemWidths
+      mapM_ (addCommand . memWriteDecl) predefinedMemWidths
+      -- Declare registers
+      mapM_ addCommand M.declRegs
+      -- Declare stack and heap declarations (depends on registers)
+      mapM_ addCommand $ mcMemDecls (8+blockHintsRSPOffset blockHints)  (stackSize vfi)
+      -- Declare memory
+      addCommand $ SMT.declareConst (M.memVar 0) memSort
+      -- Stack stack size is non-negative.
+      when (stackSize vfi < 0) $ do
+        error "Expected non-negative stack size"
+      -- Declare constant representing where we return to.
+      macawRead (varTerm (M.smtRegVar RSP)) 8 "return_addr"
+      -- Declare LLVM arguments in terms of Macaw registers
+      defineLLVMArgs (defArgs lFun) x86ArgRegs
+      -- Start processing events
+      eventsEq levents (M.blockEvents addr (blockCodeSize blockHints))
+
 -- | Verify a particular function satisfies its specification.
 verifyFunction :: Module
                -- ^ LLVM Module
                -> Memory 64
-               -> Map BSC.ByteString (MemSegmentOff 64)
-                  -- ^ Maps symbol names to addresses
-                  --
-                  -- Used so user-generated verification files can refer to names rather than addresses.
                -> CallbackGenerator
                -> VCGFunInfo
                   -- ^ Specification of function.
                -> IO ()
-verifyFunction lMod mem funMap gen vfi = do
+verifyFunction lMod mem gen vfi = do
 
   let llvmBlockMap :: Map String VCGBlockInfo
       llvmBlockMap = Map.fromList
         [ (blockLabel b, b) | b <- blocks vfi ]
+{-
   addr <-
     case Map.lookup (BSC.pack (macawFunName vfi)) funMap of
       Just addr ->
@@ -907,72 +985,31 @@ verifyFunction lMod mem funMap gen vfi = do
             $  "Unknown Macaw function: " ++ macawFunName vfi ++ "\n"
             ++ "Available functions:\n"
             ++ unlines ((\x -> "  " ++ BSC.unpack x) <$> Map.keys funMap)
+-}
 
-  hPutStrLn stderr $ "Analyzing " ++ macawFunName vfi
+  hPutStrLn stderr $ "Analyzing " ++ llvmFunName vfi
 
   let Just lFun = L.getDefineByName lMod (llvmFunName vfi)
 
-  (firstBlock, restBlocks) <-
-    case defBody lFun of
-      [] -> error $ "Expected function to have at least one basic block."
-      f:r -> pure (f,r)
 
   when (length (defArgs lFun) > length x86ArgRegs) $ do
     error $ "Too many arguments."
-
+  let vcgCfg =  VCGConfig { blockMapping = llvmBlockMap
+                          }
+  -- Check annotations of first block to ensure
+  firstBlock <-
+    case defBody lFun of
+      [] -> error $ "Expected function to have at least one basic block."
+      b:_ -> pure b
   let Just lbl = bbLabel firstBlock
-  blockCallbacks gen (llvmFunName vfi) lbl $ \fns -> do
-    let vcgCfg =  VCGConfig { blockMapping = llvmBlockMap
-                            , llvmMod = lMod
-                            }
-    let blockInfo = findBlock vcgCfg lbl
-
-    --TODO: Check block address
-    --when (blockAddr blockInfo /= addr) $ do
-    --  error "Block annotation does not have correct address."
-
-    putStrLn "Simulating LLVM blocks ..."
-    levents <- do
-      do let ?config = Config True True True
-         putStrLn $ show $ ppBasicBlock firstBlock
-      let ls0 = L.inject lFun
-      reverse . L.events <$> execStateT (L.bb2SMT firstBlock) ls0
-    putStrLn $ "LLVM events:  " ++ show levents
-
-    putStrLn "Simulating Macaw blocks ..."
-    mevents <- M.blockEvents addr (blockSize blockInfo)
-    putStrLn $ "Macaw events: " ++ show mevents
-
-    -- Assert arguments are equal
-    runVCGs fns vcgCfg mem lbl addr $ do
-      -- Declare registers
-      mapM_ addCommand M.declRegs
-      -- Declare memory operations
-      mapM_ addCommand $ mcMemDecls 8 (stackSize vfi)
-      mapM_ (addCommand . memReadDecl) [1,2,4,8]
-      mapM_ (addCommand . memWriteDecl) [1,2,4,8]
-      -- Declare memory
-      addCommand $ SMT.declareConst (M.memVar 0) memSort
-      -- Declare stack_high, stack_low and on_this_stack_Frame
-      when (stackSize vfi < 0) $ do
-        error "Expected non-negative stack size"
-      -- Declare constant representing where we return to.
-      macawRead (varTerm (M.smtRegVar RSP)) 8 "return_addr"
-      -- Declare LLVM operations
-      let mkLLVMDecl :: Typed Ident -> VCGMonad ()
-          mkLLVMDecl (Typed (PrimType (Integer 64)) val) =
-            addCommand $ SMT.declareConst (L.identVar val) (SMT.bvSort 64)
-          mkLLVMDecl  (Typed tp _) =
-            error $ "Unexpected type " ++ show tp
-      mapM_ mkLLVMDecl $ defArgs lFun
-      let assertRegsEq lv reg = do
-            assume $ SMT.eq [varTerm (L.identVar (typedValue lv)), varTerm (M.smtRegVar reg)]
-      zipWithM_ assertRegsEq (defArgs lFun) x86ArgRegs
-      eventsEq levents mevents
-
-  forM_ restBlocks $ \_bb -> do
-    pure ()
-
+  blockHints <-
+    case findBlock vcgCfg lbl of
+      Just b -> pure b
+      Nothing -> error $ "Could not find map for block " ++ show lbl
+  when (blockHintsRSPOffset blockHints /= 0) $ do
+    warning $ "Function entry offset must be 0."
+  forM_ (defBody lFun) $ \bb -> do
+    verifyBlock gen mem lFun bb vfi vcgCfg
 
 -- | Read an elf from a binary
 readElf :: FilePath -> IO (Elf.Elf 64)
@@ -1003,10 +1040,9 @@ main = do
         "Could not interpret Elf file " ++ binFilePath metaCfg ++ ":\n"
         ++ "  " ++ err
       exitFailure
-    Right (warnings, mem, _entry, symbols) -> do
+    Right (warnings, mem, _entry, _symbols) -> do
       forM_ warnings $ \w -> do
         hPutStrLn stderr w
       lMod <- L.getLLVMMod (llvmBCFilePath metaCfg)
-      let funMap = Map.fromList [ (memSymbolName msym, memSymbolStart msym) | msym <- symbols ]
       forM_ (functions metaCfg) $ \vfi -> do
-        verifyFunction lMod mem funMap gen vfi
+        verifyFunction lMod mem gen vfi
