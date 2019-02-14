@@ -396,9 +396,9 @@ inductive prim : type → Type
 | usbb_overflows (i:ℕ) : prim (bv i .→ bv i .→ bit .→ bit)
 | uadc_overflows (i:ℕ) : prim (bv i .→ bv i .→ bit .→ bit)
 | sadc_overflows (i:ℕ) : prim (bv i .→ bv i .→ bit .→ bit)
-| and (i:ℕ) : prim (bv i .→ bv i .→ bv i)
-| or (i:ℕ) : prim (bv i .→ bv i .→ bv i)
-| xor (i:ℕ) : prim (bv i .→ bv i .→ bv i)
+| bvand (i:ℕ) : prim (bv i .→ bv i .→ bv i)
+| bvor (i:ℕ) : prim (bv i .→ bv i .→ bv i)
+| bvxor (i:ℕ) : prim (bv i .→ bv i .→ bv i)
 | shl (i:ℕ) : prim (bv i .→ bv i .→ bv i)
 -- `(bvbit i)` interprets the second argument as a bit index and returns
 -- that bit from the first argument.
@@ -409,6 +409,8 @@ inductive prim : type → Type
 | msb (i:ℕ) : prim (bv i .→ bit)
 | least_byte (i:ℕ) : prim (bv i .→ bv 8)
 | even_parity (i:ℕ) : prim (bv i .→ bit)
+| or : prim (bit .→ bit .→ bit)
+| and : prim (bit .→ bit .→ bit)
 
 namespace prim
 
@@ -443,9 +445,9 @@ def pp : Π{tp:type}, prim tp → string
 | ._ (usbb_overflows i) := "usbb_overflows " ++ i.pp
 | ._ (uadc_overflows i) := "uadc_overflows " ++ i.pp
 | ._ (sadc_overflows i) := "sadc_overflows " ++ i.pp
-| ._ (and i) := "and " ++ i.pp
-| ._ (or i) := "or " ++ i.pp
-| ._ (xor i) := "xor " ++ i.pp
+| ._ (bvand i) := "and " ++ i.pp
+| ._ (bvor i) := "or " ++ i.pp
+| ._ (bvxor i) := "xor " ++ i.pp
 | ._ (shl i) := "shl " ++ i.pp
 | ._ (bvbit i) := "bvbit " ++ i.pp
 | ._ (complement i) := "complement " ++ i.pp
@@ -454,6 +456,8 @@ def pp : Π{tp:type}, prim tp → string
 | ._ (msb i) := "msb " ++ i.pp
 | ._ (least_byte i) := "least_byte " ++ i.pp
 | ._ (even_parity i) := "even_parity " ++ i.pp
+| ._ or := "or"
+| ._ and := "and"
 
 
 end prim
@@ -502,6 +506,8 @@ def quot        {w:ℕ} (x y : expression (bv w))                      : express
 def rem         {w:ℕ} (x y : expression (bv w))                      : expression (bv w) := prim.rem   w x y
 def signed_quot {w:ℕ} (x y : expression (bv w))                      : expression (bv w) := prim.squot w x y
 def signed_rem  {w:ℕ} (x y : expression (bv w))                      : expression (bv w) := prim.srem  w x y
+def or                (x y : expression bit)                         : expression bit    := prim.or      x y
+def and               (x y : expression bit)                         : expression bit    := prim.and     x y
 
 protected
 def is_app : Π{tp:type}, expression tp → bool
@@ -574,6 +580,7 @@ inductive event
 | pop_x87_register_stack : event
 | call (addr: bv 64) : event
 | jmp  (addr: bv 64) : event
+| branch : expression bit → bv 64 → event
 | ret : event
 | hlt : event
 | xchg {w : nat_expr} (addr1: bv w) (addr2: bv w) : event
@@ -586,6 +593,7 @@ protected def pp : event → string
 | pop_x87_register_stack := "(pop_x87_register_stack)"
 | (call addr) := "(call " ++ addr.pp ++ ")"
 | (jmp  addr) := "(jmp " ++ addr.pp ++ ")"
+| (branch cond addr) := "(branch " ++ cond.pp ++ " " ++ addr.pp ++ ")"
 | ret := "(ret)"
 | hlt := "(hlt)"
 | (xchg addr1 addr2) := "(xchg " ++ addr1.pp ++ " " ++ addr2.pp ++ ")"
