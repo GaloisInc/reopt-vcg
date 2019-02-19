@@ -117,6 +117,7 @@ inductive type
 | float  : type
 | double : type
 | x86_80 : type
+| vec (w:ℕ) (tp:type) : type
 -- A function from arg to res
 | fn (arg:type) (res:type) : type
 
@@ -129,6 +130,7 @@ def pp' : Π(in_fun:bool), type → string
 | _ float  := "float"
 | _ double := "double"
 | _ x86_80 := "x86_80"
+| _ (vec w tp) := sexp.app "vec" [w.pp, tp.pp' ff]
 | in_fun (fn a r) :=
   if in_fun then
      a.pp' ff ++ " " ++ r.pp' tt
@@ -400,6 +402,9 @@ inductive prim : type → Type
 | bvor (i:ℕ) : prim (bv i .→ bv i .→ bv i)
 | bvxor (i:ℕ) : prim (bv i .→ bv i .→ bv i)
 | shl (i:ℕ) : prim (bv i .→ bv i .→ bv i)
+| shr (i:ℕ) : prim (bv i .→ bv i .→ bv i)
+| sar (i:ℕ) : prim (bv i .→ bv i .→ bv i)
+| sal (i:ℕ) : prim (bv i .→ bv i .→ bv i)
 -- `(bvbit i)` interprets the second argument as a bit index and returns
 -- that bit from the first argument.
 | bvbit (i:ℕ) : prim (bv i .→ bv i .→ bit)
@@ -606,6 +611,7 @@ end event
 -- Denotes updates to program state from register.
 inductive action
 | set {tp:type} (l:lhs tp) (v:expression tp) : action
+| aligned_set {tp:type} (l:lhs tp) (v:expression tp) (alignment:ℕ) : action
 | local_def {tp:type} (idx:ℕ) (v:expression tp) : action
 | event (e:event) : action
 | mk_undef {tp:type} (l:lhs tp) : action
@@ -614,6 +620,7 @@ namespace action
 
 protected def repr : action → string
 | (set l r)         := sexp.app "set" [l.repr, r.pp]
+| (aligned_set l r a) := sexp.app "aligned_set" [l.repr, r.pp, a.pp]
 | (local_def idx v) := sexp.app "var" [idx.pp, v.pp]
 | (event e) := e.pp
 | (mk_undef v) := sexp.app "mk_undef" [v.repr]
@@ -774,6 +781,10 @@ def unsupported (msg:string) := record_event (event.unsupported msg)
 --- Set the expression of the left-hand side to the expression.
 def set {tp:type} (l:lhs tp) (v:expression tp) : semantics unit :=
   semantics.add_action (action.set l v)
+
+--- Set the expression of the left-hand side to the expression and respect alignment.
+def aligned_set {tp:type} (l:lhs tp) (v:expression tp) (a:ℕ): semantics unit :=
+  semantics.add_action (action.aligned_set l v a)
 
 --- Evaluate the given expression and return a local expression that will not mutate.
 def eval {tp : type} (v:expression tp) : semantics (expression tp) := do

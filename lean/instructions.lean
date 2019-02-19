@@ -26,6 +26,8 @@ local notation ℕ := nat_expr
 
 infix `.=`:20 := set
 
+notation d `.=` a `|` s :20 := aligned_set d s a
+
 ------------------------------------------------------------------------
 -- bitvector functions
 
@@ -219,6 +221,26 @@ def movzx : instruction := do
  definst "movzx" $ do
    pattern λ(w : one_of [16,32,64]) (u : one_of [8, 16]) (dest : lhs (bv w)) (src : bv u), do
      dest .= uext src w
+   pat_end
+
+------------------------------------------------------------------------
+-- movdqa definition
+-- Move Aligned Packed Integer Values
+
+def movdqa : instruction := do
+ definst "movdqa" $ do
+   pattern λ(n : one_of [4, 8, 16]) (dest : lhs (vec n (bv 32))) (src : vec n (bv 32)), do
+     dest .= 16 | src
+   pat_end
+
+------------------------------------------------------------------------
+-- movaps definition
+-- Move Aligned Packed Single-Precision Floating-Point Values
+
+def movaps : instruction := do
+ definst "movaps" $ do
+   pattern λ(n : one_of [4, 8, 16]) (dest : lhs (vec n (bv 32))) (src : vec n (bv 32)), do
+     dest .= 16 | src
    pat_end
 
 ------------------------------------------------------------------------
@@ -705,15 +727,12 @@ def mk_jcc_instruction : string × expression bit → instruction
 def mk_jcc_instruction_aliases : list string × expression bit → list instruction
  | (names, cc) := list.map (λn, mk_jcc_instruction (n, cc)) names
 
--- TODO: surely this is defined in the standard library(?) but I couldn't find it yet.
-def concat {α : Type} : list (list α) → list α := list.foldr (++) []
-
 -- Conditional jump instructions, some of these have multiple names. They only vary
 -- in the condition checked so we use helper functions to associate mnemonics with
 -- the conditions instead of defining each instruction at the top level.
 -- TODO: We might be able to remove the aliases. It looks like the instruction encodings are the same
 -- so it might suffice to find out what the decoder will pick as the canonical mnemonic.
-def jcc_instructions : list instruction := concat $ list.map mk_jcc_instruction_aliases
+def jcc_instructions : list instruction := list.join $ list.map mk_jcc_instruction_aliases
  [ -- Jump if above (cf = 0 and zf = 0)
    (["ja", "jnbe"], expression.and (expression.get cf = zero) (expression.get zf = zero))
    -- Jump if above or equal (cf = 0)
@@ -876,6 +895,74 @@ def cld : instruction :=
      df .= zero
    pat_end
 
+------------------------------------------------------------------------
+-- sar definition
+-- Shift arithmetic right
+def sar : instruction :=
+ definst "sar" $ do
+   pattern λ(w : one_of [8, 16, 32, 64]) (value: lhs (bv w)) (count: bv 8),do
+        -- TODO: this needs to mask count
+        let tmp := prim.sar w value (uext count w),
+        set_result_flags tmp,
+        -- TODO: check if count is zero:
+        -- if count == 0, then leave af alone
+        -- if count != 0, then af is undefined
+        -- TODO: of needs to be set depending on 1 bit shift
+        -- TODO: cf needs to be conditionally set
+        value .= tmp
+   pat_end
+
+------------------------------------------------------------------------
+-- sal definition
+-- Shift arithmetic left
+def sal : instruction :=
+ definst "sal" $ do
+   pattern λ(w : one_of [8, 16, 32, 64]) (value: lhs (bv w)) (count: bv 8),do
+        -- TODO: this needs to mask count
+        let tmp := prim.sal w value (uext count w),
+        set_result_flags tmp,
+        -- TODO: check if count is zero:
+        -- if count == 0, then leave af alone
+        -- if count != 0, then af is undefined
+        -- TODO: of needs to be set depending on 1 bit shift
+        -- TODO: cf needs to be conditionally set
+        value .= tmp
+   pat_end
+
+------------------------------------------------------------------------
+-- shr definition
+-- Shift logical right
+def shr : instruction :=
+ definst "shr" $ do
+   pattern λ(w : one_of [8, 16, 32, 64]) (value: lhs (bv w)) (count: bv 8),do
+        -- TODO: this needs to mask count
+        let tmp := prim.shr w value (uext count w),
+        set_result_flags tmp,
+        -- TODO: check if count is zero:
+        -- if count == 0, then leave af alone
+        -- if count != 0, then af is undefined
+        -- TODO: of needs to be set depending on 1 bit shift
+        -- TODO: cf needs to be conditionally set
+        value .= tmp
+   pat_end
+
+------------------------------------------------------------------------
+-- shl definition
+-- Shift logical left
+def shl : instruction :=
+ definst "shl" $ do
+   pattern λ(w : one_of [8, 16, 32, 64]) (value: lhs (bv w)) (count: bv 8),do
+        -- TODO: this needs to mask count
+        let tmp := prim.shl w value (uext count w),
+        set_result_flags tmp,
+        -- TODO: check if count is zero:
+        -- if count == 0, then leave af alone
+        -- if count != 0, then af is undefined
+        -- TODO: of needs to be set depending on 1 bit shift
+        -- TODO: cf needs to be conditionally set
+        value .= tmp
+   pat_end
+
 def all_instructions :=
   [ imul
   , mul
@@ -928,6 +1015,10 @@ def all_instructions :=
   , test
   , sub
   , xor
+  , sar
+  , sal
+  , shr
+  , shl
   ] ++ jcc_instructions
 
 end x86
