@@ -1,0 +1,12 @@
+# Verifying a simple add function.
+# The targets are NOT equivalent, hence expecting SAT.
+llvmBCFilePath: add_llvm.bc
+binFilePath: add
+functions:
+- llvmFunName: add
+  llvmStartBlock: '1'
+  llvmArgs: ['0']
+  llvmVars: []
+  macawFunName: add
+  macawArgs: ['rdi_0']
+  macawVars: []

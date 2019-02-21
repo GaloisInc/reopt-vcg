@@ -4,9 +4,35 @@ llvmBCFilePath: add.bc
 binFilePath: add
 functions:
 - llvmFunName: add
-  llvmStartBlock: '1'
-  llvmArgs: ['0']
-  llvmVars: []
   macawFunName: add
-  macawArgs: ['rdi_0']
-  macawVars: []
+  allocaLimit: 16
+  stackSize: 0x20
+  blocks:
+  - label: '1'
+    addr: 0x4004d6
+    size: 0x1a
+    rsp_offset: 0
+    allocas:
+    - name: 2
+      offset: -32
+    - name: 3
+      offset: -16
+    events:
+    - addr: 0x4004d6
+      type: binary_only_access
+    - addr: 0x4004da
+      type: joint_stack_access
+      alloca: 2
+    - addr: 0x4004de
+      type: joint_stack_access
+      alloca: 2
+    - addr: 0x4004e2
+      type: joint_stack_access
+      alloca: 3
+    - addr: 0x4004e6
+      type: joint_stack_access
+      alloca: 3
+    - addr: 0x4004ee
+      type: binary_only_access
+    - addr: 0x4004ef
+      type: binary_only_access

@@ -2,8 +2,8 @@
 This declares sorts, terms, and semantics for generating SMTLIB
 expressions and reasoning about their interpretation.
 -/
-import data.bitvec
 import galois.category.except
+import galois.data.bitvec
 import galois.data.bool
 import galois.data.buffer
 import galois.data.list
@@ -318,9 +318,6 @@ def implies (c : list (term Bool)) (p : term Bool) : term Bool :=
 , interp := λm, apply_right_assoc m bimplies c p
 }
 
-protected
-def and_all_interp (m:interpretation) (l:list (term Bool)) := band_all (l.map (λb, term.interp b m))
-
 /-- Check if all terms in the arguments are true. -/
 protected
 def all (l:list (term Bool)) : term Bool :=
@@ -328,7 +325,7 @@ def all (l:list (term Bool)) : term Bool :=
     match l with
     | [] := symbol.of_string "true"
     | [h] := h
-    | l := sexpr.parens (sexpr.of_string "and" :: l.map term.to_sexpr)
+    | l := sexpr.parens (symbol.of_string "and" :: l.map term.to_sexpr)
     end
   , interp := λm, ball (l.map (λb, term.interp b m))
   }
@@ -340,7 +337,7 @@ def any (l:list (term Bool)) : term Bool :=
     match l with
     | [] := symbol.of_string "false"
     | [h] := h
-    | l := sexpr.parens (sexpr.of_string "or" :: l.map term.to_sexpr)
+    | l := sexpr.parens (symbol.of_string "or" :: l.map term.to_sexpr)
     end
   , interp := λm, bany (l.map (λb, term.interp b m))
   }
@@ -352,7 +349,7 @@ def xor_list (l:list (term Bool)) : term Bool :=
     match l with
     | [] := symbol.of_string "false"
     | [h] := h
-    | l := sexpr.parens (sexpr.of_string "xor" :: l.map term.to_sexpr)
+    | l := sexpr.parens (symbol.of_string "xor" :: l.map term.to_sexpr)
     end
   , interp := λm, list.foldl bxor ff (l.map (λb, term.interp b m))
   }
@@ -362,7 +359,7 @@ def all_equal {s:sort} [h : decidable_eq s.domain] : list (term s) → term Bool
 | [] := smt2.true
 | [x] := smt2.true
 | (x::l) :=
-  { to_sexpr := sexpr.parens (sexpr.of_string "=" :: x :: l.map term.to_sexpr)
+  { to_sexpr := sexpr.parens (symbol.of_string "=" :: x :: l.map term.to_sexpr)
   , interp := λm,
       apply_chainable (λ(x y : s.domain), decidable.to_bool (x = y))
                       (x.interp m)
@@ -374,7 +371,7 @@ protected
 def distinct {s:sort} [h : decidable_eq s.domain] : list (term s) → term Bool
 | [] := smt2.true
 | [x] := smt2.true
-| l := { to_sexpr := sexpr.parens (sexpr.of_string "=" :: l.map term.to_sexpr)
+| l := { to_sexpr := sexpr.parens (symbol.of_string "=" :: l.map term.to_sexpr)
        , interp   := λm,
           apply_pairwise (λ(x y : s.domain), decidable.to_bool (x ≠ y))
                          (l.map (λb, b.interp m))
@@ -383,7 +380,7 @@ def distinct {s:sort} [h : decidable_eq s.domain] : list (term s) → term Bool
 /-- Return one term or another depending on Boolean predicate. -/
 protected
 def ite {s:sort} (c : term Bool) (x y : term s) : term s :=
-{ to_sexpr := sexpr.parens [sexpr.of_string "ite", c, x, y]
+{ to_sexpr := sexpr.parens [symbol.of_string "ite", c, x, y]
 , interp   := λm, cond (c.interp m) (x.interp m) (y.interp m)
 }
 

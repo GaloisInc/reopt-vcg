@@ -1,13 +1,20 @@
 name:           reopt-vcg
 version:        0.1.0.0
-description:    Th
+synopsis:       Generate verification conditions for equivalence between LLVM and x86.
+description:    Generates verification conditions that are necessary to show an
+                equivalence between the LLVM representation of a program and the x86 binary. The
+                LLVM is recovered using macaw. The verification conditions are
+                intended to be solved using SMT.
 homepage:       https://github.com/GaloisInc/reopt-vcg/haskell-proto
 author:         Guannan Wei and Joe Hendrix
 maintainer:     Joe Hendrix <jhendrix@galois.com>
 copyright:      2018 Galois, Inc
+category:       binary analysis
 license:        BSD3
+license-file:   LICENSE
 build-type:     Simple
 cabal-version:  >= 1.10
+Tested-With:    GHC == 8.4.3
 
 extra-source-files:
     README.md
@@ -17,6 +24,9 @@ library
       src
   build-depends:
                 base >=4.7 && <5
+              , scientific
+              , text
+              , unordered-containers
               , yaml >= 0.10.0
   exposed-modules:
     Reopt.VCG.Config
@@ -42,6 +52,7 @@ executable reopt-vcg
               , macaw-x86
               , mtl
               , parameterized-utils
+              , process
               , text >=1.2.3.0
               , reopt-vcg
               , vector

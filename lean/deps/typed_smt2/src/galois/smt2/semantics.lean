@@ -110,7 +110,7 @@ def check_sat_assuming (preds : list (term Bool)) : semantics punit := do
   -- Build list containing previous assertions plus current predicates
   let all_preds := list.reverse_core ctx.asserted preds in
   let p := quantify_bindings ctx.bindings
-               (λ(m:interpretation), smt2.and_all_interp m all_preds) in
+               (λ(m:interpretation), all_band (λ(t:term Bool), t.interp m) all_preds) in
       { ctx with checked := p :: ctx.checked }
 
 /-- Invoke check-sat command -/
@@ -121,6 +121,7 @@ instance : is_generator semantics :=
 { assert      := semantics.assert
 , declare_fun := semantics.declare_fun
 , define_fun  := semantics.define_fun
+, check_sat   := semantics.check_sat
 }
 
 /--
@@ -129,7 +130,7 @@ misuse or the proposition that was asserted.
 -/
 protected
 def run_and_collect_unsat (m:semantics punit) : except string Prop :=
-  let f (r:punit × context) : Prop := (r.snd.checked.map (λp, p = false)).forall_prop in
+  let f (r:punit × context) : Prop := (r.snd.checked.map (λp, not p)).forall_prop in
   (m.run context.initial).map_poly f
 
 end semantics
