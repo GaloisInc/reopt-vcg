@@ -404,7 +404,6 @@ inductive prim : type → Type
 | shl (i:ℕ) : prim (bv i .→ bv i .→ bv i)
 | shr (i:ℕ) : prim (bv i .→ bv i .→ bv i)
 | sar (i:ℕ) : prim (bv i .→ bv i .→ bv i)
-| sal (i:ℕ) : prim (bv i .→ bv i .→ bv i)
 -- `(bvbit i)` interprets the second argument as a bit index and returns
 -- that bit from the first argument.
 | bvbit (i:ℕ) : prim (bv i .→ bv i .→ bit)
@@ -416,6 +415,10 @@ inductive prim : type → Type
 | even_parity (i:ℕ) : prim (bv i .→ bit)
 | or : prim (bit .→ bit .→ bit)
 | and : prim (bit .→ bit .→ bit)
+| xor : prim (bit .→ bit .→ bit)
+| ite (tp: type) : prim (bit .→ tp .→ tp .→ tp)
+| bv_ule (i:ℕ) : prim (bv i .→ bv i .→ bit)
+| bv_ult (i:ℕ) : prim (bv i .→ bv i .→ bit)
 
 namespace prim
 
@@ -454,6 +457,8 @@ def pp : Π{tp:type}, prim tp → string
 | ._ (bvor i) := "or " ++ i.pp
 | ._ (bvxor i) := "xor " ++ i.pp
 | ._ (shl i) := "shl " ++ i.pp
+| ._ (shr i) := "shr " ++ i.pp
+| ._ (sar i) := "sar " ++ i.pp
 | ._ (bvbit i) := "bvbit " ++ i.pp
 | ._ (complement i) := "complement " ++ i.pp
 | ._ (bvcat i) := "bvcat " ++ i.pp
@@ -463,7 +468,10 @@ def pp : Π{tp:type}, prim tp → string
 | ._ (even_parity i) := "even_parity " ++ i.pp
 | ._ or := "or"
 | ._ and := "and"
-
+| ._ xor := "xor"
+| ._ (ite tp) := "ite " ++ tp.pp
+| ._ (bv_ule i) := "bv_ule " ++ i.pp
+| ._ (bv_ult i) := "bv_ult " ++ i.pp
 
 end prim
 
@@ -513,6 +521,8 @@ def signed_quot {w:ℕ} (x y : expression (bv w))                      : express
 def signed_rem  {w:ℕ} (x y : expression (bv w))                      : expression (bv w) := prim.srem  w x y
 def or                (x y : expression bit)                         : expression bit    := prim.or      x y
 def and               (x y : expression bit)                         : expression bit    := prim.and     x y
+def xor               (x y : expression bit)                         : expression bit    := prim.xor     x y
+def bvnat (w:ℕ) (x : ℕ) : expression (bv w) := prim.bvnat w x
 
 protected
 def is_app : Π{tp:type}, expression tp → bool
@@ -558,6 +568,8 @@ def uext {w:nat_expr} (x: bv w) (o:nat_expr) : bv o := prim.uext w o x
 def neq {tp:type} (x y : tp) : bit := prim.neq tp x y
 
 def eq {tp:type} (x y : tp) : bit := prim.eq tp x y
+
+def ite {tp:type} (cond: bit) (t e : tp) : tp := prim.ite tp cond t e
 
 def one  : bit := prim.one
 def zero : bit := prim.zero
@@ -610,20 +622,29 @@ end event
 
 -- Denotes updates to program state from register.
 inductive action
-| set {tp:type} (l:lhs tp) (v:expression tp) : action
-| aligned_set {tp:type} (l:lhs tp) (v:expression tp) (alignment:ℕ) : action
+-- We have lots of ways to set an lhs
+| set            {tp:type} (l:lhs tp) (v:expression tp) : action
+-- Conditionally set the lhs
+| set_cond       {tp:type} (l:lhs tp) (c: expression bit) (v:expression tp) : action
+-- Mark an lhs as undefined
+| set_undef      {tp:type} (l:lhs tp) : action
+-- Conditionally mark an lhs as undefined
+| set_undef_cond {tp:type} (l:lhs tp) (c: expression bit) : action
+-- Set the lhs but raise an exception when the lhs does not have proper alignment
+| set_aligned    {tp:type} (l:lhs tp) (v:expression tp) (alignment:ℕ) : action
 | local_def {tp:type} (idx:ℕ) (v:expression tp) : action
 | event (e:event) : action
-| mk_undef {tp:type} (l:lhs tp) : action
 
 namespace action
 
 protected def repr : action → string
 | (set l r)         := sexp.app "set" [l.repr, r.pp]
-| (aligned_set l r a) := sexp.app "aligned_set" [l.repr, r.pp, a.pp]
+| (set_cond l c v) := sexp.app "set_cond" [l.repr, c.pp, v.pp]
+| (set_aligned l r a) := sexp.app "set_aligned" [l.repr, r.pp, a.pp]
 | (local_def idx v) := sexp.app "var" [idx.pp, v.pp]
 | (event e) := e.pp
-| (mk_undef v) := sexp.app "mk_undef" [v.repr]
+| (set_undef v) := sexp.app "set_undef" [v.repr]
+| (set_undef_cond l c) := sexp.app "set_undef_cond" [l.repr, c.pp]
 
 end action
 
@@ -783,8 +804,11 @@ def set {tp:type} (l:lhs tp) (v:expression tp) : semantics unit :=
   semantics.add_action (action.set l v)
 
 --- Set the expression of the left-hand side to the expression and respect alignment.
-def aligned_set {tp:type} (l:lhs tp) (v:expression tp) (a:ℕ): semantics unit :=
-  semantics.add_action (action.aligned_set l v a)
+def set_aligned {tp:type} (l:lhs tp) (v:expression tp) (a:ℕ): semantics unit :=
+  semantics.add_action (action.set_aligned l v a)
+
+def set_cond {tp:type} (l:lhs tp) (c: expression bit) (v:expression tp) : semantics unit :=
+  semantics.add_action (action.set_cond l c v)
 
 --- Evaluate the given expression and return a local expression that will not mutate.
 def eval {tp : type} (v:expression tp) : semantics (expression tp) := do
