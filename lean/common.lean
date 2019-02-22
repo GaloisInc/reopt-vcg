@@ -638,13 +638,13 @@ inductive action
 namespace action
 
 protected def repr : action → string
-| (set l r)         := sexp.app "set" [l.repr, r.pp]
-| (set_cond l c v) := sexp.app "set_cond" [l.repr, c.pp, v.pp]
-| (set_aligned l r a) := sexp.app "set_aligned" [l.repr, r.pp, a.pp]
-| (local_def idx v) := sexp.app "var" [idx.pp, v.pp]
-| (event e) := e.pp
-| (set_undef v) := sexp.app "set_undef" [v.repr]
+| (set l r)            := sexp.app "set" [l.repr, r.pp]
+| (set_cond l c v)     := sexp.app "set_cond" [l.repr, c.pp, v.pp]
+| (set_undef v)        := sexp.app "set_undef" [v.repr]
 | (set_undef_cond l c) := sexp.app "set_undef_cond" [l.repr, c.pp]
+| (set_aligned l r a)  := sexp.app "set_aligned" [l.repr, r.pp, a.pp]
+| (local_def idx v)    := sexp.app "var" [idx.pp, v.pp]
+| (event e)            := e.pp
 
 end action
 
