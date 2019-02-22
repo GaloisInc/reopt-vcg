@@ -172,7 +172,15 @@ data VCGFunInfo = VCGFunInfo
   }
   deriving (Show, Generic)
 
-instance Yaml.FromJSON VCGFunInfo
+functionInfoFields :: FieldList
+functionInfoFields = fields ["llvm_name", "stack_size", "blocks"]
+
+instance Yaml.FromJSON VCGFunInfo where
+  parseJSON = withFixedObject "function" functionInfoFields $ \v ->
+    VCGFunInfo
+      <$> v .: "llvm_name"
+      <*> v .: "stack_size"
+      <*> v .: "blocks"
 
 data MetaVCGConfig = MetaVCGConfig
   { llvmBCFilePath :: FilePath

@@ -3,10 +3,8 @@
 llvmBCFilePath: add.bc
 binFilePath: add
 functions:
-- llvmFunName: add
-  macawFunName: add
-  allocaLimit: 16
-  stackSize: 0x20
+- llvm_name: add
+  stack_size: 32
   blocks:
   - label: '1'
     addr: 0x4004d6
@@ -36,3 +34,13 @@ functions:
       type: binary_only_access
     - addr: 0x4004ef
       type: binary_only_access
+- llvm_name: main
+  stack_size: 16
+  blocks:
+  - label: '1'
+    addr: 0x4004f0
+    size: 0x1c
+    rsp_offset: 0
+    allocas:
+    - name: 2
+      offset: -16

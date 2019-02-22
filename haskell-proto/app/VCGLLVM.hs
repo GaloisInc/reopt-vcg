@@ -224,9 +224,11 @@ assign2SMT ident (Load (Typed (PtrTo lty) src) _ord _align) = do
   let w = byteCount lty
   addEvent $ LoadEvent addrTerm w (identVar ident)
 assign2SMT ident (Call isTailCall retty f args) = do
-  -- TODO: Add function called to invoke event.
-  fPtrVal <- primEval (PrimType (Integer 64)) f
-  argValues <- mapM evalTyped args
+  -- Evaluate function
+  fPtrVal <- primEval (PtrTo (FunTy retty (typedType <$> args) False)) f
+  -- Evaluate arguments
+  argValues <- traverse evalTyped args
+  -- Add invoke event
   addEvent $ InvokeEvent isTailCall fPtrVal argValues (Just (ident, retty))
 assign2SMT _ instr  = do
   error $ "assign2SMT: unsupported instruction: " ++ show instr
