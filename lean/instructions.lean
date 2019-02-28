@@ -26,21 +26,28 @@ local notation ℕ := nat_expr
 
 infix `.=`:20 := set
 
+notation d `.=` a `|` s :20 := set_aligned d s a
+
 ------------------------------------------------------------------------
 -- bitvector functions
 
 -- `off` is the index of the bit to return.
 -- TODO: figure out how to handle out of bounds and any other edge cases and document the
 -- assumptions.
-def bv_bit {w:ℕ} (base : bv w) (off : bv w) : bit := prim.bvbit w base off
-def bv_xor {w:ℕ} (x : bv w) (y : bv w) : bv w := prim.xor w x y
+def bv_bit {w:ℕ} (base : bv w) (off : bv w) : bit := prim.bvbit w base off -- Note that if `off` exceeds w, bvBit v off should return `zero`
+def bv_xor {w:ℕ} (x : bv w) (y : bv w) : bv w := prim.bvxor w x y
 def bv_shl {w:ℕ} (x : bv w) (y : bv w) : bv w := prim.shl w x y
+def bv_shr {w:ℕ} (x y : bv w) : bv w := prim.shr w x y
+def bv_sar {w:ℕ} (x y : bv w) : bv w := prim.sar w x y
 def bv_complement {w:ℕ} (b : bv w) : bv w := prim.complement w b
 def bv_is_zero {w:ℕ} (b : bv w) : bit := b = 0
-def bv_and {w:ℕ} (x : bv w) (y : bv w) : bv w := prim.and w x y
-def bv_or {w:ℕ} (x : bv w) (y : bv w) : bv w := prim.or w x y
+def bv_and {w:ℕ} (x : bv w) (y : bv w) : bv w := prim.bvand w x y
+def bv_or {w:ℕ} (x : bv w) (y : bv w) : bv w := prim.bvor w x y
 def bv_cat {w:ℕ} (x : bv w) (y : bv w) : bv (2*w) := prim.bvcat w x y
 def bv_least_nibble {w:ℕ} (x : bv w) : bv 4 := prim.bv_least_nibble w x
+def bv_ule {w:ℕ} (x y : bv w) : bit := prim.bv_ule w x y
+def bv_ult {w:ℕ} (x y : bv w) : bit := prim.bv_ult w x y
+def bv_sub {w:ℕ} (x y : bv w) : bv w := prim.bvsub w x y
 
 def msb {w:ℕ} (v : bv w) : bit := prim.msb w v
 def least_byte {w:ℕ} (v : bv w) : bv 8 := prim.least_byte w v
@@ -55,7 +62,10 @@ infixl `.&.`:70 := bv_and
 def nat_to_bv {w:ℕ} (n:ℕ) : bv w := prim.bvnat w n
 
 def set_undefined {tp:type} (v : lhs tp) : semantics unit := do
-  semantics.add_action (action.mk_undef v)
+  semantics.add_action (action.set_undef v)
+
+def set_undefined_cond {tp:type} (v : lhs tp) (cond: expression bit) : semantics unit := do
+  semantics.add_action (action.set_undef_cond v cond)
 
 def set_overflow (b:bit) : semantics unit := do
   cf .= b,
@@ -108,14 +118,42 @@ def pop (w: ℕ) (additional : bv 16) : semantics (bv w) := do
   rsp .= ⇑rsp + count,
   return (uext temp w)
 
-def do_jmp (cond : bit) (addr : bv 64) : semantics unit :=
-  match cond with
-  | prim.one := record_event (event.jmp addr)
-  | _        := return ()
-  end
-
 def do_xchg {w:ℕ} (addr1 : bv w) (addr2 : bv w) : semantics unit :=
   record_event (event.xchg addr1 addr2)
+
+-- Generic shift operation, takes functions for doing the shift and
+-- setting the flags.
+def do_sh {w:ℕ}
+          (count: bv 8)                  -- amount to shift by
+          (count_mask: bv 8)             -- mask for the counter
+          (v: lhs (bv w))                -- value to be shifted
+          (shift: bv w → bv w → bv w)    -- shift operation
+          (cf_update: bv w → bv 8 → bit) -- update function for carry flag
+          (of_update: bv w → bv w → bit) -- update function for overflow flag
+          : semantics unit := do
+  -- The intel manual says that the count is masked to give an upper
+  -- bound on the time the shift takes, with a mask of 63 in the case
+  -- of a 64 bit operand, and 31 in the other cases.
+  let low_count := count .&. count_mask,
+  -- compute the result
+  let res := shift v (uext low_count w),
+  -- When the count is zero, nothing happens, and no flags change
+  let is_nonzero := low_count ≠ 0,
+  -- Set the af flag
+  set_undefined_cond af is_nonzero,
+  let cf_bit := cf_update res low_count,
+  set_cond cf is_nonzero cf_bit,
+  let of_bit := of_update v res,
+  -- We set `of` twice, to keep the logic a bit simpler: `of` should
+  -- only be set by the result when low_count = 1, and in other cases
+  -- it should either be unaffected or undefined (low_count = 0
+  -- vs. low_count > 1).
+  set_undefined_cond of (expression.or is_nonzero (low_count ≠ 1)),
+  set_cond of (low_count = 1) of_bit,
+  set_cond sf is_nonzero (msb res),
+  set_cond zf is_nonzero (res = 0),
+  set_cond pf is_nonzero (even_parity (least_byte res)),
+  set_cond v  is_nonzero res
 
 ------------------------------------------------------------------------
 -- imul definition
@@ -225,6 +263,26 @@ def movzx : instruction := do
  definst "movzx" $ do
    pattern λ(w : one_of [16,32,64]) (u : one_of [8, 16]) (dest : lhs (bv w)) (src : bv u), do
      dest .= uext src w
+   pat_end
+
+------------------------------------------------------------------------
+-- movdqa definition
+-- Move Aligned Packed Integer Values
+
+def movdqa : instruction := do
+ definst "movdqa" $ do
+   pattern λ(n : one_of [4, 8, 16]) (dest : lhs (vec n (bv 32))) (src : vec n (bv 32)), do
+     dest .= 16 | src
+   pat_end
+
+------------------------------------------------------------------------
+-- movaps definition
+-- Move Aligned Packed Single-Precision Floating-Point Values
+
+def movaps : instruction := do
+ definst "movaps" $ do
+   pattern λ(n : one_of [4, 8, 16]) (dest : lhs (vec n (bv 32))) (src : vec n (bv 32)), do
+     dest .= 16 | src
    pat_end
 
 ------------------------------------------------------------------------
@@ -441,6 +499,29 @@ def or : instruction := do
    pat_end
 
 ------------------------------------------------------------------------
+-- xor definition
+-- Logical Exclusive OR
+
+def xor : instruction := do
+ definst "xor" $ do
+   pattern λ(u v : one_of [8, 16, 32, 64]) (dest : lhs (bv u)) (src : bv v), do
+     dest .= bv_xor ⇑dest (sext src u),
+     set_undefined af,
+     of .= zero,
+     cf .= zero,
+     set_result_flags ⇑dest
+   pat_end
+
+------------------------------------------------------------------------
+-- test definition
+-- Logical compare
+def test : instruction :=
+ definst "test" $ do
+   pattern λ(w : one_of [8, 16, 32, 64]) (x y : bv w), do
+     set_bitwise_flags (x .&. y)
+   pat_end
+
+------------------------------------------------------------------------
 -- bt definition
 -- Bit Test
 
@@ -633,6 +714,20 @@ def hlt : instruction :=
   definst "hlt" $ mk_pattern (record_event event.hlt)
 
 ------------------------------------------------------------------------
+-- sub definition
+
+def sub : instruction := do
+ definst "sub" $ do
+   pattern λ(w : one_of [8, 16, 32, 64]) (dest : lhs (bv w)) (src : bv w), do
+     tmp ← eval $ ⇑dest - src,
+     set_result_flags tmp,
+     cf .= usub_overflows tmp src,
+     of .= ssub_overflows tmp src,
+     af .= usub4_overflows tmp src,
+     dest .= tmp
+   pat_end
+
+------------------------------------------------------------------------
 -- lea definition
 -- Load Effective Address
 
@@ -658,8 +753,69 @@ def call : instruction :=
 def jmp : instruction :=
  definst "jmp" $ do
    pattern λ(w : one_of [8, 16, 32, 64]) (v : bv w), do
-     do_jmp one (uext v 64)
+     record_event (event.jmp (uext v 64))
    pat_end
+
+------------------------------------------------------------------------
+-- Jcc definition
+-- Conditional jumps
+
+def mk_jcc_instruction : string × expression bit → instruction
+ | (name, cc) := definst name $ do
+ pattern λ(w : one_of [8, 16, 32, 64]) (addr : bv w), do
+   record_event (event.branch cc (uext addr 64))
+ pat_end
+
+def mk_jcc_instruction_aliases : list string × expression bit → list instruction
+ | (names, cc) := list.map (λn, mk_jcc_instruction (n, cc)) names
+
+-- Conditional jump instructions, some of these have multiple names. They only vary
+-- in the condition checked so we use helper functions to associate mnemonics with
+-- the conditions instead of defining each instruction at the top level.
+-- TODO: We might be able to remove the aliases. It looks like the instruction encodings are the same
+-- so it might suffice to find out what the decoder will pick as the canonical mnemonic.
+def jcc_instructions : list instruction := list.join $ list.map mk_jcc_instruction_aliases
+ [ -- Jump if above (cf = 0 and zf = 0)
+   (["ja", "jnbe"], expression.and (expression.get cf = zero) (expression.get zf = zero))
+   -- Jump if above or equal (cf = 0)
+ , (["jae", "jnb", "jnc"], expression.get cf = zero)
+   -- Jump if below (cf = 1)
+ , (["jb", "jc", "jnae"], expression.get cf = one)
+   -- Jump if below or equal (cf = 1 or zf = 1)
+ , (["jbe"], expression.or (expression.get cf = one) (expression.get zf = one))
+   -- Jump if CX is 0
+ , (["jcxz"], expression.get cx = 0)
+   -- Jump if ECX is 0
+ , (["jecxz"], expression.get ecx = 0)
+   -- Jump if RCX is 0
+ , (["jrcxz"], expression.get rcx = 0)
+   -- Jump if equal (zf = 1)
+ , (["je", "jz"], expression.get zf = one)
+   -- Jump if greater (zf = 0 and sf = of)
+ , (["jg", "jnle"], expression.and (expression.get zf = zero) (expression.get sf = expression.get of))
+   -- Jump if greater or equal (sf = of)
+ , (["jge", "jnl"], expression.get sf = expression.get of)
+   -- Jump if less (sf ≠ of)
+ , (["jl", "jnge"], expression.get sf ≠ expression.get of)
+   -- Jump if less or equal (zf = 1 or sf ≠ of)
+ , (["jle", "jng"], expression.or (expression.get zf = one) (expression.get sf ≠ expression.get of))
+   -- Jump if not above (cf = 1 or zf = 1)
+ , (["jna"], expression.or (expression.get cf = one) (expression.get zf = one))
+   -- Jump if not equal (zf = 0)
+ , (["jne", "jnz"], expression.get zf = zero)
+   -- Jump if not overflow (of = 0)
+ , (["jno"], expression.get of = zero)
+   -- Jump if not parity (pf = 0)
+ , (["jnp", "jpo"], expression.get pf = zero)
+   -- Jump if not sign (sf = 0)
+ , (["jns"], expression.get sf = zero)
+   -- Jump if overflow (of = 1)
+ , (["jo"], expression.get of = one)
+   -- Jump if parity (pf = 1)
+ , (["jp", "jpe"], expression.get pf = one)
+   -- Jump if sign (sf = 1)
+ , (["js"], expression.get sf = one)
+ ]
 
 ------------------------------------------------------------------------
 -- ret definition
@@ -781,6 +937,54 @@ def cld : instruction :=
      df .= zero
    pat_end
 
+------------------------------------------------------------------------
+-- sar definition
+-- Shift arithmetic right
+def sar : instruction :=
+  definst "sar" $ do
+    let set_cf {w:ℕ} v i :=
+      let notInRange := bv_ult (expression.bvnat 8 w) i in
+      let msb_v := bv_bit v (expression.bvnat w (w-1)) in
+      expression.or (bv_bit v ((uext i w) - 1))
+                    (expression.and notInRange msb_v),
+    pattern λ(w : one_of [8, 16, 32]) (value: lhs (bv w)) (count: bv 8),do
+      do_sh count (32-1) value bv_sar set_cf (λv res, zero)
+    pat_end,
+    pattern λ(value: lhs (bv 64)) (count: bv 8),do
+      do_sh count (64-1) value bv_sar set_cf (λv res, zero)
+    pat_end
+
+------------------------------------------------------------------------
+-- shr definition
+-- Shift logical right
+def shr : instruction :=
+  definst "shr" $ do
+    let set_cf {w:ℕ} v (i: bv 8) := bv_bit v (bv_sub (uext i w) 1),
+    let set_of {w:ℕ} v res := expression.xor (@msb w res) (@msb w v),
+    pattern λ(w : one_of [8, 16, 32]) (value: lhs (bv w)) (count: bv 8),do
+      do_sh count (32-1) value bv_shr set_cf set_of
+    pat_end,
+    pattern λ(value: lhs (bv 64)) (count: bv 8),do
+      do_sh count (64-1) value bv_shr set_cf set_of
+    pat_end
+
+------------------------------------------------------------------------
+-- sal & shl definition
+-- Shift arithmetic left
+def sal_patterns := do
+  let set_cf {w:ℕ} v (i : bv 8) :=
+        expression.and (bv_ule i (expression.bvnat _ w))
+                       (bv_bit v (bv_sub (expression.bvnat _ w) (uext i w))),
+  pattern λ(w : one_of [8, 16, 32]) (value: lhs (bv w)) (count: bv 8),do
+    do_sh count (32-1) value bv_shl set_cf (λv res, msb v)
+  pat_end,
+  pattern λ(value: lhs (bv 64)) (count: bv 8), do
+    do_sh count (64-1) value bv_shl set_cf (λv res, msb v)
+  pat_end
+
+def sal : instruction := definst "sal" sal_patterns
+def shl : instruction := definst "shl" sal_patterns
+
 def all_instructions :=
   [ imul
   , mul
@@ -830,7 +1034,14 @@ def all_instructions :=
   , cdqe
   , clc
   , cld
-  ]
+  , test
+  , sub
+  , xor
+  , sar
+  , sal
+  , shr
+  , shl
+  ] ++ jcc_instructions
 
 end x86
 
