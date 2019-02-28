@@ -111,59 +111,24 @@ instance (l:list ℕ) : has_coe (one_of l) nat_expr :=
 
 end one_of
 
-local notation ℕ := nat_expr
-
-inductive base_type
-| bv (w:nat_expr) : base_type
-| bit             : base_type
-| float           : base_type
-| double          : base_type
-| x86_80          : base_type
-
-namespace base_type
-
-instance : decidable_eq base_type := by tactic.mk_dec_eq_instance
-
-protected
-def pp : base_type → string
-| (bv w) := sexp.app "bv" [w.pp]
-| bit    := "bit"
-| float  := "float"
-| double := "double"
-| x86_80 := "x86_80"
-
-end base_type
-
 inductive type
-| base (bt : base_type) : type
+| bv (w:nat_expr) : type
+| bit : type
+| float  : type
+| double : type
+| x86_80 : type
 -- A function from arg to res
 | fn (arg:type) (res:type) : type
 
 namespace type
 
-instance : decidable_eq type := by tactic.mk_dec_eq_instance
-
--- Export all the base_type constructors as type constructors to keep instructions.lean happy
-@[reducible]
-def bv (w : nat_expr) := base (base_type.bv w)
-@[reducible]
-def bit    := base base_type.bit
-@[reducible]
-def float  := base base_type.float
-@[reducible]
-def double := base base_type.double
-@[reducible]
-def x86_80 := base base_type.x86_80
-
-end type
-
-instance base_type_type_coe : has_coe base_type type := ⟨type.base⟩
-
-namespace type
-
 protected
 def pp' : Π(in_fun:bool), type → string
-| _ (base bt) := bt.pp
+| _ (bv w) := sexp.app "bv" [w.pp]
+| _ bit    := "bit"
+| _ float  := "float"
+| _ double := "double"
+| _ x86_80 := "x86_80"
 | in_fun (fn a r) :=
   if in_fun then
      a.pp' ff ++ " " ++ r.pp' tt
@@ -172,6 +137,8 @@ def pp' : Π(in_fun:bool), type → string
 
 protected
 def pp : type → string := type.pp' ff
+
+instance : decidable_eq type := by tactic.mk_dec_eq_instance
 
 end type
 
@@ -187,8 +154,6 @@ open mc_semantics.type
 
 ------------------------------------------------------------------------
 -- type
-
-local notation ℕ := nat_expr
 
 -- Denotes the type of a register.
 inductive gpreg_type : Type
@@ -313,7 +278,7 @@ protected def repr : Π {tp:type}, lhs tp → string
 
 end lhs
 
-section
+
 
 def reg8l (i:fin 16) := lhs.reg $ reg.concrete_gpreg i gpreg_type.reg8l
 def reg8h (i:fin 16) := lhs.reg $ reg.concrete_gpreg i gpreg_type.reg8h
@@ -375,9 +340,10 @@ def of  := flagreg 11
 
 def st0 : lhs x86_80 := lhs.streg 0
 
-end
+section nat_is_nat_expr
 
 local infixr `.→`:30 := fn
+local notation ℕ := nat_expr
 
 -- This denotes primitive operations that are part of the semantics.
 inductive prim : type → Type
@@ -455,6 +421,8 @@ inductive prim : type → Type
 | least_byte (i:ℕ) : prim (bv i .→ bv 8)
 | even_parity (i:ℕ) : prim (bv i .→ bit)
 
+end nat_is_nat_expr
+
 namespace prim
 
 def pp : Π{tp:type}, prim tp → string
@@ -523,6 +491,10 @@ instance (a:type) (f:type) : has_coe_to_fun (expression (type.fn a f)) :=
 , coe := app
 }
 
+section nat_is_nat_expr
+
+local notation ℕ := nat_expr
+
 def bvadd : Π{w:ℕ}, expression (bv w) → expression (bv w) → expression (bv w)
   | ._ (primitive (prim.bvnat ._ n)) (primitive (prim.bvnat w m)) := prim.bvnat w (n + m)
   | i x y := prim.bvadd i x y
@@ -548,6 +520,8 @@ def rem         {w:ℕ} (x y : expression (bv w))                      : express
 def signed_quot {w:ℕ} (x y : expression (bv w))                      : expression (bv w) := prim.squot w x y
 def signed_rem  {w:ℕ} (x y : expression (bv w))                      : expression (bv w) := prim.srem  w x y
 
+end nat_is_nat_expr
+
 protected
 def is_app : Π{tp:type}, expression tp → bool
 | ._ (app _ _) := tt
@@ -558,7 +532,7 @@ def pp_args : Π{tp:type}, expression tp → string
 | ._ (primitive o) := o.pp
 | ._ (app f a) := f.pp_args ++ " " ++ paren_if a.is_app a.pp_args
 | _  (get lhs) := lhs.repr
-| ._ (get_local idx tp) := sexp.app "local" [idx.pp]
+| ._ (get_local idx tp) := sexp.app "local" [has_repr.repr idx]
 
 protected
 def pp {tp:type} (v:expression tp) := paren_if v.is_app v.pp_args
@@ -593,8 +567,8 @@ def neq {tp:type} (x y : tp) : bit := prim.neq tp x y
 
 def eq {tp:type} (x y : tp) : bit := prim.eq tp x y
 
-def one  : expression bit := prim.one
-def zero : expression bit := prim.zero
+def one  : bit := prim.one
+def zero : bit := prim.zero
 
 instance bv_has_mul (w:nat_expr) : has_mul (bv w) := ⟨λx y, prim.mul w x y⟩
 
@@ -651,7 +625,7 @@ namespace action
 
 protected def repr : action → string
 | (set l r)         := sexp.app "set" [l.repr, r.pp]
-| (local_def idx v) := sexp.app "var" [idx.pp, v.pp]
+| (local_def idx v) := sexp.app "var" [has_repr.repr idx, v.pp]
 | (event e) := e.pp
 | (mk_undef v) := sexp.app "mk_undef" [v.repr]
 
