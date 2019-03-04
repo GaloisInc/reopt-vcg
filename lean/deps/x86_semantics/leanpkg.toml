@@ -1,0 +1,8 @@
+[package]
+name = "x86_semantics"
+version = "0.1"
+lean_version = "master"
+path="src"
+
+[dependencies]
+galois_stdlib = { path = "../galois_stdlib" }

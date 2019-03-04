@@ -1,5 +1,4 @@
-import .coe1
-import .tactic
+import galois.category.coe1
 
 def unlines : list string → string := list.foldr (λx r, x ++ "\n" ++ r) ""
 
