@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -39,6 +40,7 @@ import qualified Data.Set as Set
 import           Data.Text (Text)
 import qualified Data.Text as Text
 import           Data.Word
+import           GHC.Natural
 import           GHC.Stack
 import           Text.PrettyPrint.ANSI.Leijen as PP hiding ((<$>))
 import qualified What4.Protocol.SMTLib2.Syntax as SMT
@@ -84,14 +86,14 @@ data Event
     -- ^ We added a warning about an issue in the VCG
   | InstructionEvent !(MemSegmentOff 64)
     -- ^ Marker to indicate the instruction at the given address will be executed.
-  | ReadEvent !SMT.Term !Integer !Var
+  | forall w . ReadEvent !SMT.Term !(NatRepr w) !Var
     -- ^ `ReadEvent a w v` indicates that we read `w` bytes from `a`,
     -- and assign the value returned to `v`.
-  | CondReadEvent !SMT.Term !SMT.Term !Integer !SMT.Term !Var
+  | forall w . CondReadEvent !SMT.Term !SMT.Term !(NatRepr w) !SMT.Term !Var
     -- ^ `CondReadEvent c a w d v` indicates that we read `w` bytes from `a` when
     -- condition `c` holds, and assign the return value to `v`.   When `c`
     -- is false, then assign `d` to `v`.
-  | WriteEvent !SMT.Term !Integer !SMT.Term
+  | forall w . WriteEvent !SMT.Term !(NatRepr w) !SMT.Term
     -- ^ `WriteEvent a w v` indicates that we write the `w` byte value `v`  to `a`.
     --
     -- This has side effects, so we record the event.
@@ -278,23 +280,23 @@ evalApp2SMT aid a = do
     SExt x w -> do
       xv <- primEval x
       -- This sign extends x
-      doSet $ SMT.bvsignExtend (natValue w-natValue (M.typeWidth x)) xv
+      doSet $ SMT.bvsignExtend (intValue w-intValue (M.typeWidth x)) xv
     UExt x w -> do
       xv <- primEval x
       -- This sign extends x
-      doSet $ SMT.bvzeroExtend (natValue w-natValue (M.typeWidth x)) xv
+      doSet $ SMT.bvzeroExtend (intValue w - intValue (M.typeWidth x)) xv
     UadcOverflows x y c -> do
       -- We check for unsigned overflow by zero-extending x, y, and c, performing the
       -- addition, and seeing if the most signicant bit is non-zero.
       xv <- primEval x
       yv <- primEval y
       cv <- primEval c
-      let w :: Integer
+      let w :: Natural
           w = natValue (M.typeWidth x)
       -- Do zero extensions
       let xext = SMT.bvzeroExtend 1 xv
       let yext = SMT.bvzeroExtend 1 yv
-      let cext = SMT.bvzeroExtend w (SMT.ite cv SMT.bit1 SMT.bit0)
+      let cext = SMT.bvzeroExtend (toInteger w) (SMT.ite cv SMT.bit1 SMT.bit0)
       -- Perform addition
       let rext = SMT.bvadd xext [yext, cext]
       -- Unsigned overflow occurs if most-significant bit is set.
@@ -307,10 +309,10 @@ evalApp2SMT aid a = do
       xv <- primEval x
       yv <- primEval y
       cv <- primEval c
-      let w :: Integer
+      let w :: Natural
           w = natValue (M.typeWidth x)
       -- Carry is positive.
-      let cext = SMT.bvzeroExtend (w-1) (SMT.ite cv SMT.bit1 SMT.bit0)
+      let cext = SMT.bvzeroExtend (toInteger (w-1)) (SMT.ite cv SMT.bit1 SMT.bit0)
       -- Perform addition
       let r = SMT.bvadd xv [yv, cext]
       -- Check sign property.
@@ -355,7 +357,7 @@ assignRhs2SMT aid rhs = do
         error "reopt-vcg only encountered big endian read."
       addrTerm <- primEval addr
       -- Add conditional read event.
-      addEvent $ ReadEvent addrTerm (natValue w) (smtLocalVar aid)
+      addEvent $ ReadEvent addrTerm w (smtLocalVar aid)
 
     CondReadMem (BVMemRepr w end) cond addr def -> do
       when (end /= LittleEndian) $ do
@@ -366,7 +368,7 @@ assignRhs2SMT aid rhs = do
 
       -- Assert that value = default when cond is false
       -- Add conditional read event.
-      addEvent $ CondReadEvent condTerm addrTerm (natValue w) defTerm (smtLocalVar aid)
+      addEvent $ CondReadEvent condTerm addrTerm w defTerm (smtLocalVar aid)
 
     SetUndefined tp -> do
       setUndefined aid tp
@@ -385,7 +387,7 @@ stmt2SMT stmt =
         error "reopt-vcg only encountered big endian read."
       addrTerm <- primEval addr
       valTerm  <- primEval val
-      addEvent $ WriteEvent addrTerm (natValue w) valTerm
+      addEvent $ WriteEvent addrTerm w valTerm
     InstructionStart off _mnem -> do
       blockAddr <- gets blockStartAddr
       let Just addr = incSegmentOff blockAddr (toInteger off)

@@ -192,12 +192,3 @@ data MetaVCGConfig = MetaVCGConfig
   deriving (Show, Generic)
 
 instance Yaml.FromJSON MetaVCGConfig
-
---  , llvmArgs       :: [String]
-    -- ^ The LLVM argument names
---  , llvmStartBlock :: String
-    -- ^ LLVM starting block name, either a digit (annonymous block) or a named block
---  , llvmVars       :: [String]
-    -- ^ LLVM mapping between immediate variables
---  , macawArgs      :: [String]
-    -- ^ Macaw argument names, build mappings with llvmArgs

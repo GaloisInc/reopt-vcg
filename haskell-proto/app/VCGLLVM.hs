@@ -152,7 +152,7 @@ arithOpFunc _ _ _ = llvmError "Not implemented yet"
 
 asSMTType :: Type -> Maybe SMT.Sort
 asSMTType (PtrTo _) = Just (SMT.bvSort 64)
-asSMTType (PrimType (Integer i)) | i > 0 = Just $ SMT.bvSort (toInteger i)
+asSMTType (PrimType (Integer i)) | i > 0 = Just $ SMT.bvSort (fromIntegral i)
 asSMTType _ = Nothing
 
 identVar :: Ident -> Text
@@ -163,8 +163,9 @@ primEval :: Type
          -> LStateM SMT.Term
 primEval _ (ValIdent var) = do
   pure $! varTerm (identVar var)
-primEval (PrimType (Integer w)) (ValInteger i) | w > 0 = do
-  pure $ SMT.bvdecimal i (toInteger w)
+primEval (PrimType (Integer w)) (ValInteger i) = do
+  when (w <= 0) $ error "primEval given negative width."
+  pure $ SMT.bvdecimal i (fromIntegral w)
 primEval _ _ = error "TODO: Add more support in primEval"
 
 evalTyped :: Typed Value -> LStateM SMT.Term
@@ -183,6 +184,7 @@ assign2SMT ident (Arith op (Typed lty lhs) rhs)
       defineTerm ident tp $ arithOpFunc op lhsv rhsv
 
 assign2SMT ident (ICmp op (Typed lty@(PrimType (Integer w)) lhs) rhs) = do
+  when (w <= 0) $ error $ "Unexpected bitwidth " ++ show w
   lhsv <- primEval lty lhs
   rhsv <- primEval lty rhs
   let r =
@@ -197,7 +199,7 @@ assign2SMT ident (ICmp op (Typed lty@(PrimType (Integer w)) lhs) rhs) = do
           Isge -> SMT.bvsge lhsv rhsv
           Islt -> SMT.bvslt lhsv rhsv
           Isle -> SMT.bvsle lhsv rhsv
-  defineTerm ident (SMT.bvSort (toInteger w)) r
+  defineTerm ident (SMT.bvSort (fromIntegral w)) r
 assign2SMT nm (Alloca ty eltCount malign) = do
   let eltSize :: Integer
       eltSize =

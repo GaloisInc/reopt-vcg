@@ -27,6 +27,7 @@ import           Data.Macaw.X86.X86Reg
 import           Data.Map (Map)
 import qualified Data.Map.Strict as Map
 import           Data.Maybe
+import           Data.Parameterized.NatRepr
 import           Data.Set (Set)
 import qualified Data.Set as Set
 import           Data.String
@@ -36,6 +37,7 @@ import           Data.Text.Lazy.Builder (Builder)
 import qualified Data.Text.Lazy.Builder as Builder
 import qualified Data.Text.Lazy.IO as LText
 import qualified Data.Yaml as Yaml
+import           GHC.Natural
 import           System.Directory
 import           System.Environment
 import           System.Exit
@@ -155,61 +157,61 @@ getMCMem = do
 -- | @macawWrite addr cnt val@ writes @cnt@ bytes to memory.
 --
 -- The value written is the @8*cnt@-length bitvector term @val@.
-macawWrite :: SMT.Term -> Integer -> SMT.Term -> VCGMonad ()
+macawWrite :: SMT.Term -> NatRepr w -> SMT.Term -> VCGMonad ()
 macawWrite addr byteCount val = do
   idx <- gets mcMemIndex
   modify' $ \s -> s { mcMemIndex = mcMemIndex s + 1 }
   let mem = varTerm (M.memVar idx)
-  let newMem | byteCount `elem` [1,2,4,8] =
-                 SMT.term_app (memWriteName byteCount) [mem, addr, val]
+  let newMem | natValue byteCount `elem` [1,2,4,8] =
+                 SMT.term_app (memWriteName (natValue byteCount)) [mem, addr, val]
              | otherwise =
-                 writeBVLE (varTerm (M.memVar idx)) addr val byteCount
+                 writeBVLE (varTerm (M.memVar idx)) addr val (natValue byteCount)
   addCommand $ SMT.defineFun (M.memVar (idx+1)) [] memSort newMem
 
--- | Name of function in SMTLIB for writing given number of bytes
-memWriteName :: (IsString a, Semigroup a) => Integer -> a
-memWriteName byteCount = "mem_write" <> fromString (show (8*byteCount))
-
 -- | Name of function in SMTLIB for reading given number of bytes
-memReadName :: (IsString a, Semigroup a) => Integer -> a
+memReadName :: (IsString a, Semigroup a) => Natural -> a
 memReadName byteCount = "mem_read" <> fromString (show (8*byteCount))
+
+-- | Name of function in SMTLIB for writing given number of bytes
+memWriteName :: (IsString a, Semigroup a) => Natural -> a
+memWriteName byteCount = "mem_write" <> fromString (show (8*byteCount))
 
 -- | Read a number of bytes as a bitvector.
 -- Note. This refers repeatedly to ptr so, it should be a constant.
 readBVLE :: SMT.Term -- ^ Memory
          -> SMT.Term  -- ^ Address to read
-         -> Integer -- ^ Number of bytes to read.
+         -> Natural -- ^ Number of bytes to read.
          -> SMT.Term
 readBVLE mem ptr0 w = go (w-1)
-  where go :: Integer -> SMT.Term
+  where go :: Natural -> SMT.Term
         go 0 = SMT.select mem ptr0
         go i =
-          let ptr = SMT.bvadd ptr0 [SMT.bvdecimal i 64]
+          let ptr = SMT.bvadd ptr0 [SMT.bvdecimal (toInteger i) 64]
            in SMT.concat (SMT.select mem ptr) (go (i-1))
 
 -- | Create mem write declaration given number of bytes to write
-memReadDecl :: Integer -> SMT.Command
+memReadDecl :: Natural -> SMT.Command
 memReadDecl w = do
   SMT.defineFun (memReadName w) [("m", memSort), ("a", ptrSort)] (SMT.bvSort (8*w)) $
     readBVLE (varTerm "m") (varTerm "a") w
 
 -- | Number of bytes in reads that we define via functions.
-predefinedMemWidths :: [Integer]
+predefinedMemWidths :: [Natural]
 predefinedMemWidths = [1,2,4,8]
 
 -- | @MacawRead addr cnt var@ reads @cnt@ bytes from machine code
 -- memory and assigns them to @var@.
-macawRead :: SMT.Term -> Integer -> Var -> VCGMonad ()
+macawRead :: SMT.Term -> NatRepr w -> Var -> VCGMonad ()
 macawRead addr byteCount valVar = do
   mem <- getMCMem
-  let valType = SMT.bvSort (8*byteCount)
-  let val | byteCount `elem` predefinedMemWidths  =
-              SMT.term_app (memReadName byteCount) [mem, addr]
-          | otherwise = readBVLE mem addr byteCount
+  let valType = SMT.bvSort (8*natValue byteCount)
+  let val | natValue byteCount `elem` predefinedMemWidths  =
+              SMT.term_app (memReadName (natValue byteCount)) [mem, addr]
+          | otherwise = readBVLE mem addr (natValue byteCount)
   addCommand $ SMT.defineFun valVar [] valType val
 
 -- | Create mem write declaration given number of bytes to write
-memWriteDecl :: Integer -> SMT.Command
+memWriteDecl :: Natural -> SMT.Command
 memWriteDecl w = do
   let argTypes = [("m", memSort), ("a", ptrSort), ("v", SMT.bvSort (8*w))]
   SMT.defineFun (memWriteName w) argTypes memSort $
@@ -288,8 +290,8 @@ mcMemDecls bytesAbove bytesBelow =
 --
 -- Note. This predicate can assume that `sz > 0` and `sz < 2^64`, but still
 -- be correct if the computation of `addr+sz` overflows.
-inHeapSegment :: SMT.Term -> Integer -> SMT.Term
-inHeapSegment addr sz = SMT.term_app "in_heap_segment" [addr, SMT.bvdecimal sz 64]
+inHeapSegment :: SMT.Term -> NatRepr w -> SMT.Term
+inHeapSegment addr sz = SMT.term_app "in_heap_segment" [addr, SMT.bvdecimal (intValue sz) 64]
 
 ------------------------------------------------------------------------
 
@@ -438,7 +440,7 @@ eventsEq levs0 mevs0@(M.ReadEvent mcAddr mcCount macawValVar:mevs) = do
       -- Assert address is on stack
       do addr <- gets mcCurAddr
          idx <- gets mcOnlyStackFrameIndex
-         proveTrue (SMT.term_app (onThisFunStack idx) [mcAddr, SMT.bvdecimal mcCount 64])
+         proveTrue (SMT.term_app (onThisFunStack idx) [mcAddr, SMT.bvdecimal (intValue mcCount) 64])
            (printf "Machine code read at %s is in unreserved stack space." (show addr))
       -- Define value from reading Macaw heap
       macawRead mcAddr mcCount macawValVar
@@ -463,12 +465,12 @@ eventsEq levs0 mevs0@(M.ReadEvent mcAddr mcCount macawValVar:mevs) = do
       assertEq mcAddr (SMT.bvadd mcBase [SMT.bvsub llvmLoadAddr llvmAllocBase])
         ("Machine code stack load address matches expected from LLVM")
       -- Check size of writes are equivalent.
-      when (mcCount /= llvmCount) $ do
+      when (intValue mcCount /= llvmCount) $ do
         error "Bytes read with different number of bytes."
       -- Define value from reading Macaw heap
       macawRead mcAddr mcCount macawValVar
       -- Define LLVM value
-      addCommand $ SMT.defineFun llvmValVar [] (SMT.bvSort (8*mcCount)) (varTerm macawValVar)
+      addCommand $ SMT.defineFun llvmValVar [] (SMT.bvSort (8*natValue mcCount)) (varTerm macawValVar)
       -- Process future events.
       eventsEq levs mevs
     (JointStackAccess _,levs) -> do
@@ -483,13 +485,13 @@ eventsEq levs0 mevs0@(M.ReadEvent mcAddr mcCount macawValVar:mevs) = do
            (printf "Read from heap at %s is valid." (show addr))
 
       -- Check size of writes are equivalent.
-      when (mcCount /= llvmCount) $ do
+      when (intValue mcCount /= llvmCount) $ do
         error "Bytes read with different number of bytes."
       -- Define value from reading Macaw heap
       macawRead mcAddr mcCount macawValVar
 
       -- Define LLVM value returned in terms of macaw value
-      addCommand $ SMT.defineFun llvmValVar [] (SMT.bvSort (8*mcCount)) (varTerm macawValVar)
+      addCommand $ SMT.defineFun llvmValVar [] (SMT.bvSort (8*natValue mcCount)) (varTerm macawValVar)
       -- Process future events.
       eventsEq levs mevs
     (HeapAccess,levs) -> do
@@ -521,14 +523,14 @@ eventsEq levs0 mevs0@(M.WriteEvent mcAddr mcCount macawVal:mevs) = do
       -- Assert address is on stack
       do addr <- gets mcCurAddr
          idx <- gets mcOnlyStackFrameIndex
-         proveTrue (SMT.term_app (onThisFunStack idx) [mcAddr, SMT.bvdecimal mcCount 64])
+         proveTrue (SMT.term_app (onThisFunStack idx) [mcAddr, SMT.bvdecimal (intValue mcCount) 64])
            (printf "Machine code write at %s is in unreserved stack space." (show addr))
       -- Process next events
       eventsEq levs mevs
 
     (JointStackAccess allocName, L.StoreEvent llvmAddr llvmCount _llvmVal:levs) -> do
       -- Check the number of bytes written are the same.
-      when (llvmCount /= mcCount) $ do
+      when (llvmCount /= intValue mcCount) $ do
         error "Bytes written have different number of bytes."
       let llvmAllocaBase :: SMT.Term
           llvmAllocaBase = varTerm ("llvm_" <> allocaNameText allocName)
@@ -538,14 +540,14 @@ eventsEq levs0 mevs0@(M.WriteEvent mcAddr mcCount macawVal:mevs) = do
           mcAllocaEnd = varTerm (allocaMCEndVar allocName)
       -- Steps:
       -- Prove: mcAllocaBase + mcCount computation will not overflow.
-      proveTrue (SMT.bvult mcAddr (SMT.bvhexadecimal (negate mcCount) 64))
+      proveTrue (SMT.bvult mcAddr (SMT.bvhexadecimal (negate (intValue mcCount)) 64))
                 "Check machine code address does not overflow."
       -- Prove: mcAllocaBase <= mcAddr
       proveTrue (SMT.bvule mcAllocaBase mcAddr)
                 "Check address of machine code stack write is at allocation base or higher."
       -- Get address of end of write.
       let mcWriteEnd :: SMT.Term
-          mcWriteEnd = SMT.bvadd mcAddr [SMT.bvhexadecimal mcCount 64]
+          mcWriteEnd = SMT.bvadd mcAddr [SMT.bvhexadecimal (intValue mcCount) 64]
       -- Prove: mcWriteEnd <= allocation end
       proveTrue (SMT.bvule mcWriteEnd mcAllocaEnd)
                 "Check machine code write ends before allocation end."
@@ -562,7 +564,7 @@ eventsEq levs0 mevs0@(M.WriteEvent mcAddr mcCount macawVal:mevs) = do
       handleEventMatchFailure levs mevs0
 
     (HeapAccess, L.StoreEvent _llvmAddr llvmCount llvmVal:levs) -> do
-      when (llvmCount /= mcCount) $ do
+      when (llvmCount /= intValue mcCount) $ do
         error "Bytes written have different number of bytes."
       missingFeature "Assert machine code and llvm heap write addresses are equal."
 
@@ -988,7 +990,7 @@ verifyBlock gen mem lFun bb vfi vcgCfg = do
       when (stackSize vfi < 0) $ do
         error "Expected non-negative stack size"
       -- Declare constant representing where we return to.
-      macawRead (varTerm (M.smtRegVar RSP)) 8 "return_addr"
+      macawRead (varTerm (M.smtRegVar RSP)) (knownNat @8) "return_addr"
       -- Declare LLVM arguments in terms of Macaw registers
       defineLLVMArgs (defArgs lFun) x86ArgRegs
       -- Start processing events
