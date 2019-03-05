@@ -353,7 +353,7 @@ instance : has_repr phdr_type := ⟨repr⟩
 
 instance : decidable_eq phdr_type := by tactic.mk_dec_eq_instance
 
-def PT_LOAD : phdr_type := mk 0
+def PT_LOAD : phdr_type := mk 1
 
 end phdr_type
 
