@@ -4,6 +4,13 @@ import .common
 import tactic.find
 
 -- FIXME: move
+
+def annotate {ε} {m} [monad m] [monad_except ε m]
+  {a} (f : ε -> ε) (c : m a) : m a := catch c (λe, throw (f e))
+
+def annotate' {m} [monad m] [monad_except string m]
+  {a} (e : string) (c : m a) : m a := annotate (λs, e ++ ": " ++ s) c
+
 namespace mc_semantics
 
 -- This represents only nats (not lhs or expression binders), and is
@@ -547,7 +554,7 @@ def prim.eval : Π{tp : type}, prim tp -> evaluator (value tp)
   --  slice {w: ℕ} (u l k:ℕ) (H: w = k + (u + 1 - l)) (x: bitvec w) : bitvec (u + 1 - l)
   | tp (prim.slice w u l) := do
        let n := eval_nat_expr u + 1 - eval_nat_expr l,
-       H <- assert (eval_nat_expr w = (eval_nat_expr w - n + n)),
+       H <- annotate' "slice" (assert (eval_nat_expr w = (eval_nat_expr w - n + n))),
        return (begin
          have rewr : value nenv (bv (u + 1 - l)) = value nenv (bv (nat_expr.lit n)) :=
            begin simp [n, value, nat_expr.eval_default_sub_eq
@@ -557,13 +564,13 @@ def prim.eval : Π{tp : type}, prim tp -> evaluator (value tp)
          exact (bitvec.slice (eval_nat_expr nenv u) (eval_nat_expr nenv l) (eval_nat_expr nenv w - n) H.default)
         end)
   -- `(sext i o)` sign extends an `i`-bit number to a `o`-bit number.
-  | ._ (prim.sext i o) := do H <- assert (eval_nat_expr i ≤ eval_nat_expr o),
+  | ._ (prim.sext i o) := do H <- annotate' "sext" (assert (eval_nat_expr i ≤ eval_nat_expr o)),
                              return (bitvec.sext (eval_nat_expr o) H.default)
   -- `(uext i o)` unsigned extension of an `i`-bit number to a `o`-bit number.
-  | ._ (prim.uext i o) := do H <- assert (eval_nat_expr i ≤ eval_nat_expr o),
+  | ._ (prim.uext i o) := do H <- annotate' "uext" (assert (eval_nat_expr i ≤ eval_nat_expr o)),
                              return (bitvec.uext (eval_nat_expr o) H.default)
   -- `(trunc i o)` truncates an `i`-bit number to a `o`-bit number.
-  | ._ (prim.trunc i o) := do H <- assert (eval_nat_expr o ≤ eval_nat_expr i),
+  | ._ (prim.trunc i o) := do H <- annotate "trunc" (assert (eval_nat_expr o ≤ eval_nat_expr i)),
                               return (bitvec.trunc (eval_nat_expr o) H.default)
 
   -- `(bsf i)` returns the index of least-significant bit that is 1.
@@ -645,11 +652,10 @@ def action.eval : action -> evaluator unit
   | (action.mk_undef l) := throw "mk_undef"
 
 -- FIXME: check pattern.context |- environment
-def pattern.eval (p : pattern) (e : environment) : evaluator unit := do
+def pattern.eval (p : pattern) (e : environment) (s : machine_state) : except string machine_state :=
   -- only machine_state is preserved across instructions
-  modify (λs, { evaluator_state.empty with machine_state := s.machine_state, environment := e }),
-  monad.mapm' action.eval p.actions,
-  return ()
+  let st := { evaluator_state.empty with machine_state := s, environment := e } 
+  in do (_, s') <- evaluator.run (monad.mapm' action.eval p.actions) st, return s'.machine_state
 
 end with_nat_env
 

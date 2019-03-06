@@ -185,14 +185,17 @@ def {u v w} first_comb {ε : Type u} {m : Type v → Type w}
   | [x]       := x
   | (x :: xs) := catch x $ λe1, catch (first_comb xs) $ λe2, throw (f e1 e2)
 
-def annotate {ε} {m} [monad m] [monad_except ε m]
-  {a} (f : ε -> ε) (c : m a) : m a := catch c (λe, throw (f e))
-
 -- Inside the list monad here
 def possible_nat_envs : list binding -> list nat_env
-  | []                        := []
+  | []                        := [[]]
   | (binding.one_of ns :: xs) := do n <- ns, e <- possible_nat_envs xs, return (some n :: e)
   | (_ :: xs)                 := do e <- possible_nat_envs xs, return (none :: e)
+
+/-
+def test_pattern := match mov.patterns with | [x] := x | _ := sorry end
+
+#eval possible_nat_envs test_pattern.context.bindings.reverse
+-/
 
 def make_environment_helper (nenv : nat_env) (s : machine_state) 
   : list binding -> list decodex86.operand -> nat_env -> except string (environment nenv) 
@@ -200,13 +203,13 @@ def make_environment_helper (nenv : nat_env) (s : machine_state)
   | (binding.one_of _ :: rest) ops (some n :: ns) := do e <- make_environment_helper rest ops ns,
                                                         return (arg_value.natv nenv n :: e)
   | (binding.lhs tp   :: rest) (op :: ops) (_ :: ns) :=
-    annotate (λe, "lhs: " ++ e) $ do
+    annotate' "lhs" $ do
       av  <- operand_to_arg_value_lhs nenv s tp op,
       e   <- make_environment_helper rest ops ns,
       return (av :: e)
       
   | (binding.expression tp :: rest) (op :: ops) (_ :: ns) := 
-    annotate (λe, "expression: " ++ e) $ do 
+    annotate "expression" $ do 
       av  <- operand_to_arg_value_expr nenv s tp op,
       e   <- make_environment_helper rest ops ns,
       return (av :: e)
@@ -214,11 +217,13 @@ def make_environment_helper (nenv : nat_env) (s : machine_state)
 
 def make_environment (s : machine_state) (bindings : list binding) (ops : list decodex86.operand) 
   : except string (sigma environment) :=
-  list.mfirst (λnenv, do e <- make_environment_helper nenv s bindings ops nenv, return (sigma.mk nenv e)) (possible_nat_envs bindings)
+  first_comb "make_environment: no patterns" (λl r, l ++ ", " ++ r)
+             (list.map (λnenv, do e <- make_environment_helper nenv s bindings ops nenv, return (sigma.mk nenv e)) (possible_nat_envs bindings))
 
 def instantiate_pattern (s : machine_state) (inst : instruction) (i : decodex86.instruction) 
   : except string ((sigma environment) × x86.pattern) :=
-  list.mfirst (λ(p : x86.pattern), do e <- make_environment s p.context.bindings.reverse i.operands, return (e, p)) inst.patterns
+  first_comb "instantiate_pattern: no patterns" (λl r, l ++ ", " ++ r)
+              (list.map (λ(p : x86.pattern), do e <- make_environment s p.context.bindings.reverse i.operands, return (e, p)) inst.patterns)
 
 -- def eval_simple_instruction (s : instruction) (i : decodex86.instruction) : evaluator environment :=
 --   match s.patterns with
@@ -228,14 +233,19 @@ def instantiate_pattern (s : machine_state) (inst : instruction) (i : decodex86.
 --   | _   := throw "not a simple instruction"
 --   end
 
+def instruction_family (inst : decodex86.instruction) : string :=
+  let (pfx, rest) := list.span char.is_upper inst.mnemonic.to_list in
+  (list.map char.to_lower pfx).as_string
 
+def instruction_map : rbmap string instruction :=
+  rbmap.from_list (list.map (λ(i : instruction), (i.mnemonic, i)) all_instructions)
 
-def instruction_family 
-
-
-
-
-
+def eval_instruction (s : machine_state) (i : decodex86.instruction) : except string machine_state :=
+  match instruction_map.find (instruction_family i) with               
+  | none := throw ("Unknown instruction: " ++ i.mnemonic)
+  | (some inst) := do (sigma.mk nenv env, p) <- annotate' "pattern" (instantiate_pattern s inst i),
+                      annotate' "pattern.eval" (pattern.eval nenv p env s)
+                                            
 /- testing -/
 def get_sexp : string -> sexp := λst, 
     match sexp.from_string st with
@@ -246,40 +256,40 @@ def get_sexp : string -> sexp := λst,
 def string_to_instruction (s : string) : option decodex86.instruction :=
   decodex86.exec_parser decodex86.parser.instructionp (get_sexp s)
 
-def go (s : string) : string := 
+-- def go (s : string) : string := 
+--   match string_to_instruction s with 
+--   | none     := "No parse"
+--   | (some i) := repr i.operands
+--   end
+
+-- namespace except
+
+-- def to_sum {a} {b} : except a b -> sum a b 
+--   | (except.error e) := sum.inl e
+--   | (except.ok v)    := sum.inr v
+
+-- end except
+
+-- def go2 (s : string) (si : instruction) : string := 
+--   match string_to_instruction s with 
+--   | none     := "No parse"
+--   | (some i) := match ((eval_simple_instruction si i).run evaluator_state.empty) with
+--                 | (except.error e)   := "error: " ++ e
+--                 | (except.ok (e, _)) := has_repr.repr e
+--                 end
+--   end
+
+def run_get_rax (s : string) : string :=
   match string_to_instruction s with 
   | none     := "No parse"
-  | (some i) := repr i.operands
-  end
-
-namespace except
-
-def to_sum {a} {b} : except a b -> sum a b 
-  | (except.error e) := sum.inl e
-  | (except.ok v)    := sum.inr v
-
-end except
-
-def go2 (s : string) (si : instruction) : string := 
-  match string_to_instruction s with 
-  | none     := "No parse"
-  | (some i) := match ((eval_simple_instruction si i).run evaluator_state.empty) with
-                | (except.error e)   := "error: " ++ e
-                | (except.ok (e, _)) := has_repr.repr e
+  | (some i) := match (eval_instruction machine_state.empty i) with
+                | (except.error e) := "error: " ++ e
+                | (except.ok    s) := has_repr.repr (s.get_gpreg 0)
                 end
-  end
-
-
-
+ 
 #eval instruction_family <$> string_to_instruction "(instruction MOV32ri (register rax eax 32 0) (immediate 4 1))"
 
-#eval instruction_context mov
-
-#eval go2 "(instruction MOV32ri (register rax eax 32 0) (immediate 4 1))" mov
-#eval go "(instruction MOV64rm (register rdx rdx 0 0) (memloc no-register (register rsp rsp 0 0) 1 no-register 8))")
-
-#check (λ(x : decodex86.instruction), ((instruction_env_w_l_e x.operands).run evaluator_state.empty).fst ) <$> (string_to_instruction "(instruction MOV32ri (register RAX EAX 32 0) (immediate 4 1))")
-
+#eval run_get_rax "(instruction MOV32ri (register rax eax 32 0) (immediate 4 52))"
 
 end x86
 
