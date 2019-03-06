@@ -215,6 +215,10 @@ def store_word {n : ℕ} (s : machine_state) (addr : machine_word) (b : bitvec (
 def read_word (s : machine_state) (addr : machine_word) (n : ℕ) : option (bitvec (8 * n)) :=
   (λbs, bitvec.concat_list bs (8 * n)) <$> read_bytes s addr n
 
+def print_regs (s : machine_state) : string :=
+  let lines := list.zip_with (λn r, n ++ ": " ++ repr r ++ "\n") reg.r64_names s.gpregs.to_list 
+  in string.join lines
+
 end machine_state
 
 -- Argument to functions in value, gets around the positivity
@@ -570,7 +574,7 @@ def prim.eval : Π{tp : type}, prim tp -> evaluator (value tp)
   | ._ (prim.uext i o) := do H <- annotate' "uext" (assert (eval_nat_expr i ≤ eval_nat_expr o)),
                              return (bitvec.uext (eval_nat_expr o) H.default)
   -- `(trunc i o)` truncates an `i`-bit number to a `o`-bit number.
-  | ._ (prim.trunc i o) := do H <- annotate "trunc" (assert (eval_nat_expr o ≤ eval_nat_expr i)),
+  | ._ (prim.trunc i o) := do H <- annotate' "trunc" (assert (eval_nat_expr o ≤ eval_nat_expr i)),
                               return (bitvec.trunc (eval_nat_expr o) H.default)
 
   -- `(bsf i)` returns the index of least-significant bit that is 1.

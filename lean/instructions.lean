@@ -836,5 +836,5 @@ end x86
 
 open x86
 
-def main : io unit := do
-  monad.mapm' (io.put_str_ln ∘ repr) all_instructions
+-- def main : io unit := do
+--   monad.mapm' (io.put_str_ln ∘ repr) all_instructions

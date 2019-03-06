@@ -8,6 +8,7 @@ import init.category.state
 import decodex86
 import .imap
 import .file_input
+import .translate
 
 def repeat {α : Type} {m : Type → Type} [applicative m] : ℕ → m α → m (list α)
 | 0 m := pure []
@@ -609,6 +610,22 @@ def get_filename_arg : io (string × string × ℕ × ℕ) := do
       io.fail "Usage: CMD elf_file decoder first_byte last_byte_plus_1"
   end
 
+
+namespace decodex86
+
+open x86
+
+def evaluate_one_document (s : machine_state) : (ℕ × sum unknown_byte instruction) -> except string machine_state
+  | (n, sum.inl err)  := throw "Got an unknown byte"
+  | (n, sum.inr inst) := eval_instruction {s with ip := s.ip + bitvec.of_nat _ n} inst
+
+end decodex86
+
+def evaluate_document : decodex86.document -> x86.machine_state -> except string x86.machine_state
+  | [] s        := return s
+  | (x :: xs) s := do s' <- decodex86.evaluate_one_document s x, 
+                      evaluate_document xs s'
+  
 def main : io unit := do
   (file, decoder, first, last_plus_1) ← get_filename_arg,
   mem <- elf.read_info_from_file file,
@@ -622,6 +639,10 @@ def main : io unit := do
       res  <- decodex86.decode decoder buf',
       match res with
       | (sum.inl e) := io.fail ("Decode error: " ++ e)
-      | (sum.inr r) := io.put_str_ln (repr r)
+      | (sum.inr r) := do io.put_str_ln (repr r),
+                          match evaluate_document r { x86.machine_state.empty with ip := first } with
+                          | (except.error e) := io.put_str_ln ("error: " ++ e)
+                          | (except.ok    s) := io.put_str_ln (s.print_regs)
+                          end
       end
   end

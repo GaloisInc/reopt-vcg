@@ -137,7 +137,11 @@ def operand_to_value {m} [monad m] [monad_except string m]
    (nenv : nat_env) (s : machine_state)
    (tp : type) : decodex86.operand -> m (value nenv tp)
   | (operand.immediate nbytes val) :=
-    @value.type_check nenv m _ _ (bv (8 * nbytes)) (bitvec.of_nat _ val) tp
+    -- FIXME: rather than failing here, we will sign extend/truncate.  This may be the wrong approach.
+    match tp with
+    | (bv e) := return (bitvec.of_int (nat_expr.eval_default nenv e) ((bitvec.of_nat (8 * nbytes) val).to_int))
+    | _      := throw "Immediate should be a bv"
+    end
   -- FIXME: we use ip out of the state, we could use the value encoded in the decoded instruction 
   | (operand.rel_immediate next_addr nbytes val) := do
     -- checks for width = 64 bit, basically
@@ -209,7 +213,7 @@ def make_environment_helper (nenv : nat_env) (s : machine_state)
       return (av :: e)
       
   | (binding.expression tp :: rest) (op :: ops) (_ :: ns) := 
-    annotate "expression" $ do 
+    annotate' "expression" $ do 
       av  <- operand_to_arg_value_expr nenv s tp op,
       e   <- make_environment_helper rest ops ns,
       return (av :: e)
@@ -217,12 +221,12 @@ def make_environment_helper (nenv : nat_env) (s : machine_state)
 
 def make_environment (s : machine_state) (bindings : list binding) (ops : list decodex86.operand) 
   : except string (sigma environment) :=
-  first_comb "make_environment: no patterns" (λl r, l ++ ", " ++ r)
+  first_comb "make_environment: no patterns" (λl r, r) -- l ++ ", " ++ r)
              (list.map (λnenv, do e <- make_environment_helper nenv s bindings ops nenv, return (sigma.mk nenv e)) (possible_nat_envs bindings))
 
 def instantiate_pattern (s : machine_state) (inst : instruction) (i : decodex86.instruction) 
   : except string ((sigma environment) × x86.pattern) :=
-  first_comb "instantiate_pattern: no patterns" (λl r, l ++ ", " ++ r)
+  first_comb "instantiate_pattern: no patterns" (λl r, r) -- l ++ ", " ++ r)
               (list.map (λ(p : x86.pattern), do e <- make_environment s p.context.bindings.reverse i.operands, return (e, p)) inst.patterns)
 
 -- def eval_simple_instruction (s : instruction) (i : decodex86.instruction) : evaluator environment :=
@@ -245,7 +249,8 @@ def eval_instruction (s : machine_state) (i : decodex86.instruction) : except st
   | none := throw ("Unknown instruction: " ++ i.mnemonic)
   | (some inst) := do (sigma.mk nenv env, p) <- annotate' "pattern" (instantiate_pattern s inst i),
                       annotate' "pattern.eval" (pattern.eval nenv p env s)
-                                            
+  end
+
 /- testing -/
 def get_sexp : string -> sexp := λst, 
     match sexp.from_string st with
@@ -255,7 +260,7 @@ def get_sexp : string -> sexp := λst,
 
 def string_to_instruction (s : string) : option decodex86.instruction :=
   decodex86.exec_parser decodex86.parser.instructionp (get_sexp s)
-
+  
 -- def go (s : string) : string := 
 --   match string_to_instruction s with 
 --   | none     := "No parse"
@@ -284,12 +289,13 @@ def run_get_rax (s : string) : string :=
   | none     := "No parse"
   | (some i) := match (eval_instruction machine_state.empty i) with
                 | (except.error e) := "error: " ++ e
-                | (except.ok    s) := has_repr.repr (s.get_gpreg 0)
+                | (except.ok    s) := s.print_regs -- has_repr.repr (s.get_gpreg 0)
                 end
- 
-#eval instruction_family <$> string_to_instruction "(instruction MOV32ri (register rax eax 32 0) (immediate 4 1))"
+  end
 
-#eval run_get_rax "(instruction MOV32ri (register rax eax 32 0) (immediate 4 52))"
+-- #eval instruction_family <$> string_to_instruction "(instruction MOV32ri (register rax eax 32 0) (immediate 4 1))"
+
+#eval run_get_rax "(instruction MOV64ri32 (register rax rax 0 0) (immediate 4 4294967295))"
 
 end x86
 
