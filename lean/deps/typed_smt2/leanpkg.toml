@@ -1,7 +1,7 @@
 [package]
 name = "typed_smt2"
 version = "0.1"
-lean_version = "master"
+lean_version = "3.4.1"
 path="src"
 
 [dependencies]
