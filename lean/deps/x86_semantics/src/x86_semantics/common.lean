@@ -337,12 +337,38 @@ local infixr `.→`:30 := fn
 
 -- This denotes primitive operations that are part of the semantics.
 inductive prim : type → Type
+
+-- `type` operations
+
+-- `(eq tp)` returns `true` if two values are equal.
+| eq (tp:type) : prim (tp .→ tp .→ bit)
+-- `(neq tp)` returns `true` if two values are not equal.
+| neq (tp:type) : prim (tp .→ tp .→ bit)
+
+-- Bit vector operations
+
+-- `bv_nat` constructs a bit vector from a natural number.
+| bv_nat (w:ℕ) : ℕ → prim (bv w)
 -- `(add i)` returns the sum of two i-bit numbers.
 | add (i:ℕ) : prim (bv i .→ bv i .→ bv i)
 -- `(adc i)` returns the sum of two i-bit numbers and a carry bit.
 | adc (i:ℕ) : prim (bv i .→ bv i .→ bit .→ bv i)
 -- `(mul i)` returns the product of two i-bit numbers.
 | mul (i:ℕ) : prim (bv i .→ bv i .→ bv i)
+-- `(sub i)` substracts two i-bit bitvectors.
+| sub (i:ℕ) : prim (bv i .→ bv i .→ bv i)
+| and (i:ℕ) : prim (bv i .→ bv i .→ bv i)
+| or  (i:ℕ) : prim (bv i .→ bv i .→ bv i)
+| xor (i:ℕ) : prim (bv i .→ bv i .→ bv i)
+| shl (i:ℕ) : prim (bv i .→ bv i .→ bv i)
+| shr (i:ℕ) : prim (bv i .→ bv i .→ bv i)
+| sar (i:ℕ) : prim (bv i .→ bv i .→ bv i)
+| cat (i:ℕ) : prim (bv i .→ bv i .→ bv (2*i))
+| ule (i:ℕ) : prim (bv i .→ bv i .→ bit)
+| ult (i:ℕ) : prim (bv i .→ bv i .→ bit)
+| complement (i:ℕ) : prim (bv i .→ bv i)
+| even_parity (i:ℕ) : prim (bv i .→ bit)
+| msb (i:ℕ) : prim (bv i .→ bit)
 -- `(quot i)` returns the quotient of two i-bit numbers.
 | quot (i:ℕ) : prim (bv i .→ bv i .→ bv i)
 -- `(rem i)` returns the remainder of two i-bit numbers.
@@ -365,30 +391,8 @@ inductive prim : type → Type
 | bsr   (i:ℕ) : prim (bv i .→ bv i)
 -- `(bswap i)` reverses the bytes in the bitvector.
 | bswap (i:ℕ) : prim (bv i .→ bv i)
--- `zero` is the zero bit
-| zero : prim bit
--- `one` is the one bit
-| one : prim bit
--- `(eq tp)` returns `true` if two values are equal.
-| eq (tp:type) : prim (tp .→ tp .→ bit)
--- `(neq tp)` returns `true` if two values are not equal.
-| neq (tp:type) : prim (tp .→ tp .→ bit)
 -- `(neg tp)` Two's Complement negation.
 | neg (i:ℕ) : prim (bv i .→ bv i)
--- `x87_fadd` adds two extended precision values using the flags in the x87 register.
-| x87_fadd : prim (x86_80 .→ x86_80 .→ x86_80)
--- `float_to_x86_80` converts a float to an extended precision number (lossless)
-| float_to_x86_80  : prim (float .→ x86_80)
--- `double_to_x86_80` converts a double to an extended precision number (lossless)
-| double_to_x86_80 : prim (double .→ x86_80)
--- `bv_to_x86_80` converts a bitvector to an extended precision number (lossless)
-| bv_to_x86_80  (w : one_of [16,32]) : prim (bv w .→ x86_80)
--- `bvnat` constructs a bit vector from a natural number.
-| bvnat (w:ℕ) : ℕ → prim (bv w)
--- `(bvadd i)` adds two i-bit bitvectors.
-| bvadd (i:ℕ) : prim (bv i .→ bv i .→ bv i)
--- `(bvsub i)` substracts two i-bit bitvectors.
-| bvsub (i:ℕ) : prim (bv i .→ bv i .→ bv i)
 -- `(ssbb_overflows i)` true if signed sub overflows, the bit
 -- is a borrow bit.
 | ssbb_overflows (i:ℕ) : prim (bv i .→ bv i .→ bit .→ bit)
@@ -397,27 +401,30 @@ inductive prim : type → Type
 | usbb_overflows (i:ℕ) : prim (bv i .→ bv i .→ bit .→ bit)
 | uadc_overflows (i:ℕ) : prim (bv i .→ bv i .→ bit .→ bit)
 | sadc_overflows (i:ℕ) : prim (bv i .→ bv i .→ bit .→ bit)
-| bvand (i:ℕ) : prim (bv i .→ bv i .→ bv i)
-| bvor (i:ℕ) : prim (bv i .→ bv i .→ bv i)
-| bvxor (i:ℕ) : prim (bv i .→ bv i .→ bv i)
-| shl (i:ℕ) : prim (bv i .→ bv i .→ bv i)
-| shr (i:ℕ) : prim (bv i .→ bv i .→ bv i)
-| sar (i:ℕ) : prim (bv i .→ bv i .→ bv i)
--- `(bvbit i)` interprets the second argument as a bit index and returns
+
+-- Logical and bit operations
+
+-- `zero` is the zero bit
+| bit_zero : prim bit
+-- `one` is the one bit
+| bit_one : prim bit
+-- `(bv_bit i)` interprets the second argument as a bit index and returns
 -- that bit from the first argument.
-| bvbit (i:ℕ) : prim (bv i .→ bv i .→ bit)
-| complement (i:ℕ) : prim (bv i .→ bv i)
-| bvcat (i:ℕ) : prim (bv i .→ bv i .→ bv (2*i))
-| bv_least_nibble (i:ℕ) : prim (bv i .→ bv 4)
-| msb (i:ℕ) : prim (bv i .→ bit)
-| least_byte (i:ℕ) : prim (bv i .→ bv 8)
-| even_parity (i:ℕ) : prim (bv i .→ bit)
-| or : prim (bit .→ bit .→ bit)
-| and : prim (bit .→ bit .→ bit)
-| xor : prim (bit .→ bit .→ bit)
-| ite (tp: type) : prim (bit .→ tp .→ tp .→ tp)
-| bv_ule (i:ℕ) : prim (bv i .→ bv i .→ bit)
-| bv_ult (i:ℕ) : prim (bv i .→ bv i .→ bit)
+| bv_bit (i:ℕ) : prim (bv i .→ bv i .→ bit)
+| bit_or : prim (bit .→ bit .→ bit)
+| bit_and : prim (bit .→ bit .→ bit)
+| bit_xor : prim (bit .→ bit .→ bit)
+
+-- Floating point operations
+
+-- `bv_to_x86_80` converts a bitvector to an extended precision number (lossless)
+| bv_to_x86_80  (w : one_of [16,32]) : prim (bv w .→ x86_80)
+-- `x87_fadd` adds two extended precision values using the flags in the x87 register.
+| x87_fadd : prim (x86_80 .→ x86_80 .→ x86_80)
+-- `float_to_x86_80` converts a float to an extended precision number (lossless)
+| float_to_x86_80  : prim (float .→ x86_80)
+-- `double_to_x86_80` converts a double to an extended precision number (lossless)
+| double_to_x86_80 : prim (double .→ x86_80)
 
 namespace prim
 
@@ -436,8 +443,8 @@ def pp : Π{tp:type}, prim tp → string
 | ._ (bsf i) := "bsf " ++ i.pp
 | ._ (bsr i) := "bsr " ++ i.pp
 | ._ (bswap i) := "bswap " ++ i.pp
-| ._ zero := sexp.app "bit" ["0"]
-| ._ one  := sexp.app "bit" ["1"]
+| ._ bit_zero := sexp.app "bit" ["0"]
+| ._ bit_one  := sexp.app "bit" ["1"]
 | ._ (eq tp) := "eq " ++ tp.pp
 | ._ (neq tp) := "neq " ++ tp.pp
 | ._ (neg tp) := "neg " ++ tp.pp
@@ -445,32 +452,28 @@ def pp : Π{tp:type}, prim tp → string
 | ._ float_to_x86_80 := "float_to_x86_80"
 | ._ double_to_x86_80 := "double_to_X86_80"
 | ._ (bv_to_x86_80 w) := "sext " ++ w.pp
-| ._ (bvnat w n) := sexp.app "bvnat" [w.pp, n.pp]
-| ._ (bvadd i) := "bvadd " ++ i.pp
-| ._ (bvsub i) := "bvsub " ++ i.pp
+| ._ (bv_nat w n) := sexp.app "bv_nat" [w.pp, n.pp]
+| ._ (sub i) := "sub " ++ i.pp
 | ._ (ssbb_overflows i) := "ssbb_overflows " ++ i.pp
 | ._ (usbb_overflows i) := "usbb_overflows " ++ i.pp
 | ._ (uadc_overflows i) := "uadc_overflows " ++ i.pp
 | ._ (sadc_overflows i) := "sadc_overflows " ++ i.pp
-| ._ (bvand i) := "and " ++ i.pp
-| ._ (bvor i) := "or " ++ i.pp
-| ._ (bvxor i) := "xor " ++ i.pp
+| ._ (and i) := "and " ++ i.pp
+| ._ (or  i) := "or "  ++ i.pp
+| ._ (xor i) := "xor " ++ i.pp
 | ._ (shl i) := "shl " ++ i.pp
 | ._ (shr i) := "shr " ++ i.pp
 | ._ (sar i) := "sar " ++ i.pp
-| ._ (bvbit i) := "bvbit " ++ i.pp
+| ._ (bv_bit i) := "bv_bit " ++ i.pp
 | ._ (complement i) := "complement " ++ i.pp
-| ._ (bvcat i) := "bvcat " ++ i.pp
-| ._ (bv_least_nibble i) := "bv_least_nibble" ++ i.pp
+| ._ (cat i) := "cat " ++ i.pp
 | ._ (msb i) := "msb " ++ i.pp
-| ._ (least_byte i) := "least_byte " ++ i.pp
 | ._ (even_parity i) := "even_parity " ++ i.pp
-| ._ or := "or"
-| ._ and := "and"
-| ._ xor := "xor"
-| ._ (ite tp) := "ite " ++ tp.pp
-| ._ (bv_ule i) := "bv_ule " ++ i.pp
-| ._ (bv_ult i) := "bv_ult " ++ i.pp
+| ._ bit_or  := "bit_or"
+| ._ bit_and := "bit_and"
+| ._ bit_xor := "bit_xor"
+| ._ (ule i) := "ule " ++ i.pp
+| ._ (ult i) := "ult " ++ i.pp
 
 end prim
 
@@ -494,22 +497,22 @@ instance (a:type) (f:type) : has_coe_to_fun (expression (type.fn a f)) :=
 , coe := app
 }
 
-def bvadd : Π{w:ℕ}, expression (bv w) → expression (bv w) → expression (bv w)
-  | ._ (primitive (prim.bvnat ._ n)) (primitive (prim.bvnat w m)) := prim.bvnat w (n + m)
-  | i x y := prim.bvadd i x y
+def add : Π{w:ℕ}, expression (bv w) → expression (bv w) → expression (bv w)
+  | ._ (primitive (prim.bv_nat ._ n)) (primitive (prim.bv_nat w m)) := prim.bv_nat w (n + m)
+  | i x y := prim.add i x y
 
-def bvsub : Π{w:ℕ}, expression (bv w) → expression (bv w) → expression (bv w)
-  | ._ (primitive (prim.bvnat ._ n)) (primitive (prim.bvnat w m)) := prim.bvnat w (n - m)
-  | i x y := prim.bvsub i x y
+def sub : Π{w:ℕ}, expression (bv w) → expression (bv w) → expression (bv w)
+  | ._ (primitive (prim.bv_nat ._ n)) (primitive (prim.bv_nat w m)) := prim.bv_nat w (n - m)
+  | i x y := prim.sub i x y
 
-def bvneg : Π{w:ℕ}, expression (bv w) → expression (bv w)
+def neg : Π{w:ℕ}, expression (bv w) → expression (bv w)
   | _ x := app (primitive (prim.neg _)) x
 
-instance (w:ℕ) : has_zero (expression (bv w)) := ⟨prim.bvnat w 0⟩
-instance (w:ℕ) : has_one  (expression (bv w)) := ⟨prim.bvnat w 1⟩
-instance (w:ℕ) : has_add  (expression (bv w)) := ⟨bvadd⟩
-instance (w:ℕ) : has_sub  (expression (bv w)) := ⟨bvsub⟩
-instance (w:ℕ) : has_neg  (expression (bv w)) := ⟨bvneg⟩
+instance (w:ℕ) : has_zero (expression (bv w)) := ⟨prim.bv_nat w 0⟩
+instance (w:ℕ) : has_one  (expression (bv w)) := ⟨prim.bv_nat w 1⟩
+instance (w:ℕ) : has_add  (expression (bv w)) := ⟨add⟩
+instance (w:ℕ) : has_sub  (expression (bv w)) := ⟨sub⟩
+instance (w:ℕ) : has_neg  (expression (bv w)) := ⟨neg⟩
 
 def adc         {w:ℕ} (x y : expression (bv w)) (b : expression bit) : expression (bv w) := prim.adc   w x y b
 def bswap       {w:ℕ} (v : expression (bv w))                        : expression (bv w) := prim.bswap w v
@@ -518,10 +521,10 @@ def quot        {w:ℕ} (x y : expression (bv w))                      : express
 def rem         {w:ℕ} (x y : expression (bv w))                      : expression (bv w) := prim.rem   w x y
 def signed_quot {w:ℕ} (x y : expression (bv w))                      : expression (bv w) := prim.squot w x y
 def signed_rem  {w:ℕ} (x y : expression (bv w))                      : expression (bv w) := prim.srem  w x y
-def or                (x y : expression bit)                         : expression bit    := prim.or      x y
-def and               (x y : expression bit)                         : expression bit    := prim.and     x y
-def xor               (x y : expression bit)                         : expression bit    := prim.xor     x y
-def bvnat (w:ℕ) (x : ℕ) : expression (bv w) := prim.bvnat w x
+def bit_or            (x y : expression bit)                         : expression bit    := prim.bit_or  x y
+def bit_and           (x y : expression bit)                         : expression bit    := prim.bit_and x y
+def bit_xor           (x y : expression bit)                         : expression bit    := prim.bit_xor x y
+def bv_nat (w:ℕ) (x : ℕ) : expression (bv w) := prim.bv_nat w x
 
 protected
 def is_app : Π{tp:type}, expression tp → bool
@@ -568,10 +571,8 @@ def neq {tp:type} (x y : tp) : bit := prim.neq tp x y
 
 def eq {tp:type} (x y : tp) : bit := prim.eq tp x y
 
-def ite {tp:type} (cond: bit) (t e : tp) : tp := prim.ite tp cond t e
-
-def one  : bit := prim.one
-def zero : bit := prim.zero
+def bit_one  : bit := prim.bit_one
+def bit_zero : bit := prim.bit_zero
 
 instance bv_has_mul (w:nat_expr) : has_mul (bv w) := ⟨λx y, prim.mul w x y⟩
 
