@@ -1,6 +1,7 @@
 -- Evaluates actions in an environment.
 import galois.data.bitvec
-import .common
+import x86_semantics.common
+import .tactic
 import tactic.find
 
 -- FIXME: move
@@ -267,6 +268,7 @@ def value : type -> Type
   | float  := unit -- FIXME
   | double := unit -- FIXME
   | x86_80 := unit -- FIXME  
+  | (vec w tp) := unit -- FIXME
   | (fn arg res) := (value arg) -> (value res)
 
 -- namespace value
@@ -618,9 +620,9 @@ def prim.eval : Π{tp : type}, prim tp -> evaluator (value tp)
 
   | ._ (prim.uadc_overflows i) := return (λx y b, bitvec.ult (x + y + bit_to_bitvec (eval_nat_expr i) b) x)
   | ._ (prim.sadc_overflows i) := return (λx y b, bitvec.slt (x + y + bit_to_bitvec (eval_nat_expr i) b) x)
-  | ._ (prim.and i) := return bitvec.and
-  | ._ (prim.or i)  := return bitvec.or
-  | ._ (prim.xor i) := return bitvec.xor
+  | ._ (prim.bvand i) := return bitvec.and
+  | ._ (prim.bvor i)  := return bitvec.or
+  | ._ (prim.bvxor i) := return bitvec.xor
   | ._ (prim.shl i) := return (λx (y : bitvec (eval_nat_expr i)), bitvec.shl x y.to_nat)
   -- `(bvbit i)` interprets the second argument as a bit index and returns
   -- that bit from the first argument.

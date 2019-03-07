@@ -1,5 +1,5 @@
 
-import .instructions
+import x86_semantics.instructions
 import .evaluator
 import decodex86
 import tactic.find
