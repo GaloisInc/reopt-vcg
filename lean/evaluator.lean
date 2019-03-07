@@ -648,14 +648,38 @@ def expression.eval : Π{tp : type}, expression tp -> evaluator (value tp)
   -- Return the expression in the local variable at the given index.
   | ._ (expression.get_local idx tp) := evaluator.local_at_idx idx tp -- fixme: why nat_expr here over nat?
 
+-- FIXME: move
+-- Make a value for 'undefined', which means we just pick an arbitrary value.
+def value.undef : Π (tp : type), value tp
+  | (bv e) := bitvec.zero (eval_nat_expr e)
+  | bit    := false
+  | float  := () -- FIXME
+  | double := () -- FIXME
+  | x86_80 := () -- FIXME  
+  | (vec w tp) := () -- FIXME
+  | (fn arg res) := λ_, value.undef res
+
 def action.eval : action -> evaluator unit
   | (action.set l e) := do v <- expression.eval e,
-                    lhs.set l v
+                           lhs.set l v
+  | (action.set_cond l c e) := do
+    b <- expression.eval c,
+    v <- expression.eval e,
+    when b (lhs.set l v)
+  | (@action.set_undef tp l)    := lhs.set l (value.undef tp)
+  | (@action.set_undef_cond tp l c) := do
+    b <- expression.eval c,
+    when b (lhs.set l (value.undef tp))
+  | (@action.set_aligned (bv _) l e align) := do
+    v <- expression.eval e,
+    if v.to_nat % eval_nat_expr align = 0
+    then lhs.set l v
+    else throw "Unaligned set_aligned"
+  | (@action.set_aligned _ l e align) := throw "set_aligned: not a bv"
   | (@action.local_def tp idx e) := do 
     v <- expression.eval e,
     modify (λs, { s with locals := s.locals.insert idx (sigma.mk tp v)})
   | (action.event e) := throw "event"
-  | (action.mk_undef l) := throw "mk_undef"
 
 -- FIXME: check pattern.context |- environment
 def pattern.eval (p : pattern) (e : environment) (s : machine_state) : except string machine_state :=
