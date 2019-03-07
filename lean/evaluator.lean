@@ -648,6 +648,29 @@ def expression.eval : Π{tp : type}, expression tp -> evaluator (value tp)
   -- Return the expression in the local variable at the given index.
   | ._ (expression.get_local idx tp) := evaluator.local_at_idx idx tp -- fixme: why nat_expr here over nat?
 
+
+def evaluator.set_ip (new_ip : bitvec 64) : evaluator unit :=
+  modify (λ(s : evaluator_state), 
+          {s with machine_state := { s.machine_state with ip := new_ip}})
+
+def event.eval : event -> evaluator unit
+  | syscall := throw "syscall"
+  | (unsupported msg) := throw ("event.eval: unsupported: " ++ msg)
+  | pop_x87_register_stack := throw "pop_x87_register_stack"
+  | (call addr) := do 
+    new_ip <- expression.eval addr,
+    evaluator.set_ip new_ip
+  | (jmp addr) := do
+    new_ip <- expression.eval addr,
+    evaluator.set_ip new_ip
+  | (branch c addr) := do
+    new_ip <- expression.eval addr,
+    b      <- expression.eval c,
+    when c (evaluator.set_ip new_ip)
+  | ret := throw "ret"
+  | hlt := throw "halt"
+  | (xchg addr1 addr2) := throw "xchg"
+
 -- FIXME: move
 -- Make a value for 'undefined', which means we just pick an arbitrary value.
 def value.undef : Π (tp : type), value tp
@@ -679,7 +702,7 @@ def action.eval : action -> evaluator unit
   | (@action.local_def tp idx e) := do 
     v <- expression.eval e,
     modify (λs, { s with locals := s.locals.insert idx (sigma.mk tp v)})
-  | (action.event e) := throw "event"
+  | (action.event e) := event.eval e
 
 -- FIXME: check pattern.context |- environment
 def pattern.eval (p : pattern) (e : environment) (s : machine_state) : except string machine_state :=
