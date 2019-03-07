@@ -34,32 +34,32 @@ notation d `.=` a `|` s :20 := set_aligned d s a
 -- `off` is the index of the bit to return.
 -- TODO: figure out how to handle out of bounds and any other edge cases and document the
 -- assumptions.
-def bv_bit {w:ℕ} (base : bv w) (off : bv w) : bit := prim.bvbit w base off -- Note that if `off` exceeds w, bvBit v off should return `zero`
-def bv_xor {w:ℕ} (x : bv w) (y : bv w) : bv w := prim.bvxor w x y
-def bv_shl {w:ℕ} (x : bv w) (y : bv w) : bv w := prim.shl w x y
-def bv_shr {w:ℕ} (x y : bv w) : bv w := prim.shr w x y
-def bv_sar {w:ℕ} (x y : bv w) : bv w := prim.sar w x y
-def bv_complement {w:ℕ} (b : bv w) : bv w := prim.complement w b
+def bv_bit {w:ℕ} (base : bv w) (off : bv w) : bit := prim.bv_bit w base off -- Note that if `off` exceeds w, bvBit v off should return `zero`
+def xor {w:ℕ} (x : bv w) (y : bv w) : bv w := prim.xor w x y
+def shl {w:ℕ} (x : bv w) (y : bv w) : bv w := prim.shl w x y
+def shr {w:ℕ} (x y : bv w) : bv w := prim.shr w x y
+def sar {w:ℕ} (x y : bv w) : bv w := prim.sar w x y
+def complement {w:ℕ} (b : bv w) : bv w := prim.complement w b
 def bv_is_zero {w:ℕ} (b : bv w) : bit := b = 0
-def bv_and {w:ℕ} (x : bv w) (y : bv w) : bv w := prim.bvand w x y
-def bv_or {w:ℕ} (x : bv w) (y : bv w) : bv w := prim.bvor w x y
-def bv_cat {w:ℕ} (x : bv w) (y : bv w) : bv (2*w) := prim.bvcat w x y
-def bv_least_nibble {w:ℕ} (x : bv w) : bv 4 := prim.bv_least_nibble w x
-def bv_ule {w:ℕ} (x y : bv w) : bit := prim.bv_ule w x y
-def bv_ult {w:ℕ} (x y : bv w) : bit := prim.bv_ult w x y
-def bv_sub {w:ℕ} (x y : bv w) : bv w := prim.bvsub w x y
+def and {w:ℕ} (x : bv w) (y : bv w) : bv w := prim.and w x y
+def or {w:ℕ} (x : bv w) (y : bv w) : bv w := prim.or w x y
+def cat {w:ℕ} (x : bv w) (y : bv w) : bv (2*w) := prim.cat w x y
+def least_nibble {w:ℕ} (x : bv w) : bv 4 := trunc x 4
+def ule {w:ℕ} (x y : bv w) : bit := prim.ule w x y
+def ult {w:ℕ} (x y : bv w) : bit := prim.ult w x y
+def sub {w:ℕ} (x y : bv w) : bv w := prim.sub w x y
 
 def msb {w:ℕ} (v : bv w) : bit := prim.msb w v
-def least_byte {w:ℕ} (v : bv w) : bv 8 := prim.least_byte w v
+def least_byte {w:ℕ} (v : bv w) : bv 8 := trunc v 8
 def even_parity {w:ℕ} (v : bv w) : bit := prim.even_parity w v
 
-infixl `.|.`:65 := bv_or
-infixl `.&.`:70 := bv_and
+infixl `.|.`:65 := or
+infixl `.&.`:70 := and
 
 ------------------------------------------------------------------------
 -- utility functions
 
-def nat_to_bv {w:ℕ} (n:ℕ) : bv w := prim.bvnat w n
+def nat_to_bv {w:ℕ} (n:ℕ) : bv w := prim.bv_nat w n
 
 def set_undefined {tp:type} (v : lhs tp) : semantics unit := do
   semantics.add_action (action.set_undef v)
@@ -81,25 +81,25 @@ def set_result_flags {w:ℕ} (res : bv w) : semantics unit := do
   pf .= even_parity (least_byte res)
 
 def set_bitwise_flags {w:ℕ} (res : bv w) : semantics unit := do
-  of .= zero,
-  cf .= zero,
+  of .= bit_zero,
+  cf .= bit_zero,
   set_undefined af,
   set_result_flags res
 
 def ssbb_overflows  {w:ℕ} (dest : bv w) (src : bv w) (borrow : bit) : bit := prim.ssbb_overflows w dest src borrow
-def ssub_overflows  {w:ℕ} (dest : bv w) (src : bv w)                : bit := ssbb_overflows dest src zero
+def ssub_overflows  {w:ℕ} (dest : bv w) (src : bv w)                : bit := ssbb_overflows dest src bit_zero
 
 def usbb_overflows  {w:ℕ} (dest : bv w) (src : bv w) (borrow : bit) : bit := prim.usbb_overflows w dest src borrow
-def usub_overflows  {w:ℕ} (dest : bv w) (src : bv w)                : bit := usbb_overflows dest src zero
-def usub4_overflows {w:ℕ} (dest : bv w) (src : bv w)                : bit := usub_overflows (bv_least_nibble dest) (bv_least_nibble src)
+def usub_overflows  {w:ℕ} (dest : bv w) (src : bv w)                : bit := usbb_overflows dest src bit_zero
+def usub4_overflows {w:ℕ} (dest : bv w) (src : bv w)                : bit := usub_overflows (least_nibble dest) (least_nibble src)
 
 def uadc_overflows  {w:ℕ} (dest : bv w) (src : bv w) (carry : bit) : bit := prim.uadc_overflows w dest src carry
-def uadc4_overflows {w:ℕ} (dest : bv w) (src : bv w) (carry : bit) : bit := uadc_overflows (bv_least_nibble dest) (bv_least_nibble src) carry
-def uadd_overflows  {w:ℕ} (dest : bv w) (src : bv w)               : bit := uadc_overflows dest src zero
-def uadd4_overflows {w:ℕ} (dest : bv w) (src : bv w)               : bit := uadd_overflows (bv_least_nibble dest) (bv_least_nibble src)
+def uadc4_overflows {w:ℕ} (dest : bv w) (src : bv w) (carry : bit) : bit := uadc_overflows (least_nibble dest) (least_nibble src) carry
+def uadd_overflows  {w:ℕ} (dest : bv w) (src : bv w)               : bit := uadc_overflows dest src bit_zero
+def uadd4_overflows {w:ℕ} (dest : bv w) (src : bv w)               : bit := uadd_overflows (least_nibble dest) (least_nibble src)
 
 def sadc_overflows  {w:ℕ} (dest : bv w) (src : bv w) (carry : bit) : bit := prim.sadc_overflows w dest src carry
-def sadd_overflows  {w:ℕ} (dest : bv w) (src : bv w)               : bit := sadc_overflows dest src zero
+def sadd_overflows  {w:ℕ} (dest : bv w) (src : bv w)               : bit := sadc_overflows dest src bit_zero
 
 def do_cmp {w:ℕ} (x : bv w) (y : bv w) : semantics unit := do
   of .= ssub_overflows x y,
@@ -148,7 +148,7 @@ def do_sh {w:ℕ}
   -- only be set by the result when low_count = 1, and in other cases
   -- it should either be unaffected or undefined (low_count = 0
   -- vs. low_count > 1).
-  set_undefined_cond of (expression.or is_nonzero (low_count ≠ 1)),
+  set_undefined_cond of (expression.bit_or is_nonzero (low_count ≠ 1)),
   set_cond of (low_count = 1) of_bit,
   set_cond sf is_nonzero (msb res),
   set_cond zf is_nonzero (res = 0),
@@ -412,20 +412,20 @@ def div : instruction := do
      ah .= tempRem[[7..0]]
    pat_end,
    pattern λ(src : bv 16), do
-     tempQuot ← eval $ expression.quot (bv_cat ⇑dx ⇑ax) (uext src 32),
-     tempRem  ← eval $ expression.rem  (bv_cat ⇑dx ⇑ax) (uext src 32),
+     tempQuot ← eval $ expression.quot (cat ⇑dx ⇑ax) (uext src 32),
+     tempRem  ← eval $ expression.rem  (cat ⇑dx ⇑ax) (uext src 32),
      ax .= tempQuot[[15..0]],
      dx .= tempRem[[15..0]]
    pat_end,
    pattern λ(src : bv 32), do
-     tempQuot ← eval $ expression.quot (bv_cat ⇑edx ⇑eax) (uext src 64),
-     tempRem  ← eval $ expression.rem  (bv_cat ⇑edx ⇑eax) (uext src 64),
+     tempQuot ← eval $ expression.quot (cat ⇑edx ⇑eax) (uext src 64),
+     tempRem  ← eval $ expression.rem  (cat ⇑edx ⇑eax) (uext src 64),
      eax .= tempQuot[[31..0]],
      edx .= tempRem[[31..0]]
    pat_end,
    pattern λ(src : bv 64), do
-     tempQuot ← eval $ expression.quot (bv_cat ⇑rdx ⇑rax) (uext src 128),
-     tempRem  ← eval $ expression.rem  (bv_cat ⇑rdx ⇑rax) (uext src 128),
+     tempQuot ← eval $ expression.quot (cat ⇑rdx ⇑rax) (uext src 128),
+     tempRem  ← eval $ expression.rem  (cat ⇑rdx ⇑rax) (uext src 128),
      rax .= tempQuot[[63..0]],
      rdx .= tempRem[[63..0]]
    pat_end
@@ -444,20 +444,20 @@ def idiv : instruction := do
      ah .= tempRem[[7..0]]
    pat_end,
    pattern λ(src : bv 16), do
-     tempQuot ← eval $ expression.signed_quot (bv_cat ⇑dx ⇑ax) (uext src 32),
-     tempRem  ← eval $ expression.signed_rem  (bv_cat ⇑dx ⇑ax) (uext src 32),
+     tempQuot ← eval $ expression.signed_quot (cat ⇑dx ⇑ax) (uext src 32),
+     tempRem  ← eval $ expression.signed_rem  (cat ⇑dx ⇑ax) (uext src 32),
      ax .= tempQuot[[15..0]],
      dx .= tempRem[[15..0]]
    pat_end,
    pattern λ(src : bv 32), do
-     tempQuot ← eval $ expression.signed_quot (bv_cat ⇑edx ⇑eax) (uext src 64),
-     tempRem  ← eval $ expression.signed_rem  (bv_cat ⇑edx ⇑eax) (uext src 64),
+     tempQuot ← eval $ expression.signed_quot (cat ⇑edx ⇑eax) (uext src 64),
+     tempRem  ← eval $ expression.signed_rem  (cat ⇑edx ⇑eax) (uext src 64),
      eax .= tempQuot[[31..0]],
      edx .= tempRem[[31..0]]
    pat_end,
    pattern λ(src : bv 64), do
-     tempQuot ← eval $ expression.signed_quot (bv_cat ⇑rdx ⇑rax) (uext src 128),
-     tempRem  ← eval $ expression.signed_rem  (bv_cat ⇑rdx ⇑rax) (uext src 128),
+     tempQuot ← eval $ expression.signed_quot (cat ⇑rdx ⇑rax) (uext src 128),
+     tempRem  ← eval $ expression.signed_rem  (cat ⇑rdx ⇑rax) (uext src 128),
      rax .= tempQuot[[63..0]],
      rdx .= tempRem[[63..0]]
    pat_end
@@ -466,7 +466,7 @@ def idiv : instruction := do
 -- and definition
 -- Logical AND
 
-def and : instruction := do
+def and_def : instruction := do
  definst "and" $ do
    pattern λ(w : one_of [8, 16, 32, 64]) (dest : lhs (bv w)) (src : bv w), do
      tmp ← eval $ ⇑dest .&. src,
@@ -481,20 +481,20 @@ def and : instruction := do
 def not : instruction := do
  definst "not" $ do
    pattern λ(w : one_of [8, 16, 32, 64]) (dest : lhs (bv w)), do
-     dest .= bv_complement ⇑dest
+     dest .= complement ⇑dest
    pat_end
 
 ------------------------------------------------------------------------
 -- or definition
 -- Logical Inclusive OR
 
-def or : instruction := do
+def or_def : instruction := do
  definst "or" $ do
    pattern λ(u v : one_of [8, 16, 32, 64]) (dest : lhs (bv u)) (src : bv v), do
      dest .= ⇑dest .|. sext src u,
      set_undefined af,
-     of .= zero,
-     cf .= zero,
+     of .= bit_zero,
+     cf .= bit_zero,
      set_result_flags ⇑dest
    pat_end
 
@@ -502,13 +502,13 @@ def or : instruction := do
 -- xor definition
 -- Logical Exclusive OR
 
-def xor : instruction := do
+def xor_def : instruction := do
  definst "xor" $ do
    pattern λ(u v : one_of [8, 16, 32, 64]) (dest : lhs (bv u)) (src : bv v), do
-     dest .= bv_xor ⇑dest (sext src u),
+     dest .= xor ⇑dest (sext src u),
      set_undefined af,
-     of .= zero,
-     cf .= zero,
+     of .= bit_zero,
+     cf .= bit_zero,
      set_result_flags ⇑dest
    pat_end
 
@@ -542,11 +542,11 @@ def btc : instruction := do
  definst "btc" $ do
    pattern λ(w : one_of [16, 32, 64]) (base : lhs (bv w)) (off : bv w), do
      cf   .= bv_bit ⇑base off,
-     base .= bv_xor ⇑base (bv_shl 1 off)
+     base .= xor ⇑base (shl 1 off)
    pat_end,
    pattern λ(w : one_of [16, 32, 64]) (base : lhs (bv w)) (off : bv 8), do
      cf   .= bv_bit ⇑base (uext off w),
-     base .= bv_xor ⇑base (uext (bv_shl 1 off) w)
+     base .= xor ⇑base (uext (shl 1 off) w)
    pat_end
 
 ------------------------------------------------------------------------
@@ -557,11 +557,11 @@ def btr : instruction := do
  definst "btr" $ do
    pattern λ(w : one_of [16, 32, 64]) (base : lhs (bv w)) (off : bv w), do
      cf   .= bv_bit ⇑base off,
-     base .= ⇑base .&. (bv_complement (bv_shl 1 off))
+     base .= ⇑base .&. (complement (shl 1 off))
    pat_end,
    pattern λ(w : one_of [16, 32, 64]) (base : lhs (bv w)) (off : bv 8), do
      cf   .= bv_bit ⇑base (uext off w),
-     base .= ⇑base .&. (bv_complement (uext (bv_shl 1 off) w))
+     base .= ⇑base .&. (complement (uext (shl 1 off) w))
    pat_end
 
 ------------------------------------------------------------------------
@@ -572,11 +572,11 @@ def bts : instruction := do
  definst "bts" $ do
    pattern λ(w : one_of [16, 32, 64]) (base : lhs (bv w)) (off : bv w), do
      cf   .= bv_bit ⇑base off,
-     base .= ⇑base .|. (bv_shl 1 off)
+     base .= ⇑base .|. (shl 1 off)
    pat_end,
    pattern λ(w : one_of [16, 32, 64]) (base : lhs (bv w)) (off : bv 8), do
      cf   .= bv_bit ⇑base (uext off w),
-     base .= ⇑base .|. (uext (bv_shl 1 off) w)
+     base .= ⇑base .|. (uext (shl 1 off) w)
    pat_end
 
 ------------------------------------------------------------------------
@@ -716,7 +716,7 @@ def hlt : instruction :=
 ------------------------------------------------------------------------
 -- sub definition
 
-def sub : instruction := do
+def sub_def : instruction := do
  definst "sub" $ do
    pattern λ(w : one_of [8, 16, 32, 64]) (dest : lhs (bv w)) (src : bv w), do
      tmp ← eval $ ⇑dest - src,
@@ -776,13 +776,13 @@ def mk_jcc_instruction_aliases : list string × expression bit → list instruct
 -- so it might suffice to find out what the decoder will pick as the canonical mnemonic.
 def jcc_instructions : list instruction := list.join $ list.map mk_jcc_instruction_aliases
  [ -- Jump if above (cf = 0 and zf = 0)
-   (["ja", "jnbe"], expression.and (expression.get cf = zero) (expression.get zf = zero))
+   (["ja", "jnbe"], expression.bit_and (expression.get cf = bit_zero) (expression.get zf = bit_zero))
    -- Jump if above or equal (cf = 0)
- , (["jae", "jnb", "jnc"], expression.get cf = zero)
+ , (["jae", "jnb", "jnc"], expression.get cf = bit_zero)
    -- Jump if below (cf = 1)
- , (["jb", "jc", "jnae"], expression.get cf = one)
+ , (["jb", "jc", "jnae"], expression.get cf = bit_one)
    -- Jump if below or equal (cf = 1 or zf = 1)
- , (["jbe"], expression.or (expression.get cf = one) (expression.get zf = one))
+ , (["jbe"], expression.bit_or (expression.get cf = bit_one) (expression.get zf = bit_one))
    -- Jump if CX is 0
  , (["jcxz"], expression.get cx = 0)
    -- Jump if ECX is 0
@@ -790,31 +790,31 @@ def jcc_instructions : list instruction := list.join $ list.map mk_jcc_instructi
    -- Jump if RCX is 0
  , (["jrcxz"], expression.get rcx = 0)
    -- Jump if equal (zf = 1)
- , (["je", "jz"], expression.get zf = one)
+ , (["je", "jz"], expression.get zf = bit_one)
    -- Jump if greater (zf = 0 and sf = of)
- , (["jg", "jnle"], expression.and (expression.get zf = zero) (expression.get sf = expression.get of))
+ , (["jg", "jnle"], expression.bit_and (expression.get zf = bit_zero) (expression.get sf = expression.get of))
    -- Jump if greater or equal (sf = of)
  , (["jge", "jnl"], expression.get sf = expression.get of)
    -- Jump if less (sf ≠ of)
  , (["jl", "jnge"], expression.get sf ≠ expression.get of)
    -- Jump if less or equal (zf = 1 or sf ≠ of)
- , (["jle", "jng"], expression.or (expression.get zf = one) (expression.get sf ≠ expression.get of))
+ , (["jle", "jng"], expression.bit_or (expression.get zf = bit_one) (expression.get sf ≠ expression.get of))
    -- Jump if not above (cf = 1 or zf = 1)
- , (["jna"], expression.or (expression.get cf = one) (expression.get zf = one))
+ , (["jna"], expression.bit_or (expression.get cf = bit_one) (expression.get zf = bit_one))
    -- Jump if not equal (zf = 0)
- , (["jne", "jnz"], expression.get zf = zero)
+ , (["jne", "jnz"], expression.get zf = bit_zero)
    -- Jump if not overflow (of = 0)
- , (["jno"], expression.get of = zero)
+ , (["jno"], expression.get of = bit_zero)
    -- Jump if not parity (pf = 0)
- , (["jnp", "jpo"], expression.get pf = zero)
+ , (["jnp", "jpo"], expression.get pf = bit_zero)
    -- Jump if not sign (sf = 0)
- , (["jns"], expression.get sf = zero)
+ , (["jns"], expression.get sf = bit_zero)
    -- Jump if overflow (of = 1)
- , (["jo"], expression.get of = one)
+ , (["jo"], expression.get of = bit_one)
    -- Jump if parity (pf = 1)
- , (["jp", "jpe"], expression.get pf = one)
+ , (["jp", "jpe"], expression.get pf = bit_one)
    -- Jump if sign (sf = 1)
- , (["js"], expression.get sf = one)
+ , (["js"], expression.get sf = bit_one)
  ]
 
 ------------------------------------------------------------------------
@@ -925,7 +925,7 @@ def cdqe : instruction :=
 def clc : instruction :=
  definst "clc" $ do
    pattern do
-     cf .= zero
+     cf .= bit_zero
    pat_end
 
 ------------------------------------------------------------------------
@@ -934,38 +934,38 @@ def clc : instruction :=
 def cld : instruction :=
  definst "cld" $ do
    pattern do
-     df .= zero
+     df .= bit_zero
    pat_end
 
 ------------------------------------------------------------------------
 -- sar definition
 -- Shift arithmetic right
-def sar : instruction :=
+def sar_def : instruction :=
   definst "sar" $ do
     let set_cf {w:ℕ} v i :=
-      let notInRange := bv_ult (expression.bvnat 8 w) i in
-      let msb_v := bv_bit v (expression.bvnat w (w-1)) in
-      expression.or (bv_bit v ((uext i w) - 1))
-                    (expression.and notInRange msb_v),
+      let notInRange := ult (expression.bv_nat 8 w) i in
+      let msb_v := bv_bit v (expression.bv_nat w (w-1)) in
+      expression.bit_or (bv_bit v ((uext i w) - 1))
+                        (expression.bit_and notInRange msb_v),
     pattern λ(w : one_of [8, 16, 32]) (value: lhs (bv w)) (count: bv 8),do
-      do_sh count (32-1) value bv_sar set_cf (λv res, zero)
+      do_sh count (32-1) value sar set_cf (λv res, bit_zero)
     pat_end,
     pattern λ(value: lhs (bv 64)) (count: bv 8),do
-      do_sh count (64-1) value bv_sar set_cf (λv res, zero)
+      do_sh count (64-1) value sar set_cf (λv res, bit_zero)
     pat_end
 
 ------------------------------------------------------------------------
 -- shr definition
 -- Shift logical right
-def shr : instruction :=
+def shr_def : instruction :=
   definst "shr" $ do
-    let set_cf {w:ℕ} v (i: bv 8) := bv_bit v (bv_sub (uext i w) 1),
-    let set_of {w:ℕ} v res := expression.xor (@msb w res) (@msb w v),
+    let set_cf {w:ℕ} v (i: bv 8) := bv_bit v (sub (uext i w) 1),
+    let set_of {w:ℕ} v res := expression.bit_xor (@msb w res) (@msb w v),
     pattern λ(w : one_of [8, 16, 32]) (value: lhs (bv w)) (count: bv 8),do
-      do_sh count (32-1) value bv_shr set_cf set_of
+      do_sh count (32-1) value shr set_cf set_of
     pat_end,
     pattern λ(value: lhs (bv 64)) (count: bv 8),do
-      do_sh count (64-1) value bv_shr set_cf set_of
+      do_sh count (64-1) value shr set_cf set_of
     pat_end
 
 ------------------------------------------------------------------------
@@ -973,17 +973,17 @@ def shr : instruction :=
 -- Shift arithmetic left
 def sal_patterns := do
   let set_cf {w:ℕ} v (i : bv 8) :=
-        expression.and (bv_ule i (expression.bvnat _ w))
-                       (bv_bit v (bv_sub (expression.bvnat _ w) (uext i w))),
+        expression.bit_and (ule i (expression.bv_nat _ w))
+                           (bv_bit v (sub (expression.bv_nat _ w) (uext i w))),
   pattern λ(w : one_of [8, 16, 32]) (value: lhs (bv w)) (count: bv 8),do
-    do_sh count (32-1) value bv_shl set_cf (λv res, msb v)
+    do_sh count (32-1) value shl set_cf (λv res, msb v)
   pat_end,
   pattern λ(value: lhs (bv 64)) (count: bv 8), do
-    do_sh count (64-1) value bv_shl set_cf (λv res, msb v)
+    do_sh count (64-1) value shl set_cf (λv res, msb v)
   pat_end
 
 def sal : instruction := definst "sal" sal_patterns
-def shl : instruction := definst "shl" sal_patterns
+def shl_def : instruction := definst "shl" sal_patterns
 
 def all_instructions :=
   [ imul
@@ -1001,9 +1001,9 @@ def all_instructions :=
   , pause
   , div
   , idiv
-  , and
+  , and_def
   , not
-  , or
+  , or_def
   , bt
   , btc
   , btr
@@ -1035,12 +1035,12 @@ def all_instructions :=
   , clc
   , cld
   , test
-  , sub
-  , xor
-  , sar
+  , sub_def
+  , xor_def
+  , sar_def
   , sal
-  , shr
-  , shl
+  , shr_def
+  , shl_def
   ] ++ jcc_instructions
 
 end x86
