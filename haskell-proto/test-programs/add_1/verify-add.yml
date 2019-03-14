@@ -9,7 +9,6 @@ functions:
   - label: '1'
     addr: 0x4004d6
     size: 0x1a
-    rsp_offset: 0
     allocas:
     - name: 2
       offset: -32
@@ -37,10 +36,9 @@ functions:
 - llvm_name: main
   stack_size: 16
   blocks:
-  - label: '1'
+  - label: '0'
     addr: 0x4004f0
     size: 0x1c
-    rsp_offset: 0
     allocas:
     - name: 2
       offset: -16

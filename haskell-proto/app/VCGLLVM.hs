@@ -34,6 +34,7 @@ import           Data.Text (Text)
 import qualified Data.Text as Text
 import           GHC.Stack
 import           Text.LLVM hiding ((:>))
+import qualified Text.LLVM as L
 import qualified What4.Protocol.SMTLib2.Syntax as SMT
 
 import           VCGCommon
@@ -52,14 +53,14 @@ data Event
     -- The identifier is stored so that we can uniquely refer to this identifier.
     --
     -- Users should define @identVar nm@ to a useful value.
-  | LoadEvent !SMT.Term !Integer !Var
-    -- ^ `LoadEvent a w v` indicates that we read `w` bytes fMairom address `a`,
+  | LoadEvent !SMT.Term !L.Type !Var
+    -- ^ `LoadEvent a tp v` indicates that we read `w` bytes fMairom address `a`,
     -- and the value should be assigned to `v` in the SMTLIB.
     --
     -- The variable is a bitvector with width @8*w@.
-  | StoreEvent !SMT.Term !Integer !SMT.Term
-    -- ^ `StoreEvent a w v` indicates that we write the `w` byte value `v` to `a`.
-  | InvokeEvent !Bool !SMT.Term [SMT.Term] (Maybe (Ident, Type))
+  | StoreEvent !SMT.Term !L.Type !SMT.Term
+    -- ^ `StoreEvent a tp v` indicates that we write the `w` byte value `v` to `a`.
+  | InvokeEvent !Bool !L.Symbol [SMT.Term] (Maybe (Ident, Type))
     -- ^ The invoke event takes the address of the function that we are jumping to, the
     -- arguments that are passed in, and the return identifier and variable to assign the return value to
     -- (if any).
@@ -99,6 +100,7 @@ addEvent e = modify $ \s -> s { events = e:events s }
 addCommand :: SMT.Command -> LStateM ()
 addCommand cmd = addEvent (CmdEvent cmd)
 
+{-
 byteCount :: Type
           -> Integer
 byteCount (PrimType (Integer  w))
@@ -108,6 +110,7 @@ byteCount (PrimType (Integer  w))
 byteCount (PtrTo _) = 8
 byteCount tp = do
   error $ "byteCount: unsupported type " ++ show tp
+-}
 
 --smtVar :: Text -> SMT.Term
 --smtVar = SMT.T . Builder.fromText
@@ -158,7 +161,9 @@ asSMTType _ = Nothing
 identVar :: Ident -> Text
 identVar (Ident nm) = "llvm_" <> Text.pack nm
 
-primEval :: Type
+-- | Construct an SMT term from a LLVM value
+primEval :: HasCallStack
+         => Type
          -> Value
          -> LStateM SMT.Term
 primEval _ (ValIdent var) = do
@@ -166,11 +171,13 @@ primEval _ (ValIdent var) = do
 primEval (PrimType (Integer w)) (ValInteger i) = do
   when (w <= 0) $ error "primEval given negative width."
   pure $ SMT.bvdecimal i (fromIntegral w)
-primEval _ _ = error "TODO: Add more support in primEval"
+primEval tp v  = error $ "TODO: Add more support in primEval:\n"
+                    ++ "Type:  " ++ show tp ++ "\n"
+                    ++ "Value: " ++ show v
+
 
 evalTyped :: Typed Value -> LStateM SMT.Term
 evalTyped (Typed tp var) = primEval tp var
-
 
 defineTerm :: Ident -> SMT.Sort -> SMT.Term -> LStateM ()
 defineTerm nm tp t = do
@@ -182,7 +189,6 @@ assign2SMT ident (Arith op (Typed lty lhs) rhs)
       lhsv   <- primEval lty lhs
       rhsv   <- primEval lty rhs
       defineTerm ident tp $ arithOpFunc op lhsv rhsv
-
 assign2SMT ident (ICmp op (Typed lty@(PrimType (Integer w)) lhs) rhs) = do
   when (w <= 0) $ error $ "Unexpected bitwidth " ++ show w
   lhsv <- primEval lty lhs
@@ -223,15 +229,16 @@ assign2SMT nm (Alloca ty eltCount malign) = do
   addEvent $ AllocaEvent nm totalSize align
 assign2SMT ident (Load (Typed (PtrTo lty) src) _ord _align) = do
   addrTerm <- primEval (PtrTo lty) src
-  let w = byteCount lty
-  addEvent $ LoadEvent addrTerm w (identVar ident)
+  addEvent $ LoadEvent addrTerm lty (identVar ident)
 assign2SMT ident (Call isTailCall retty f args) = do
   -- Evaluate function
-  fPtrVal <- primEval (PtrTo (FunTy retty (typedType <$> args) False)) f
+  fSym <- case f of
+            ValSymbol s -> pure s
+            _ -> fail $ "VCG currently only supports directly calls."
   -- Evaluate arguments
   argValues <- traverse evalTyped args
   -- Add invoke event
-  addEvent $ InvokeEvent isTailCall fPtrVal argValues (Just (ident, retty))
+  addEvent $ InvokeEvent isTailCall fSym argValues (Just (ident, retty))
 assign2SMT _ instr  = do
   error $ "assign2SMT: unsupported instruction: " ++ show instr
 
@@ -241,7 +248,7 @@ effect2SMT instr =
     Store llvmVal llvmPtr _ordering _align -> do
       addrTerm <- evalTyped llvmPtr
       valTerm  <- evalTyped llvmVal
-      addEvent $ StoreEvent addrTerm (byteCount (typedType llvmVal)) valTerm
+      addEvent $ StoreEvent addrTerm (typedType llvmVal) valTerm
     Br (Typed _ty cnd) t1 t2 -> do
       cndTerm <- primEval (PrimType (Integer 1)) cnd
       addEvent $ BranchEvent (SMT.eq [cndTerm, SMT.bvdecimal 1 1]) t1 t2

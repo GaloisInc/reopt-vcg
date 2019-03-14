@@ -13,12 +13,14 @@ module Reopt.VCG.Config
 import qualified Data.HashMap.Strict as HMap
 import           Data.HashSet (HashSet)
 import qualified Data.HashSet as HSet
+import           Data.Map (Map)
+import qualified Data.Map.Strict as Map
 import           Data.Scientific (toBoundedInteger)
 import           Data.String
 import           Data.Text (Text)
 import qualified Data.Text as Text
 import           Data.Word
-import           Data.Yaml ((.:))
+import           Data.Yaml ((.:), (.:?), (.!=))
 import qualified Data.Yaml as Yaml
 import           GHC.Generics
 
@@ -102,9 +104,12 @@ data BlockEventInfo
 ------------------------------------------------------------------------
 -- BlockEvent
 
+type MCAddr = Word64
+
+
 -- | Annotes an event at a given address.
 data BlockEvent = BlockEvent
-  { eventAddr :: !Integer
+  { eventAddr :: !MCAddr
   , eventInfo :: !BlockEventInfo
   }
   deriving (Show)
@@ -135,7 +140,7 @@ instance Yaml.FromJSON BlockEvent where
 data VCGBlockInfo = VCGBlockInfo
   { blockLabel :: !String
     -- ^ LLVM label of block
-  , blockAddr :: !Word64
+  , blockAddr :: !MCAddr
     -- ^ Address of start of block in machine code
   , blockCodeSize :: !Integer
     -- ^ Number of bytes in block
@@ -153,34 +158,43 @@ blockInfoFields :: FieldList
 blockInfoFields = fields ["label", "addr", "size", "rsp_offset", "allocas", "events"]
 
 instance Yaml.FromJSON VCGBlockInfo where
-  parseJSON = withFixedObject "block" blockInfoFields $ \v ->
-    VCGBlockInfo
-      <$> v .: "label"
-      <*> v .: "addr"
-      <*> v .: "size"
-      <*> v .: "rsp_offset"
-      <*> v .: "allocas"
-      <*> v .: "events"
+  parseJSON = withFixedObject "block" blockInfoFields $ \v -> do
+    lbl  <- v .: "label"
+    addr <- v .: "addr"
+    sz   <- v .: "size"
+    rspOff  <- v .:? "rsp_offset" .!= 0
+    allocas <- v .:? "allocas"    .!= []
+    events  <- v .:? "events"     .!= []
+    pure VCGBlockInfo { blockLabel = lbl
+                      , blockAddr  = addr
+                      , blockCodeSize = sz
+                      , blockHintsRSPOffset = rspOff
+                      , blockAllocas = allocas
+                      , blockEvents = events
+                      }
 
 data VCGFunInfo = VCGFunInfo
   { llvmFunName    :: !String
     -- ^ LLVM function name
   , stackSize :: !Integer
     -- ^ Number of bytes in binary stack size.
-  , blocks :: [VCGBlockInfo]
-    -- ^ Information relating blocks
+  , blocks :: !(Map String VCGBlockInfo)
+    -- ^ Maps LLVM labels to the block associated with that label.
   }
-  deriving (Show, Generic)
+  deriving (Show)
 
 functionInfoFields :: FieldList
 functionInfoFields = fields ["llvm_name", "stack_size", "blocks"]
 
 instance Yaml.FromJSON VCGFunInfo where
-  parseJSON = withFixedObject "function" functionInfoFields $ \v ->
-    VCGFunInfo
-      <$> v .: "llvm_name"
-      <*> v .: "stack_size"
-      <*> v .: "blocks"
+  parseJSON = withFixedObject "function" functionInfoFields $ \v -> do
+    fnm <- v .: "llvm_name"
+    sz  <- v .: "stack_size"
+    blocks <- v .: "blocks"
+    pure $! VCGFunInfo { llvmFunName = fnm
+                       , stackSize = sz
+                       , blocks = Map.fromList [ (blockLabel b, b) | b <- blocks ]
+                       }
 
 data MetaVCGConfig = MetaVCGConfig
   { llvmBCFilePath :: FilePath
