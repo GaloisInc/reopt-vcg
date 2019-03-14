@@ -96,8 +96,7 @@ def check_atom_term {m} [char_reader string m] : m unit := do
  | option.none := pure ()
  | (option.some c) := do
     when (c ∉ ['(', ')'] ∧ ¬c.is_whitespace)
-      (throw ("Unexpected character "++ c.repr)),
-    consume_char
+      (throw ("Unexpected character "++ c.repr))
  end
 
 /-- Read the s-expression from the handle/ -/
@@ -117,7 +116,6 @@ def read_core {α:Type} [is_atom α] {m} [char_reader string m]
     | [] :=
       throw "unexpected close paren"
     | (top_frame::lower_frames) := do
-      consume_char,
       match lower_frames with
       | [] := do
         pure top_frame.close
