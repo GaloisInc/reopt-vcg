@@ -42,7 +42,7 @@ protected
 def read {m} [char_reader string m] (read_count:ℕ) : m atom := do
   mc ← char_reader.peek_char,
   match mc with
-  | option.none := throw "Dog Unexpected end of stream."
+  | option.none := throw "Unexpected end of stream."
   | option.some '|' := do
     char_reader.consume_char,
     b ← char_reader.read_while symbol.is_symbol_char read_count,

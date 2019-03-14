@@ -5,6 +5,6 @@ lean_version = "3.4.1"
 path="src"
 
 [dependencies]
-galois_stdlib = { path = "deps/galois_stdlib" }
-typed_smt2    = { path = "deps/typed_smt2" }
 decodex86     = { path = "../decodex86/" }
+typed_smt2    = { path = "deps/typed_smt2" }
+x86_semantics = { path = "deps/x86_semantics" }
