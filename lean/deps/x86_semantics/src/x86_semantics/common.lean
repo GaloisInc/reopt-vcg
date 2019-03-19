@@ -1,26 +1,112 @@
 import galois.category.coe1
-
-def unlines : list string → string := list.foldr (λx r, x ++ "\n" ++ r) ""
+import galois.sexpr
 
 -- Library for buidling s expressions
 namespace sexp
 
-def app (s:string) (l:list string) := "(" ++ s ++ list.foldr (λx r, " " ++ x ++ r) ")" l
+------------------------------------------------------------------------
+-- atom
 
--- Pretty print
-def from_list : list string → string
-| [] := "()"
-| (s::l) := app s l
+def symbol := string
 
-def indent : string → string
-  | s := "  " ++ s
+instance : has_append symbol := ⟨string.append⟩
+
+/-- Symbol characters allowed in simple symbols -/
+protected
+def char_symbols : list char :=
+ ['~', '!', '@', '$', '%', '^', '&', '*', '_', '-', '+', '=', '<', '>', '.', '?', '/' ]
+
+/-- Predicate that checks if character is allowed in a simple symbol. -/
+inductive is_symbol_char (c:char) : Prop
+| is_alpha : char.is_alpha c → is_symbol_char
+| is_digit : char.is_digit c → is_symbol_char
+| is_other : c ∈ sexp.char_symbols → is_symbol_char
+
+open is_symbol_char
+open decidable
+
+instance is_simple_symbol_char.decidable : decidable_pred is_symbol_char
+| c :=
+  if f : c.is_alpha then
+    is_true (is_alpha f)
+  else if g : c.is_digit then
+    is_true (is_digit g)
+  else if h : c ∈ sexp.char_symbols  then
+    is_true (is_other h)
+  else
+    is_false begin intro p, cases p; contradiction, end
+
+/- A atomic expression within an s-expression. -/
+inductive atom
+| symbol   : symbol → atom
+| numeral  : ℕ      → atom
+| string   : string → atom
+
+protected
+def repr : atom → string
+| (atom.symbol s) := s
+| (atom.numeral n) := n.repr
+| (atom.string s) := "̈\"" ++ s ++ "\""
+
+protected
+def symbol.sexpr : symbol → sexpr atom
+| s := sexpr.mk_atom (atom.symbol s)
+
+protected
+def numeral.sexpr : ℕ → sexpr atom
+| n := sexpr.mk_atom (atom.numeral n)
+
+protected
+def string.sexpr : string → sexpr atom
+| s := sexpr.mk_atom (atom.string s)
+
+protected
+def to_char_buffer : atom → char_buffer
+| (atom.symbol s) := s.to_char_buffer
+| (atom.numeral s) := s.repr.to_char_buffer
+| (atom.string s) := ("\"" ++ s ++ "\"").to_char_buffer
+
+protected
+def read {m} [char_reader string m] (read_count:ℕ) : m atom := do
+  mc ← char_reader.peek_char,
+  match mc with
+  | option.none := throw "Unexpected end of stream."
+  | option.some '\"' := do
+    char_reader.consume_char,
+    b ← char_reader.read_while (λc, c ≠ '\"') read_count,
+    char_reader.consume_char,
+    pure (atom.string b.to_string)
+  | option.some c :=
+    if c.is_digit then (do
+      b ← char_reader.read_while char.is_digit read_count,
+      pure (atom.numeral b.to_string.to_nat))
+    else if is_symbol_char c then (do
+      -- Read symbol characters
+      b ← char_reader.read_while is_symbol_char read_count,
+     pure (atom.symbol b.to_string))
+    else
+      throw $ "Unexpected character " ++ c.to_string
+  end
+
+instance atom_is_atom : sexpr.is_atom atom :=
+{ to_char_buffer := sexp.to_char_buffer
+, read := @sexp.read
+}
+
+def app (s:symbol) (l:list (sexpr atom)) := sexpr.app s.sexpr l
+
+def cons : atom → sexpr atom → sexpr atom
+| h tl@(sexpr.atom _) := sexpr.parens [sexpr.mk_atom h, tl]
+| h (sexpr.parens tl) := sexpr.parens (sexpr.mk_atom h :: tl)
+
+def append : sexpr atom → sexpr atom → sexpr atom
+| (sexpr.atom h) l2 := cons h l2
+| (sexpr.parens l1) a@(sexpr.atom _) := sexpr.parens (l1 ++ [a])
+| (sexpr.parens l1) (sexpr.parens l2) := sexpr.parens (l1 ++ l2)
 
 end sexp
 
-def paren_if : bool → string → string
-| tt s := "(" ++ s ++ ")"
-| ff s := s
-
+open sexp
 ------------------------------------------------------------------------
 -- Coercisions
 
@@ -32,7 +118,8 @@ namespace mc_semantics
 @[reducible]
 def arg_index := nat
 
-def arg_index.pp (idx:arg_index) : string := sexp.app "arg" [idx.repr]
+def arg_index.sexpr (idx:arg_index) : sexpr atom := sexpr.of_list
+  [symbol.sexpr "arg", numeral.sexpr idx]
 
 ------------------------------------------------------------------------
 -- nat_expr
@@ -75,20 +162,22 @@ instance : has_sub nat_expr := ⟨nat_expr.do_sub⟩
 instance : has_mul nat_expr := ⟨nat_expr.do_mul⟩
 instance : has_div nat_expr := ⟨nat_expr.do_div⟩
 
-protected def pp : nat_expr → string
-| (lit x) := x.repr
-| (var x) := x.pp
-| (add x y) := sexp.app "addNat" [x.pp, y.pp]
-| (sub x y) := sexp.app "subNat" [x.pp, y.pp]
-| (mul x y) := sexp.app "mulNat" [x.pp, y.pp]
-| (div x y) := sexp.app "divNat" [x.pp, y.pp]
+protected def sexpr : nat_expr → sexpr atom
+| (lit x) := numeral.sexpr x
+| (var x) := x.sexpr
+| (add x y) := app "addNat" [x.sexpr, y.sexpr]
+| (sub x y) := app "subNat" [x.sexpr, y.sexpr]
+| (mul x y) := app "mulNat" [x.sexpr, y.sexpr]
+| (div x y) := app "divNat" [x.sexpr, y.sexpr]
 
-instance : has_repr nat_expr := ⟨nat_expr.pp⟩
+instance : has_repr nat_expr := ⟨sexpr.repr ∘ nat_expr.sexpr⟩
 
 instance nat_coe_nat_expr : has_coe ℕ nat_expr := ⟨λx, lit x⟩
 
-end nat_expr
+protected
+def pp : nat_expr → string := has_repr.repr
 
+end nat_expr
 ------------------------------------------------------------------------
 -- one_of
 
@@ -101,6 +190,7 @@ def to_nat_expr {l:list ℕ} : one_of l → nat_expr
 | (one_of.var i) := nat_expr.var i
 
 protected def pp {l:list ℕ} (x:one_of l) := x.to_nat_expr.pp
+protected def sexpr {l:list ℕ} (x:one_of l) := x.to_nat_expr.sexpr
 
 instance (l:list ℕ) : has_coe (one_of l) nat_expr :=
 ⟨ one_of.to_nat_expr ⟩
@@ -123,21 +213,24 @@ inductive type
 namespace type
 
 protected
-def pp' : Π(in_fun:bool), type → string
-| _ (bv w) := sexp.app "bv" [w.pp]
-| _ bit    := "bit"
-| _ float  := "float"
-| _ double := "double"
-| _ x86_80 := "x86_80"
-| _ (vec w tp) := sexp.app "vec" [w.pp, tp.pp' ff]
+def sexpr' : Π(in_fun:bool), type → sexpr atom
+| _ (bv w) := app "bv" [w.sexpr]
+| _ bit    := symbol.sexpr "bit"
+| _ float  := symbol.sexpr "float"
+| _ double := symbol.sexpr "double"
+| _ x86_80 := symbol.sexpr "x86_80"
+| _ (vec w tp) := app "vec" [w.sexpr, tp.sexpr' ff]
 | in_fun (fn a r) :=
   if in_fun then
-     a.pp' ff ++ " " ++ r.pp' tt
+    sexpr.parens [a.sexpr' ff, r.sexpr' tt]
   else
-     sexp.app "fun" [a.pp' ff, r.pp' tt]
+    app "fun" [a.sexpr' ff, r.sexpr' tt]
 
 protected
-def pp : type → string := type.pp' ff
+def sexpr : type → sexpr atom := type.sexpr' ff
+
+protected
+def pp : type → string := sexpr.repr ∘ type.sexpr
 
 end type
 
@@ -221,19 +314,21 @@ protected def flag_names : list string :=
   , "rf", "vm",         "ac",  "vif",        "vip",   "id"
   ]
 
-protected def repr : Π{tp:type}, reg tp → string
-| ._ (concrete_gpreg idx tp) := "$" ++
+protected def sexpr : Π{tp:type}, reg tp → sexpr atom
+| ._ (concrete_gpreg idx tp) := symbol.sexpr $ "$" ++
   match tp with
   | gpreg_type.reg8l := list.nth_le reg.r8l_names idx.val idx.is_lt
   | gpreg_type.reg16 := list.nth_le reg.r16_names idx.val idx.is_lt
   | gpreg_type.reg32 := list.nth_le reg.r32_names idx.val idx.is_lt
   | gpreg_type.reg64 := list.nth_le reg.r64_names idx.val idx.is_lt
   end
-| ._ (concrete_flagreg idx) := "$" ++
+| ._ (concrete_flagreg idx) := symbol.sexpr $ "$" ++
    match list.nth reg.flag_names idx.val with
    | (option.some nm) := nm
    | option.none :=  "REVERSED_" ++ idx.val.repr
    end
+
+protected def repr : Π{tp:type}, reg tp → string := λ_, sexpr.repr ∘ reg.sexpr
 
 end reg
 
@@ -244,7 +339,10 @@ inductive addr (tp:type) : Type
 namespace addr
 
 protected def repr {tp:type} : addr tp → string
-| (arg idx) := idx.pp
+| (arg idx) := idx.repr
+
+protected def sexpr {tp:type} : addr tp → sexpr atom
+| (arg idx) := idx.sexpr
 
 end addr
 
@@ -264,8 +362,14 @@ namespace lhs
 protected def repr : Π {tp:type}, lhs tp → string
 | _  (reg r) := r.repr
 | ._ (addr a) := a.repr
-| _  (arg idx tp) := idx.pp
+| _  (arg idx tp) := idx.repr
 | ._ (streg idx) := "st" ++ idx.val.repr
+
+protected def sexpr : Π{tp:type}, lhs tp → sexpr atom
+| _ (reg r) := r.sexpr
+| ._ (addr a) := a.sexpr
+| _ (arg idx tp) := idx.sexpr
+| ._ (streg idx) := symbol.sexpr $ "st" ++ idx.val.repr
 
 end lhs
 
@@ -428,52 +532,54 @@ inductive prim : type → Type
 
 namespace prim
 
-def pp : Π{tp:type}, prim tp → string
-| ._ (add i) := "add " ++ i.pp
-| ._ (adc i) := "adc " ++ i.pp
-| ._ (mul i) := "mul " ++ i.pp
-| ._ (quot i) := "quot " ++ i.pp
-| ._ (rem i) := "rem " ++ i.pp
-| ._ (squot i) := "squot " ++ i.pp
-| ._ (srem i) := "srem " ++ i.pp
-| ._ (slice w u l) := "slice " ++ w.pp ++ " " ++ u.pp ++ " " ++ l.pp
-| ._ (sext i o) := "sext " ++ i.pp ++ " " ++ o.pp
-| ._ (uext i o) := "uext " ++ i.pp ++ " " ++ o.pp
-| ._ (trunc i o) := "trunc " ++ i.pp ++ " " ++ o.pp
-| ._ (bsf i) := "bsf " ++ i.pp
-| ._ (bsr i) := "bsr " ++ i.pp
-| ._ (bswap i) := "bswap " ++ i.pp
-| ._ bit_zero := sexp.app "bit" ["0"]
-| ._ bit_one  := sexp.app "bit" ["1"]
-| ._ (eq tp) := "eq " ++ tp.pp
-| ._ (neq tp) := "neq " ++ tp.pp
-| ._ (neg tp) := "neg " ++ tp.pp
-| ._ x87_fadd := "x87_fadd"
-| ._ float_to_x86_80 := "float_to_x86_80"
-| ._ double_to_x86_80 := "double_to_X86_80"
-| ._ (bv_to_x86_80 w) := "sext " ++ w.pp
-| ._ (bv_nat w n) := sexp.app "bv_nat" [w.pp, n.pp]
-| ._ (sub i) := "sub " ++ i.pp
-| ._ (ssbb_overflows i) := "ssbb_overflows " ++ i.pp
-| ._ (usbb_overflows i) := "usbb_overflows " ++ i.pp
-| ._ (uadc_overflows i) := "uadc_overflows " ++ i.pp
-| ._ (sadc_overflows i) := "sadc_overflows " ++ i.pp
-| ._ (and i) := "and " ++ i.pp
-| ._ (or  i) := "or "  ++ i.pp
-| ._ (xor i) := "xor " ++ i.pp
-| ._ (shl i) := "shl " ++ i.pp
-| ._ (shr i) := "shr " ++ i.pp
-| ._ (sar i) := "sar " ++ i.pp
-| ._ (bv_bit i) := "bv_bit " ++ i.pp
-| ._ (complement i) := "complement " ++ i.pp
-| ._ (cat i) := "cat " ++ i.pp
-| ._ (msb i) := "msb " ++ i.pp
-| ._ (even_parity i) := "even_parity " ++ i.pp
-| ._ bit_or  := "bit_or"
-| ._ bit_and := "bit_and"
-| ._ bit_xor := "bit_xor"
-| ._ (ule i) := "ule " ++ i.pp
-| ._ (ult i) := "ult " ++ i.pp
+def sexpr : Π{tp:type}, prim tp → sexpr atom
+| ._ (add i) := app "add" [i.sexpr]
+| ._ (adc i) := app "adc" [i.sexpr]
+| ._ (mul i) := app "mul" [i.sexpr]
+| ._ (quot i) := app "quot" [i.sexpr]
+| ._ (rem i) := app "rem" [i.sexpr]
+| ._ (squot i) := app "squot" [i.sexpr]
+| ._ (srem i) := app "srem" [i.sexpr]
+| ._ (slice w u l) := app "slice" [w.sexpr, u.sexpr, l.sexpr]
+| ._ (sext i o) := app "sext" [i.sexpr, o.sexpr]
+| ._ (uext i o) := app "uext" [i.sexpr, o.sexpr]
+| ._ (trunc i o) := app "trunc" [i.sexpr, o.sexpr]
+| ._ (bsf i) := app "bsf" [i.sexpr]
+| ._ (bsr i) := app "bsr" [i.sexpr]
+| ._ (bswap i) := app "bswap" [i.sexpr]
+| ._ bit_zero := app "bit" [numeral.sexpr 0]
+| ._ bit_one  := app "bit" [numeral.sexpr 1]
+| ._ (eq tp) := app "eq" [tp.sexpr]
+| ._ (neq tp) := app "neq" [tp.sexpr]
+| ._ (neg tp) := app "neg" [tp.sexpr]
+| ._ x87_fadd := symbol.sexpr "x87_fadd"
+| ._ float_to_x86_80 := symbol.sexpr "float_to_x86_80"
+| ._ double_to_x86_80 := symbol.sexpr "double_to_X86_80"
+| ._ (bv_to_x86_80 w) := app "sext" [w.sexpr]
+| ._ (bv_nat w n) := app "bv_nat" [w.sexpr, n.sexpr]
+| ._ (sub i) := app "sub" [i.sexpr]
+| ._ (ssbb_overflows i) := app "ssbb_overflows" [i.sexpr]
+| ._ (usbb_overflows i) := app "usbb_overflows" [i.sexpr]
+| ._ (uadc_overflows i) := app "uadc_overflows" [i.sexpr]
+| ._ (sadc_overflows i) := app "sadc_overflows" [i.sexpr]
+| ._ (and i) := app "and" [i.sexpr]
+| ._ (or  i) := app "or"  [i.sexpr]
+| ._ (xor i) := app "xor" [i.sexpr]
+| ._ (shl i) := app "shl" [i.sexpr]
+| ._ (shr i) := app "shr" [i.sexpr]
+| ._ (sar i) := app "sar" [i.sexpr]
+| ._ (bv_bit i) := app "bv_bit" [i.sexpr]
+| ._ (complement i) := app "complement" [i.sexpr]
+| ._ (cat i) := app "cat" [i.sexpr]
+| ._ (msb i) := app "msb" [i.sexpr]
+| ._ (even_parity i) := app "even_parity" [i.sexpr]
+| ._ bit_or  := symbol.sexpr "bit_or"
+| ._ bit_and := symbol.sexpr "bit_and"
+| ._ bit_xor := symbol.sexpr "bit_xor"
+| ._ (ule i) := app "ule" [i.sexpr]
+| ._ (ult i) := app "ult" [i.sexpr]
+
+def pp : Π{tp:type}, prim tp → string := λ_, sexpr.repr ∘ prim.sexpr
 
 end prim
 
@@ -531,15 +637,16 @@ def is_app : Π{tp:type}, expression tp → bool
 | ._ (app _ _) := tt
 | _ _ := ff
 
+open sexpr -- TODO: why is this needed to see `parens` below?
 protected
-def pp_args : Π{tp:type}, expression tp → string
-| ._ (primitive o) := o.pp
-| ._ (app f a) := f.pp_args ++ " " ++ paren_if a.is_app a.pp_args
-| ._ (get lhs) := lhs.repr
-| ._ (get_local idx tp) := sexp.app "local" [idx.pp]
+def sexpr : Π{tp:type} (v:expression tp), sexpr atom
+| ._ (primitive o) := o.sexpr
+| ._ (app f a) := append f.sexpr (parens [a.sexpr])
+| ._ (get lhs) := lhs.sexpr
+| ._ (get_local idx tp) := sexp.app "local" [idx.sexpr]
 
 protected
-def pp {tp:type} (v:expression tp) := paren_if v.is_app v.pp_args
+def pp {tp:type} : expression tp → string := sexpr.repr ∘ expression.sexpr
 
 instance (tp:type) : has_repr (expression tp) := ⟨expression.pp⟩
 
@@ -604,16 +711,18 @@ inductive event
 
 namespace event
 
-protected def pp : event → string
-| syscall := "(syscall)"
-| (unsupported msg) := "(unsupported " ++ msg ++ ")"
-| pop_x87_register_stack := "(pop_x87_register_stack)"
-| (call addr) := "(call " ++ addr.pp ++ ")"
-| (jmp  addr) := "(jmp " ++ addr.pp ++ ")"
-| (branch cond addr) := "(branch " ++ cond.pp ++ " " ++ addr.pp ++ ")"
-| ret := "(ret)"
-| hlt := "(hlt)"
-| (xchg addr1 addr2) := "(xchg " ++ addr1.pp ++ " " ++ addr2.pp ++ ")"
+protected def sexpr : event → sexpr atom
+| syscall := app "syscall" []
+| (unsupported msg) := app "unsupported" [string.sexpr msg]
+| pop_x87_register_stack := symbol.sexpr "pop_x87_register_stack"
+| (call addr) := app "call" [addr.sexpr]
+| (jmp  addr) := app "jmp" [addr.sexpr]
+| (branch cond addr) := app "branch" [cond.sexpr, addr.sexpr]
+| ret := app "ret" []
+| hlt := app "hlt" []
+| (xchg addr1 addr2) := app "xchg" [addr1.sexpr, addr2.sexpr]
+
+protected def pp : event → string := sexpr.repr ∘ event.sexpr
 
 end event
 
@@ -637,14 +746,16 @@ inductive action
 
 namespace action
 
-protected def repr : action → string
-| (set l r)            := sexp.app "set" [l.repr, r.pp]
-| (set_cond l c v)     := sexp.app "set_cond" [l.repr, c.pp, v.pp]
-| (set_undef v)        := sexp.app "set_undef" [v.repr]
-| (set_undef_cond l c) := sexp.app "set_undef_cond" [l.repr, c.pp]
-| (set_aligned l r a)  := sexp.app "set_aligned" [l.repr, r.pp, a.pp]
-| (local_def idx v)    := sexp.app "var" [idx.pp, v.pp]
-| (event e)            := e.pp
+protected def sexpr : action → sexpr atom
+| (set l r)            := app "set" [l.sexpr, r.sexpr]
+| (set_cond l c v)     := app "set_cond" [l.sexpr, c.sexpr, v.sexpr]
+| (set_undef v)        := app "set_undef" [v.sexpr]
+| (set_undef_cond l c) := app "set_undef_cond" [l.sexpr, c.sexpr]
+| (set_aligned l r a)  := app "set_aligned" [l.sexpr, r.sexpr, a.sexpr]
+| (local_def idx v)    := app "var" [idx.sexpr, v.sexpr]
+| (event e)            := e.sexpr
+
+protected def repr : action → string := sexpr.repr ∘ action.sexpr
 
 end action
 
@@ -658,10 +769,12 @@ inductive binding
 
 namespace binding
 
-def pp : binding → string
-| (one_of l) := sexp.app "one_of" (nat.repr <$> l)
-| (lhs tp) := sexp.app "lhs" [tp.pp]
-| (expression tp) := sexp.app "expression" [tp.pp]
+def sexpr : binding → sexpr atom
+| (one_of l) := app "one_of" (numeral.sexpr <$> l)
+| (lhs tp) := app "lhs" [tp.sexpr]
+| (expression tp) := app "expression" [tp.sexpr]
+
+def pp : binding → string := sexpr.repr ∘ binding.sexpr
 
 end binding
 
@@ -691,21 +804,23 @@ structure pattern :=
 namespace pattern
 
 private
-def pp_bindings : nat → list binding → string
-| i [] := ""
+def sexpr_bindings : nat → list binding → list (sexpr atom)
+| i [] := []
 | i (b::r)
-  := sexp.indent (sexp.indent (sexp.app "arg" [i.repr, b.pp] ++ "\n"))
-  ++ pp_bindings (i+1) r
+  := app "arg" [numeral.sexpr i, b.sexpr]
+  :: sexpr_bindings (i+1) r
 
 private
-def pp_action (m:action) : string := sexp.indent (sexp.indent m.repr)
+def pp_bindings : nat → list binding → string
+| i bs := string.intercalate "\n" (sexpr.repr <$> sexpr_bindings i bs)
 
 protected
-def pp (p:pattern) : string
-  := "(pattern\n"
-  ++ pp_bindings 0 p.context.bindings.reverse
-  ++ unlines (pp_action <$> p.actions)
-  ++ sexp.indent ")"
+def sexpr (p:pattern) : sexpr atom
+  := app "pattern" $ sexpr_bindings 0 p.context.bindings.reverse ++
+                     action.sexpr <$> p.actions
+
+protected
+def pp : pattern → string := sexpr.repr ∘ pattern.sexpr
 
 end pattern
 
@@ -718,10 +833,10 @@ structure instruction :=
 
 namespace instruction
 
-def repr (i:instruction) : string :=
-  "(instruction " ++ i.mnemonic ++ "\n"
-   ++ unlines (sexp.indent <$> pattern.pp <$> i.patterns)
-   ++ ")"
+def sexpr (i:instruction) : sexpr atom :=
+  app "instruction" (symbol.sexpr i.mnemonic :: pattern.sexpr <$> i.patterns)
+
+def repr : instruction → string := sexpr.repr ∘ instruction.sexpr
 
 instance : has_repr instruction := ⟨instruction.repr⟩
 
