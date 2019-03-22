@@ -13,8 +13,7 @@ instance : has_append symbol := ⟨string.append⟩
 
 /-- Symbol characters allowed in simple symbols -/
 protected
-def char_symbols : list char :=
- ['~', '!', '@', '$', '%', '^', '&', '*', '_', '-', '+', '=', '<', '>', '.', '?', '/' ]
+def char_symbols : list char := ['$', '_']
 
 /-- Predicate that checks if character is allowed in a simple symbol. -/
 inductive is_symbol_char (c:char) : Prop
