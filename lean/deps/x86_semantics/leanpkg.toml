@@ -6,3 +6,4 @@ path="src"
 
 [dependencies]
 galois_stdlib = { path = "../galois_stdlib" }
+sexpr = { path = "../sexpr" }
