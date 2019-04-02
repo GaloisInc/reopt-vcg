@@ -625,9 +625,10 @@ def evaluate_document : decodex86.document -> x86.machine_state -> except string
   | [] s        := return s
   | (x :: xs) s := do s' <- decodex86.evaluate_one_document s x, 
                       evaluate_document xs s'
-  
-def main : io unit := do
-  (file, decoder, first, last_plus_1) ← get_filename_arg,
+
+
+def doit : (string × string × ℕ × ℕ) -> io unit 
+  | (file, decoder, first, last_plus_1) := do
   mem <- elf.read_info_from_file file,
   match data.imap.lookup first mem with
   | none := io.fail ("Could not find start address: " ++ repr first)
@@ -644,5 +645,13 @@ def main : io unit := do
                           | (except.error e) := io.put_str_ln ("error: " ++ e)
                           | (except.ok    s) := io.put_str_ln (s.print_regs)
                           end
-      end
+      end,
+      (io.stdout >>= io.fs.flush)
   end
+
+def main : io unit := 
+  get_filename_arg >>= doit
+
+-- set_option profiler true
+-- #eval doit ("../testfiles/two", "../llvm-tablegen-support/llvm-tablegen-support", 1530, 1544)
+-- #eval doit ("../../sample-binaries/tiny/test-conditional.x86_64-exe", "../llvm-tablegen-support/llvm-tablegen-support", 4194704, 4194711)

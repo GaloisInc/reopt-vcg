@@ -586,9 +586,9 @@ def prim.eval : Π{tp : type}, prim tp -> evaluator (value tp)
   -- `(bswap i)` reverses the bytes in the bitvector.
   -- | bswap (i:ℕ) : prim (bv i .→ bv i)
   -- `zero` is the zero bit
-  | ._ prim.zero := return ff
+  | ._ prim.bit_zero := return ff
   -- `one` is the one bit
-  | ._ prim.one := return tt
+  | ._ prim.bit_one := return tt
   -- `(eq tp)` returns `true` if two values are equal.
   -- | (eq (tp:type) : prim (tp .→ tp .→ bit)
   -- `(neq tp)` returns `true` if two values are not equal.
@@ -604,11 +604,11 @@ def prim.eval : Π{tp : type}, prim tp -> evaluator (value tp)
   -- `bv_to_x86_80` converts a bitvector to an extended precision number (lossless)
   -- | bv_to_x86_80  (w : one_of [16,32]) : prim (bv w .→ x86_80)
   -- `bvnat` constructs a bit vector from a natural number.
-  | ._ (prim.bvnat w n) := return (bitvec.of_nat (eval_nat_expr w) (eval_nat_expr n))
+  | ._ (prim.bv_nat w n) := return (bitvec.of_nat (eval_nat_expr w) (eval_nat_expr n))
   -- `(bvadd i)` adds two i-bit bitvectors.
-  | ._ (prim.bvadd i) := return bitvec.add
+  | ._ (prim.add i) := return bitvec.add
   -- `(bvsub i)` substracts two i-bit bitvectors.
-  | ._ (prim.bvsub i) := return bitvec.sub
+  | ._ (prim.sub i) := return bitvec.sub
   -- `(ssbb_overflows i)` true if signed sub overflows, the bit
   -- is a borrow bit.
   -- FIXME: is this correct?
@@ -620,15 +620,15 @@ def prim.eval : Π{tp : type}, prim tp -> evaluator (value tp)
 
   | ._ (prim.uadc_overflows i) := return (λx y b, bitvec.ult (x + y + bit_to_bitvec (eval_nat_expr i) b) x)
   | ._ (prim.sadc_overflows i) := return (λx y b, bitvec.slt (x + y + bit_to_bitvec (eval_nat_expr i) b) x)
-  | ._ (prim.bvand i) := return bitvec.and
-  | ._ (prim.bvor i)  := return bitvec.or
-  | ._ (prim.bvxor i) := return bitvec.xor
+  | ._ (prim.and i) := return bitvec.and
+  | ._ (prim.or i)  := return bitvec.or
+  | ._ (prim.xor i) := return bitvec.xor
   | ._ (prim.shl i) := return (λx (y : bitvec (eval_nat_expr i)), bitvec.shl x y.to_nat)
   -- `(bvbit i)` interprets the second argument as a bit index and returns
   -- that bit from the first argument.
-  | ._ (prim.bvbit i) := return (λx (y : bitvec (eval_nat_expr i)), bitvec.nth x y.to_nat)
+  | ._ (prim.bv_bit i) := return (λx (y : bitvec (eval_nat_expr i)), bitvec.nth x y.to_nat)
   | ._ (prim.complement i) := return bitvec.not
-  | ._ (prim.bvcat i) := return (λx y, bitvec.cong
+  | ._ (prim.cat i) := return (λx y, bitvec.cong
                                     (begin simp [eval_nat_expr, nat_expr.eval_default_mul_eq, nat_expr.eval, eval_default_2, two_mul], 
                                      end)
                                     (bitvec.append x y))
@@ -654,22 +654,22 @@ def evaluator.set_ip (new_ip : bitvec 64) : evaluator unit :=
           {s with machine_state := { s.machine_state with ip := new_ip}})
 
 def event.eval : event -> evaluator unit
-  | syscall := throw "syscall"
-  | (unsupported msg) := throw ("event.eval: unsupported: " ++ msg)
-  | pop_x87_register_stack := throw "pop_x87_register_stack"
-  | (call addr) := do 
+  | event.syscall := throw "syscall"
+  | (event.unsupported msg) := throw ("event.eval: unsupported: " ++ msg)
+  | event.pop_x87_register_stack := throw "pop_x87_register_stack"
+  | (event.call addr) := do 
     new_ip <- expression.eval addr,
     evaluator.set_ip new_ip
-  | (jmp addr) := do
+  | (event.jmp addr) := do
     new_ip <- expression.eval addr,
     evaluator.set_ip new_ip
-  | (branch c addr) := do
+  | (event.branch c addr) := do
     new_ip <- expression.eval addr,
     b      <- expression.eval c,
-    when c (evaluator.set_ip new_ip)
-  | ret := throw "ret"
-  | hlt := throw "halt"
-  | (xchg addr1 addr2) := throw "xchg"
+    when b (evaluator.set_ip new_ip)
+  | event.ret := throw "ret"
+  | event.hlt := throw "halt"
+  | (event.xchg addr1 addr2) := throw "xchg"
 
 -- FIXME: move
 -- Make a value for 'undefined', which means we just pick an arbitrary value.
