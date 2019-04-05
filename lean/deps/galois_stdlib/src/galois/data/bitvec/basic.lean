@@ -75,8 +75,13 @@ protected
 lemma intro {n:ℕ} : Π(x y : bitvec n), x.to_nat = y.to_nat → x = y
 | ⟨x, h1⟩ ⟨.(_), h2⟩ rfl := rfl
 
+-- FIXME: more efficient implementation of of_nat
+-- protected def of_nat (n : ℕ) (x:ℕ) : bitvec n := ⟨ x % ((nat.shiftl 1 n)), sorry⟩
+
 protected def of_nat (n : ℕ) (x:ℕ) : bitvec n :=
   ⟨ x % 2^n, nat.mod_lt _ (nat.pos_pow_of_pos n (of_as_true trivial))⟩
+
+instance nat_to_bitvec_coe {w : ℕ} : has_coe ℕ (bitvec w) := ⟨bitvec.of_nat w⟩
 
 theorem of_nat_to_nat {n : ℕ} (x : bitvec n)
 : bitvec.of_nat n (bitvec.to_nat x) = x :=
