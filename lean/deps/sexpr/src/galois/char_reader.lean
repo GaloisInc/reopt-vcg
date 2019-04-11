@@ -213,10 +213,8 @@ end
 
 /- This uses the string_char_reader to parse output. -/
 protected
-def read {ε} {α} (s:string) (m:string_char_reader ε α)
-: (except ε α × string) := do
-  let (r,t) := ((m.run).run s.to_list) in
-  (r, t.as_string)
+def read {ε} {α} (s:list char) (m:string_char_reader ε α)
+: (except ε α × list char) := (m.run).run s
 
 section
 
@@ -237,6 +235,7 @@ def peek_char [is_parse_error ε] : string_char_reader ε (option char) := do
   | (c::s) := pure (option.some c)
   end
 
+/-- Read the next character. -/
 protected
 def get_char [is_parse_error ε] : string_char_reader ε char := do
   s ← get,
@@ -245,6 +244,7 @@ def get_char [is_parse_error ε] : string_char_reader ε char := do
   | (c::s) := put s $> c
   end
 
+/-- Read the next character, but do not return it. -/
 protected
 def consume_char [is_parse_error ε] : string_char_reader ε unit := string_char_reader.get_char $> ()
 
@@ -263,8 +263,13 @@ instance string_is_char_reader : char_reader string (string_char_reader string) 
 
 end string_char_reader
 
-/-- Read a string -/
+/-- Parse input from a string and ensure that all characters are read. -/
 def read_from_string {α} (s:string) (m:string_char_reader string α)
-: except string α := (string_char_reader.read s m).1
+: except string α := do
+  let r := string_char_reader.read s.to_list m,
+  v ← r.1,
+  when (¬(r.2.is_empty))
+    (except.error ("Parsed terminated prematurely - remaining input: " ++ r.2.as_string.quote)),
+  pure v
 
 end char_reader
