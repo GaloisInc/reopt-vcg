@@ -2,8 +2,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Reopt.VCG.Config
   ( MetaVCGConfig(..)
-  , VCGFunInfo(..)
-  , VCGBlockInfo(..)
+  , FunctionAnn(..)
+  , BlockAnn(..)
   , AllocaInfo(..)
   , AllocaName(..)
   , BlockEvent(..)
@@ -133,19 +133,20 @@ instance Yaml.FromJSON BlockEvent where
                       }
 
 ------------------------------------------------------------------------
--- VCGBlockInfo
+-- BlockAnn
 
 -- | Our VCG supports cases where each LLVM block corresponds to a contiguous range
 -- of instructions.
-data VCGBlockInfo = VCGBlockInfo
+data BlockAnn = BlockAnn
   { blockLabel :: !String
     -- ^ LLVM label of block
   , blockAddr :: !MCAddr
     -- ^ Address of start of block in machine code
   , blockCodeSize :: !Integer
     -- ^ Number of bytes in block
-  , blockHintsRSPOffset :: !Integer
+  , blockRSPOffset :: !Integer
     -- ^ Offset of RSP when block starts versus initial RSP for function.
+    -- Since the stack grows down, this will typically be non-positive.
   , blockAllocas :: ![AllocaInfo]
     -- ^ Maps LLVM allocations to an offset of the stack where it starts.
   , blockEvents :: ![BlockEvent]
@@ -157,7 +158,7 @@ data VCGBlockInfo = VCGBlockInfo
 blockInfoFields :: FieldList
 blockInfoFields = fields ["label", "addr", "size", "rsp_offset", "allocas", "events"]
 
-instance Yaml.FromJSON VCGBlockInfo where
+instance Yaml.FromJSON BlockAnn where
   parseJSON = withFixedObject "block" blockInfoFields $ \v -> do
     lbl  <- v .: "label"
     addr <- v .: "addr"
@@ -165,20 +166,20 @@ instance Yaml.FromJSON VCGBlockInfo where
     rspOff  <- v .:? "rsp_offset" .!= 0
     allocas <- v .:? "allocas"    .!= []
     events  <- v .:? "events"     .!= []
-    pure VCGBlockInfo { blockLabel = lbl
-                      , blockAddr  = addr
-                      , blockCodeSize = sz
-                      , blockHintsRSPOffset = rspOff
-                      , blockAllocas = allocas
-                      , blockEvents = events
-                      }
+    pure BlockAnn { blockLabel = lbl
+                  , blockAddr  = addr
+                  , blockCodeSize = sz
+                  , blockRSPOffset = rspOff
+                  , blockAllocas = allocas
+                  , blockEvents = events
+                  }
 
-data VCGFunInfo = VCGFunInfo
+data FunctionAnn = FunctionAnn
   { llvmFunName    :: !String
     -- ^ LLVM function name
   , stackSize :: !Integer
     -- ^ Number of bytes in binary stack size.
-  , blocks :: !(Map String VCGBlockInfo)
+  , blocks :: !(Map String BlockAnn)
     -- ^ Maps LLVM labels to the block associated with that label.
   }
   deriving (Show)
@@ -186,22 +187,22 @@ data VCGFunInfo = VCGFunInfo
 functionInfoFields :: FieldList
 functionInfoFields = fields ["llvm_name", "stack_size", "blocks"]
 
-instance Yaml.FromJSON VCGFunInfo where
+instance Yaml.FromJSON FunctionAnn where
   parseJSON = withFixedObject "function" functionInfoFields $ \v -> do
     fnm <- v .: "llvm_name"
     sz  <- v .: "stack_size"
     blocks <- v .: "blocks"
-    pure $! VCGFunInfo { llvmFunName = fnm
-                       , stackSize = sz
-                       , blocks = Map.fromList [ (blockLabel b, b) | b <- blocks ]
-                       }
+    pure $! FunctionAnn { llvmFunName = fnm
+                        , stackSize = sz
+                        , blocks = Map.fromList [ (blockLabel b, b) | b <- blocks ]
+                        }
 
 data MetaVCGConfig = MetaVCGConfig
   { llvmBCFilePath :: FilePath
     -- ^ LLVM .bc file path
   , binFilePath    ::  String
     -- ^ Binary file path that will be analyzed by Macaw
-  , functions :: [VCGFunInfo]
+  , functions :: [FunctionAnn]
   }
   deriving (Show, Generic)
 
