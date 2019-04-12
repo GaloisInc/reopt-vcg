@@ -105,67 +105,71 @@ def assert_bv {m} [monad m] [monad_except string m] (nenv : nat_env) (tp : type)
 
 def operand_to_arg_lval {m} [monad m] [monad_except string m] 
     (nenv : nat_env) (s : machine_state) 
-    (tp : type) : decodex86.operand -> m arg_lval
+    (tp : type) (otp : decodex86.operand_type) : decodex86.operand_value -> m arg_lval
   -- FIXME: check width?
-  | (operand.register r) := do sgpr <- guard_some "operand_to_arg_lhs register" (register_to_reg r) return,
-                               assert_types nenv (bv sgpr.fst.width) tp,
-                               return (arg_lval.reg sgpr.snd)
+  | (operand_value.register r) := do sgpr <- guard_some "operand_to_arg_lhs register" (register_to_reg r) return,
+                                     assert_types nenv (bv sgpr.fst.width) tp,
+                                     return (arg_lval.reg sgpr.snd)
   -- FIXME: check width?
-  | (operand.segment opt_r r) := do
+  | (operand_value.segment opt_r r) := do
     throw_if (option.is_some opt_r) "got a segment reg",
     -- FIXME: clag
     sgpr <- guard_some "operand_to_arg_value_lhs register" (register_to_reg r) return,
     assert_types nenv (bv sgpr.fst.width) tp,
     return (arg_lval.reg sgpr.snd)
-  | (operand.immediate nbytes val) := throw "operand_to_arg_lval: got an immdiate"
+  | (operand_value.immediate nbytes val) := throw "operand_to_arg_lval: got an immdiate"
   -- FIXME: we use ip out of the state, we could use the value encoded in the decoded instruction 
-  | (operand.rel_immediate next_addr nbytes val) := throw "operand_to_arg_lval: got an immdeiate"
+  | (operand_value.rel_immediate next_addr nbytes val) := throw "operand_to_arg_lval: got an immdeiate"
   -- base + scale * idx + disp
-  | (operand.memloc opt_seg opt_base scale opt_idx disp) := do
+  | (operand_value.memloc opt_seg opt_base scale opt_idx disp) := do
+    n <- match otp with | (operand_type.mem n) := return n | other := throw "memloc not of mem type" end,
+    assert_types nenv (bv n) tp,
     throw_if (option.is_some opt_seg) "got a segment reg",
-    width <- assert_bv nenv tp,
     b_v   <- option_register_to_bv64 nenv s opt_base,
     idx_v <- option_register_to_bv64 nenv s opt_idx,
-    return (arg_lval.memloc width (b_v + scale * idx_v + disp))
+    return (arg_lval.memloc n (b_v + scale * idx_v + disp))
 
 def operand_to_arg_value_lhs {m} [monad m] [monad_except string m] 
    (nenv : nat_env) (s : machine_state)
    (tp : type) (op : decodex86.operand) : m (arg_value nenv) :=
-   arg_value.lval nenv <$> operand_to_arg_lval nenv s tp op
+   arg_value.lval nenv <$> operand_to_arg_lval nenv s tp op.type op.value
 
 def operand_to_value {m} [monad m] [monad_except string m] 
    (nenv : nat_env) (s : machine_state)
-   (tp : type) : decodex86.operand -> m (value nenv tp)
-  | (operand.immediate nbytes val) :=
-    -- FIXME: rather than failing here, we will sign extend/truncate.  This may be the wrong approach.
-    match tp with
-    | (bv e) := return (bitvec.of_int (nat_expr.eval_default nenv e) ((bitvec.of_nat (8 * nbytes) val).to_int))
-    | _      := throw "Immediate should be a bv"
-    end
-  -- FIXME: we use ip out of the state, we could use the value encoded in the decoded instruction 
-  | (operand.rel_immediate next_addr nbytes val) := do
-    -- checks for width = 64 bit, basically
-    @value.type_check nenv m _ _ (bv 64) (s.ip + val) tp
-  | op := do lval <- operand_to_arg_lval nenv s tp op,
-             arg_lval.to_value' nenv s lval tp
+   (tp : type) (op : decodex86.operand) : m (value nenv tp) :=
+   match op.value with 
+     | (operand_value.immediate nbytes val) :=
+     -- FIXME: rather than failing here, we will sign extend/truncate.  This may be the wrong approach.
+     -- We could also extend operand_type
+       match tp with
+       | (bv e) := return (bitvec.of_int (nat_expr.eval_default nenv e) ((bitvec.of_nat (8 * nbytes) val).to_int))
+       | _      := throw "Immediate should be a bv"
+       end
+     -- FIXME: we use ip out of the state, we could use the value encoded in the decoded instruction 
+     | (operand_value.rel_immediate next_addr nbytes val) := do
+       -- checks for width = 64 bit, basically
+       @value.type_check nenv m _ _ (bv 64) (s.ip + val) tp
+     | _ := do lval <- operand_to_arg_lval nenv s tp op.type op.value,
+               arg_lval.to_value' nenv s lval tp
+   end
 
 def operand_to_arg_value_expr {m} [monad m] [monad_except string m] 
    (nenv : nat_env) (s : machine_state)
    (tp : type) (op : decodex86.operand) : m (arg_value nenv) :=
    arg_value.rval <$> operand_to_value nenv s tp op
 
-def operand_nbits : decodex86.operand -> option ℕ
-  | (operand.register r) := some (if r.width = 0 then 64 else r.width) -- FIXME: maybe fix this earlier?
-  | (operand.segment opt_r r) := some (if r.width = 0 then 64 else r.width)
-  | (operand.immediate nbytes val) := some (8 * nbytes)
-  | (operand.rel_immediate next_addr nbytes val) := some (8 * nbytes)
-  | (operand.memloc opt_seg opt_base scale opt_idx disp) := none
+-- def operand_nbits : decodex86.operand -> option ℕ
+--   | (operand.register r) := some (if r.width = 0 then 64 else r.width) -- FIXME: maybe fix this earlier?
+--   | (operand.segment opt_r r) := some (if r.width = 0 then 64 else r.width)
+--   | (operand.immediate nbytes val) := some (8 * nbytes)
+--   | (operand.rel_immediate next_addr nbytes val) := some (8 * nbytes)
+--   | (operand.memloc opt_seg opt_base scale opt_idx disp) := none
 
-def instruction_operand_width (os : list decodex86.operand) : option ℕ :=
-  match list.filter_map operand_nbits os with
-  | [] := none
-  | (x :: xs) := if xs.all (λy, y = x) then some x else none
-  end
+-- def instruction_operand_width (os : list decodex86.operand) : option ℕ :=
+--   match list.filter_map operand_nbits os with
+--   | [] := none
+--   | (x :: xs) := if xs.all (λy, y = x) then some x else none
+--   end
 
 -- Constructs an environment which is natv w, lhs l, expr e, and sets it in the state
 -- def operands_to_env_wle : list decodex86.operand -> evaluator (ℕ × environment)
@@ -295,7 +299,8 @@ def run_get_rax (s : string) : string :=
 
 -- #eval instruction_family <$> string_to_instruction "(instruction MOV32ri (register rax eax 32 0) (immediate 4 1))"
 
-#eval run_get_rax "(instruction MOV64ri32 (register rax rax 0 0) (immediate 4 4294967295))"
+#eval run_get_rax "(instruction MOV64ri32 (other (register rax rax 0 0)) (other (immediate 4 4294967295)))"
+#eval run_get_rax "(instruction MOV32mi (i32mem (memloc no-register (register rax rax 0 0) 1 no-register 0)) (i32imm (immediate 4 65535)))"
 
 end x86
 

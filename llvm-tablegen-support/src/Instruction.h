@@ -49,12 +49,12 @@ class instruction_t {
  public:
     uint16_t instructionID; // as from InternalInstruction
     unsigned Flags;
-    std::vector<operand_t> operands;
+    std::vector<std::pair<const char *, operand_t>> operands;
 
     void setOpcode(uint16_t i) { instructionID = i; }
     uint16_t getOpcode(void) { return instructionID; }
     
-    void addOperand(operand_t op) { operands.push_back(op); }
+    void addOperand(const char *optype, operand_t op) { operands.push_back(std::make_pair(optype, op)); }
     void setFlags(unsigned f) { Flags = f; }
 };
    

@@ -93,6 +93,10 @@
 using namespace llvm;
 using namespace llvm::X86Disassembler;
 
+// c.f. Metadata.cpp
+const char *
+operandType(uint16_t instrID, unsigned int operand);
+
 #define DEBUG_TYPE "x86-disassembler"
 
 // StringRef llvm::X86Disassembler::GetInstrName(unsigned Opcode,
@@ -272,13 +276,13 @@ print_sexp(const reg_t& x, std::ostream& out, const llvm::MCRegisterInfo *reginf
 ///
 /// @param mcInst     - The MCInst to append to.
 /// @param reg        - The Reg to append.
-static void translateRegister(vadd::instruction_t &Inst, Reg reg) {
+static void translateRegister(vadd::instruction_t &Inst, Reg reg, const char *optype) {
 #define ENTRY(x) X86::x,
   static constexpr MCPhysReg llvmRegnums[] = {ALL_REGS};
 #undef ENTRY
 
   MCPhysReg llvmRegnum = llvmRegnums[reg];
-  Inst.addOperand(reg_t(llvmRegnum));
+  Inst.addOperand(optype, reg_t(llvmRegnum));
 }
 
 /// tryAddingSymbolicOperand - trys to add a symbolic operand in place of the
@@ -356,7 +360,7 @@ print_sexp(const segment_index_op_t& x, std::ostream& out, const llvm::MCRegiste
 ///
 /// @param mcInst       - The MCInst to append to.
 /// @param insn         - The internal instruction.
-static bool translateSrcIndex(vadd::instruction_t &Inst, InternalInstruction &insn) {
+static bool translateSrcIndex(vadd::instruction_t &Inst, InternalInstruction &insn, const char *optype) {
   unsigned baseRegNo;
 
   if (insn.mode == MODE_64BIT)
@@ -368,7 +372,7 @@ static bool translateSrcIndex(vadd::instruction_t &Inst, InternalInstruction &in
     baseRegNo = insn.hasAdSize ? X86::ESI : X86::SI;
   }
 
-  Inst.addOperand(segment_index_op_t(segmentRegnums[insn.segmentOverride], baseRegNo));
+  Inst.addOperand(optype, segment_index_op_t(segmentRegnums[insn.segmentOverride], baseRegNo));
   
   return false;
 }
@@ -378,7 +382,7 @@ static bool translateSrcIndex(vadd::instruction_t &Inst, InternalInstruction &in
 /// @param mcInst       - The MCInst to append to.
 /// @param insn         - The internal instruction.
 
-static bool translateDstIndex(vadd::instruction_t &Inst, InternalInstruction &insn) {
+static bool translateDstIndex(vadd::instruction_t &Inst, InternalInstruction &insn, const char *optype) {
   unsigned baseRegNo;
 
   if (insn.mode == MODE_64BIT)
@@ -389,9 +393,20 @@ static bool translateDstIndex(vadd::instruction_t &Inst, InternalInstruction &in
     assert(insn.mode == MODE_16BIT);
     baseRegNo = insn.hasAdSize ? X86::EDI : X86::DI;
   }
-  Inst.addOperand(reg_t(baseRegNo));
+  Inst.addOperand(optype, reg_t(baseRegNo));
   return false;
 }
+
+// struct dup_t {
+//   unsigned int which;
+//   dup_t(unsigned int which) : which (which) {}
+// };
+
+// void
+// print_sexp(const dup_t& x, std::ostream& out, const llvm::MCRegisterInfo *reginfo)
+// {
+//     out << "(dup " << x.which << ")";
+// }
 
 uint64_t
 sign_extend(uint64_t val, int nbytes)
@@ -468,7 +483,7 @@ print_sexp(const memloc_op_t& x, std::ostream& out, const llvm::MCRegisterInfo *
 /// @param insn         - The internal instruction.
 static void translateImmediate(vadd::instruction_t &Inst, uint64_t immediate,
                                const OperandSpecifier &operand,
-                               InternalInstruction &insn) {
+                               InternalInstruction &insn, const char *optype) {
   // Sign-extend the immediate if necessary.    
   OperandType type = (OperandType)operand.type;
   /* Possible encodings
@@ -504,15 +519,15 @@ static void translateImmediate(vadd::instruction_t &Inst, uint64_t immediate,
     return;
     
   case TYPE_XMM:
-    Inst.addOperand(reg_t(X86::XMM0 + (immediate >> 4)));
+    Inst.addOperand(optype, reg_t(X86::XMM0 + (immediate >> 4)));
     return;
   case TYPE_YMM:
-    Inst.addOperand(reg_t(X86::YMM0 + (immediate >> 4)));
+    Inst.addOperand(optype, reg_t(X86::YMM0 + (immediate >> 4)));
     return;
 
   case TYPE_MOFFS: {
     MCPhysReg seg = segmentRegnums[insn.segmentOverride];
-    Inst.addOperand(memloc_op_t(seg, llvm::X86::NoRegister, 1, llvm::X86::NoRegister, immediate));
+    Inst.addOperand(optype, memloc_op_t(seg, llvm::X86::NoRegister, 1, llvm::X86::NoRegister, immediate));
     return;
   }
     
@@ -546,16 +561,16 @@ static void translateImmediate(vadd::instruction_t &Inst, uint64_t immediate,
                                mcInst, Dis))
   */
     if (type == TYPE_REL)
-      Inst.addOperand(rel_immediate_t(insn.startLocation + insn.length, nbytes, immediate)); // FIXME: 1 here?
+      Inst.addOperand(optype, rel_immediate_t(insn.startLocation + insn.length, nbytes, immediate)); // FIXME: 1 here?
     else
-      Inst.addOperand(immediate_t(nbytes, immediate)); // FIXME: 1 here?
+      Inst.addOperand(optype, immediate_t(nbytes, immediate)); // FIXME: 1 here?
     return;;
   }
     
   case TYPE_UIMM8: /* fallthru */
   case TYPE_IMM3:  /* fallthru */
   case TYPE_IMM5:
-    Inst.addOperand(immediate_t(1, immediate)); // FIXME: 1 here?
+    Inst.addOperand(optype, immediate_t(1, immediate)); // FIXME: 1 here?
     return;
   }
 }
@@ -568,7 +583,8 @@ static void translateImmediate(vadd::instruction_t &Inst, uint64_t immediate,
 ///                       from.
 /// @return             - 0 on success; -1 otherwise
 static bool translateRMRegister(vadd::instruction_t &Inst,
-                                InternalInstruction &insn) {
+                                InternalInstruction &insn,
+                                const char *optype) {
   if (insn.eaBase == EA_BASE_sib || insn.eaBase == EA_BASE_sib64) {
     debug("A R/M register operand may not have a SIB byte");
     return true;
@@ -589,7 +605,7 @@ static bool translateRMRegister(vadd::instruction_t &Inst,
     return true;
 #define ENTRY(x)                                                      \
   case EA_REG_##x:                                                    \
-    Inst.addOperand(reg_t(X86::x)); break;
+    Inst.addOperand(optype, reg_t(X86::x)); break;
   ALL_REGS
 #undef ENTRY
   }
@@ -606,7 +622,7 @@ static bool translateRMRegister(vadd::instruction_t &Inst,
 /// @param insn         - The instruction to extract Mod, R/M, and SIB fields
 ///                       from.
 /// @return             - 0 on success; nonzero otherwise
-static bool translateRMMemory(vadd::instruction_t &Inst, InternalInstruction &insn) {
+static bool translateRMMemory(vadd::instruction_t &Inst, InternalInstruction &insn, const char *optype) {
   // Addresses in an MCInst are represented as five operands:
   //   1. basereg       (register)  The R/M base, or (if there is a SIB) the
   //                                SIB base
@@ -722,7 +738,7 @@ static bool translateRMMemory(vadd::instruction_t &Inst, InternalInstruction &in
   mloc.displacement = insn.displacement;
   mloc.segmentreg = segmentRegnums[insn.segmentOverride];
  
-  Inst.addOperand(mloc);
+  Inst.addOperand(optype, mloc);
   return false;
 }
 
@@ -735,7 +751,7 @@ static bool translateRMMemory(vadd::instruction_t &Inst, InternalInstruction &in
 ///                       from.
 /// @return             - 0 on success; nonzero otherwise
 static bool translateRM(vadd::instruction_t &Inst, const OperandSpecifier &operand,
-                        InternalInstruction &insn) {
+                        InternalInstruction &insn, const char *optype) {
   switch (operand.type) {
   default:
     debug("Unexpected type for a R/M operand");
@@ -753,12 +769,12 @@ static bool translateRM(vadd::instruction_t &Inst, const OperandSpecifier &opera
   case TYPE_DEBUGREG:
   case TYPE_CONTROLREG:
   case TYPE_BNDR:
-    return translateRMRegister(Inst, insn);
+    return translateRMRegister(Inst, insn, optype);
   case TYPE_M:
   case TYPE_MVSIBX:
   case TYPE_MVSIBY:
   case TYPE_MVSIBZ:
-    return translateRMMemory(Inst, insn);
+    return translateRMMemory(Inst, insn, optype);
   }
 }
 
@@ -768,8 +784,9 @@ static bool translateRM(vadd::instruction_t &Inst, const OperandSpecifier &opera
 /// @param mcInst       - The MCInst to append to.
 /// @param stackPos     - The stack position to translate.
 static void translateFPRegister(vadd::instruction_t &Inst,
-                                uint8_t stackPos) {
-  Inst.addOperand(reg_t(X86::ST0 + stackPos));
+                                uint8_t stackPos,
+                                const char *optype) {
+  Inst.addOperand(optype, reg_t(X86::ST0 + stackPos));
 }
 
 /// translateMaskRegister - Translates a 3-bit mask register number to
@@ -778,13 +795,15 @@ static void translateFPRegister(vadd::instruction_t &Inst,
 /// @param mcInst       - The MCInst to append to.
 /// @param maskRegNum   - Number of mask register from 0 to 7.
 /// @return             - false on success; true otherwise.
-static bool translateMaskRegister(vadd::instruction_t &Inst, uint8_t maskRegNum) {
+static bool translateMaskRegister(vadd::instruction_t &Inst,
+                                  uint8_t maskRegNum,
+                                  const char *optype) {
   if (maskRegNum >= 8) {
     debug("Invalid mask register number");
     return true;
   }
 
-  Inst.addOperand(reg_t(X86::K0 + maskRegNum));
+  Inst.addOperand(optype, reg_t(X86::K0 + maskRegNum));
   return false;
 }
 
@@ -796,19 +815,19 @@ static bool translateMaskRegister(vadd::instruction_t &Inst, uint8_t maskRegNum)
 /// @param insn         - The internal instruction.
 /// @return             - false on success; true otherwise.
 static bool translateOperand(vadd::instruction_t &Inst, const OperandSpecifier &operand,
-                             InternalInstruction &insn) {
+                             InternalInstruction &insn, const char* optype) {
   switch (operand.encoding) {
   default:
     debug("Unhandled operand encoding during translation");
     return true;
   case ENCODING_REG:
-    translateRegister(Inst, insn.reg);
+    translateRegister(Inst, insn.reg, optype);
     return false;
   case ENCODING_WRITEMASK:
-    return translateMaskRegister(Inst, insn.writemask);
+    return translateMaskRegister(Inst, insn.writemask, optype);
   CASE_ENCODING_RM:
   CASE_ENCODING_VSIB:
-    return translateRM(Inst, operand, insn);
+    return translateRM(Inst, operand, insn, optype);
   case ENCODING_IB:
   case ENCODING_IW:
   case ENCODING_ID:
@@ -818,30 +837,32 @@ static bool translateOperand(vadd::instruction_t &Inst, const OperandSpecifier &
     translateImmediate(Inst,
                        insn.immediates[insn.numImmediatesTranslated++],
                        operand,
-                       insn);
+                       insn, optype);
     return false;
   case ENCODING_IRC:
-    Inst.addOperand(immediate_t(1, insn.RC));
+    Inst.addOperand(optype, immediate_t(1, insn.RC));
     return false;
   case ENCODING_SI:
-    return translateSrcIndex(Inst, insn);
+    return translateSrcIndex(Inst, insn, optype);
   case ENCODING_DI:
-    return translateDstIndex(Inst, insn);
+    return translateDstIndex(Inst, insn, optype);
   case ENCODING_RB:
   case ENCODING_RW:
   case ENCODING_RD:
   case ENCODING_RO:
   case ENCODING_Rv:
-    translateRegister(Inst, insn.opcodeRegister);
+    translateRegister(Inst, insn.opcodeRegister, optype);
     return false;
   case ENCODING_FP:
-    translateFPRegister(Inst, insn.modRM & 7);
+    translateFPRegister(Inst, insn.modRM & 7, optype);
     return false;
   case ENCODING_VVVV:
-    translateRegister(Inst, insn.vvvv);
+    translateRegister(Inst, insn.vvvv, optype);
     return false;
   case ENCODING_DUP:
-    return translateOperand(Inst, insn.operands[operand.type - TYPE_DUP0], insn);
+    // We ignore duplicate operands.
+    // FIXME: is this OK?
+    return false; // translateOperand(Inst, insn.operands[operand.type - TYPE_DUP0], insn, optype);
   }
 }
 
@@ -871,9 +892,11 @@ translateInstruction(vadd::instruction_t &Inst, InternalInstruction &insn) {
 
   insn.numImmediatesTranslated = 0;
 
+  unsigned int opno = 0;
   for (const auto &Op : insn.operands) {
     if (Op.encoding != ENCODING_NONE) {
-      if (translateOperand(Inst, Op, insn)) {
+      const char *optype = operandType(insn.instructionID, opno++);
+      if (translateOperand(Inst, Op, insn, optype)) {
         return true;
       }
     }

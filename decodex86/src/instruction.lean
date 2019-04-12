@@ -16,19 +16,207 @@ def register_to_string : register -> string := λr,
 
 instance register_has_repr : has_repr register := ⟨register_to_string⟩
 
-inductive operand
-  | register : register -> operand
-  | segment  : option register -> register -> operand
-  | immediate : ℕ -> ℕ -> operand
-  | rel_immediate : ℕ -> ℕ -> ℕ -> operand
-  | memloc : option register -> option register -> ℕ -> option register -> ℕ -> operand
+-- We don't care about most of these.
+-- static const char * oNArr[] = {
+--     "AVX512ICC",
+--     "AVX512RC",
+--     "AVXCC",
+--     "BNDR",
+--     "CCR",
+--     "CONTROL_REG",
+--     "DEBUG_REG",
+--     "DFCCR",
+--     "FPCCR",
+--     "FR32",
+--     "FR32X",
+--     "FR64",
+--     "FR64X",
+--     "GR16",
+--     "GR16_ABCD",
+--     "GR16_NOREX",
+--     "GR32",
+--     "GR32_ABCD",
+--     "GR32_AD",
+--     "GR32_NOREX",
+--     "GR32_NOREX_NOSP",
+--     "GR32_NOSP",
+--     "GR32_TC",
+--     "GR32orGR64",
+--     "GR64",
+--     "GR64_ABCD",
+--     "GR64_AD",
+--     "GR64_NOREX",
+--     "GR64_NOREX_NOSP",
+--     "GR64_NOSP",
+--     "GR64_TC",
+--     "GR64_TCW64",
+--     "GR8",
+--     "GR8_ABCD_H",
+--     "GR8_ABCD_L",
+--     "GR8_NOREX",
+--     "GRH16",
+--     "GRH8",
+--     "LOW32_ADDR_ACCESS",
+--     "LOW32_ADDR_ACCESS_RBP",
+--     "RFP32",
+--     "RFP64",
+--     "RFP80",
+--     "RST",
+--     "SEGMENT_REG",
+--     "SSECC",
+--     "VK1",
+--     "VK16",
+--     "VK16WM",
+--     "VK1WM",
+--     "VK2",
+--     "VK2WM",
+--     "VK32",
+--     "VK32WM",
+--     "VK4",
+--     "VK4WM",
+--     "VK64",
+--     "VK64WM",
+--     "VK8",
+--     "VK8WM",
+--     "VR128",
+--     "VR128H",
+--     "VR128L",
+--     "VR128X",
+--     "VR256",
+--     "VR256H",
+--     "VR256L",
+--     "VR256X",
+--     "VR512",
+--     "VR64",
+--     "XOPCC",
+--     "anymem",
+--     "brtarget",
+--     "brtarget16",
+--     "brtarget32",
+--     "brtarget8",
+--     "dstidx16",
+--     "dstidx32",
+--     "dstidx64",
+--     "dstidx8",
+--     "f128mem",
+--     "f256mem",
+--     "f32imm",
+--     "f32mem",
+--     "f512mem",
+--     "f64imm",
+--     "f64mem",
+--     "f80mem",
+--     "i128mem",
+--     "i16i8imm",
+--     "i16imm",
+--     "i16imm_pcrel",
+--     "i16mem",
+--     "i1imm",
+--     "i256mem",
+--     "i32i8imm",
+--     "i32imm",
+--     "i32imm_pcrel",
+--     "i32mem",
+--     "i32mem_TC",
+--     "i32u8imm",
+--     "i512mem",
+--     "i64i32imm",
+--     "i64i32imm_pcrel",
+--     "i64i8imm",
+--     "i64imm",
+--     "i64mem",
+--     "i64mem_TC",
+--     "i8imm",
+--     "i8mem",
+--     "i8mem_NOREX",
+--     "lea64_32mem",
+--     "lea64mem",
+--     "offset16_16",
+--     "offset16_32",
+--     "offset16_8",
+--     "offset32_16",
+--     "offset32_32",
+--     "offset32_64",
+--     "offset32_8",
+--     "offset64_16",
+--     "offset64_32",
+--     "offset64_64",
+--     "offset64_8",
+--     "opaquemem",
+--     "ptype0",
+--     "ptype1",
+--     "ptype2",
+--     "ptype3",
+--     "ptype4",
+--     "ptype5",
+--     "sdmem",
+--     "srcidx16",
+--     "srcidx32",
+--     "srcidx64",
+--     "srcidx8",
+--     "ssmem",
+--     "type0",
+--     "type1",
+--     "type2",
+--     "type3",
+--     "type4",
+--     "type5",
+--     "u8imm",
+--     "v512mem",
+--     "vx128mem",
+--     "vx128xmem",
+--     "vx256mem",
+--     "vx256xmem",
+--     "vx64mem",
+--     "vx64xmem",
+--     "vy128mem",
+--     "vy128xmem",
+--     "vy256mem",
+--     "vy256xmem",
+--     "vy512xmem",
+--     "vz256mem",
+--     "vz512mem",
+--     "ptr_rc",
+--     "ptr_rc_norex",
+--     "ptr_rc_norex_nosp",
+--     "ptr_rc_nosp",
+--     "ptr_rc_tailcall",
+--     "unknown",
+--     "variable_ops"
+-- };
 
-def operand_to_string : operand -> string
-  | (operand.register r) := repr r
-  | (operand.segment s r)    := "(" ++ repr s ++ ":" ++ repr r ++ ")"
-  | (operand.immediate n v)  := repr v ++ "[" ++ repr n ++ "]"
-  | (operand.rel_immediate off n v) := "(" ++ repr v ++ " + " ++ repr off ++ ")[" ++ repr n ++ "]"
-  | (operand.memloc seg b s i d)    := "(" ++ repr seg ++ ":" ++ repr b ++ " + " ++ repr s ++ "*" ++ repr i ++ " + " ++ repr d ++ ")"
+inductive operand_type 
+  | mem : ℕ -> operand_type
+  | other : operand_type
+
+def operand_type_to_string : operand_type -> string
+  | (operand_type.mem n) := "(mem " ++ repr n ++ ")"
+  | (operand_type.other) := "other"
+
+instance operand_type_has_repr : has_repr operand_type := ⟨operand_type_to_string⟩
+
+inductive operand_value
+  | register : register -> operand_value
+  | segment  : option register -> register -> operand_value
+  | immediate : ℕ -> ℕ -> operand_value
+  | rel_immediate : ℕ -> ℕ -> ℕ -> operand_value
+  | memloc : option register -> option register -> ℕ -> option register -> ℕ -> operand_value
+
+def operand_value_to_string : operand_value -> string
+  | (operand_value.register r) := repr r
+  | (operand_value.segment s r)    := "(" ++ repr s ++ ":" ++ repr r ++ ")"
+  | (operand_value.immediate n v)  := repr v ++ "[" ++ repr n ++ "]"
+  | (operand_value.rel_immediate off n v) := "(" ++ repr v ++ " + " ++ repr off ++ ")[" ++ repr n ++ "]"
+  | (operand_value.memloc seg b s i d)  := "(" ++ repr seg ++ ":" ++ repr b ++ " + " ++ repr s ++ "*" ++ repr i ++ " + " ++ repr d ++ ")"
+
+instance operand_value_has_repr : has_repr operand_value := ⟨operand_value_to_string⟩
+
+structure operand := 
+  (type  : operand_type)
+  (value : operand_value)
+
+def operand_to_string : operand -> string := λop, 
+  "(" ++ repr op.value ++ " :: " ++ repr op.type ++ ")"
 
 instance operand_has_repr : has_repr operand := ⟨operand_to_string⟩
 
@@ -131,12 +319,56 @@ def registerp : parser register :=
 def option_registerp : parser (option register) :=
     (pure none <* stringp "no-register") <|> (some <$> registerp)
 
+def operand_valuep : parser operand_value :=
+  (operand_value.register <$> registerp)
+  <|> (taggedp "segment-index" (operand_value.segment <$> option_registerp <*> registerp))
+  <|> (taggedp "immediate" (operand_value.immediate <$> natp <*> natp))
+  <|> (taggedp "rel-immediate" (operand_value.rel_immediate <$> natp <*> natp <*> natp))
+  <|> (taggedp "memloc" (operand_value.memloc <$> option_registerp <*> option_registerp <*> natp <*> option_registerp <*> natp))
+
+-- FIXME: some of these could be autogenerated?
+def operand_typep : parser operand_type :=
+  let memp n sz := stringp n *> pure (operand_type.mem sz) 
+  in  memp "anymem"       0 -- ??
+  <|> memp "f128mem"      128
+  <|> memp "f256mem"      256
+  <|> memp "f32mem"       32
+  <|> memp "f512mem"      512
+  <|> memp "f64mem"       64
+  <|> memp "f80mem"       80 --??
+  <|> memp "i128mem"      128
+  <|> memp "i16mem"       16
+  <|> memp "i256mem"      256
+  <|> memp "i32mem"       32
+  <|> memp "i32mem_TC"    32
+  <|> memp "i512mem"      512
+  <|> memp "i64mem"       64
+  <|> memp "i64mem_TC"    64
+  <|> memp "i8mem"        8
+  <|> memp "i8mem_NOREX"  8
+--  <|> memp "lea64_32mem"  
+--  <|> memp "lea64mem",
+--  <|> memp "opaquemem",
+  <|> memp "sdmem"        64
+  <|> memp "ssmem"        32
+  <|> memp "v512mem"      512
+  <|> memp "vx128mem"     128
+  <|> memp "vx128xmem"    128
+  <|> memp "vx256mem"     256
+  <|> memp "vx256xmem"    256
+  <|> memp "vx64mem"      64
+  <|> memp "vx64xmem"     64
+  <|> memp "vy128mem"     128
+  <|> memp "vy128xmem"    128
+  <|> memp "vy256mem"     256
+  <|> memp "vy256xmem"    256
+  <|> memp "vy512xmem"    512
+  <|> memp "vz256mem"     256
+  <|> memp "vz512mem"     512
+  <|> (anyatomp *> pure operand_type.other)
+
 def operandp : parser operand :=
-  (operand.register <$> registerp)
-  <|> (taggedp "segment-index" (operand.segment <$> option_registerp <*> registerp))
-  <|> (taggedp "immediate" (operand.immediate <$> natp <*> natp))
-  <|> (taggedp "rel-immediate" (operand.rel_immediate <$> natp <*> natp <*> natp))
-  <|> (taggedp "memloc" (operand.memloc <$> option_registerp <*> option_registerp <*> natp <*> option_registerp <*> natp))
+  listp (operand.mk <$> operand_typep <*> operand_valuep)
     
 def instructionp : parser instruction :=
   taggedp "instruction" (instruction.mk <$> anyatomp <*> manyp operandp)
@@ -149,58 +381,6 @@ def entryp : parser (ℕ × sum unknown_byte instruction) :=
                              ((sum.inl <$> unknown_bytep) <|> (sum.inr <$> instructionp)))
 
 def documentp : parser document := listp (manyp entryp)
-
-/-
-def get_sexp : string -> sexp := λst, 
-    match sexp.from_string st with
-      | (sum.inr s) := s
-      | _ := sorry
-    end
-
-#eval get_sexp "(rel-immediate 7823 4 18446744073709542481)"
-
-#eval (exec_parser instructionp (get_sexp "(instruction CALL64pcrel32 (rel-immediate 7823 4 18446744073709542481))"))
-
-def foo : string := 
-"((7691 3 (instruction SETNEr (register RAX AL 8 0)))
-  (7694 1 (instruction RETQ))
-  (7695 1 (instruction NOOP))
-  (7696 4 (instruction SUB64ri8 (register RSP RSP 0 0) (register RSP RSP 0 0) (immediate 1 24)))
-  (7700 7 (instruction LEA64r (register R8 R8 0 0) (memloc no-register (register RIP RIP 0 0) 1 no-register 73631)))
-  (7707 2 (instruction XOR32rr (register RDX EDX 32 0) (register RDX EDX 32 0) (register RDX EDX 32 0)))
-  (7709 2 (instruction XOR32rr (register RSI ESI 32 0) (register RSI ESI 32 0) (register RSI ESI 32 0)))
-  (7711 3 (instruction MOV64rr (register RCX RCX 0 0) (register RSP RSP 0 0)))
-  (7714 9 (instruction MOV64rm (register RAX RAX 0 0) (memloc (register FS FS 0 0) no-register 1 no-register 40)))
-  (7723 5 (instruction MOV64mr (memloc no-register (register RSP RSP 0 0) 1 no-register 8) (register RAX RAX 0 0)))
-  (7728 2 (instruction XOR32rr (register RAX EAX 32 0) (register RAX EAX 32 0) (register RAX EAX 32 0)))
-  (7730 5 (instruction CALL64pcrel32 (rel-immediate 7735 4 61785)))
-  (7735 2 (instruction TEST32rr (register RAX EAX 32 0) (register RAX EAX 32 0)))
-  (7737 2 (instruction JE_1 (rel-immediate 7739 1 61)))
-  (7739 3 (instruction CMP32ri8 (register RAX EAX 32 0) (immediate 1 1)))
-  (7742 2 (instruction JE_1 (rel-immediate 7744 1 32)))
-  (7744 2 (instruction XOR32rr (register RAX EAX 32 0) (register RAX EAX 32 0) (register RAX EAX 32 0)))
-  (7746 5 (instruction MOV64rm (register RDX RDX 0 0) (memloc no-register (register RSP RSP 0 0) 1 no-register 8)))
-  (7751 9 (instruction XOR64rm (register RDX RDX 0 0) (register RDX RDX 0 0) (memloc (register FS FS 0 0) no-register 1 no-register 40)))
-  (7760 2 (instruction JNE_1 (rel-immediate 7762 1 56)))
-  (7762 4 (instruction ADD64ri8 (register RSP RSP 0 0) (register RSP RSP 0 0) (immediate 1 24)))
-  (7766 1 (instruction RETQ))
-  (7767 9 (instruction NOOPW (memloc no-register (register RAX RAX 0 0) 1 (register RAX RAX 0 0) 0)))
-  (7776 11 (instruction MOV64mi32 (memloc no-register (register RIP RIP 0 0) 1 no-register 2209205) (immediate 4 18446744073709551615)))
-  (7787 5 (instruction MOV32ri (register RAX EAX 32 0) (immediate 4 1)))
-  (7792 2 (instruction JMP_1 (rel-immediate 7794 1 18446744073709551568)))
-  (7794 6 (instruction NOOPW (memloc no-register (register RAX RAX 0 0) 1 (register RAX RAX 0 0) 0)))
-  (7800 4 (instruction MOV64rm (register RAX RAX 0 0) (memloc no-register (register RSP RSP 0 0) 1 no-register 0)))
-  (7804 7 (instruction MOV64mr (memloc no-register (register RIP RIP 0 0) 1 no-register 2209181) (register RAX RAX 0 0)))
-  (7811 5 (instruction MOV32ri (register RAX EAX 32 0) (immediate 4 1)))
-  (7816 2 (instruction JMP_1 (rel-immediate 7818 1 18446744073709551544)))
-  (7818 5 (instruction CALL64pcrel32 (rel-immediate 7823 4 18446744073709542481))))"
-
-#eval (exec_parser documentp (get_sexp foo))
-
-
-
-#eval bar
--/
 
 end parser
 

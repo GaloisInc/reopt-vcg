@@ -98,20 +98,23 @@ int go(struct reader_state *st, llvm::MCInstrInfo *mii, llvm::MCDisassembler *mc
     insn.dump_pretty(llvm::errs()); llvm::errs() << "\n";
     mcp->printInst(&insn, llvm::errs(), "", mcdis->getSubtargetInfo());
     llvm::errs() << "\n";
-   
+
+    llvm::errs() << "Flag: " << (int) insn.getFlags() << "\n";
+    
     auto desc = mii->get(insn.getOpcode());
     for (auto oi : desc.operands()) {
-        llvm::errs() << "oi: '" << (int) oi.OperandType << "'\n";
+        llvm::errs() << "oi: '" << (int) oi.OperandType << "' " << (int) oi.Flags << "'\n";
     }
 
     llvm::errs() << mcp->getOpcodeName(insn.getOpcode()) << "\n";
     llvm::errs() << "size: " << insn.size() << "\n";
     for (auto op : insn) {
-        if (op.isReg()) {
-            mcp->printRegName(llvm::errs(), op.getReg());
-            llvm::errs() << "\n";
-        } else
-            llvm::errs() << "<other>\n";
+        llvm::errs() << op << "\n";
+        // if (op.isReg()) {
+        //     mcp->printRegName(llvm::errs(), op.getReg());
+        //     llvm::errs() << "\n";
+        // } else
+        //     llvm::errs() << "<other>\n";
     }
 
 

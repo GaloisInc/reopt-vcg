@@ -144,8 +144,9 @@ print_instruction(uint64_t offset, uint64_t size
     out << "(instruction " << mii->getName(x.instructionID).data();
 
     for(const auto &op : x.operands) {
-        out << " ";
-        print_sexp(op, out, reginfo);
+        out << " (" << op.first << " ";        
+        print_sexp(op.second, out, reginfo);
+        out << ")";
     }
     out << "))" << std::endl;
 }

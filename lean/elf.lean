@@ -649,9 +649,13 @@ def doit : (string × string × ℕ × ℕ) -> io unit
       (io.stdout >>= io.fs.flush)
   end
 
+#check nat.cast
+
 def main : io unit := 
   get_filename_arg >>= doit
 
 -- set_option profiler true
 -- #eval doit ("../testfiles/two", "../llvm-tablegen-support/llvm-tablegen-support", 1530, 1544)
+-- #eval doit ("../testfiles/mixed_mem", "../llvm-tablegen-support/llvm-tablegen-support", 1530, 1536)
+
 -- #eval doit ("../../sample-binaries/tiny/test-conditional.x86_64-exe", "../llvm-tablegen-support/llvm-tablegen-support", 4194704, 4194711)

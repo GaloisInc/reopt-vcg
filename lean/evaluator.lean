@@ -440,7 +440,8 @@ def arg_lval.to_value : arg_lval -> Π(tp : type), evaluator (value tp)
 def arg_lval.set_value : arg_lval -> Π{tp : type}, value tp -> evaluator unit
   | (@arg_lval.reg tp r) tp' v := do v' <- value.type_check _ v tp,
                                      reg.set r v'
-  | (arg_lval.memloc width addr) (bv (nat_expr.lit n)) bytes :=  -- FIXME: use nat_expr.eval instead of assuming lit
+  | (arg_lval.memloc width addr) (bv e) bytes := 
+    let n := eval_nat_expr e in
     if H : n = 8 * (width / 8)
     then modify (λs, { s with machine_state := s.machine_state.store_word addr (bitvec.cong H bytes) })
     else throw "arg_lval.set_value: width mismatch"
