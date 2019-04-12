@@ -24,6 +24,10 @@ library
       src
   build-depends:
                 base >=4.7 && <5
+              , containers
+              , scientific
+              , text
+              , unordered-containers
               , yaml >= 0.10.0
   exposed-modules:
     Reopt.VCG.Config
@@ -49,8 +53,10 @@ executable reopt-vcg
               , macaw-x86
               , mtl
               , parameterized-utils
+              , process
               , text >=1.2.3.0
               , reopt-vcg
+              , utf8-string
               , vector
               , what4
               , yaml >= 0.10.0

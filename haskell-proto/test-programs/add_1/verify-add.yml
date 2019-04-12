@@ -1,12 +1,103 @@
 # Verifying a simple add function.
 # The targets are equivalent, hence expecting UNSAT.
-llvmBCFilePath: add.bc
-binFilePath: add
-functions:
-- llvmFunName: add
-  llvmStartBlock: '1'
-  llvmArgs: ['0']
-  llvmVars: []
-  macawFunName: add
-  macawArgs: ['rdi_0']
-  macawVars: []
+{
+   "llvmBCFilePath": "add.bc",
+   "binFilePath": "add",
+   "functions": [
+      {
+         "llvm_name": "add",
+         "stack_size": 32,
+         "blocks": [
+            {
+               "label": "1",
+               "addr": 4195542,
+               "size": 26,
+               "allocas": [
+                  {
+                     "name": 2,
+                     "offset": -32
+                  },
+                  {
+                     "name": 3,
+                     "offset": -16
+                  }
+               ],
+               "events": [
+                  {
+                     "addr": 4195542,
+                     "type": "binary_only_access"
+                  },
+                  {
+                     "addr": 4195546,
+                     "type": "joint_stack_access",
+                     "alloca": 2
+                  },
+                  {
+                     "addr": 4195550,
+                     "type": "joint_stack_access",
+                     "alloca": 2
+                  },
+                  {
+                     "addr": 4195554,
+                     "type": "joint_stack_access",
+                     "alloca": 3
+                  },
+                  {
+                     "addr": 4195558,
+                     "type": "joint_stack_access",
+                     "alloca": 3
+                  },
+                  {
+                     "addr": 4195566,
+                     "type": "binary_only_access"
+                  },
+                  {
+                     "addr": 4195567,
+                     "type": "binary_only_access"
+                  }
+               ]
+            }
+         ]
+      },
+      {
+         "llvm_name": "main",
+         "stack_size": 16,
+         "blocks": [
+            {
+               "label": "0",
+               "addr": 0x4004f0,
+               "size": 0x1d,
+               "allocas": [
+                  {
+                     "name": 1,
+                     "offset": -16
+                  }
+               ],
+               "events": [
+                  {
+                     "addr": 0x4004f0,
+                     "type": "binary_only_access"
+                  },
+                  {  "addr": 0x4004fd,
+                     "type": "binary_only_access"
+                  },
+                  {
+                     "addr": 0x400502,
+                     "type": "joint_stack_access",
+                     "alloca": 1
+                  },
+                  {
+                     "addr": 0x40050c,
+                     "type": "binary_only_access",
+                     "alloca": 1
+                  },
+                  {
+                     "addr": 0x40050b,
+                     "type": "binary_only_access"
+                  },
+	       ]
+            }
+         ]
+      }
+   ]
+}

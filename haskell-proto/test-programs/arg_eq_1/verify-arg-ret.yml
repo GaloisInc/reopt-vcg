@@ -1,0 +1,17 @@
+# Verifying function call's arguments are equivalent,
+# and the return values of `f which used the result
+# from the callee are also equivalent.
+# The targets are equivalent, hence expecting UNSAT.
+# Note: This one does not work as expected for the moment,
+#       as we need to state more about the relations/disjointness
+#       for pointers on the stack (variable z in the program).
+llvmBCFilePath:  arg_eq.bc
+binFilePath: arg_eq
+functions:
+- llvmFunName: f
+  llvmStartBlock: '3'
+  llvmArgs: ['0', '1', '2']
+  llvmVars: []
+  macawFunName: f
+  macawArgs: ['rdi_0', 'rsi_0', 'rdx_0']
+  macawVars: []

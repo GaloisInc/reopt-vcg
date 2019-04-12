@@ -1,4 +1,4 @@
-resolver: lts-12.9
+resolver: lts-13.13
 
 packages:
   - .
@@ -15,8 +15,6 @@ packages:
   - deps/macaw/x86
 
 extra-deps:
-  - yaml-0.10.0
-  - monadLib-3.7.3
-  - panic-0.4.0.1
-  - fgl-visualize-0.1.0.1
-  - dotgen-0.4.2
+- fgl-visualize-0.1.0.1@sha256:e682066053a6e75478a08fd6822dd0143a3b8ea23244bdb01dd389a266447c5e
+- monadLib-3.9@sha256:dc0d8579840968be03fc2ce1c21d5af055fe5a38b65b99793dd720f5e07aaa34
+- panic-0.4.0.1@sha256:fb46577c9e0ca38c37960572f958a8469f2b577e963ed4f3ea1904d8400d828b
