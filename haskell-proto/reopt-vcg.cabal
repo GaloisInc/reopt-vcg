@@ -24,6 +24,7 @@ library
       src
   build-depends:
                 base >=4.7 && <5
+              , containers
               , scientific
               , text
               , unordered-containers
@@ -55,6 +56,7 @@ executable reopt-vcg
               , process
               , text >=1.2.3.0
               , reopt-vcg
+              , utf8-string
               , vector
               , what4
               , yaml >= 0.10.0

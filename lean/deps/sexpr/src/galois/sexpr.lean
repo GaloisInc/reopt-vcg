@@ -17,9 +17,9 @@ universes u v w
 
 namespace sexpr
 
-class is_atom (α : Type _) :=
+class is_atom (α : Type) :=
 (to_char_buffer : α → char_buffer)
-(read {m} [char_reader string m] (n:ℕ) : m α)
+(read {m:Type → Type} [char_reader string m] (n:ℕ) : m α)
 
 end sexpr
 
@@ -96,8 +96,7 @@ def check_atom_term {m} [char_reader string m] : m unit := do
  | option.none := pure ()
  | (option.some c) := do
     when (c ∉ ['(', ')'] ∧ ¬c.is_whitespace)
-      (throw ("Unexpected character "++ c.repr)),
-    consume_char
+      (throw ("Unexpected character "++ c.repr))
  end
 
 /-- Read the s-expression from the handle/ -/

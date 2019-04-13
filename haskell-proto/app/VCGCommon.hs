@@ -20,6 +20,7 @@ module VCGCommon
 
 import           Data.Text (Text)
 import qualified Data.Text.Lazy.Builder as Builder
+import           Numeric.Natural
 import           System.Exit
 import           System.IO
 import qualified What4.Protocol.SMTLib2.Syntax as SMT
@@ -41,13 +42,15 @@ memSort = SMT.arraySort ptrSort (SMT.bvSort 8)
 writeBVLE :: SMT.Term
           -> SMT.Term  -- ^ Address to write
           -> SMT.Term  -- ^ Value to write
-          -> Integer -- ^ Number of bytes to write.
+          -> Natural -- ^ Number of bytes to write.
           -> SMT.Term
-writeBVLE mem ptr0 val w = go (w-1)
-  where go :: Integer -> SMT.Term
+writeBVLE mem ptr0 val w
+    | w == 0 = error $ "writeBVLE given zero bytes"
+    | otherwise = go (w-1)
+  where go :: Natural -> SMT.Term
         go 0 = SMT.store mem ptr0 (SMT.extract 7 0 val)
         go i =
-          let ptr = SMT.bvadd ptr0 [SMT.bvdecimal i 64]
+          let ptr = SMT.bvadd ptr0 [SMT.bvdecimal (toInteger i) 64]
            in SMT.store (go (i-1)) ptr (SMT.extract (8*i+7) (8*i) val)
 
 
