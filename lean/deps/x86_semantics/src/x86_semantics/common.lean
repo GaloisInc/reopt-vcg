@@ -58,8 +58,7 @@ instance : has_mul nat_expr := ⟨nat_expr.do_mul⟩
 instance : has_div nat_expr := ⟨nat_expr.do_div⟩
 
 instance nat_coe_nat_expr : has_coe ℕ nat_expr := ⟨λx, lit x⟩
-
-instance : decidable_eq nat_expr := by tactic.mk_dec_eq_instance
+instance decidable_eq_nat_expr : decidable_eq nat_expr := by tactic.mk_dec_eq_instance
 
 end nat_expr
 ------------------------------------------------------------------------
@@ -95,28 +94,29 @@ inductive type
 -- A function from arg to res
 | fn (arg:type) (res:type) : type
 
-namespace type
+instance decidable_eq_type: decidable_eq type := by tactic.mk_dec_eq_instance
 
-protected
-def pp' : Π(in_fun:bool), type → string
-| _ (bv w) := sexp.app "bv" [w.pp]
-| _ bit    := "bit"
-| _ float  := "float"
-| _ double := "double"
-| _ x86_80 := "x86_80"
-| _ (vec w tp) := sexp.app "vec" [w.pp, tp.pp' ff]
-| in_fun (fn a r) :=
-  if in_fun then
-     a.pp' ff ++ " " ++ r.pp' tt
-  else
-     sexp.app "fun" [a.pp' ff, r.pp' tt]
+-- namespace type
 
-protected
-def pp : type → string := type.pp' ff
+-- protected
+-- def repr' : Π(in_fun:bool), type → string
+-- | _ (bv w) := "(bv " ++ w.pp ++ ")"
+-- | _ bit    := "bit"
+-- | _ float  := "float"
+-- | _ double := "double"
+-- | _ x86_80 := "x86_80"
+-- | _ (vec w tp) := "(vec " ++ w.pp ++ " " ++ tp.repr' ff ++ ")"
+-- | _ (pair tp tp') := "(pair " ++ tp.repr' ff ++ " " ++ tp'.repr' ff ++ ")"
+-- | in_fun (fn a r) :=
+--   if in_fun then
+--      a.repr' ff ++ " " ++ r.repr' tt
+--   else
+--      "(fun " ++ a.repr' ff ++ " " ++ r.repr' tt ++ ")"
 
-instance : decidable_eq type := by tactic.mk_dec_eq_instance
+-- protected
+-- def repr : type → string := type.pp' ff
 
-end type
+-- end type
 
 end mc_semantics
 
@@ -144,8 +144,8 @@ namespace gpreg_type
 
 @[reducible]
 def width : gpreg_type → nat
-| reg8l := 8
-| reg8h := 8
+| reg8l  := 8
+| reg8h  := 8
 | reg16 := 16
 | reg32 := 32
 | reg64 := 64
@@ -211,8 +211,13 @@ protected def flag_names : list string :=
   , "rf", "vm",         "ac",  "vif",        "vip",   "id"
   ]
 
-protected def repr : Π{tp:type}, reg tp → string
-| ._ (concrete_gpreg idx tp) := "$" ++
+end reg
+
+namespace concrete_reg
+
+protected
+def repr : Π{tp:type}, concrete_reg tp → string
+| ._ (gpreg idx tp) := "$" ++
   match tp with
   | gpreg_type.reg8l := list.nth_le reg.r8l_names idx.val idx.is_lt
   | gpreg_type.reg8h := list.nth_le reg.r8h_names idx.val idx.is_lt
@@ -220,116 +225,42 @@ protected def repr : Π{tp:type}, reg tp → string
   | gpreg_type.reg32 := list.nth_le reg.r32_names idx.val idx.is_lt
   | gpreg_type.reg64 := list.nth_le reg.r64_names idx.val idx.is_lt
   end
-| ._ (concrete_flagreg idx) := "$" ++
+| ._ (flagreg idx) := "$" ++
    match list.nth reg.flag_names idx.val with
    | (option.some nm) := nm
-   | option.none :=  "REVERSED_" ++ idx.val.repr
+   | option.none :=  "RESERVED_" ++ idx.val.repr
    end
+
+end concrete_reg
+
+namespace reg
+
+protected
+def repr : Π{tp:type}, reg tp -> string
+| _ (concrete r) := r.repr
+| _ (arg idx)    := "arg" ++ idx.repr
+
 end reg
 
 ------------------------------------------------------------------------
 -- Addresses
 
 -- Denotes an address to a value of a specific type.
-inductive addr (n:nat) : Type
+inductive addr (tp:type) : Type
 | arg {} (idx: arg_index) : addr
 
 namespace addr
 
-protected def repr {n:nat} : addr n → string
-| (arg idx) := idx.pp
+protected def repr {tp:type} : addr tp → string
+| (arg idx) := idx.repr
 
 end addr
-
---- Expressions that may appear on the left-hand side of an assignment.
-inductive lhs : type → Type
-| reg {tp:type} (r:reg tp) : lhs tp
--- A value that must be an address.
-| addr {n:nat} (a:addr n) : lhs (bv (8 * n))
--- An argument that may be either a register or address.
-| arg (idx:arg_index) (tp:type) : lhs tp
--- ST reg with the offset relative to the current stack top value.
-| streg (idx : fin 8) : lhs x86_80
-
-namespace lhs
-
--- Pretty printer for lhs
-protected def repr : Π {tp:type}, lhs tp → string
-| _  (reg r) := r.repr
-| ._ (addr a) := a.repr
-| _  (arg idx tp) := idx.pp
-| ._ (streg idx) := "st" ++ idx.val.repr
-
-end lhs
-
-def reg8l (i:fin 16) := lhs.reg $ reg.concrete_gpreg i gpreg_type.reg8l
-def reg8h (i:fin 16) := lhs.reg $ reg.concrete_gpreg i gpreg_type.reg8h
-
-def al  := reg8l 0
-def cl  := reg8l 1
-def dl  := reg8l 2
-def bl  := reg8l 3
-def spl := reg8l 4
-def bpl := reg8l 5
-def sil := reg8l 6
-def dil := reg8l 7
-def ah  := reg8h 0
-
-def reg16 (i:fin 16) := lhs.reg $ reg.concrete_gpreg i gpreg_type.reg16
-
-def ax := reg16 0
-def cx := reg16 1
-def dx := reg16 2
-def bx := reg16 3
-
-def reg32 (i:fin 16) := lhs.reg $ reg.concrete_gpreg i gpreg_type.reg32
-
-def eax := reg32 0
-def ecx := reg32 1
-def edx := reg32 2
-def ebx := reg32 3
-
-def reg64 (i:fin 16) := lhs.reg $ reg.concrete_gpreg i gpreg_type.reg64
-
-def rax := reg64 0
-def rcx := reg64 1
-def rdx := reg64 2
-def rbx := reg64 3
-def rsp := reg64 4
-def rbp := reg64 5
-def rsi := reg64 6
-def rdi := reg64 7
-def r8  := reg64 8
-def r9  := reg64 9
-def r10 := reg64 10
-def r11 := reg64 11
-def r12 := reg64 12
-def r13 := reg64 13
-def r14 := reg64 14
-def r15 := reg64 15
-
-def flagreg (i:fin 32) := lhs.reg $ reg.concrete_flagreg i
-
-def cf  := flagreg  0
-def pf  := flagreg  2
-def af  := flagreg  4
-def zf  := flagreg  6
-def sf  := flagreg  7
-def tf  := flagreg  8
-def if' := flagreg  9
-def df  := flagreg 10
-def of  := flagreg 11
-
-def st0 : lhs x86_80 := lhs.streg 0
 
 ------------------------------------------------------------------------
 -- Primitive functions
 
 section prim
-
 local infixr `.→`:30 := type.fn
-
-section nat_is_nat_expr
 
 local notation ℕ := nat_expr
 
@@ -481,6 +412,7 @@ inductive prim : type → Type
 | double_to_x86_80 : prim (double .→ x86_80)
 -- `x87_fadd` adds two extended precision values using the flags in the x87 register.
 | x87_fadd : prim (x86_80 .→ x86_80 .→ x86_80)
+
 -- Pairs
 
 -- Return first element of a pair.
@@ -492,58 +424,6 @@ inductive prim : type → Type
 inductive imm : type → Type
 | arg (idx:arg_index) {tp:type} : imm tp
 
-end nat_is_nat_expr
-
-namespace prim
-
-def pp : Π{tp:type}, prim tp → string
-| ._ (add i) := "add " ++ i.pp
-| ._ (adc i) := "adc " ++ i.pp
-| ._ (mul i) := "mul " ++ i.pp
-| ._ (quot i) := "quot " ++ i.pp
-| ._ (rem i) := "rem " ++ i.pp
-| ._ (squot i) := "squot " ++ i.pp
-| ._ (srem i) := "srem " ++ i.pp
-| ._ (slice w u l) := "slice " ++ w.pp ++ " " ++ u.pp ++ " " ++ l.pp
-| ._ (sext i o) := "sext " ++ i.pp ++ " " ++ o.pp
-| ._ (uext i o) := "uext " ++ i.pp ++ " " ++ o.pp
-| ._ (trunc i o) := "trunc " ++ i.pp ++ " " ++ o.pp
-| ._ (bsf i) := "bsf " ++ i.pp
-| ._ (bsr i) := "bsr " ++ i.pp
-| ._ (bswap i) := "bswap " ++ i.pp
-| ._ bit_zero := sexp.app "bit" ["0"]
-| ._ bit_one  := sexp.app "bit" ["1"]
-| ._ (eq tp) := "eq " ++ tp.pp
-| ._ (neq tp) := "neq " ++ tp.pp
-| ._ (neg tp) := "neg " ++ tp.pp
-| ._ x87_fadd := "x87_fadd"
-| ._ float_to_x86_80 := "float_to_x86_80"
-| ._ double_to_x86_80 := "double_to_X86_80"
-| ._ (bv_to_x86_80 w) := "sext " ++ w.pp
-| ._ (bv_nat w n) := sexp.app "bv_nat" [w.pp, n.pp]
-| ._ (sub i) := "sub " ++ i.pp
-| ._ (ssbb_overflows i) := "ssbb_overflows " ++ i.pp
-| ._ (usbb_overflows i) := "usbb_overflows " ++ i.pp
-| ._ (uadc_overflows i) := "uadc_overflows " ++ i.pp
-| ._ (sadc_overflows i) := "sadc_overflows " ++ i.pp
-| ._ (and i) := "and " ++ i.pp
-| ._ (or  i) := "or "  ++ i.pp
-| ._ (xor i) := "xor " ++ i.pp
-| ._ (shl i) := "shl " ++ i.pp
-| ._ (shr i) := "shr " ++ i.pp
-| ._ (sar i) := "sar " ++ i.pp
-| ._ (bv_bit i) := "bv_bit " ++ i.pp
-| ._ (complement i) := "complement " ++ i.pp
-| ._ (cat i) := "cat " ++ i.pp
-| ._ (msb i) := "msb " ++ i.pp
-| ._ (even_parity i) := "even_parity " ++ i.pp
-| ._ bit_or  := "bit_or"
-| ._ bit_and := "bit_and"
-| ._ bit_xor := "bit_xor"
-| ._ (ule i) := "ule " ++ i.pp
-| ._ (ult i) := "ult " ++ i.pp
-
-end prim
 
 -- This is an expression that computes a value with some type given by
 -- the parameter.
@@ -587,9 +467,58 @@ inductive expression : type → Type
 
 end prim
 
-namespace expression
+--namespace prim
+--
+-- def pp : Π{tp:type}, prim tp → string
+-- | ._ (add i) := "add " ++ i.pp
+-- | ._ (adc i) := "adc " ++ i.pp
+-- | ._ (mul i) := "mul " ++ i.pp
+-- | ._ (quot i) := "quot " ++ i.pp
+-- | ._ (rem i) := "rem " ++ i.pp
+-- | ._ (squot i) := "squot " ++ i.pp
+-- | ._ (srem i) := "srem " ++ i.pp
+-- | ._ (slice w u l) := "slice " ++ w.pp ++ " " ++ u.pp ++ " " ++ l.pp
+-- | ._ (sext i o) := "sext " ++ i.pp ++ " " ++ o.pp
+-- | ._ (uext i o) := "uext " ++ i.pp ++ " " ++ o.pp
+-- | ._ (trunc i o) := "trunc " ++ i.pp ++ " " ++ o.pp
+-- | ._ (bsf i) := "bsf " ++ i.pp
+-- | ._ (bsr i) := "bsr " ++ i.pp
+-- | ._ (bswap i) := "bswap " ++ i.pp
+-- | ._ bit_zero := sexp.app "bit" ["0"]
+-- | ._ bit_one  := sexp.app "bit" ["1"]
+-- | ._ (eq tp) := "eq " ++ tp.pp
+-- | ._ (neq tp) := "neq " ++ tp.pp
+-- | ._ (neg tp) := "neg " ++ tp.pp
+-- | ._ x87_fadd := "x87_fadd"
+-- | ._ float_to_x86_80 := "float_to_x86_80"
+-- | ._ double_to_x86_80 := "double_to_X86_80"
+-- | ._ (bv_to_x86_80 w) := "sext " ++ w.pp
+-- | ._ (bv_nat w n) := sexp.app "bv_nat" [w.pp, n.pp]
+-- | ._ (sub i) := "sub " ++ i.pp
+-- | ._ (ssbb_overflows i) := "ssbb_overflows " ++ i.pp
+-- | ._ (usbb_overflows i) := "usbb_overflows " ++ i.pp
+-- | ._ (uadc_overflows i) := "uadc_overflows " ++ i.pp
+-- | ._ (sadc_overflows i) := "sadc_overflows " ++ i.pp
+-- | ._ (and i) := "and " ++ i.pp
+-- | ._ (or  i) := "or "  ++ i.pp
+-- | ._ (xor i) := "xor " ++ i.pp
+-- | ._ (shl i) := "shl " ++ i.pp
+-- | ._ (shr i) := "shr " ++ i.pp
+-- | ._ (sar i) := "sar " ++ i.pp
+-- | ._ (bv_bit i) := "bv_bit " ++ i.pp
+-- | ._ (complement i) := "complement " ++ i.pp
+-- | ._ (cat i) := "cat " ++ i.pp
+-- | ._ (msb i) := "msb " ++ i.pp
+-- | ._ (even_parity i) := "even_parity " ++ i.pp
+-- | ._ bit_or  := "bit_or"
+-- | ._ bit_and := "bit_and"
+-- | ._ bit_xor := "bit_xor"
+-- | ._ (ule i) := "ule " ++ i.pp
+-- | ._ (ult i) := "ult " ++ i.pp
+--
+-- end prim
 
-section nat_is_nat_expr
+namespace expression
 
 local notation ℕ := nat_expr
 
@@ -627,19 +556,6 @@ def bit_and           (x y : expression bit)                         : expressio
 def bit_xor           (x y : expression bit)                         : expression bit    := prim.bit_xor x y
 def bv_nat (w:ℕ) (x : ℕ) : expression (bv w) := prim.bv_nat w x
 
-end nat_is_nat_expr
-
-protected
-def is_app : Π{tp:type}, expression tp → bool
-| ._ (app _ _) := tt
-| _ _ := ff
-
-protected
-def pp_args : Π{tp:type}, expression tp → string
-| ._ (primitive o) := o.pp
-| ._ (app f a) := f.pp_args ++ " " ++ paren_if a.is_app a.pp_args
-| _  (get lhs) := lhs.repr
-| ._ (get_local idx tp) := sexp.app "local" [has_repr.repr idx]
 def read_addr {tp:type} : addr tp → expression tp
 | (addr.arg idx) := expression.read_arg idx tp
 
@@ -647,8 +563,10 @@ def of_reg {tp:type} : reg tp → expression tp
 | (reg.concrete r) := expression.get_reg r
 | (reg.arg a) := expression.read_arg a tp
 
-instance addr_is_expression (n:nat) : has_coe (addr n) (expression (bv (8 * n))) :=
-⟨ expression.get ∘ lhs.addr ⟩
+instance addr_is_expression (tp:type) : has_coe (addr tp) (expression tp) :=
+⟨ expression.read_addr ⟩
+
+
 
 instance type_is_sort     : has_coe_to_sort type := ⟨Type, expression⟩
 instance all_reg_is_expression : has_coe1 reg expression := ⟨λ_, expression.of_reg⟩
