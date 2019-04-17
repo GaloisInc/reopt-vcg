@@ -60,6 +60,14 @@ instance : has_div nat_expr := ⟨nat_expr.do_div⟩
 instance nat_coe_nat_expr : has_coe ℕ nat_expr := ⟨λx, lit x⟩
 instance decidable_eq_nat_expr : decidable_eq nat_expr := by tactic.mk_dec_eq_instance
 
+def pp : nat_expr -> string
+| (lit n) := repr n
+| (var i) := "(var " ++ repr i ++ ")"
+| (add e e') := "(add " ++ e.pp ++ " " ++ e'.pp ++ ")"
+| (sub e e') := "(sub " ++ e.pp ++ " " ++ e'.pp ++ ")"
+| (mul e e') := "(mul " ++ e.pp ++ " " ++ e'.pp ++ ")"
+| (div e e') := "(div " ++ e.pp ++ " " ++ e'.pp ++ ")"
+
 end nat_expr
 ------------------------------------------------------------------------
 -- one_of
@@ -96,27 +104,27 @@ inductive type
 
 instance decidable_eq_type: decidable_eq type := by tactic.mk_dec_eq_instance
 
--- namespace type
+namespace type
 
--- protected
--- def repr' : Π(in_fun:bool), type → string
--- | _ (bv w) := "(bv " ++ w.pp ++ ")"
--- | _ bit    := "bit"
--- | _ float  := "float"
--- | _ double := "double"
--- | _ x86_80 := "x86_80"
--- | _ (vec w tp) := "(vec " ++ w.pp ++ " " ++ tp.repr' ff ++ ")"
--- | _ (pair tp tp') := "(pair " ++ tp.repr' ff ++ " " ++ tp'.repr' ff ++ ")"
--- | in_fun (fn a r) :=
---   if in_fun then
---      a.repr' ff ++ " " ++ r.repr' tt
---   else
---      "(fun " ++ a.repr' ff ++ " " ++ r.repr' tt ++ ")"
+protected
+def pp' : Π(in_fun:bool), type → string
+| _ (bv w) := "(bv " ++ w.pp ++ ")"
+| _ bit    := "bit"
+| _ float  := "float"
+| _ double := "double"
+| _ x86_80 := "x86_80"
+| _ (vec w tp) := "(vec " ++ w.pp ++ " " ++ tp.pp' ff ++ ")"
+| _ (pair tp tp') := "(pair " ++ tp.pp' ff ++ " " ++ tp'.pp' ff ++ ")"
+| in_fun (fn a r) :=
+  if in_fun then
+     a.pp' ff ++ " " ++ r.pp' tt
+  else
+     "(fun " ++ a.pp' ff ++ " " ++ r.pp' tt ++ ")"
 
--- protected
--- def repr : type → string := type.pp' ff
+protected
+def pp : type → string := type.pp' ff
 
--- end type
+end type
 
 end mc_semantics
 
@@ -143,7 +151,15 @@ inductive gpreg_type : Type
 namespace gpreg_type
 
 @[reducible]
-def width : gpreg_type → nat
+def width' : gpreg_type → nat
+| reg8l  := 8
+| reg8h  := 8
+| reg16 := 16
+| reg32 := 32
+| reg64 := 64
+
+@[reducible]
+def width : gpreg_type → nat_expr
 | reg8l  := 8
 | reg8h  := 8
 | reg16 := 16

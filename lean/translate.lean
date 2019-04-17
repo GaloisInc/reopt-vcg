@@ -1,4 +1,5 @@
 
+
 import x86_semantics.instructions
 import .evaluator
 import decodex86
@@ -25,7 +26,7 @@ lemma {u} index_of_lt {α : Type u} [decidable_eq α] (ls : list α) (x : α)
 namespace x86
 
 @[reducible]
-def some_gpr := sigma (λ(tp : gpreg_type), reg (bv tp.width))
+def some_gpr := sigma (λ(tp : gpreg_type), concrete_reg (bv tp.width))
 
 def register_to_reg (r : decodex86.register) : option some_gpr :=
   let idx := reg.r64_names.index_of r.top in
@@ -37,7 +38,7 @@ def register_to_reg (r : decodex86.register) : option some_gpr :=
            contradiction
            end)
        in let mk : Π(tp : gpreg_type), option some_gpr
-                 := λ(tp : gpreg_type), some ⟨tp, reg.concrete_gpreg idx' tp⟩
+                 := λ(tp : gpreg_type), some ⟨tp, concrete_reg.gpreg idx' tp⟩
        in
        match (r.width, r.offset) with 
          | (8, 0)  := mk gpreg_type.reg8l
@@ -85,23 +86,10 @@ def option_register_to_bv64 {m} [monad m] [monad_except string m]
   | (some r) := guard_some "option_register_to_bv64" (register_to_reg r)      
     (λ(r' : some_gpr),
       match r' with 
-      | (sigma.mk gpreg_type.reg64 rr) := return (reg.from_state nenv rr s)
+      | (sigma.mk gpreg_type.reg64 rr) := return (concrete_reg.from_state nenv rr s)
       | _                              := throw "not a 64bit reg"
       end) 
   end
-
-def assert_types {m} [monad m] [monad_except string m] 
-  (nenv : nat_env) 
-  (t1 t2 : type) : m unit :=
-  if eval_type nenv t1 = eval_type nenv t2
-  then return () 
-  else throw $ "Type mismatch: " ++ t1.pp ++ " and " ++ t2.pp ++ " in " ++ repr nenv
-
-def assert_bv {m} [monad m] [monad_except string m] (nenv : nat_env) (tp : type) : m ℕ :=
-  match tp with
-  | (bv e) := return (nat_expr.eval_default nenv e)
-  | _      := throw "Not a bitvecor"
-  end             
 
 def operand_to_arg_lval {m} [monad m] [monad_except string m] 
     (nenv : nat_env) (s : machine_state) 

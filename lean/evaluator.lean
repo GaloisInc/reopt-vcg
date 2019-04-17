@@ -5,7 +5,6 @@ import .tactic
 import tactic.find
 
 -- FIXME: move
-
 def annotate {ε} {m} [monad m] [monad_except ε m]
   {a} (f : ε -> ε) (c : m a) : m a := catch c (λe, throw (f e))
 
@@ -103,6 +102,19 @@ def eval_default (nenv : nat_env) : type -> type
   | (fn arg res) := fn (eval_default arg) (eval_default res)
   | tp           := tp
 
+def assert_types {m} [monad m] [monad_except string m] 
+  (nenv : nat_env) 
+  (t1 t2 : type) : m unit :=
+  if eval_default nenv t1 = eval_default nenv t2
+  then return () 
+  else throw $ "Type mismatch: " ++ t1.pp ++ " and " ++ t2.pp ++ " in " ++ repr nenv
+
+def assert_bv {m} [monad m] [monad_except string m] (nenv : nat_env) (tp : type) : m ℕ :=
+  match tp with
+  | (bv e) := return (nat_expr.eval_default nenv e)
+  | _      := throw "Not a bitvecor"
+  end             
+
 end type
 end mc_semantics
 
@@ -117,14 +129,14 @@ def machine_word := bitvec 64
 
 namespace reg
 
-def inject : Π(rtp : gpreg_type), bitvec rtp.width -> machine_word -> machine_word
+def inject : Π(rtp : gpreg_type), bitvec rtp.width' -> machine_word -> machine_word
   | gpreg_type.reg32 b _   := bitvec.append (bitvec.zero 32) b
   | gpreg_type.reg8h b old := old.set_bits 48 b (of_as_true trivial)
-  | rtp              b old := old.set_bits (64 - rtp.width) b (begin cases rtp; dec_trivial_tac end)
+  | rtp              b old := old.set_bits (64 - rtp.width') b (begin cases rtp; dec_trivial_tac end)
 
-def project : Π(rtp : gpreg_type), machine_word -> bitvec rtp.width
+def project : Π(rtp : gpreg_type), machine_word -> bitvec rtp.width'
   | gpreg_type.reg8h b := b.get_bits 48 8 (by dec_trivial_tac)
-  | rtp              b := b.get_bits (64 - rtp.width) rtp.width (begin cases rtp; dec_trivial_tac end)
+  | rtp              b := b.get_bits (64 - rtp.width') rtp.width' (begin cases rtp; dec_trivial_tac end)
 
 end reg
 
@@ -222,20 +234,10 @@ def print_regs (s : machine_state) : string :=
 
 end machine_state
 
--- Argument to functions in value, gets around the positivity
--- requirement on inductive types.
--- inductive value_fnarg : type -> Type
---   | bv {n : ℕ} : bitvec n -> value_fnarg (bv n)
---   | bit : bool -> value_fnarg bit
-
--- inductive value : type -> Type
---   | bv {n : ℕ} : bitvec n -> value (bv n)
---   | bit : bool -> value bit
---   | func  {tp tp' : type} : (value tp -> value tp') -> value (fn tp tp')
 
 inductive arg_lval
-  | reg {} {tp : type} : reg tp -> arg_lval
-  | memloc (width : ℕ) (addr : machine_word) : arg_lval
+  | reg {} {tp : type}  : concrete_reg tp -> arg_lval 
+  | memloc (width : ℕ) (addr : machine_word) : arg_lval 
 
 namespace arg_lval
 
@@ -268,7 +270,8 @@ def value : type -> Type
   | float  := unit -- FIXME
   | double := unit -- FIXME
   | x86_80 := unit -- FIXME  
-  | (vec w tp) := unit -- FIXME
+  | (vec w tp) := array (eval_nat_expr w) (value tp) -- FIXME
+  | (pair tp tp') := value tp × value tp'
   | (fn arg res) := (value arg) -> (value res)
 
 -- namespace value
@@ -289,6 +292,7 @@ inductive arg_value
   -- one_of param is only used in types, but in case it is not, we
   -- include a binding in the environment,
   | natv             : ℕ        -> arg_value 
+  -- covers reg, addr, and lhs bindings
   | lval             : arg_lval -> arg_value
   | rval {tp : type} : value tp -> arg_value
 
@@ -383,12 +387,23 @@ def value.type_check {m} [monad m] [monad_except string m] (tp : type) (v : valu
 def evaluator.run {a : Type} (m : evaluator a) (s : evaluator_state) : except string (a × evaluator_state) :=
   (m.run s)
 
-def evaluator.read_memory_at (addr : machine_word) (n : ℕ) : evaluator (bitvec (8 * n)) := do
+def evaluator.read_memory_at (addr : machine_word) (n : ℕ) : evaluator (bitvec n) := do
     s <- get, 
-    match s.machine_state.read_word addr n with
+    match s.machine_state.read_word addr (n / 8) with
     | none := throw "read_memory_at: no bytes at addr" 
-    | (some w) := return w
+    | (some w) := 
+      if H : 8 * (n / 8) = n
+      then return (bitvec.cong H w)
+      else throw "evaluator.read_memory_at: width not a multiple of 8"
     end
+
+def evaluator.write_memory_at : Π{tp : type} (addr : machine_word) (bytes : value tp), evaluator unit
+  | (bv e) addr bytes :=
+    let width := eval_nat_expr e
+    in (if H : width = 8 * (width / 8)
+        then modify (λs, { s with machine_state := s.machine_state.store_word addr (bitvec.cong H bytes) })
+        else throw "evaluator.write_memory_at: width not a multiple of 8")
+  | _ _ _ := throw "evaluator.write_memory_at not a bv"
 
 def evaluator.arg_at_idx (idx : ℕ) : evaluator arg_value :=
   do s <- get,
@@ -405,25 +420,33 @@ def evaluator.local_at_idx (idx : ℕ) (tp : type) : evaluator (value tp) :=
      | (some (sigma.mk tp' v)) := value.type_check _ v tp
      | none     := throw "local_at_idx: no arg at idx"
      end
-  
-def reg.set : Π{tp : type}, reg tp -> value tp -> evaluator unit
-  | ._ (reg.concrete_gpreg idx rtp) b := 
-    modify (λ(s : evaluator_state), { s with machine_state := machine_state.update_gpreg idx (reg.inject rtp b) s.machine_state })
-  | ._ (reg.concrete_flagreg idx)   b := 
+
+lemma width_width' : Π(rtp : gpreg_type), eval_nat_expr rtp.width = rtp.width' :=
+begin
+  intro, induction rtp; trivial
+end
+
+def concrete_reg.set : Π{tp : type}, concrete_reg tp -> value tp -> evaluator unit
+  | ._ (concrete_reg.gpreg idx rtp) b := 
+    let b' : bitvec rtp.width' := eq.rec b (width_width' rtp)
+    in modify (λ(s : evaluator_state), { s with machine_state := machine_state.update_gpreg idx (reg.inject rtp b') s.machine_state })
+  | ._ (concrete_reg.flagreg idx)   b := 
     modify (λ(s : evaluator_state), { s with machine_state := machine_state.update_flag idx (λ_, b) s.machine_state })
+  
+def concrete_reg.from_state : Π{tp : type}, concrete_reg tp -> machine_state -> value tp
+  | _ (concrete_reg.gpreg idx rtp) s := 
+    let v := reg.project rtp (s.get_gpreg idx) 
+    in begin simp [value, width_width' nenv rtp], exact v end
+  | _ (concrete_reg.flagreg idx)   s := s.get_flag idx
 
-def reg.from_state : Π{tp : type}, reg tp -> machine_state -> value tp
-  | ._ (reg.concrete_gpreg idx rtp) s := reg.project rtp (s.get_gpreg idx)
-  | ._ (reg.concrete_flagreg idx)   s := s.get_flag idx
-
-def reg.read {tp : type} (r : reg tp) : evaluator (value tp) := do s <- get, return (reg.from_state r s.machine_state)
+def concrete_reg.read {tp : type} (r : concrete_reg tp) : evaluator (value tp) := do s <- get, return (concrete_reg.from_state r s.machine_state)
 
 -- namespace arg_lval 
 
 def arg_lval.to_value' {m} [monad m] [monad_except string m] 
   (s : machine_state)
   : arg_lval -> Π(tp : type), m (value tp)
-  | (@arg_lval.reg tp r) tp' := value.type_check tp (reg.from_state r s) tp'
+  | (@arg_lval.reg tp r) tp' := value.type_check tp (concrete_reg.from_state r s) tp'
   | (arg_lval.memloc width addr) tp' :=
     match s.read_word addr (width / 8) with
     | none := throw "arg_lval.to_value': no bytes at addr" 
@@ -431,21 +454,17 @@ def arg_lval.to_value' {m} [monad m] [monad_except string m]
     end
 
 def arg_lval.to_value : arg_lval -> Π(tp : type), evaluator (value tp)
-  | (@arg_lval.reg tp r) tp' := do v <- reg.read r,
+  | (@arg_lval.reg tp r) tp' := do v <- concrete_reg.read r,
                                    value.type_check tp v tp'
   | (arg_lval.memloc width addr) tp' := do
-    v <- evaluator.read_memory_at addr (width / 8),
-    value.type_check (bv (8 * (width / 8))) v tp'
+    v <- evaluator.read_memory_at addr width,
+    value.type_check (bv width) v tp'
 
 def arg_lval.set_value : arg_lval -> Π{tp : type}, value tp -> evaluator unit
   | (@arg_lval.reg tp r) tp' v := do v' <- value.type_check _ v tp,
-                                     reg.set r v'
-  | (arg_lval.memloc width addr) (bv e) bytes := 
-    let n := eval_nat_expr e in
-    if H : n = 8 * (width / 8)
-    then modify (λs, { s with machine_state := s.machine_state.store_word addr (bitvec.cong H bytes) })
-    else throw "arg_lval.set_value: width mismatch"
-  | _ _ _ := throw "arg_lval.set_value: malformed set"
+                                     concrete_reg.set r v'
+  | (arg_lval.memloc _width addr) tp v := do
+    evaluator.write_memory_at addr v
 
 -- def read_memory_at (av : arg_value) (n : ℕ) : evaluator (bitvec (8 * n)) :=
 --   match av with 
@@ -463,32 +482,17 @@ def arg_value.set_value : arg_value -> Π{tp : type}, value tp -> evaluator unit
   | (arg_value.lval _ l) tp v := arg_lval.set_value l v
   | _ _ _ := throw "arg_value.set_value: not an lvalue"
 
-def addr.read : Π{n : ℕ}, addr n -> evaluator (value (bv (8 * n)))
-  | n (addr.arg idx) := do 
+def addr.read : Π{tp : type}, addr tp -> evaluator (value tp)
+  | tp (addr.arg idx) := do 
       av <- evaluator.arg_at_idx idx,
-      arg_value.to_value av (bv (8 * n)) -- FIXME: we should really check if this is a memloc first.
+      arg_value.to_value av tp -- FIXME: we should really check if this is a memloc first.
       -- w  <- av.read_memory_at n,
       -- return (value.bv w)
 
-def addr.set : Π{n : ℕ}, addr n -> value (bv (8 * n)) -> evaluator unit
-  | n (addr.arg idx) v := do 
+def addr.set : Π{tp : type}, addr tp -> value tp -> evaluator unit
+  | tp (addr.arg idx) v := do 
       av <- evaluator.arg_at_idx idx, -- FIXME: we should really check if this is a memloc first.
       arg_value.set_value av v
-    
-def lhs.set : Π{tp : type}, lhs tp -> value tp -> evaluator unit
-  | ._ (lhs.reg r) v      := reg.set r v
-  | ._ (lhs.addr a) v     := addr.set a v
-  | ._ (lhs.arg idx _tp) v := do av <- evaluator.arg_at_idx idx,
-                                 -- fixme: we ignore tp here?
-                                 arg_value.set_value av v
-  | ._ (lhs.streg idx) v  := throw "lhs.set: unsupported FP write"
-
-def lhs.read : Π{tp : type}, lhs tp -> evaluator (value tp)
-  | ._ (lhs.reg r)       := reg.read r
-  | ._ (lhs.addr a)      := addr.read a
-  | ._ (lhs.arg idx tp)  := do av <- evaluator.arg_at_idx idx, 
-                                  arg_value.to_value av tp
-  | ._ (lhs.streg idx)   := throw "lhs.read: unsupported FP read"
 
 -- This is the least-worst option.  The other alternative is to have a
 -- value constructor for functions, which we only need here.
@@ -505,10 +509,6 @@ inductive {u v} hlist {α : Type u} (f : α -> Type v): list α -> Type (max u v
 --   | (some n) := return n
 --   end
 -- end nat_expr
-
-section
-
-local infixr `.→`:30 := fn
 
 -- def prim_binop (e : nat_expr) (p : Π{n : ℕ}, bitvec n -> bitvec n -> bitvec n) :=
 --   evaluator.with_nat_expr_as_nat' (λi, value (bv i .→ bv i .→ bv i)) e (λn, return (@p n))
@@ -536,26 +536,111 @@ def bitvec.trunc {n} (m : ℕ) (p: m ≤ n) (x:bitvec n) : bitvec m :=
 def bit_to_bitvec (n : ℕ) (b : bool) : bitvec n := 
   if b then 1 else 0
 
-
 lemma eval_default_2 {e} : nat_expr.eval_default e 2 = 2 := rfl
 
 lemma nat_expr_eval_2 : eval_nat_expr 2 = 2 := rfl
 
+def type.has_eq : type -> Prop
+  | (bv _)     := true
+  | bit        := true
+  | float      := true 
+  | double     := true 
+  | x86_80     := true
+  | (vec _ tp) := type.has_eq tp 
+  | (pair tp tp') := type.has_eq tp ∧ type.has_eq tp'
+  | (fn _ _)   := false -- could probably come up with something, but nothing efficient
+
+@[reducible]
+def type.has_eq_dec : Π(tp : type), decidable (type.has_eq tp) 
+  | (bv _)     := is_true true.intro  
+  | bit        := is_true true.intro  
+  | float      := is_true true.intro  
+  | double     := is_true true.intro  
+  | x86_80     := is_true true.intro  
+  | (vec _ tp) := type.has_eq_dec tp
+  | (pair tp tp') := @and.decidable _ _ (type.has_eq_dec tp) (type.has_eq_dec tp')
+  | (fn _ _)   := is_false not_false
+
+instance decidable_pred_type_has_eq: decidable_pred type.has_eq := type.has_eq_dec
+
+def value.partial_eq : Π{tp : type}, type.has_eq tp -> value tp -> value tp -> bool
+  | (bv _) _ v1 v2      := (v1 = v2)
+  | bit    _ v1 v2      := (v1 = v2)
+  | float  _ v1 v2      := (v1 = v2)
+  | double  _ v1 v2     := (v1 = v2)
+  | x86_80  _ v1 v2     := (v1 = v2)
+  | (vec _ tp) pf v1 v2 := 
+    let pf' : type.has_eq tp := pf
+    in (list.zip (array.to_list v1) (array.to_list v2)).all (λ(v : (value tp × value tp)), value.partial_eq pf' v.fst v.snd)
+  | (pair tp tp') pf v1 v2 := 
+    band (value.partial_eq pf.left v1.fst v2.fst) (value.partial_eq pf.right v1.snd v2.snd)
+
 def prim.eval : Π{tp : type}, prim tp -> evaluator (value tp)
+  -- `(eq tp)` returns `true` if two values are equal.
+  | ._ (prim.eq tp) := 
+    if pf : type.has_eq tp 
+    then return (value.partial_eq pf)
+    else throw "prim.eval.eq: eq at unsupported type"
+  -- `(neq tp)` returns `true` if two values are not equal.
+  | ._ (prim.neq tp) := 
+    if pf : type.has_eq tp 
+    then return (λv1 v2, bnot (value.partial_eq pf v1 v2))
+    else throw "prim.eval.neq: neq at unsupported type"
+  -- `(mux tp) c t f` evaluates to `t` when `c` is true and `f` otherwise.
+  -- This only evaluates `t` when `c` is true, and only evaluates `f` when
+  -- `c` is false.
+  | ._ (prim.mux tp) := return (λb l r, if b then l else r)
+
+  -- `zero` is the zero bit
+  | ._ prim.bit_zero := return ff
+  -- `one` is the one bit
+  | ._ prim.bit_one := return tt
+
+  | ._ prim.bit_or  := return bor
+  | ._ prim.bit_and := return band
+  | ._ prim.bit_xor := return bxor
+
+  -- `bvnat` constructs a bit vector from a natural number.
+  | ._ (prim.bv_nat w n) := return (bitvec.of_nat (eval_nat_expr w) (eval_nat_expr n))
   -- `(add i)` returns the sum of two i-bit numbers.
   | ._ (prim.add i)        := return bitvec.add
   -- `(adc i)` returns the sum of two i-bit numbers and a carry bit.
   | ._ (prim.adc i)         := return (λx y b, bitvec.add x (bitvec.add y (bit_to_bitvec _ b)))
+  | ._ (prim.uadc_overflows i) := return (λx y b, bitvec.ult (x + y + bit_to_bitvec (eval_nat_expr i) b) x)
+  | ._ (prim.sadc_overflows i) := return (λx y b, bitvec.slt (x + y + bit_to_bitvec (eval_nat_expr i) b) x)
+  -- `(bvsub i)` substracts two i-bit bitvectors.
+  | ._ (prim.sub i) := return bitvec.sub
+  -- `(ssbb_overflows i)` true if signed sub overflows, the bit
+  -- is a borrow bit.
+  -- FIXME: is this correct?
+  | ._ (prim.ssbb_overflows i) := 
+    return (λx y b, bitvec.slt x (x - y - bit_to_bitvec (eval_nat_expr i) b))
+  -- `(usbb_overflows i)` true if unsigned sub overflows,
+  -- the bit is a borrow bit.
+  | ._ (prim.usbb_overflows i) := return (λx y b, bitvec.ult x (x - y - bit_to_bitvec (eval_nat_expr i) b))
+
+  -- `(neg tp)` Two's Complement negation.
+  | ._ (prim.neg i) := return bitvec.neg
+
   -- `(mul i)` returns the product of two i-bit numbers.
   | ._ (prim.mul i)            := return bitvec.mul
-  -- `(quot i)` returns the quotient of two i-bit numbers.
-  -- | quot (i:ℕ) : prim (bv i .→ bv i .→ bv i)
-  -- `(rem i)` returns the remainder of two i-bit numbers.
-  -- | rem (i:ℕ) : prim (bv i .→ bv i .→ bv i)
-  -- `(squot i)` returns the signed quotient of two i-bit numbers.
-  -- | squot (i:ℕ) : prim (bv i .→ bv i .→ bv i)
-  -- `(srem i)` returns the signed remainder of two i-bit numbers.
-  -- | srem (i:ℕ) : prim (bv i .→ bv i .→ bv i)
+
+  -- `(quotRem i) n d` returns a pair `(q,r)` where `q` is a `floor (n/d)`
+  -- and `r` is `n - d * floor (n/d)`.
+  -- `n` and `d` are treated as unsigned values.
+  -- If `d = 0` or `floor(n/d) >= 2^n`, then this triggers a #DE exception.
+  | ._ (prim.quotRem i) := throw "prim.eval.quotRem unimplemented"
+
+  -- `(squotRem i) n d` returns a pair `(q,r)` where `q` is a `trunc (n/d)`
+  -- and `r` is `n - d * trunc (n/d)`.  `trunc` always round to zero.
+  -- `n` and `d` are treated as signed values.
+  -- If `d = 0`, `trunc(n/d) >= 2^(n-1)` or `trunc(n/d) < -2^(n-1), then this
+  -- triggers a #DE exception when evaluated.
+  | ._ (prim.squotRem i) := throw "prim.eval.squotRem unimplemented"
+
+  | ._ (prim.ule i) := return (λx y, bitvec.ule x y)
+  | ._ (prim.ult i) := return (λx y, bitvec.ult x y)
+
   -- `(slice w u l)` takes bits `u` through `l` out of a `w`-bit number.
   --  prim (bv w .→ bv (u+1-l))
   --  slice {w: ℕ} (u l k:ℕ) (H: w = k + (u + 1 - l)) (x: bitvec w) : bitvec (u + 1 - l)
@@ -580,75 +665,155 @@ def prim.eval : Π{tp : type}, prim tp -> evaluator (value tp)
   | ._ (prim.trunc i o) := do H <- annotate' "trunc" (assert (eval_nat_expr o ≤ eval_nat_expr i)),
                               return (bitvec.trunc (eval_nat_expr o) H.default)
 
-  -- `(bsf i)` returns the index of least-significant bit that is 1.
-  -- | bsf   (i:ℕ) : prim (bv i .→ bv i)
-  -- `(bsr i)` returns the index of most-significant bit that is 1.
-  -- | bsr   (i:ℕ) : prim (bv i .→ bv i)
-  -- `(bswap i)` reverses the bytes in the bitvector.
-  -- | bswap (i:ℕ) : prim (bv i .→ bv i)
-  -- `zero` is the zero bit
-  | ._ prim.bit_zero := return ff
-  -- `one` is the one bit
-  | ._ prim.bit_one := return tt
-  -- `(eq tp)` returns `true` if two values are equal.
-  -- | (eq (tp:type) : prim (tp .→ tp .→ bit)
-  -- `(neq tp)` returns `true` if two values are not equal.
-  -- | neq (tp:type) : prim (tp .→ tp .→ bit)
-  -- `(neg tp)` Two's Complement negation.
-  | ._ (prim.neg i) := return bitvec.neg
-  -- `x87_fadd` adds two extended precision values using the flags in the x87 register.
-  -- | x87_fadd : prim (x86_80 .→ x86_80 .→ x86_80)
-  -- `float_to_x86_80` converts a float to an extended precision number (lossless)
-  -- | float_to_x86_80  : prim (float .→ x86_80)
-  -- `double_to_x86_80` converts a double to an extended precision number (lossless)
-  -- | double_to_x86_80 : prim (double .→ x86_80)
-  -- `bv_to_x86_80` converts a bitvector to an extended precision number (lossless)
-  -- | bv_to_x86_80  (w : one_of [16,32]) : prim (bv w .→ x86_80)
-  -- `bvnat` constructs a bit vector from a natural number.
-  | ._ (prim.bv_nat w n) := return (bitvec.of_nat (eval_nat_expr w) (eval_nat_expr n))
-  -- `(bvadd i)` adds two i-bit bitvectors.
-  | ._ (prim.add i) := return bitvec.add
-  -- `(bvsub i)` substracts two i-bit bitvectors.
-  | ._ (prim.sub i) := return bitvec.sub
-  -- `(ssbb_overflows i)` true if signed sub overflows, the bit
-  -- is a borrow bit.
-  -- FIXME: is this correct?
-  | ._ (prim.ssbb_overflows i) := 
-    return (λx y b, bitvec.slt x (x - y - bit_to_bitvec (eval_nat_expr i) b))
-  -- `(usbb_overflows i)` true if unsigned sub overflows,
-  -- the bit is a borrow bit.
-  | ._ (prim.usbb_overflows i) := return (λx y b, bitvec.ult x (x - y - bit_to_bitvec (eval_nat_expr i) b))
-
-  | ._ (prim.uadc_overflows i) := return (λx y b, bitvec.ult (x + y + bit_to_bitvec (eval_nat_expr i) b) x)
-  | ._ (prim.sadc_overflows i) := return (λx y b, bitvec.slt (x + y + bit_to_bitvec (eval_nat_expr i) b) x)
-  | ._ (prim.and i) := return bitvec.and
-  | ._ (prim.or i)  := return bitvec.or
-  | ._ (prim.xor i) := return bitvec.xor
-  | ._ (prim.shl i) := return (λx (y : bitvec (eval_nat_expr i)), bitvec.shl x y.to_nat)
-  -- `(bvbit i)` interprets the second argument as a bit index and returns
-  -- that bit from the first argument.
-  | ._ (prim.bv_bit i) := return (λx (y : bitvec (eval_nat_expr i)), bitvec.nth x y.to_nat)
-  | ._ (prim.complement i) := return bitvec.not
   | ._ (prim.cat i) := return (λx y, bitvec.cong
                                     (begin simp [eval_nat_expr, nat_expr.eval_default_mul_eq, nat_expr.eval, eval_default_2, two_mul], 
                                      end)
                                     (bitvec.append x y))
--- | bv_least_nibble (i:ℕ) : prim (bv i .→ bv 4)
+  -- | bv_least_nibble (i:ℕ) : prim (bv i .→ bv 4)
   | ._ (prim.msb i) := return bitvec.msb
--- | least_byte (i:ℕ) : prim (bv i .→ bv 8)
--- | even_parity (i:ℕ) : prim (bv i .→ bit)
-  | _  _             := throw "prim.eval: unimplemented prim"
+  | ._ (prim.bv_and i) := return bitvec.and
+  | ._ (prim.bv_or i)  := return bitvec.or
+  | ._ (prim.bv_xor i) := return bitvec.xor
+  | ._ (prim.bv_complement i) := return bitvec.not
+  | ._ (prim.shl i)    := return (λx (y : bitvec 8), bitvec.shl x y.to_nat)
+  --- `(shl_carry w) c b i` returns the `i`th bit
+  --- in the bitvector [c]++b where `i` is treated as an unsigned
+  --- number with `0` as the most-significant bit.
+  -- e.g., If `i` is `0`, then this returns `c`.  If `i`
+  -- exceeds the number of bits in `[c] ++ b` (i.e., i >= w+1),
+  -- the the result is false.
+  | ._ (prim.shl_carry w) := return (λc b (i : bitvec 8), 
+       match i.to_nat with
+       | nat.zero        := c
+       -- FIXME: is this the intended behaviour?
+       | (nat.succ n) := if n < eval_nat_expr w
+                         then bitvec.nth b (eval_nat_expr w - n - 1) else ff 
+       end)
+   --- `(shr i) x y` shifts the bits in `x` to the right by
+   --- `y` bits where `y` is treated as an unsigned integer.
+   --- The new bits shifted in from the right are all zero.
+   | ._ (prim.shr i) := return (λx (y : bitvec 8), bitvec.ushr x y.to_nat)
+   --- `(shr_carry w) b c i` returns the `i`th bit
+   --- in the bitvector b++[c] where `i` is treated as an unsigned
+   --- number with `0` as the least-significant bit.
+   -- e.g., If `i` is `0`, then this returns `c`.  If `i`
+   -- exceeds the number of bits in `b++[c]` (i.e., i >= w+1),
+   -- the the result is false.
+  | ._ (prim.shr_carry w) := return (λb c (i : bitvec 8), 
+       match i.to_nat with
+       | nat.zero     := c
+       | (nat.succ n) := @ite (n < eval_nat_expr w) (nat.decidable_lt _ _) _ (bitvec.nth b n) ff
+-- if n < eval_nat_expr w 
+-- then bitvec.nth b n
+-- else ff 
+       end)
+   --- `(sar i) x y` arithmetically shifts the bits in `x` to
+   --- the left by `y` bits where `y` is treated as an unsigned integer.
+   --- The new bits shifted in all match the most-significant bit in y.
+   | ._ (prim.sar i) := return (λx (y : bitvec 8), bitvec.sshr x y.to_nat)
+   --- `(sar_carry w) b c i` returns the `i`th bit
+   --- in the bitvector b++[c] where `i` is treated as an unsigned
+   --- number with `0` as the least-significant bit.
+   -- e.g., If `i` is `0`, then this returns `c`.  If `i`
+   -- exceeds the number of bits in `b++[c]` (i.e., i >= w+1),
+   -- the the result is equal to the most-signfiicant bit.
+   | ._ (prim.sar_carry w) := return (λb c (i : bitvec 8), 
+       match i.to_nat with
+       | nat.zero     := c
+       | (nat.succ n) := 
+         @ite (n < eval_nat_expr w) (nat.decidable_lt _ _) _ 
+              (bitvec.nth b n)
+              (bitvec.msb b)
+-- (if n < eval_nat_expr w 
+--                           then bitvec.nth b n
+--                           else bitvec.msb b)
+         end)   
+  | ._ (prim.even_parity i) := throw "prim.eval.even_parity unimplemented"
+  -- `(bsf i)` returns the index of least-significant bit that is 1.
+  | ._ (prim.bsf i)         := throw "prim.eval.bsf unimplemented"
+  -- `(bsr i)` returns the index of most-significant bit that is 1.
+  | ._ (prim.bsr i)         := throw "prim.eval.bsr unimplemented"
+  -- `(bswap i)` reverses the bytes in the bitvector.
+  | ._ (prim.bswap i)       := throw "prim.eval.bswap unimplemented"
+  -- `(btc w j) base idx` interprets base as bitvector and returns
+  -- a bitvector contains the same bits as `base` except the `i`th bit
+  -- (where 0 denotes the least-significant bit) is complemented.
+  -- The value `i` is `idx` as a unsigned integer modulo `w`.
+  | ._ (prim.btc w j)         := throw "prim.eval.btc unimplemented"
+  -- `(btr w j) base idx` interprets base as bitvector and returns
+  -- a bitvector contains the same bits as `base` except the `i`th bit
+  -- (where 0 denotes the least-significant bit) is cleared.
+  -- The value `i` is `idx` as a unsigned integer modulo `w`.
+  | ._ (prim.btr w j)         := throw "prim.eval.btr unimplemented"
+  -- `(bts w j) base idx` interprets base as bitvector and returns
+  -- a bitvector contains the same bits as `base` except the `i`th bit
+  -- (where 0 denotes the least-significant bit) is set.
+  -- The value `i` is `idx` as a unsigned integer modulo `w`.
+  | ._ (prim.bts w j)         := throw "prim.eval.bts unimplemented"
 
+  -- `bv_to_x86_80` converts a bitvector to an extended precision number (lossless)
+  | ._ (prim.bv_to_x86_80 w)  := throw "prim.eval.bv_to_x86_80 unimplemented"
+  -- `float_to_x86_80` converts a float to an extended precision number (lossless)
+  | ._ prim.float_to_x86_80   := throw "prim.eval.float_to_x86_80 unimplemented"
+  -- `double_to_x86_80` converts a double to an extended precision number (lossless)
+  | ._ prim.double_to_x86_80   := throw "prim.eval.double_to_x86_80 unimplemented"
+  -- `x87_fadd` adds two extended precision values using the flags in the x87 register.
+  | ._ prim.x87_fadd           := throw "prim.eval.dx87_fadd unimplemented"
 
-end
+  -- Return first element of a pair
+  | ._ (prim.pair_fst x y) := return (λ(v : value x × value y), v.fst)
+  -- Return second element of a pair.
+  | ._ (prim.pair_snd x y) := return (λ(v : value x × value y), v.snd)
+
+def value.make_undef : Π(tp : type), value tp 
+  | (bv e) := bitvec.of_nat (eval_nat_expr e) 0
+  | bit    := ff
+  | float  := ()
+  | double := ()
+  | x86_80 := ()
+  | (vec w tp) := mk_array (eval_nat_expr w) (value.make_undef tp)
+  | (pair tp tp') := (value.make_undef tp, value.make_undef tp')
+  | (fn arg res) := λ_, value.make_undef res
 
 def expression.eval : Π{tp : type}, expression tp -> evaluator (value tp)
   | ._ (expression.primitive p) := prim.eval p
+  | ._ (@expression.bit_test wr wi re idxe) := do
+    r   <- expression.eval re,
+    idx <- expression.eval idxe,
+    let idx' := idx.to_nat % eval_nat_expr wr 
+    in return (r.nth idx')
+  | ._ (expression.mulc m xe) := do
+    x <- expression.eval xe,
+    return (bitvec.mul (bitvec.of_nat 64 (eval_nat_expr m)) x)
+  | ._ (expression.quotc m xe) := throw "expression.eval.quotc unimplemented"
+  | ._ (expression.undef tp)   := return (value.make_undef tp)
   | ._ (expression.app f a) := (expression.eval f) <*> (expression.eval a)
-  | ._ (expression.get l)   := lhs.read l
-  -- Return the expression in the local variable at the given index.
-  | ._ (expression.get_local idx tp) := evaluator.local_at_idx idx tp -- fixme: why nat_expr here over nat?
-
+  | ._ (expression.get_reg r) := concrete_reg.read r
+  | ._ (expression.read tp addre) := do
+    addr   <- expression.eval addre,
+    match tp with
+      | (bv we) := evaluator.read_memory_at addr (eval_nat_expr we)
+      | _ := throw "expression.eval.read Trying to store non-bitvector"
+    end
+  | ._ (expression.streg idx) := throw "expression.eval.streg unimplemented"
+  | ._ (expression.get_local idx tp) := evaluator.local_at_idx idx tp
+  -- This is overly general, we might not know that av here is an rval
+  | ._ (expression.imm_arg idx tp) := do
+    av <- evaluator.arg_at_idx idx,
+    match av with
+    | (arg_value.rval v) := value.type_check _ v tp
+    | _ := throw "expression.eval.imm_arg Not an rval"
+    end
+  | ._ (expression.addr_arg idx) := do
+    av <- evaluator.arg_at_idx idx,
+    match av with
+    | (arg_value.lval _ (arg_lval.memloc _ addr)) := return addr
+    | _ := throw "expression.eval.addr_arg Not an memloc lval"
+    end
+  -- FIXME: isn't specific to arg_lval
+  | ._ (expression.read_arg idx tp) := do
+    av <- evaluator.arg_at_idx idx,
+    arg_value.to_value av tp
 
 def evaluator.set_ip (new_ip : bitvec 64) : evaluator unit :=
   modify (λ(s : evaluator_state), 
@@ -668,20 +833,27 @@ def event.eval : event -> evaluator unit
     new_ip <- expression.eval addr,
     b      <- expression.eval c,
     when b (evaluator.set_ip new_ip)
-  | event.ret := throw "ret"
   | event.hlt := throw "halt"
   | (event.xchg addr1 addr2) := throw "xchg"
 
--- FIXME: move
--- Make a value for 'undefined', which means we just pick an arbitrary value.
-def value.undef : Π (tp : type), value tp
-  | (bv e) := bitvec.zero (eval_nat_expr e)
-  | bit    := false
-  | float  := () -- FIXME
-  | double := () -- FIXME
-  | x86_80 := () -- FIXME  
-  | (vec w tp) := () -- FIXME
-  | (fn arg res) := λ_, value.undef res
+def lhs.set : Π{tp : type}, lhs tp -> value tp -> evaluator unit
+  | ._ (lhs.set_reg r) v        := concrete_reg.set r v
+  | ._ (lhs.write_addr ae tp) v := do
+    a <- expression.eval ae,
+    evaluator.write_memory_at a v
+  | ._ (lhs.write_arg idx _tp) v := do
+    av <- evaluator.arg_at_idx idx,
+    -- fixme: we ignore tp here?
+    arg_value.set_value av v
+  | ._ (lhs.streg idx) v  := throw "lhs.set: unsupported FP write"
+
+-- def lhs.read : Π{tp : type}, lhs tp -> evaluator (value tp)
+--   | ._ (lhs.reg r)       := reg.read r
+--   | ._ (lhs.addr a)      := addr.read a
+--   | ._ (lhs.arg idx tp)  := do av <- evaluator.arg_at_idx idx, 
+--                                   arg_value.to_value av tp
+--   | ._ (lhs.streg idx)   := throw "lhs.read: unsupported FP read"
+
 
 def action.eval : action -> evaluator unit
   | (action.set l e) := do v <- expression.eval e,
@@ -690,10 +862,6 @@ def action.eval : action -> evaluator unit
     b <- expression.eval c,
     v <- expression.eval e,
     when b (lhs.set l v)
-  | (@action.set_undef tp l)    := lhs.set l (value.undef tp)
-  | (@action.set_undef_cond tp l c) := do
-    b <- expression.eval c,
-    when b (lhs.set l (value.undef tp))
   | (@action.set_aligned (bv _) l e align) := do
     v <- expression.eval e,
     if v.to_nat % eval_nat_expr align = 0
