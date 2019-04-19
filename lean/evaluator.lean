@@ -2,6 +2,7 @@
 import galois.data.bitvec
 import x86_semantics.common
 import .tactic
+import .machine_memory
 import tactic.find
 
 -- FIXME: move
@@ -140,8 +141,6 @@ def project : Π(rtp : gpreg_type), machine_word -> bitvec rtp.width'
 
 end reg
 
-def memory := rbmap machine_word (bitvec 8) (bitvec.ult) -- FIXME: 8?
-
 structure machine_state : Type :=
   (mem    : memory)
   (gpregs : array 16 machine_word)
@@ -152,7 +151,7 @@ namespace machine_state
 
 -- Constructs an empty machine state, with 0 where we need a value.
 def empty : machine_state := 
-  { mem    := mk_rbmap machine_word (bitvec 8) (bitvec.ult)
+  { mem    := memory.empty
   , gpregs := mk_array 16 0
   , flags  := mk_array 32 ff
   , ip     := 0
@@ -168,72 +167,26 @@ def get_flag  (s : machine_state) (idx : fin 32) : bool := array.read s.flags id
 def update_flag (idx : fin 32) (f : bool -> bool) (s : machine_state) : machine_state :=
   { s with flags := array.write s.flags idx (f (get_flag s idx))} 
 
-def store_bytes (addr : machine_word) (bs : list (bitvec 8)) (s : machine_state) : machine_state := 
-  { s with mem := (list.foldl (λ(v : memory × machine_word) b, (rbmap.insert v.fst v.snd b, v.snd + 1)) (s.mem, addr) bs).fst }
+-- def store_bytes (addr : machine_word) (bs : list (bitvec 8)) (s : machine_state) : machine_state := 
+--   { s with mem := s.mem.store_bytes addr bs }
 
--- [0 ..< x]
-def upto0_lt : Π(m : ℕ), list ℕ
-  | 0            := []
-  | (nat.succ n) := upto0_lt n ++ [n]
+-- def read_bytes (s : machine_state) (addr : machine_word) (n : ℕ) : option (list (bitvec 8)) :=
+--   s.mem.read_bytes addr n
 
-namespace upto0_lt
-
-lemma length_is_n : Π{n : ℕ}, (upto0_lt n).length = n :=
-begin
-  intros n, 
-  induction n,
-  { refl },
-  { simp [upto0_lt, n_ih] }
-end
-
-end upto0_lt
-
-lemma {u v} option.bind.is_some {a : Type u} {b : Type v} {v : option a} {f : a -> option b} {x : b}:
-  option.bind v f = some x -> (∃v', v = some v' ∧ f v' = some x) :=
-begin
-  cases v,
-  { simp [option.bind] },
-  { simp [option.bind] }
-end
-
-lemma list.mmap.length_at_option {a b : Type} {f : a -> option b} : Π{xs : list a} {ys : list b},
-  list.mmap f xs = some ys -> xs.length = ys.length :=
-begin
-  intros,
-  induction xs generalizing ys,
-  { simp [list.mmap, option_t.pure, return, pure] at a_1, rw <- a_1, refl},
-  { simp, simp [list.mmap, bind, option.bind] at a_1, 
-    destruct a_1, intros, 
-    destruct h, simp, intros, simp [return, pure] at a_3,
-    rw (xs_ih a_2), rw <- a_3, simp [list.length]
-  }
-end
-
-def read_bytes (s : machine_state) (addr : machine_word) (n : ℕ) : option (list (bitvec 8)) :=
-  monad.mapm (λn, s.mem.find (addr + bitvec.of_nat 64 n)) (upto0_lt n)
-
-lemma read_bytes_length {s : machine_state} {addr : machine_word} {n : ℕ} {bs : list (bitvec 8)}
-  : read_bytes s addr n = some bs -> bs.length = n :=
-begin
-  intros H,
-  simp [read_bytes] at H,
-  have H' := list.mmap.length_at_option H,
-  simp [upto0_lt.length_is_n] at H',
-  rw H'
-end
+-- lemma read_bytes_length {s : machine_state} {addr : machine_word} {n : ℕ} {bs : list (bitvec 8)}
+--   : read_bytes s addr n = some bs -> bs.length = n := memory.read_bytes_length
 
 def store_word {n : ℕ} (s : machine_state) (addr : machine_word) (b : bitvec (8 * n)) : machine_state := 
-  store_bytes addr (b.split_list 8) s
+  { s with mem := s.mem.store_word addr b }
 
 def read_word (s : machine_state) (addr : machine_word) (n : ℕ) : option (bitvec (8 * n)) :=
-  (λbs, bitvec.concat_list bs (8 * n)) <$> read_bytes s addr n
+  s.mem.read_word addr n
 
 def print_regs (s : machine_state) : string :=
   let lines := list.zip_with (λn r, n ++ ": " ++ repr r ++ "\n") reg.r64_names s.gpregs.to_list 
   in string.join lines
 
 end machine_state
-
 
 inductive arg_lval
   | reg {} {tp : type}  : concrete_reg tp -> arg_lval 

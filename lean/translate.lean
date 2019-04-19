@@ -247,7 +247,7 @@ def eval_instruction (s : machine_state) (i : decodex86.instruction) : except st
 def get_sexp : string -> sexp := λst, 
     match sexp.from_string st with
       | (sum.inr s) := s
-      | _ := sorry
+      | _           := sexp.list []
     end
 
 def string_to_instruction (s : string) : option decodex86.instruction :=
@@ -287,8 +287,8 @@ def run_get_rax (s : string) : string :=
 
 -- #eval instruction_family <$> string_to_instruction "(instruction MOV32ri (register rax eax 32 0) (immediate 4 1))"
 
-#eval run_get_rax "(instruction MOV64ri32 (other (register rax rax 0 0)) (other (immediate 4 4294967295)))"
-#eval run_get_rax "(instruction MOV32mi (i32mem (memloc no-register (register rax rax 0 0) 1 no-register 0)) (i32imm (immediate 4 65535)))"
+-- #eval run_get_rax "(instruction MOV64ri32 (other (register rax rax 0 0)) (other (immediate 4 4294967295)))"
+-- #eval run_get_rax "(instruction MOV32mi (i32mem (memloc no-register (register rax rax 0 0) 1 no-register 0)) (i32imm (immediate 4 65535)))"
 
 end x86
 
