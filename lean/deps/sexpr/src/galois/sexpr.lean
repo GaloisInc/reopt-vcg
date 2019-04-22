@@ -3,9 +3,7 @@ This declares an s-expression datatype for generating
 expressions and reasoning about their interpretation.
 -/
 import system.io
-import data.array.lemmas -- from mathlib
 import galois.category.except
-
 import galois.data.array
 import galois.data.buffer
 import galois.data.list

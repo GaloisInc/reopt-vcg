@@ -17,6 +17,7 @@ structure bitvec (sz:ℕ) :=
 (property : to_nat < (2 ^ sz))
 
 namespace bitvec
+open galois
 
 instance (w:ℕ) : decidable_eq (bitvec w) := by tactic.mk_dec_eq_instance
 
