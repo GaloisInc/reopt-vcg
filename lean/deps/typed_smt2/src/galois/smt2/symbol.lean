@@ -439,7 +439,7 @@ begin
   simp only [buffer.to_list_to_buffer],
 
   simp only [list.nth_le_reverse_simp],
-  simp only [list.nth_le_map'],
+  simp only [list.nth_le_map],
 
   apply digit_is_symbol_char,
   apply char.digit_char_is_digit,
