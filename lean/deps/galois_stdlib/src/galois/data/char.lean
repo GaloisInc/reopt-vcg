@@ -1,5 +1,4 @@
 import galois.logic
-import tactic.fin_cases
 
 namespace char
 

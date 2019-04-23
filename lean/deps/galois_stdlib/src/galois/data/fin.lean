@@ -1,3 +1,5 @@
+
+namespace galois
 namespace fin
 
 section
@@ -5,6 +7,10 @@ section
 parameter (n:ℕ)
 parameter (P:fin n → Prop)
 parameter [dp:decidable_pred P]
+
+-- from mathlib
+@[simp] protected lemma eta (a : fin n) (h : a.1 < n) : (⟨a.1, h⟩ : fin n) = a :=
+by cases a; refl
 
 def extend_lt {i j} : fin i → i < j → fin j
 | x i_le_j := ⟨x.val, nat.lt_trans x.is_lt i_le_j⟩
@@ -66,3 +72,4 @@ instance decidable_forall : decidable (Π(j:fin n), P j) :=
 end
 
 end fin
+end galois

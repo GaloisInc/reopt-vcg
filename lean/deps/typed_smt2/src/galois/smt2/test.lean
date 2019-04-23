@@ -3,6 +3,17 @@ import .file_writer
 import .semantics
 import .theories.bv
 
+section quantifiers
+variables {α : Sort*} {p q : α → Prop} {b : Prop}
+
+@[simp] theorem exists_imp_distrib : ((∃ x, p x) → b) ↔ ∀ x, p x → b :=
+⟨λ h x hpx, h ⟨x, hpx⟩, λ h ⟨x, hpx⟩, h x hpx⟩
+
+@[simp] theorem not_exists : (¬ ∃ x, p x) ↔ ∀ x, ¬ p x :=
+exists_imp_distrib
+
+end quantifiers
+
 open smt2
 
 /- Generte a proble mtaht asserts a constant x is equal to 3. -/
