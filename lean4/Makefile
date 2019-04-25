@@ -11,22 +11,16 @@ OLEANS = $(SRCS:.lean=.olean)
 COMMON_OBJS=$(COMMON_SRCS:.lean=.o)
 DEPS = $(SRCS:.lean=.depend)
 
-.PHONY : all clean depends
+.PHONY : all clean
 
+all : bin/json_benchmark $(OLEANS)
 
-all : json_benchmark $(OLEANS)
-
-
-#bin/json_benchmark : build/json_benchmark.cpp build/json.cpp
-
-json_benchmark: json_benchmark.o $(COMMON_OBJS)
+bin/json_benchmark: json_benchmark.o $(COMMON_OBJS)
+	mkdir -p bin
 	$(LEANC) -o $@ $^
 
 %.o: %.cpp
 	$(LEANC) -c $(CPPFLAGS) -o $@ $<
-
-
-depends: $(DEPS)
 
 %.depend: %.lean
 	echo $(<:.lean=.olean): `$(LEAN) --deps $< | python relative.py` > $@
@@ -44,7 +38,7 @@ clean :
 	rm -rf *.depend
 	rm -rf *.o
 	rm -rf *.olean
-	rm -rf json_benchmark
+	rm -rf bin
 
 # Dependencies
 
