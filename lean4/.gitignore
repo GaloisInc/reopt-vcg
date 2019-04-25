@@ -1,0 +1,5 @@
+*.cpp
+*.depend
+*.o
+*.olean
+json_benchmark

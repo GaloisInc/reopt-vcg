@@ -1,5 +1,5 @@
 
-LEAN_DIR=$(HOME)/repos/lean4
+# TODO: Set LEAN_DIR
 
 LEAN=$(LEAN_DIR)/bin/lean
 LEANC=$(LEAN_DIR)/bin/leanc
