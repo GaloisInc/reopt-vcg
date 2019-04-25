@@ -1,9 +1,8 @@
 
 # TODO: Set LEAN_DIR
 
-LEAN=$(LEAN_DIR)/bin/lean
-LEANC=$(LEAN_DIR)/bin/leanc
-LEAN_PATH=$(LEAN_DIR)/library:.
+LEAN=lean
+LEANC=leanc
 
 COMMON_SRCS = hex.lean json.lean rbnode.lean reader.lean
 SRCS = $(COMMON_SRCS) test_json_parse.lean test_json_render.lean
