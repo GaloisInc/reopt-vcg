@@ -1,4 +1,9 @@
 
+#include <sys/mman.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
 #include <cstdio> // printf etc.
 #include <cstdint> // types
 #include <string> // std::strtoul 
@@ -140,15 +145,14 @@ print_instruction(uint64_t offset, uint64_t size
                   , const llvm::MCRegisterInfo *reginfo
                   , llvm::MCInstrInfo *mii /* Just to print opcode name */)
 {
-    out << "(" << offset << " " << size << " ";
-    out << "(instruction " << mii->getName(x.instructionID).data();
+    out << "(instruction " << size << " " << mii->getName(x.instructionID).data();
 
     for(const auto &op : x.operands) {
         out << " (" << op.first << " ";        
         print_sexp(op.second, out, reginfo);
         out << ")";
     }
-    out << "))" << std::endl;
+    out << ")" << std::endl;
 }
 
 // c.f. tools/llvm-cfi-verify/lib/FileAnalysis.cpp
@@ -182,44 +186,47 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " nbytes" << std::endl;
+    if (argc < 4) {
+        std::cerr << "Usage: " << argv[0] << " elf-file offset nbytes" << std::endl;
         return 1;
     }
-
-    size_t nbytes = std::strtoull(argv[1], NULL, 0);
-    uint8_t *raw_bytes = new uint8_t[nbytes];
-    std::cin.read((char *)(raw_bytes), nbytes);
     
-    if (!std::cin) {
-        std::cerr << "error: only " << std::cin.gcount() << " bytes could be read,  expected " << nbytes << std::endl;
+    int fd = open(argv[1], O_RDONLY);
+    if (fd == -1) {
+        std::cerr << "Couldn't open " << argv[1] << std::endl;
         return 1;
     }
 
-    llvm::ArrayRef<uint8_t> bytes_array(raw_bytes, nbytes);
-    uint64_t offset = 0;
+    off_t off = std::strtoll(argv[2], NULL, 0);
+    size_t nbytes = std::strtoull(argv[3], NULL, 0);
+    
+    const uint8_t *raw_bytes = (const uint8_t *) mmap(NULL, nbytes, PROT_READ, MAP_PRIVATE, fd, off);
+    if (raw_bytes == NULL) {
+        std::cerr << "Couldn't mmap " << argv[1] << std::endl;
+        return 1;
+    }
 
-    std::cout << "(";
-    while(offset < nbytes) {
+    std::cerr << "Starting server for " << argv[1] << " starting from " << off << " for " << nbytes << " bytes" << std::endl;
+    llvm::ArrayRef<uint8_t> bytes_array(raw_bytes, nbytes);
+
+    // Server loop
+    uint64_t offset = 0;
+    while(std::cin >> offset) {
         vadd::instruction_t inst;
         uint64_t size;
-        
-        bool ret = getInstruction(inst, size, bytes_array, offset
+
+        std::cerr << "Looking at offset " << offset << std::endl;
+
+        bool ret = getInstruction(inst, size, bytes_array.slice(offset), 0
                                   , llvm::X86Disassembler::MODE_64BIT
                                   , llvm::nulls(), llvm::nulls() );
         
         if (ret) {
-            std::cout << "(unknown-byte " << bytes_array[0] << " " << size << ")" << std::endl;
-            size = 1; // trim off just 1 byte
+            std::cout << "(unknown-byte " << bytes_array[offset] << " " << size << ")" << std::endl;
         } else {
             print_instruction(offset, size, inst, std::cout, reginfo, mii);
         }
-        
-        offset += size;
-        bytes_array = bytes_array.slice(size);
     }
-    std::cout << ")" << std::endl;
-    
     return 0;
 }
 

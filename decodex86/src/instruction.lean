@@ -221,6 +221,7 @@ def operand_to_string : operand -> string := λop,
 instance operand_has_repr : has_repr operand := ⟨operand_to_string⟩
 
 structure instruction :=
+  (nbytes   : ℕ)
   (mnemonic : string)
   (operands : list operand)
 
@@ -231,9 +232,6 @@ structure unknown_byte :=
   (bytes_tried : ℕ)
 
 instance unknown_bytes_has_repr : has_repr unknown_byte := ⟨λi, "???" ++ repr i.byte ++ "(" ++ repr i.bytes_tried ++ ")"⟩
-
-def document := list (ℕ × sum unknown_byte instruction)
-instance document_has_repr : has_repr document := ⟨ string.intercalate "\n" ∘ list.map repr  ⟩
 
 structure parser (a : Type) :=
   (run : list sexp -> option (a × list sexp))
@@ -371,23 +369,20 @@ def operandp : parser operand :=
   listp (operand.mk <$> operand_typep <*> operand_valuep)
     
 def instructionp : parser instruction :=
-  taggedp "instruction" (instruction.mk <$> anyatomp <*> manyp operandp)
+  taggedp "instruction" (instruction.mk <$> natp <*> anyatomp <*> manyp operandp)
 
 def unknown_bytep : parser unknown_byte :=
   taggedp "unknown-byte" (unknown_byte.mk <$> natp <*> natp)
 
-def entryp : parser (ℕ × sum unknown_byte instruction) :=
-  listp ((λ_ sz i, (sz, i)) <$> natp <*> natp <*> 
-                             ((sum.inl <$> unknown_bytep) <|> (sum.inr <$> instructionp)))
-
-def documentp : parser document := listp (manyp entryp)
+def entryp : parser (sum unknown_byte instruction) :=
+  (sum.inl <$> unknown_bytep) <|> (sum.inr <$> instructionp)
 
 end parser
 
-def from_buffer (buf : char_buffer) : sum string document :=
+def from_buffer (buf : char_buffer) : sum string (sum unknown_byte instruction) :=
   match sexp.from_buffer buf with
   | (sum.inl e) := sum.inl e
-  | (sum.inr r) := match exec_parser parser.documentp r with
+  | (sum.inr r) := match exec_parser parser.entryp r with
                    | none := sum.inl "Couldn't parse instructions"
                    | (some d) := sum.inr d
                    end
