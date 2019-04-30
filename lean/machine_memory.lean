@@ -45,6 +45,13 @@ def char_buffer_to_region (b : char_buffer) : region :=
   -- There doesn't seem to be a nicer way of doing this?
   array.to_buffer (array.map' (λ(c : char), bitvec.of_nat _ c.val) b.to_array)
 
+/- Construction -/
+def empty : memory := memory.mk buffer_map.empty (mk_rbmap _ _ (bitvec.ult))
+
+def from_init (i : init_memory) : memory := { empty with init := i }
+
+/- Reading and writing -/
+
 def store_bytes (m : memory) (addr : memaddr) (bs : list byte) : memory := 
   { m with mem := (list.foldl (λ(v : mutable_memory × memaddr) b, (rbmap.insert v.fst v.snd b, v.snd + 1)) (m.mem, addr) bs).fst }
  
@@ -101,7 +108,7 @@ def read_byte (m : memory) (addr : memaddr) : option byte :=
   m.mem.find addr <|> m.init.lookup addr
 
 def read_bytes (m : memory) (addr : memaddr) (n : ℕ) : option (list (bitvec 8)) :=
-  monad.mapm (λn, m.mem.find (addr + bitvec.of_nat 64 n)) (upto0_lt n)
+  monad.mapm (λn, read_byte m (addr + bitvec.of_nat 64 n)) (upto0_lt n)
 
 lemma read_bytes_length {mem : memory} {addr : memaddr} {n : ℕ} {bs : list (bitvec 8)}
   : read_bytes mem addr n = some bs -> bs.length = n :=
@@ -114,11 +121,10 @@ begin
 end
 
 def store_word {n : ℕ} (m : memory) (addr : memaddr) (b : bitvec (8 * n)) : memory := 
-  m.store_bytes addr (b.split_list 8) 
+  m.store_bytes addr (b.split_list 8).reverse 
 
 def read_word (m : memory) (addr : memaddr) (n : ℕ) : option (bitvec (8 * n)) :=
-  (λbs, bitvec.concat_list bs (8 * n)) <$> m.read_bytes addr n
+  (λ(bs : list (bitvec 8)), bitvec.concat_list bs.reverse (8 * n)) <$> m.read_bytes addr n
 
-def empty : memory := memory.mk buffer_map.empty (mk_rbmap _ _ (bitvec.ult))
 
 end memory

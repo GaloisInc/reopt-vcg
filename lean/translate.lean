@@ -83,12 +83,15 @@ def option_register_to_bv64 {m} [monad m] [monad_except string m]
   (opt_r : option decodex86.register) : m (bitvec 64) := 
   match opt_r with 
   | none := return (bitvec.of_nat 64 0)
-  | (some r) := guard_some "option_register_to_bv64" (register_to_reg r)      
-    (λ(r' : some_gpr),
-      match r' with 
-      | (sigma.mk gpreg_type.reg64 rr) := return (concrete_reg.from_state nenv rr s)
-      | _                              := throw "not a 64bit reg"
-      end) 
+  | (some r) := 
+    if r.top = "rip" 
+    then return s.ip
+    else guard_some "option_register_to_bv64" (register_to_reg r)      
+      (λ(r' : some_gpr),
+        match r' with 
+        | (sigma.mk gpreg_type.reg64 rr) := return (concrete_reg.from_state nenv rr s)
+        | _                              := throw "not a 64bit reg"
+        end) 
   end
 
 def operand_to_arg_lval {m} [monad m] [monad_except string m] 
@@ -136,44 +139,15 @@ def operand_to_value {m} [monad m] [monad_except string m]
      -- FIXME: we use ip out of the state, we could use the value encoded in the decoded instruction 
      | (operand_value.rel_immediate next_addr nbytes val) := do
        -- checks for width = 64 bit, basically
-       @value.type_check nenv m _ _ (bv 64) (s.ip + val) tp
+       @value.type_check nenv m _ _ (bv 64) (s.ip + bitvec.of_nat _ val) tp
      | _ := do lval <- operand_to_arg_lval nenv s tp op.type op.value,
                arg_lval.to_value' nenv s lval tp
    end
-
+   
 def operand_to_arg_value_expr {m} [monad m] [monad_except string m] 
    (nenv : nat_env) (s : machine_state)
    (tp : type) (op : decodex86.operand) : m (arg_value nenv) :=
    arg_value.rval <$> operand_to_value nenv s tp op
-
--- def operand_nbits : decodex86.operand -> option ℕ
---   | (operand.register r) := some (if r.width = 0 then 64 else r.width) -- FIXME: maybe fix this earlier?
---   | (operand.segment opt_r r) := some (if r.width = 0 then 64 else r.width)
---   | (operand.immediate nbytes val) := some (8 * nbytes)
---   | (operand.rel_immediate next_addr nbytes val) := some (8 * nbytes)
---   | (operand.memloc opt_seg opt_base scale opt_idx disp) := none
-
--- def instruction_operand_width (os : list decodex86.operand) : option ℕ :=
---   match list.filter_map operand_nbits os with
---   | [] := none
---   | (x :: xs) := if xs.all (λy, y = x) then some x else none
---   end
-
--- Constructs an environment which is natv w, lhs l, expr e, and sets it in the state
--- def operands_to_env_wle : list decodex86.operand -> evaluator (ℕ × environment)
---   | [l, e] := do width <- guard_some "instruction_env_w_l_e" (instruction_operand_width [l, e]) return,
---                  l_a   <- operand_to_arg_value_lhs width l,
---                  e_a   <- operand_to_arg_value_expr width e,
---                  return (width, [arg_value.natv width, l_a, e_a])
---   | _      := throw "Expecting exactly 2 operands"
-
--- assumes ip has already been set.
--- def eval_simple_instruction_wle  (s : instruction) (i : decodex86.instruction) : evaluator unit := do
---   (width, env) <- operands_to_env_wle i.operands,
---   match s.patterns with
---   | [p] := p.eval env
---   | _   := throw "not a simple instruction"
---   end
 
 def {u v w} first_comb {ε : Type u} {m : Type v → Type w}
   [monad_except ε m] {α : Type v} (e : ε) (f : ε -> ε -> ε) : list (m α) -> m α
@@ -198,6 +172,29 @@ def make_environment_helper (nenv : nat_env) (s : machine_state)
   | [] [] _              := return []
   | (binding.one_of _ :: rest) ops (some n :: ns) := do e <- make_environment_helper rest ops ns,
                                                         return (arg_value.natv nenv n :: e)
+  | (binding.reg tp   :: rest) (op :: ops) (_ :: ns) :=
+    annotate' "reg" $ do
+      av  <- operand_to_arg_value_lhs nenv s tp op,
+      -- Mainly to check things are of the right form
+      match av with | (arg_value.lval _ (arg_lval.reg r)) := return () | _ := throw "Not a register" end,
+      e   <- make_environment_helper rest ops ns,
+      return (av :: e)
+
+  | (binding.addr tp   :: rest) (op :: ops) (_ :: ns) :=
+    annotate' "addr" $ do
+      av  <- operand_to_arg_value_lhs nenv s tp op,
+      -- Mainly to check things are of the right form
+      match av with | (arg_value.lval _ (arg_lval.memloc _ _)) := return () | _ := throw "Not a memloc" end,
+      e   <- make_environment_helper rest ops ns,
+      return (av :: e)
+
+  | (binding.imm tp   :: rest) (op :: ops) (_ :: ns) :=
+    annotate' "imm" $ do
+      -- FIXME: check that it is, in fact, an immediate
+      av  <- operand_to_arg_value_expr nenv s tp op,
+      e   <- make_environment_helper rest ops ns,
+      return (av :: e)
+
   | (binding.lhs tp   :: rest) (op :: ops) (_ :: ns) :=
     annotate' "lhs" $ do
       av  <- operand_to_arg_value_lhs nenv s tp op,
@@ -210,6 +207,16 @@ def make_environment_helper (nenv : nat_env) (s : machine_state)
       e   <- make_environment_helper rest ops ns,
       return (av :: e)
   | _ _ _ := throw "binding/operand mismatch"
+
+/-
+inductive binding
+| one_of : list nat → binding
+| reg  : type → binding
+| addr : type → binding
+| imm  : type → binding
+| lhs  : type → binding
+| expression : type → binding
+-/
 
 def make_environment (s : machine_state) (bindings : list binding) (ops : list decodex86.operand) 
   : except string (sigma environment) :=

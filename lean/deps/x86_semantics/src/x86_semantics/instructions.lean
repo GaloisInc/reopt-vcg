@@ -688,8 +688,8 @@ def sub_def : instruction := do
 
 def lea : instruction :=
  definst "lea" $ do
-   pattern λ(w : one_of [16, 32, 64]) (dest : lhs (bv w)) (src : bv 64), do
-     dest .= trunc src w
+   pattern λ(w : one_of [16, 32, 64]) (dest : lhs (bv w)) (src : addr (bv 64)), do
+     dest .= trunc (expression.of_addr src) w
    pat_end
 
 ------------------------------------------------------------------------

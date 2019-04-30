@@ -345,7 +345,7 @@ def operand_typep : parser operand_type :=
   <|> memp "i8mem"        8
   <|> memp "i8mem_NOREX"  8
 --  <|> memp "lea64_32mem"  
---  <|> memp "lea64mem",
+  <|> memp "lea64mem"     64
 --  <|> memp "opaquemem",
   <|> memp "sdmem"        64
   <|> memp "ssmem"        32

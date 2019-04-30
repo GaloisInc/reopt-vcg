@@ -5,10 +5,9 @@ Elf
 import system.io
 import init.category.reader
 import init.category.state
-import decodex86
+import .machine_memory
 import .buffer_map
 import .file_input
-import .translate
 
 def repeat {α : Type} {m : Type → Type} [applicative m] : ℕ → m α → m (list α)
 | 0 m := pure []
@@ -578,7 +577,7 @@ def read_one_elfmem {c : elf_class} (m : elfmem) (ph : phdr c) : file_input elfm
   then do
     file_input.seek ph.offset.val,
     fbs <- file_input.read (min ph.filesz.val ph.memsz.val),
-    monad_lift (io.put_str_ln ("read_one_elfmem: read " ++ fbs.size.repr ++ " bytes")),
+    monad_lift (io.put_str_ln ("read_one_elfmem: read " ++ fbs.size.repr ++ " bytes at " ++ repr ph.offset.val)),
     let fbs'   := memory.char_buffer_to_region fbs in
     let zeroes : memory.region := array.to_buffer (mk_array (ph.memsz.val - ph.filesz.val) 0)
     in pure $ m.insert ph.vaddr.val (buffer.append fbs' zeroes)
