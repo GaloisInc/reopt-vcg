@@ -48,7 +48,6 @@ import qualified What4.Protocol.SMTLib2.Syntax as SMT
 import qualified Reopt.VCG.Config as Ann
 import           VCGCommon
 
-
 smtRegVar :: X86Reg tp -> Text
 smtRegVar reg = "x86reg_" <> Text.pack (show reg)
 
@@ -264,6 +263,18 @@ setUndefined aid tp = do
   v <- recordLocal aid
   addCommand $ SMT.declareFun v [] (toSMTType tp)
 
+-- | Signed overflow occurs when the most significant bit is 1.
+-- In @unsignedOverflow r w@ the w is one less than the number of bits.
+unsignedOverflow :: SMT.Term -> Natural -> SMT.Term
+unsignedOverflow r w = SMT.eq [SMT.extract w w r, SMT.bit1]
+
+-- | Signed overflow occurs when the most significant bit and second most significant bit are distinct.
+-- In @unsignedOverflow r w@ the w is one less than the number of bits.
+signedOverflow :: SMT.Term -> Natural -> SMT.Term
+signedOverflow r w = SMT.distinct [rmsb, r2msb]
+  where rmsb  = SMT.extract w w r
+        r2msb = SMT.extract (w-1) (w-1) r
+
 evalApp2SMT :: AssignId ids tp
             -> App (Value X86_64 ids) tp
             -> MStateM ()
@@ -273,14 +284,66 @@ evalApp2SMT aid a = do
         t <- recordLocal aid
         addCommand $ SMT.defineFun t [] tp v
   case a of
+    Eq x y -> do
+      xv <- doPrimEval x
+      yv <- doPrimEval y
+      doSet $ SMT.eq [xv,yv]
+    Mux _ c t f -> do
+      cv <- doPrimEval c
+      tv <- doPrimEval t
+      fv <- doPrimEval f
+      doSet $ SMT.ite cv tv fv
+    TupleField _ _ _ -> do
+      addWarning $ "TODO: Implement " ++ show (ppApp (\_ -> text "*") a) ++ "."
+      setUndefined aid (M.typeRepr a)
+
+    AndApp x y -> do
+      xv <- doPrimEval x
+      yv <- doPrimEval y
+      doSet $ SMT.and [xv,yv]
+    OrApp x y -> do
+      xv <- doPrimEval x
+      yv <- doPrimEval y
+      doSet $ SMT.or [xv,yv]
+    NotApp x -> do
+      xv <- doPrimEval x
+      doSet $ SMT.not xv
+    XorApp x y -> do
+      xv <- doPrimEval x
+      yv <- doPrimEval y
+      doSet $ SMT.xor [xv,yv]
+
+    Trunc x w -> do
+      xv <- doPrimEval x
+      -- Given the assumption that all data are 64bv, treat it as no ops for the moment.
+      doSet $ SMT.extract (natValue w-1) 0 xv
+    SExt x w -> do
+      xv <- doPrimEval x
+      -- This sign extends x
+      doSet $ SMT.bvsignExtend (intValue w-intValue (M.typeWidth x)) xv
+    UExt x w -> do
+      xv <- doPrimEval x
+      -- This sign extends x
+      doSet $ SMT.bvzeroExtend (intValue w - intValue (M.typeWidth x)) xv
+    Bitcast _ _ -> do
+      addWarning $ "TODO: Implement " ++ show (ppApp (\_ -> text "*") a) ++ "."
+      setUndefined aid (M.typeRepr a)
+
     BVAdd _w x y -> do
       xv  <- doPrimEval x
       yv  <- doPrimEval y
       doSet $ SMT.bvadd xv [yv]
+    BVAdc _ _ _ _ -> do
+      addWarning $ "TODO: Implement " ++ show (ppApp (\_ -> text "*") a) ++ "."
+      setUndefined aid (M.typeRepr a)
     BVSub _w x y -> do
       xv  <- doPrimEval x
       yv  <- doPrimEval y
       doSet $ SMT.bvsub xv yv
+    BVSbb _ _ _ _ -> do
+      addWarning $
+        "TODO: Implement " ++ show (ppApp (\_ -> text "*") a) ++ "."
+      setUndefined aid (M.typeRepr a)
     BVMul _w x y -> do
       xv  <- doPrimEval x
       yv  <- doPrimEval y
@@ -301,62 +364,63 @@ evalApp2SMT aid a = do
       xv <- doPrimEval x
       yv <- doPrimEval y
       doSet $ SMT.bvslt xv yv
-    Eq x y -> do
-      xv <- doPrimEval x
-      yv <- doPrimEval y
-      doSet $ SMT.eq [xv,yv]
-    OrApp x y -> do
-      xv <- doPrimEval x
-      yv <- doPrimEval y
-      doSet $ SMT.or [xv,yv]
-    Trunc x w -> do
-      xv <- doPrimEval x
-      -- Given the assumption that all data are 64bv, treat it as no ops for the moment.
-      doSet $ SMT.extract (natValue w-1) 0 xv
-    SExt x w -> do
-      xv <- doPrimEval x
-      -- This sign extends x
-      doSet $ SMT.bvsignExtend (intValue w-intValue (M.typeWidth x)) xv
-    UExt x w -> do
-      xv <- doPrimEval x
-      -- This sign extends x
-      doSet $ SMT.bvzeroExtend (intValue w - intValue (M.typeWidth x)) xv
+
     UadcOverflows x y c -> do
+      let w :: Natural
+          w = natValue (M.typeWidth x)
       -- We check for unsigned overflow by zero-extending x, y, and c, performing the
       -- addition, and seeing if the most signicant bit is non-zero.
-      xv <- doPrimEval x
-      yv <- doPrimEval y
+      xExpr <- SMT.bvzeroExtend 1 <$> doPrimEval x
+      yExpr <- SMT.bvzeroExtend 1 <$> doPrimEval y
       cv <- doPrimEval c
-      let w :: Natural
-          w = natValue (M.typeWidth x)
-      -- Do zero extensions
-      let xext = SMT.bvzeroExtend 1 xv
-      let yext = SMT.bvzeroExtend 1 yv
-      let cext = SMT.bvzeroExtend (toInteger w) (SMT.ite cv SMT.bit1 SMT.bit0)
+      let cExpr = SMT.ite cv (SMT.bvdecimal 1 (w+1)) (SMT.bvdecimal 0 (w+1))
       -- Perform addition
-      let rext = SMT.bvadd xext [yext, cext]
+      let rExpr = SMT.bvadd xExpr [yExpr, cExpr]
       -- Unsigned overflow occurs if most-significant bit is set.
-      doSet $ SMT.eq [SMT.extract w w rext, SMT.bit1]
-    SadcOverflows x y c -> do
-      -- We check for signed overflow by adding x, y, and c, checking two things:
-      -- x & y have the same sign, and c has t
+      doSet $ unsignedOverflow rExpr w
 
+    SadcOverflows x y c -> do
       -- addition, and seeing if the most signicant bit is non-zero.
-      xv <- doPrimEval x
-      yv <- doPrimEval y
-      cv <- doPrimEval c
       let w :: Natural
           w = natValue (M.typeWidth x)
-      -- Carry is positive.
-      let cext = SMT.bvzeroExtend (toInteger (w-1)) (SMT.ite cv SMT.bit1 SMT.bit0)
-      -- Perform addition
-      let r = SMT.bvadd xv [yv, cext]
-      -- Check sign property.
-      let xmsb = SMT.extract (w-1) (w-1) xv
-      let ymsb = SMT.extract (w-1) (w-1) yv
-      let rmsb = SMT.extract (w-1) (w-1) r
+      xExpr <- SMT.bvsignExtend 1 <$> doPrimEval x
+      yExpr <- SMT.bvsignExtend 1 <$> doPrimEval y
+      -- Compute carry
+      cBit <- doPrimEval c
+      let cExpr = SMT.ite cBit (SMT.bvdecimal 1 (w+1)) (SMT.bvdecimal 0 (w+1))
+      -- Perform addition with w+1 bits.
+      let rExpr = SMT.bvadd xExpr [yExpr, cExpr]
+      -- Signed overflow occurs if the most significant and second most significant bit are distinct.
+      doSet $ signedOverflow rExpr w
 
-      doSet $ SMT.and [SMT.eq [xmsb, ymsb], SMT.distinct [xmsb, rmsb]]
+    UsbbOverflows x y b -> do
+      -- We check for unsigned overflow by zero-extending x, y, and c, performing the
+      -- addition, and seeing if the most signicant bit is non-zero.
+      let w :: Natural
+          w = natValue (M.typeWidth x)
+      xExpr <- SMT.bvzeroExtend 1 <$> doPrimEval x
+      yExpr <- SMT.bvneg . SMT.bvzeroExtend 1 <$> doPrimEval y
+      -- Compute borrow
+      bv <- doPrimEval b
+      let bExpr = SMT.ite bv (SMT.bvdecimal 1 (w+1)) (SMT.bvdecimal 0 (w+1))
+      -- Perform addition
+      let rExpr = SMT.bvsub (SMT.bvsub xExpr yExpr) bExpr
+      -- Unsigned overflow occurs if most-significant bit is set.
+      doSet $ unsignedOverflow rExpr w
+
+    SsbbOverflows x y b -> do
+      -- addition, and seeing if the most signicant bit is non-zero.
+      let w :: Natural
+          w = natValue (M.typeWidth x)
+      xExpr <- SMT.bvsignExtend 1 <$> doPrimEval x
+      yExpr <- SMT.bvneg . SMT.bvsignExtend 1 <$> doPrimEval y
+      -- Compute carry
+      bBit <- doPrimEval b
+      let bExpr = SMT.ite bBit (SMT.bvdecimal 1 (w+1)) (SMT.bvdecimal 0 (w+1))
+      -- Perform addition with w+1 bits.
+      let rExpr = SMT.bvsub (SMT.bvsub xExpr yExpr) bExpr
+      -- Signed overflow occurs if the most significant and second most significant bit are distinct.
+      doSet $ signedOverflow rExpr w
 
     _app -> do
       addWarning $ "TODO: Implement " ++ show (ppApp (\_ -> text "*") a) ++ "."
@@ -430,12 +494,13 @@ stmt2SMT stmt =
       valTerm  <- doPrimEval val
       memEventInfo <- getCurrentEventInfo
       case memEventInfo of
-        Ann.BinaryOnlyAccess -> do
+        Ann.BinaryOnlyAccess ->
           addEvent $ MCOnlyStackWriteEvent addrTerm tp valTerm
         Ann.JointStackAccess aname -> do
           addEvent $ JointStackWriteEvent addrTerm tp valTerm aname
         Ann.HeapAccess -> do
           addEvent $ HeapWriteEvent addrTerm tp valTerm
+    CondWriteMem{} ->  error "stmt2SMT does not yet support conditional writes."
 
     InstructionStart off _mnem -> do
       blockAddr <- gets blockStartAddr

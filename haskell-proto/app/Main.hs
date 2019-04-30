@@ -114,8 +114,10 @@ data BlockVCGContext = BlockVCGContext
 
 -- | State that changes during execution of @BlockVCG@.
 data BlockVCGState = BlockVCGState
-  { mcNextAddr :: !(MemAddr 64)
-    -- ^ Address of instruction after this one.
+  { mcCurAddr :: !(MemSegmentOff 64)
+    -- ^ Address of the current instruction
+  , mcCurSize :: !(MemWord 64)
+    -- ^ Size of current instruction.
   , mcX87Top :: !Int
     -- ^ Top index in x86 stack (starts at 7 and grows down).
   , mcDF :: !Bool
@@ -169,7 +171,7 @@ instance MonadIO BlockVCG where
 -- | Report an error at the given location and stop verification of this block.
 errorAt :: String -> BlockVCG a
 errorAt msg = BlockVCG $ \_ _ s -> do
-  let addr = mcNextAddr s
+  let addr = mcCurAddr s
   hPutStrLn stderr $ "At " ++ showsPrec 10 addr ": " ++ msg
 
 addCommand :: SMT.Command -> BlockVCG ()
@@ -387,7 +389,7 @@ handleEventMatchFailure [] mev = do
   error $ "Macaw event after end of LLVM events:\n"
     ++ M.ppEvent mev
 handleEventMatchFailure (lev:_) mev = do
-  addr <- gets mcNextAddr
+  addr <- gets mcCurAddr
   error $ "Incompatible LLVM and Macaw events:\n"
     ++ "LLVM:  " ++ L.ppEvent lev ++ "\n"
     ++ "Macaw " ++ show addr ++ ": " ++ M.ppEvent mev
@@ -470,7 +472,7 @@ processMCEvents (M.InstructionEvent _curAddr:mevs) = do
   processMCEvents mevs
 processMCEvents (M.MCOnlyStackReadEvent mcAddr tp macawValVar:mevs) = do
   -- Assert address is on stack
-  do addr <- gets mcNextAddr
+  do addr <- gets mcCurAddr
      idx <- gets mcOnlyStackFrameIndex
      let sz = memReprBytes tp
      proveTrue (SMT.term_app (onThisFunStack idx) [mcAddr, SMT.bvdecimal sz 64])
@@ -486,7 +488,7 @@ processMCEvents (M.MCOnlyStackWriteEvent mcAddr tp macawVal:mevs) = do
   -- Update stack with write.
   macawWrite mcAddr tp macawVal
   -- Assert address is on stack
-  do addr <- gets mcNextAddr
+  do addr <- gets mcCurAddr
      idx <- gets mcOnlyStackFrameIndex
      let sz = memReprBytes tp
      proveTrue (SMT.term_app (onThisFunStack idx) [mcAddr, SMT.bvdecimal sz 64])
@@ -499,6 +501,10 @@ processMCEvents mevs = pure mevs
 -- | Return true if the first address is always less than second.
 addrLt :: MemAddr 64 -> MemAddr 64 -> Bool
 addrLt x y = addrBase x == addrBase y && addrOffset x < addrOffset y
+
+mcNextAddr :: BlockVCGState -> MemAddr 64
+mcNextAddr s = incAddr (toInteger (mcCurSize s)) (segoffAddr (mcCurAddr s))
+
 
 getNextEvents :: BlockVCG ()
 getNextEvents = do
@@ -514,10 +520,12 @@ getNextEvents = do
                          , loc_x87_top = mcX87Top s
                          , loc_df_flag = mcDF s
                          }
-    let (r, nextIdx, sz) = M.blockEvents (mcBlockMap ctx) (mcCurRegs s) (mcLocalIndex s) loc
+    let (r, nextIdx, sz) =
+           M.blockEvents (mcBlockMap ctx) (mcCurRegs s) (mcLocalIndex s) loc
     -- Update local index and next addr
     put $! s { mcLocalIndex = nextIdx
-             , mcNextAddr = incAddr (toInteger sz) addr
+             , mcCurAddr  = addrSegOff
+             , mcCurSize  = sz
              }
     -- Process events
     evts <- processMCEvents r
@@ -671,9 +679,9 @@ eventsEq levs0@(L.LoadEvent llvmLoadAddr llvmType llvmValVar:levs) = do
       assertEq mcAddr llvmLoadAddr
         ("Machine code heap load address matches expected from LLVM")
       -- Add that macaw points to the heap
-      do nextIP <- gets mcNextAddr
+      do addr <- gets mcCurAddr
          proveTrue (inHeapSegment mcAddr (memReprBytes mcType))
-           (printf "Read from heap at %s is valid." (show nextIP))
+           (printf "Read from heap at %s is valid." (show addr))
 
       -- Check size of writes are equivalent.
       unless (typeCompat llvmType mcType) $ do
@@ -1088,7 +1096,8 @@ runVCGs gen modInfo funAnn loc blockAnn action = do
           | Just Refl <- testEquality r DF         =
               if loc_df_flag loc then SMT.true else SMT.false
           | otherwise = varTerm (M.smtRegVar r)
-    let s = BlockVCGState { mcNextAddr  = segoffAddr (loc_ip loc)
+    let s = BlockVCGState { mcCurAddr   = loc_ip loc
+                          , mcCurSize   = 0
                           , mcX87Top    = loc_x87_top loc
                           , mcDF        = loc_df_flag loc
                           , mcCurRegs  = mkRegState (Const . initReg)

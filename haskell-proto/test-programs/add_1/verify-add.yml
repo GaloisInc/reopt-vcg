@@ -61,7 +61,7 @@
       },
       {
          "llvm_name": "main",
-         "stack_size": 16,
+         "stack_size": 32,
          "blocks": [
             {
                "label": "0",
@@ -74,26 +74,22 @@
                   }
                ],
                "events": [
-                  {
-                     "addr": 0x4004f0,
-                     "type": "binary_only_access"
+                  { "addr": 0x4004f0,
+                    "type": "binary_only_access"
                   },
-                  {  "addr": 0x4004fd,
-                     "type": "binary_only_access"
+                  { "addr": 0x4004fd,
+                    "type": "binary_only_access"
                   },
-                  {
-                     "addr": 0x400502,
-                     "type": "joint_stack_access",
-                     "alloca": 1
+                  { "addr": 0x400502,
+                    "type": "joint_stack_access",
+                    "alloca": 1
                   },
-                  {
-                     "addr": 0x40050c,
-                     "type": "binary_only_access",
-                     "alloca": 1
+                  { "addr": 0x40050c,
+                    "type": "binary_only_access",
+                    "alloca": 1
                   },
-                  {
-                     "addr": 0x40050b,
-                     "type": "binary_only_access"
+                  { "addr": 0x40050b,
+                    "type": "binary_only_access"
                   },
 	       ]
             }
