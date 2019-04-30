@@ -453,8 +453,6 @@ termStmt2SMT tstmt =
     FetchAndExecute st -> do
       ctx <- getEvalContext
       addEvent $ FetchAndExecuteEvent ctx st
-    Branch{} ->
-      error "Unexpected branch"
     TranslateError _regs msg ->
       error $ "TranslateError : " ++ Text.unpack msg
     ArchTermStmt stmt _regs ->

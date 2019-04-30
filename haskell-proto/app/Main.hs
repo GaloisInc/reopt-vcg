@@ -872,7 +872,6 @@ interactiveVerifyGoal annFile funName lbl goalCounter cmdHandle respHandle propN
   hPutStrLn stderr $ "Verifying: " ++ propName
   writeCommand cmdHandle $ SMT.checkSatAssuming [ng]
   hFlush cmdHandle
-  hPutStrLn stderr $ "  Waiting for response"
   resp <- SMTP.readCheckSatResponse respHandle
   case resp of
     SMTP.SatResponse -> do
@@ -936,51 +935,49 @@ runCallbacks annFile cmdline funName lbl action = do
 type FunctionName = String
 
 -- | Tool for running verification conditions.
--- This has a
 newtype CallbackGenerator
    = CBG { blockCallbacks :: forall a . FunctionName -> String-> (CallbackFns -> IO a) -> IO a }
 
-writeChecksatProblem :: FilePath -- ^ Directory to write file to
-                     -> FilePath -- ^ Name of file to export.
-                     -> String -- ^ Message to print out with file.
-                     -> [SMT.Command] -- ^ Commands
-                     -> SMT.Term -- ^ Predicate to assume in final @check-sat-assuming@ call.
-                     -> IO ()
-writeChecksatProblem outDir fname msg cmds negGoal = do
+exportCheckSatProblem :: FilePath
+                         -- ^ Directory to write file to.
+                      -> String -- ^ Name of function
+                      -> String -- ^ Name of label of block we are generating.
+                      -> IORef Integer -- ^ Index of goal to discharge within block
+                      -> IORef Builder.Builder  -- ^ A representation of all commands added.
+                      -> SMT.Term -- ^ Proposition to assert and check unsat of.
+                      -> String   -- ^ Name of goal to prove
+                      -> IO ()
+exportCheckSatProblem outDir fn lbl goalCounter cmdRef negGoal msg = do
+  cnt <- readIORef goalCounter
+  modifyIORef' goalCounter (+1)
+  cmds <- readIORef cmdRef
+  let fname = standaloneGoalFilename fn lbl cnt
   hPutStrLn stdout $ fname ++ ": " ++ msg
   bracket (openFile (outDir </> fname) WriteMode) hClose $ \h -> do
     writeCommand h $ comment (fromString msg)
     writeCommand h $ SMT.setLogic SMT.allSupported
     writeCommand h $ SMT.setProduceModels True
     -- Write commands from proof state
-    mapM_ (writeCommand h) (reverse cmds)
+    LText.hPutStr h (Builder.toLazyText cmds)
     writeCommand h $ SMT.checkSatAssuming [negGoal]
     writeCommand h $ SMT.exit
 
 exportCallbacks :: FilePath
-                   -- ^ Directory to run file to.
+                   -- ^ Directory to write file to.
                 -> String -- ^ Name of function
-                -> String
+                -> String -- ^ Block label
                 -> (CallbackFns -> IO a)
                 -> IO a
 exportCallbacks outDir fn lbl action = do
   goalCounter <- newIORef 0
-  cmdRef <- newIORef [] :: IO (IORef [SMT.Command])
+  cmdRef <- newIORef mempty
   action $! CallbackFns
-    { addCommandCallback = \cmd -> do
-        modifyIORef' cmdRef $ (cmd:)
-    , proveFalseCallback = \p msg -> do
-        cnt <- readIORef goalCounter
-        modifyIORef' goalCounter (+1)
-        cmds <- readIORef cmdRef
-        let fname = standaloneGoalFilename fn lbl cnt
-        writeChecksatProblem outDir fname msg cmds p
-    , proveTrueCallback = \p msg -> do
-        cnt <- readIORef goalCounter
-        modifyIORef' goalCounter (+1)
-        cmds <- readIORef cmdRef
-        let fname = standaloneGoalFilename fn lbl cnt
-        writeChecksatProblem outDir fname msg cmds (SMT.not p)
+    { addCommandCallback = \(SMT.Cmd cmd) -> do
+        modifyIORef' cmdRef $ \s -> s <> cmd <> "\n"
+    , proveFalseCallback = \p msg ->
+        exportCheckSatProblem outDir fn lbl goalCounter cmdRef p msg
+    , proveTrueCallback = \p msg ->
+        exportCheckSatProblem outDir fn lbl goalCounter cmdRef (SMT.not p) msg
     }
 
 -- | Information needed for checking equivalence of entire module
