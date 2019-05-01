@@ -61,8 +61,9 @@ data Event
   | StoreEvent !SMT.Term !L.Type !SMT.Term
     -- ^ `StoreEvent a tp v` indicates that we write the `w` byte value `v` to `a`.
   | InvokeEvent !Bool !L.Symbol [SMT.Term] (Maybe (Ident, Type))
-    -- ^ The invoke event takes the address of the function that we are jumping to, the
-    -- arguments that are passed in, and the return identifier and variable to assign the return value to
+    -- ^ The invoke event takes the address of the function that we
+    -- are jumping to, the arguments that are passed in, and the
+    -- return identifier and variable to assign the return value to
     -- (if any).
   | BranchEvent !SMT.Term !BlockLabel !BlockLabel
     -- ^ Branch event with the predicate being branched on, and the label of the true and false blocks.

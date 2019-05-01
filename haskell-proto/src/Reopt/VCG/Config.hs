@@ -75,17 +75,23 @@ data AllocaInfo = AllocaInfo
   , allocaBinaryOffset :: !Integer
     -- ^ Number of bytes from start of alloca to offset of stack
     -- pointer in machine code.
+  , allocaInThisBlock :: !Bool
+    -- ^ Stores true if the allocation is made in this block.
   }
   deriving (Show)
 
 allocaInfoFields :: FieldList
-allocaInfoFields = fields ["name", "offset"]
+allocaInfoFields = fields ["name", "offset", "new"]
 
 instance Yaml.FromJSON AllocaInfo where
-  parseJSON = withFixedObject "AllocaInfo" allocaInfoFields $ \v ->
-    AllocaInfo
-      <$> v .: "name"
-      <*> v .: "offset"
+  parseJSON = withFixedObject "AllocaInfo" allocaInfoFields $ \v -> do
+    nm <- v .: "name"
+    o <- v .: "offset"
+    new <- v .: "new" .!= False
+    pure AllocaInfo { allocaName = nm
+                    , allocaBinaryOffset = o
+                    , allocaInThisBlock = True
+                    }
 
 ------------------------------------------------------------------------
 -- BlockEventType
@@ -147,6 +153,10 @@ data BlockAnn = BlockAnn
   , blockRSPOffset :: !Integer
     -- ^ Offset of RSP when block starts versus initial RSP for function.
     -- Since the stack grows down, this will typically be non-positive.
+  , blockX87Top  :: !Int
+    -- ^ The top of x87 stack (empty = 7, full = 0)
+  , blockDFFlag  :: !Bool
+    -- ^ The value of the DF flag (default = FalsE)
   , blockAllocas :: ![AllocaInfo]
     -- ^ Maps LLVM allocations to an offset of the stack where it starts.
   , blockEvents :: ![BlockEvent]
@@ -164,12 +174,16 @@ instance Yaml.FromJSON BlockAnn where
     addr <- v .: "addr"
     sz   <- v .: "size"
     rspOff  <- v .:? "rsp_offset" .!= 0
+    x87Top  <- v .:? "x87_top"    .!= 7
+    dfFlag  <- v .:? "df_flag"    .!= False
     allocas <- v .:? "allocas"    .!= []
     events  <- v .:? "events"     .!= []
     pure BlockAnn { blockLabel = lbl
                   , blockAddr  = addr
                   , blockCodeSize = sz
                   , blockRSPOffset = rspOff
+                  , blockX87Top    = x87Top
+                  , blockDFFlag    = dfFlag
                   , blockAllocas = allocas
                   , blockEvents = events
                   }

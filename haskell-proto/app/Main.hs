@@ -7,6 +7,7 @@
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 module Main (main) where
@@ -63,13 +64,30 @@ import           VCGCommon
 import qualified VCGLLVM as L
 import qualified VCGMacaw as M
 
+$(pure [])
+
 ppBlock :: BlockLabel -> String
 ppBlock (Named (Ident s)) = s
 ppBlock (Anon i) = show i
 
+$(pure [])
+
 -- | Find a block with the given label in the config.
 findBlock :: Ann.FunctionAnn -> BlockLabel -> Maybe Ann.BlockAnn
 findBlock cfg lbl = Map.lookup (ppBlock lbl) (Ann.blocks cfg)
+
+$(pure [])
+
+-- | Information needed for checking equivalence of entire module
+data ModuleInfo = ModuleInfo { moduleMem :: !(Memory 64)
+                               -- ^ Machine code memory
+                             , symbolAddrMap :: !(Map BS.ByteString (MemSegmentOff 64))
+                               -- ^ Maps bytes to the symbol name
+                             }
+
+
+$(pure [])
+
 
 -- | Callback functions for interacting with SMT solver.
 data CallbackFns = CallbackFns
@@ -91,6 +109,8 @@ data CallbackFns = CallbackFns
     -- check.
   }
 
+$(pure [])
+
 -- | Information that does not change during execution of @BlockVCG@.
 data BlockVCGContext = BlockVCGContext
   { curFunAnnotations :: !Ann.FunctionAnn
@@ -100,10 +120,6 @@ data BlockVCGContext = BlockVCGContext
     -- reads/writes at that address.
   , callbackFns :: !CallbackFns
     -- ^ Functions for interacting with SMT solver.
-  , allocaOffsetMap :: !(Map Ann.AllocaName Integer)
-    -- ^ This is a map from allocation names to the offset from the
-    -- value in the machine code register `rsp` when the machine code
-    -- for the current block starts execution.
   , mcModuleInfo :: !ModuleInfo
     -- ^ Information about machine code module.
   , mcBlockEndAddr :: !(MemAddr 64)
@@ -111,6 +127,8 @@ data BlockVCGContext = BlockVCGContext
   , mcBlockMap :: !(Map (MemSegmentOff 64) Ann.BlockEventInfo)
     -- ^ Map from addresses to annotations of events on that address.
   }
+
+$(pure [])
 
 -- | State that changes during execution of @BlockVCG@.
 data BlockVCGState = BlockVCGState
@@ -136,12 +154,23 @@ data BlockVCGState = BlockVCGState
     -- ^ Unprocessed events from last instruction.
   , mcLocalIndex :: !Integer
     -- ^ Index of next local variable for machine code.
+  , mcPendingAllocaOffsetMap :: !(Map Ann.AllocaName Integer)
+    -- ^ This is a map from allocation names to the offset from the
+    -- value in the machine code register `rsp`.  These are allocas
+    -- that have not been made when the block starts.
+    --
+    -- The RSP is relative to the value of RSP when the machine code
+    -- for the current block starts execution.
   }
+
+$(pure [])
 
 newtype BlockVCG a = BlockVCG { unBlockVCG :: BlockVCGContext
                                            -> (a -> BlockVCGState -> IO ())
                                            -> BlockVCGState
                                            -> IO () }
+
+$(pure [])
 
 instance Functor BlockVCG where
   fmap f (BlockVCG g) = BlockVCG (\ctx c -> g ctx (c . f))
@@ -168,16 +197,22 @@ instance MonadState BlockVCGState BlockVCG where
 instance MonadIO BlockVCG where
   liftIO m = BlockVCG $ \_ctx c s -> m >>= \a -> c a s
 
+$(pure [])
+
 -- | Report an error at the given location and stop verification of this block.
 errorAt :: String -> BlockVCG a
 errorAt msg = BlockVCG $ \_ _ s -> do
   let addr = mcCurAddr s
   hPutStrLn stderr $ "At " ++ showsPrec 10 addr ": " ++ msg
 
+$(pure [])
+
 addCommand :: SMT.Command -> BlockVCG ()
 addCommand cmd = do
   fns <- asks callbackFns
   liftIO $ addCommandCallback fns cmd
+
+$(pure [])
 
 -- | @proveFalse p msg@ adds a proof obligation @p@ is false for all
 -- interpretations of constants with the message @msg@.
@@ -221,54 +256,30 @@ getMCAddrOfLLVMFunction m nm = do
 -- function pointers are equivalent.
 assertFnNameEq :: L.Symbol -> SMT.Term -> BlockVCG ()
 assertFnNameEq (L.Symbol nm) macawIP = do
+  -- Get the map from symbol names to the associated address
   addrMap <- asks $ symbolAddrMap . mcModuleInfo
+  -- Get the address in the original binary of the executable.
   let Right addr = getMCAddrOfLLVMFunction addrMap nm
+  -- Generate an SMT term with the address associated with the symbol.
   let expectedAddrTerm = SMT.bvhexadecimal (toInteger addr) 64
+  -- Assert the two addresses are equal.
   assertEq expectedAddrTerm macawIP ("Equivalence of function: " ++ nm)
 
 x86ArgRegs :: [X86Reg (M.BVType 64)]
 x86ArgRegs = [ RDI, RSI, RDX, RCX, R8, R9 ]
 
-type KnownMemInfo = (Some MemRepr, (String, SMT.Sort, SMT.Term, SMT.Term))
+-- | Information about a supported memory type.
+data SupportedMemType = SupportedMemType { supportedSuffix :: !String
+                                         , supportedSort :: !SMT.Sort
+                                         , supportedReadDecl  :: !SMT.Command
+                                         , supportedWriteDecl :: !SMT.Command
+                                         }
 
-supportedBV :: (1 <= w) => NatRepr w -> KnownMemInfo
-supportedBV w =
-  ( Some (BVMemRepr w LittleEndian)
-  , ( "bv" <> show (8*natValue w)
-    , SMT.bvSort (8*natValue w)
-    , readBVLE (varTerm "m") (varTerm "a") (natValue w)
-    , writeBVLE (varTerm "m") (varTerm "a") (varTerm "v") (natValue w)
-    )
-  )
+-- | A pair containing a memrepr and the operations needed to support it in VCG.
+type SupportedMemPair = (Some MemRepr, SupportedMemType)
 
--- | Types that may appear in reads/writes.
-supportedMemTypes :: Map (Some MemRepr) (String, SMT.Sort, SMT.Term, SMT.Term)
-supportedMemTypes = Map.fromList $
-  [ supportedBV (knownNat @1)
-  , supportedBV (knownNat @2)
-  , supportedBV (knownNat @4)
-  , supportedBV (knownNat @8)
-  ]
 
--- | Create mem write declaration given number of bytes to write
-memWriteDecl :: KnownMemInfo -> SMT.Command
-memWriteDecl (Some _, (suf, typeSort, _readDef, writeDef)) = do
-  let argTypes = [("m", memSort), ("a", ptrSort), ("v", typeSort)]
-  SMT.defineFun ("mem_write" <> fromString suf) argTypes memSort writeDef
-
--- | @macawWrite addr cnt val@ writes @cnt@ bytes to memory.
---
--- The value written is the @8*cnt@-length bitvector term @val@.
-macawWrite :: SMT.Term -> MemRepr tp -> SMT.Term -> BlockVCG ()
-macawWrite addr memType val = do
-  idx <- gets mcMemIndex
-  modify' $ \s -> s { mcMemIndex = mcMemIndex s + 1 }
-  let mem = varTerm (M.memVar idx)
-  case Map.lookup (Some memType) supportedMemTypes of
-    Nothing -> error $ "Unexpected type " ++ show memType
-    Just (suf, _, _, _) -> do
-      let newMem = SMT.term_app ("mem_write" <> fromString suf) [mem, addr, val]
-      addCommand $ SMT.defineFun (M.memVar (idx+1)) [] memSort newMem
+$(pure [])
 
 -- | Read a number of bytes as a bitvector.
 -- Note. This refers repeatedly to ptr so, it should be a constant.
@@ -284,24 +295,85 @@ readBVLE mem ptr0 w = go (w-1)
            in SMT.concat (SMT.select mem ptr) (go (i-1))
 
 -- | Create mem write declaration given number of bytes to write
-memReadDecl :: KnownMemInfo  -> SMT.Command
-memReadDecl (Some _, (suf, resSort, readDef, _writeDef)) = do
-  let nm = "mem_read" <> fromString suf
+memReadDeclBV :: Natural
+              -> SMT.Command
+memReadDeclBV w = do
+  let nm = "mem_readbv" <> fromString (show (8*w))
   let args = [("m", memSort), ("a", ptrSort)]
-  SMT.defineFun nm args resSort readDef
+  let resSort = SMT.bvSort (8*w)
+  SMT.defineFun nm args resSort (readBVLE (varTerm "m") (varTerm "a") w)
+
+$(pure [])
 
 -- | @MacawRead addr cnt var@ reads @cnt@ bytes from machine code
 -- memory and assigns them to @var@.
-macawRead :: SMT.Term -> MemRepr tp -> Var -> BlockVCG SMT.Sort
-macawRead addr memType valVar = do
+macawRead :: Var -> SMT.Term -> SupportedMemType -> BlockVCG ()
+macawRead valVar addr supType = do
+  let suf = supportedSuffix supType
+  let valSort = supportedSort supType
+  idx <- gets mcMemIndex
+  let mem = varTerm (M.memVar idx)
+  let val = SMT.term_app ("mem_read" <> fromString suf) [mem, addr]
+  addCommand $ SMT.defineFun valVar [] valSort val
+
+$(pure [])
+
+-- | Create mem write declaration given number of bytes to write
+memWriteDeclBV :: Natural -> SMT.Command
+memWriteDeclBV w = do
+  let nm = "mem_writebv" <> fromString (show (8*w))
+  let argTypes = [("m", memSort), ("a", ptrSort), ("v", SMT.bvSort (8*w))]
+  SMT.defineFun nm argTypes memSort (writeBVLE (varTerm "m") (varTerm "a") (varTerm "v") w)
+
+$(pure [])
+
+-- Construct a known mem pair for a nat.
+supportedBV :: (1 <= w) => NatRepr w -> SupportedMemPair
+supportedBV w =
+  ( Some (BVMemRepr w LittleEndian)
+  , let n = natValue w
+     in SupportedMemType { supportedSuffix = "bv" <> show (8*n)
+                         , supportedSort = SMT.bvSort (8*n)
+                         , supportedReadDecl = memReadDeclBV n
+                         , supportedWriteDecl = memWriteDeclBV n
+                         }
+  )
+
+$(pure [])
+
+-- | Types that may appear in reads/writes.
+supportedMemTypes :: Map (Some MemRepr) SupportedMemType
+supportedMemTypes = Map.fromList $
+  [ supportedBV (knownNat @1)
+  , supportedBV (knownNat @2)
+  , supportedBV (knownNat @4)
+  , supportedBV (knownNat @8)
+  ]
+
+$(pure [])
+
+getSupportedType :: MemRepr tp -> BlockVCG SupportedMemType
+getSupportedType memType =
   case Map.lookup (Some memType) supportedMemTypes of
     Nothing -> error $ "Unexpected type " ++ show memType
-    Just (suf, valSort, _, _) -> do
-      idx <- gets mcMemIndex
-      let mem = varTerm (M.memVar idx)
-      let val = SMT.term_app ("mem_read" <> fromString suf) [mem, addr]
-      addCommand $ SMT.defineFun valVar [] valSort val
-      pure valSort
+    Just supType -> pure supType
+
+$(pure [])
+
+-- | @macawWrite addr cnt val@ writes @cnt@ bytes to memory.
+--
+-- The value written is the @8*cnt@-length bitvector term @val@.
+macawWrite :: SMT.Term -> MemRepr tp -> SMT.Term -> BlockVCG ()
+macawWrite addr memType val = do
+  supType <- getSupportedType memType
+  idx <- gets mcMemIndex
+  modify' $ \s -> s { mcMemIndex = mcMemIndex s + 1 }
+  let mem = varTerm (M.memVar idx)
+  let suf = supportedSuffix supType
+  let newMem = SMT.term_app ("mem_write" <> fromString suf) [mem, addr, val]
+  addCommand $ SMT.defineFun (M.memVar (idx+1)) [] memSort newMem
+
+$(pure [])
 
 comment :: Builder -> SMT.Command
 comment r = SMT.Cmd $ "; " <> r
@@ -431,20 +503,6 @@ assumeLLVMDisjoint :: Range -> Ann.AllocaName -> BlockVCG ()
 assumeLLVMDisjoint r nm = do
   assume $ isDisjoint r (varTerm (allocaLLVMBaseVar nm), varTerm (allocaLLVMEndVar nm))
 
--- | This returns an SMT term that denotes the address of an allocation.
-getAllocaMCAddr :: Ann.AllocaName -> BlockVCG SMT.Term
-getAllocaMCAddr nm = do
-  allocaMap <- asks $ allocaOffsetMap
-  case Map.lookup nm allocaMap of
-    Nothing ->
-      error $ "Could not find offset of alloca with name: " ++ show nm ++ "\n"
-         ++ "Names: " ++ show (Map.keys allocaMap)
-    Just o ->
-      pure $! if o >= 0 then
-                SMT.bvadd initRSP [SMT.bvdecimal o 64]
-               else
-                SMT.bvsub initRSP (SMT.bvdecimal (negate o) 64)
-
 -- | Check if LLVM type and Macaw types are compatible.
 typeCompat :: L.Type -> MemRepr tp -> Bool
 typeCompat (L.PrimType (L.Integer lw)) (BVMemRepr mw _) =
@@ -478,7 +536,8 @@ processMCEvents (M.MCOnlyStackReadEvent mcAddr tp macawValVar:mevs) = do
      proveTrue (SMT.term_app (onThisFunStack idx) [mcAddr, SMT.bvdecimal sz 64])
                (printf "Machine code read at %s is in unreserved stack space." (show addr))
   -- Define value from reading Macaw heap
-  _ <- macawRead mcAddr tp macawValVar
+  supType <- getSupportedType tp
+  macawRead macawValVar mcAddr supType
   -- Process future events.
   processMCEvents mevs
 -- Every LLVM write should have a machine code write (but not
@@ -582,9 +641,10 @@ popFetchAndExecute = do
     _ -> do
       error "Missing fetch and execute event."
 
-
-checkEndMCEvents :: BlockVCG ()
-checkEndMCEvents = do
+{-
+-- | Check that we are at end of MC events
+checkReachedMCEventEnd :: BlockVCG ()
+checkReachedMCEventEnd = do
   mevents <- gets mcEvents
   mevents' <- processMCEvents mevents
   case mevents' of
@@ -592,6 +652,7 @@ checkEndMCEvents = do
       modify $ \s -> s { mcEvents = [] }
     mev:_ -> do
       error $ "Macaw event after end of LLVM events:\n" ++ M.ppEvent mev
+-}
 
 -- | Process LLVM and macaw events to ensure they are equivalent.
 eventsEq :: [L.Event]
@@ -612,7 +673,23 @@ eventsEq (L.AllocaEvent (Ident nm0) sz _align:levs) = do
   -- Assert end calculation did not wrap around.
   assume $ SMT.bvule llvmBase llvmEnd
   -- Get machine code offset.
-  mcAddr <- getAllocaMCAddr nm
+
+  -- Get pending allocations
+  allocaMap <- gets $ mcPendingAllocaOffsetMap
+  -- Lookup offset of this allocation in pending allocations
+  mcOffset <-
+    case Map.lookup nm allocaMap of
+      Nothing ->
+        error $ "Could not find offset of alloca with name: " ++ show nm ++ "\n" ++ "Names: " ++ show (Map.keys allocaMap)
+      Just o -> pure o
+
+  -- Delete this from pending allocations
+  modify $ \s -> s { mcPendingAllocaOffsetMap = Map.delete nm allocaMap }
+
+  -- get machine code base address of allocation.
+  let mcAddr | mcOffset >= 0 = SMT.bvadd initRSP [SMT.bvdecimal mcOffset 64]
+             | otherwise =  SMT.bvsub initRSP (SMT.bvdecimal (negate mcOffset) 64)
+
   -- Validate mcOffset is less than stack higher
   -- Define machine code base
   addCommand $ SMT.defineFun (allocaMCBaseVar nm) [] ptrSort mcAddr
@@ -622,6 +699,7 @@ eventsEq (L.AllocaEvent (Ident nm0) sz _align:levs) = do
   addCommand $ SMT.defineFun (allocaMCEndVar nm) [] ptrSort $
     SMT.bvadd mcAllocBase [sz]
   let mcAllocEnd = varTerm (allocaMCEndVar nm)
+
   -- Check stack space is unallocated
   do idx <- gets mcOnlyStackFrameIndex
      proveTrue (SMT.term_app (onThisFunStack idx) [mcAllocBase, sz])
@@ -669,7 +747,9 @@ eventsEq levs0@(L.LoadEvent llvmLoadAddr llvmType llvmValVar:levs) = do
       assertEq mcAddr (SMT.bvadd mcBase [SMT.bvsub llvmLoadAddr llvmAllocBase])
         ("Machine code stack load address matches expected from LLVM")
       -- Define value from reading Macaw heap
-      smtType <- macawRead mcAddr mcType macawValVar
+      supType <- getSupportedType mcType
+      macawRead macawValVar mcAddr supType
+      let smtType = supportedSort supType
       -- Define LLVM value
       addCommand $ SMT.defineFun llvmValVar [] smtType (varTerm macawValVar)
       -- Process future events.
@@ -687,27 +767,15 @@ eventsEq levs0@(L.LoadEvent llvmLoadAddr llvmType llvmValVar:levs) = do
       unless (typeCompat llvmType mcType) $ do
         error "Incompatible LLVM and machine code types."
       -- Define value from reading Macaw heap
-      smtType <- macawRead mcAddr mcType macawValVar
+      supType <- getSupportedType mcType
+      macawRead macawValVar mcAddr supType
+      let smtType = supportedSort supType
       -- Define LLVM value returned in terms of macaw value
       addCommand $ SMT.defineFun llvmValVar [] smtType (varTerm macawValVar)
       -- Process future events.
       eventsEq levs
     _ -> do
       handleEventMatchFailure levs0 mevt
-
-{-
-eventsEq (L.LoadEvent _llvmAddr _llvmCount _llvmValVar:levs)
-         (M.CondReadEvent _macawCond _mcAddr _mcCount _macawDef _macawValVar:mevs) = do
-  missingFeature "Cond reads are not yet supported."
-  -- Process future events.
-  eventsEq levs mevs
--- This doesn't match a LLVM read, so we will require it either
--- doesn't occur or is a write to the stack.
-eventsEq levs
-         (M.CondReadEvent _macawCond _addr _byteCount _defTerm _macawValVar:mevs) = do
-  missingFeature "Cond reads are not yet supported."
-  eventsEq levs mevs
--}
 
 eventsEq levs0@(L.StoreEvent llvmAddr llvmType llvmVal:levs) = do
   mevt <- popMCEvent
@@ -784,31 +852,32 @@ eventsEq (L.InvokeEvent _ f lArgs lRet:levs)  = do
   -- If LLVM side has a return value, then we define the LLVM event in terms
   -- of the value bound to RAX for the rest of the program.
   case lRet of
-    Just (llvmIdent, PtrTo _) -> do
+    Just (llvmIdent, tp) -> do
       -- Returned pointers are assumed to be on heap, so we can assume they are equal.
       let Const mRetVal = regs^.boundValue RAX
-      addCommand $ SMT.defineFun (L.identVar llvmIdent) [] (SMT.bvSort 64) mRetVal
-    Just (llvmIdent, PrimType (Integer 64)) -> do
-      -- Returned pointers are assumed to be on heap, so we can assume they are equal.
-      let Const mRetVal = regs^.boundValue RAX
-      addCommand $ SMT.defineFun (L.identVar llvmIdent) [] (SMT.bvSort 64) mRetVal
-    Just (_llvmIdent, tp) -> do
-      error $ "TODO: Add support for return type " ++ show tp
+      let smtSort = case tp of
+                      PtrTo _ -> SMT.bvSort 64
+                      PrimType (Integer 64) -> SMT.bvSort 64
+                      _ ->  error $ "TODO: Add support for return type " ++ show tp
+      addCommand $ SMT.defineFun (L.identVar llvmIdent) [] smtSort  mRetVal
     Nothing -> pure ()
   -- Process future events
   eventsEq levs
 eventsEq [L.JumpEvent lbl]  = do
   regs <- popFetchAndExecute
   fnAnn <- asks $ curFunAnnotations
-  blockInfo <-
+  tgtBlockAnn <-
     case findBlock fnAnn lbl of
       Just b -> pure b
       Nothing -> do
         fail $ "Could not find jump target " ++ show lbl
   -- Get term for address associated with this label.
-  let llvmMemAddr = SMT.bvhexadecimal (toInteger (Ann.blockAddr blockInfo)) 64
+  let llvmMemAddr = SMT.bvhexadecimal (toInteger (Ann.blockAddr tgtBlockAnn)) 64
   let Const mRegIP = regs ^. boundValue X86_IP
   assertEq llvmMemAddr mRegIP "Jump targets match"
+
+  -- Preconditions include rsp offset delta, return address is on stack, x87Top value, dfFlag value,
+  -- allocas correct, and
   missingFeature "Assert preconditions for block."
 eventsEq [L.ReturnEvent mlret] = do
   regs <- popFetchAndExecute
@@ -819,7 +888,8 @@ eventsEq [L.ReturnEvent mlret] = do
   -- Assert the stack height at the return is the peak stack height
   assertEq (getConst (regs^.boundValue RSP)) (varTerm "stack_high")
     "Stack height at return matches init"
-  --  TODO: Assert callee saved registers have not changed.
+
+  missingFeature "Assert callee saved registers have not changed."
 
   -- Assert the value in RAX is the return value.
   case mlret of
@@ -830,7 +900,9 @@ eventsEq [L.ReturnEvent mlret] = do
 eventsEq (lev:_) = do
   error $ "Unexpected LLVM event:\n" ++ L.ppEvent lev
 eventsEq [] = do
-  checkEndMCEvents
+  error $ "We have reached end of LLVM events without a block terminator."
+--  checkReachedMCEventEnd
+--  missingFeature "Check IP has reached end of block
 
 forceResolveAddr :: Memory w -> MemWord w -> MemSegmentOff w
 forceResolveAddr mem a =
@@ -988,59 +1060,6 @@ exportCallbacks outDir fn lbl action = do
         exportCheckSatProblem outDir fn lbl goalCounter cmdRef (SMT.not p) msg
     }
 
--- | Information needed for checking equivalence of entire module
-data ModuleInfo = ModuleInfo { moduleMem :: !(Memory 64)
-                               -- ^ Machine code memory
-                             , symbolAddrMap :: !(Map BS.ByteString (MemSegmentOff 64))
-                               -- ^ Maps bytes to the symbol name
-                             }
-
-{-
--- | Information about a resolved blokck includes the LLVM basic block, the machine code
--- segment offset and annotations.
-data ResolvedBasicBlock = RBB { rbbLLVM :: !L.BasicBlock
-                              , rbbMCSegOff :: !(MemSegmentOff 64)
-                              , rbbAnnotations :: !Ann.BlockAnn
-                              }
-
---  Resolve information about an LLVM basic block
-resolveLLVMBasicBlock
-  :: Memory 64
-  -> Ann.FunctionAnn
-  -> L.BasicBlock
-  -> Either String ResolvedBasicBlock
-resolveLLVMBasicBlock mem funAnn bb = do
-  lbl <- case L.bbLabel bb of
-           Just lbl -> Right lbl
-           Nothing -> Left $ "Could not parse LLVM label within " ++ Ann.llvmFunName funAnn
-  blockAnn <-
-    case findBlock funAnn lbl of
-      Just b -> Right b
-      Nothing -> Left $ "Could not find annotations for block " ++ show lbl
-  segOff <- do
-    let absAddr = fromIntegral (Ann.blockAddr blockAnn)
-    case resolveAbsoluteAddr mem absAddr of
-      Just o -> Right o
-      Nothing -> Left $ "Could not resolve " ++ show absAddr
-  Right $! RBB { rbbLLVM = bb
-               , rbbMCSegOff = segOff
-               , rbbAnnotations = blockAnn
-               }
-
-Security is part of our allowable overhead.
-
-SAPF - There are spaces foreign national.
-Controlled Access to the badge reader.
-Closed campus - Escort
-Helps with ITAR restrictions.
--}
-
-
-
-
-
-
-
 runVCGs :: CallbackGenerator
         -> ModuleInfo -- ^ Information needed to verify module.
         -> Ann.FunctionAnn -- ^ Annotations for the function we are verifying.
@@ -1055,7 +1074,10 @@ runVCGs gen modInfo funAnn loc blockAnn action = do
     let allocaMap = Map.fromList
           [ (Ann.allocaName a, Ann.allocaBinaryOffset a)
           | a <- Ann.blockAllocas blockAnn
+          , Ann.allocaInThisBlock a
           ]
+    when (any (not . Ann.allocaInThisBlock) (Ann.blockAllocas blockAnn)) $ do
+      error "Do not yet support existing allocas"
     let blockStart = Ann.blockAddr blockAnn
     let sz = Ann.blockCodeSize blockAnn
     let blockEnd =
@@ -1082,7 +1104,6 @@ runVCGs gen modInfo funAnn loc blockAnn action = do
                                   = extractMemEvents mem
                                   $ Ann.blockEvents blockAnn
                               , callbackFns = fns
-                              , allocaOffsetMap = allocaMap
                               , mcModuleInfo = modInfo
                               , mcBlockEndAddr = incAddr sz (segoffAddr thisSegOff)
                               , mcBlockMap = blockMap
@@ -1106,6 +1127,7 @@ runVCGs gen modInfo funAnn loc blockAnn action = do
                           , mcOnlyStackFrameIndex = 0
                           , mcEvents = []
                           , mcLocalIndex = 0
+                          , mcPendingAllocaOffsetMap = allocaMap
                           }
     seq ctx $ seq s $ unBlockVCG action ctx (\() _ -> pure ()) s
 
@@ -1261,16 +1283,16 @@ verifyBlock gen modInfo lFun funAnn bb = do
       Just o -> pure o
       Nothing -> error $ "Could not resolve " ++ show absAddr
   let loc = ExploreLoc { loc_ip = segOff
-                       , loc_x87_top = 7
-                       , loc_df_flag = False
+                       , loc_x87_top = Ann.blockX87Top blockAnn
+                       , loc_df_flag = Ann.blockDFFlag blockAnn
                        }
   -- Start running verification condition generator.
   runVCGs gen modInfo funAnn loc blockAnn $ do
     -- Add builtin functions
     do addCommand $ M.evenParityDecl
        -- Add read/write operations (independent of registers)
-       mapM_ (addCommand . memReadDecl)  (Map.toList supportedMemTypes)
-       mapM_ (addCommand . memWriteDecl) (Map.toList supportedMemTypes)
+       mapM_ (addCommand . supportedReadDecl)  supportedMemTypes
+       mapM_ (addCommand . supportedWriteDecl) supportedMemTypes
     -- Declare registers
     mapM_ addCommand M.declRegs
     -- Declare stack and heap declarations (depends on registers)
@@ -1282,7 +1304,8 @@ verifyBlock gen modInfo lFun funAnn bb = do
       error "Expected non-negative stack size"
     -- Declare constant representing where we return to.
     let returnAddr = addc (varTerm (M.smtRegVar RSP)) (Ann.blockRSPOffset blockAnn)
-    _ <- macawRead returnAddr (BVMemRepr (knownNat @8) LittleEndian) "return_addr"
+    supType <- getSupportedType (BVMemRepr (knownNat @8) LittleEndian)
+    macawRead "return_addr" returnAddr supType
     -- Declare LLVM arguments in terms of Macaw registers
     defineLLVMArgs (defArgs lFun) x86ArgRegs
     -- Start processing events
