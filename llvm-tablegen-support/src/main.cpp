@@ -206,7 +206,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    std::cerr << "Starting server for " << argv[1] << " starting from " << off << " for " << nbytes << " bytes" << std::endl;
+    // std::cerr << "Starting server for " << argv[1] << " starting from " << off << " for " << nbytes << " bytes" << std::endl;
     llvm::ArrayRef<uint8_t> bytes_array(raw_bytes, nbytes);
 
     // Server loop
@@ -215,7 +215,7 @@ int main(int argc, char **argv)
         vadd::instruction_t inst;
         uint64_t size;
 
-        std::cerr << "Looking at offset " << offset << std::endl;
+        // std::cerr << "Looking at offset " << offset << std::endl;
 
         bool ret = getInstruction(inst, size, bytes_array.slice(offset), 0
                                   , llvm::X86Disassembler::MODE_64BIT

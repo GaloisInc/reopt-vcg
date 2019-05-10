@@ -183,8 +183,12 @@ def read_word (s : machine_state) (addr : machine_word) (n : ℕ) : option (bitv
   s.mem.read_word addr n
 
 def print_regs (s : machine_state) : string :=
-  let lines := list.zip_with (λn r, n ++ ": " ++ repr r ++ "\n") reg.r64_names s.gpregs.to_list 
+  let lines := list.zip_with (λn (r : bitvec 64), n ++ ": " ++ r.pp_hex ++ ", ") reg.r64_names s.gpregs.to_list
   in string.join lines
+
+def print_set_flags (s : machine_state) : string :=
+  let lines := list.zip_with (λn (r : bool), if r then n else "") reg.flag_names s.flags.to_list
+  in "[" ++ string.intercalate ", " (list.filter (λs, s.length > 0) lines) ++ "]"
 
 end machine_state
 
@@ -203,6 +207,17 @@ instance arg_lval_repr : has_repr arg_lval := ⟨repr⟩
 end arg_lval
 
 section with_nat_env
+
+-- OS stuff
+parameters (os_state : Type)
+
+structure system_state := 
+  (machine_state : machine_state)
+  (os_state      : os_state)
+
+@[reducible]
+def system_m := state_t system_state (except string)
+parameter (os_transition : system_m unit)
 
 parameter (nenv : nat_env)
 
@@ -263,14 +278,14 @@ inductive arg_value
 def environment := list arg_value
 
 structure evaluator_state : Type :=
-  (machine_state : machine_state)
-  (environment : environment) -- read only, but reading can fail
-  (locals : rbmap ℕ (sigma value))
+  (system_state : system_state)
+  (environment  : environment) -- read only, but reading can fail
+  (locals       : rbmap ℕ (sigma value))
 
 -- namespace evaluator_state
 
-def evaluator_state.empty : evaluator_state := 
-  { machine_state := machine_state.empty
+def evaluator_state.init (sst : system_state) : evaluator_state := 
+  { system_state  := sst
   , environment   := []
   , locals        := mk_rbmap ℕ (sigma value)
   }
@@ -280,7 +295,6 @@ def evaluator_state.empty : evaluator_state :=
 -- Monad for evaluating with failure.  This nesting might be useful to get the ip where things break?
 @[reducible]
 def evaluator := state_t evaluator_state (except string)
-
 
 -- FIXME: are these an oversight in the stdlib? 
 instance (ε): monad_except ε (except ε) := 
@@ -342,7 +356,7 @@ def evaluator.run {a : Type} (m : evaluator a) (s : evaluator_state) : except st
 
 def evaluator.read_memory_at (addr : machine_word) (n : ℕ) : evaluator (bitvec n) := do
     s <- get, 
-    match s.machine_state.read_word addr (n / 8) with
+    match s.system_state.machine_state.read_word addr (n / 8) with
     | none := throw "read_memory_at: no bytes at addr" 
     | (some w) := 
       if H : 8 * (n / 8) = n
@@ -350,11 +364,14 @@ def evaluator.read_memory_at (addr : machine_word) (n : ℕ) : evaluator (bitvec
       else throw "evaluator.read_memory_at: width not a multiple of 8"
     end
 
+def evaluator.map_machine_state (f : machine_state → machine_state) : evaluator unit :=
+  modify (λ(s : evaluator_state), { s with system_state := { s.system_state with machine_state := f s.system_state.machine_state } })
+
 def evaluator.write_memory_at : Π{tp : type} (addr : machine_word) (bytes : value tp), evaluator unit
   | (bv e) addr bytes :=
     let width := eval_nat_expr e
     in (if H : width = 8 * (width / 8)
-        then modify (λs, { s with machine_state := s.machine_state.store_word addr (bitvec.cong H bytes) })
+        then evaluator.map_machine_state (λ(s : machine_state), s.store_word addr (bitvec.cong H bytes))
         else throw "evaluator.write_memory_at: width not a multiple of 8")
   | _ _ _ := throw "evaluator.write_memory_at not a bv"
 
@@ -382,9 +399,9 @@ end
 def concrete_reg.set : Π{tp : type}, concrete_reg tp -> value tp -> evaluator unit
   | ._ (concrete_reg.gpreg idx rtp) b := 
     let b' : bitvec rtp.width' := eq.rec b (width_width' rtp)
-    in modify (λ(s : evaluator_state), { s with machine_state := machine_state.update_gpreg idx (reg.inject rtp b') s.machine_state })
+    in evaluator.map_machine_state (machine_state.update_gpreg idx (reg.inject rtp b'))
   | ._ (concrete_reg.flagreg idx)   b := 
-    modify (λ(s : evaluator_state), { s with machine_state := machine_state.update_flag idx (λ_, b) s.machine_state })
+    evaluator.map_machine_state (machine_state.update_flag idx (λ_, b))
   
 def concrete_reg.from_state : Π{tp : type}, concrete_reg tp -> machine_state -> value tp
   | _ (concrete_reg.gpreg idx rtp) s := 
@@ -392,7 +409,9 @@ def concrete_reg.from_state : Π{tp : type}, concrete_reg tp -> machine_state ->
     in begin simp [value, width_width' nenv rtp], exact v end
   | _ (concrete_reg.flagreg idx)   s := s.get_flag idx
 
-def concrete_reg.read {tp : type} (r : concrete_reg tp) : evaluator (value tp) := do s <- get, return (concrete_reg.from_state r s.machine_state)
+def concrete_reg.read {tp : type} (r : concrete_reg tp) : evaluator (value tp) := 
+    do s <- get, 
+       return (concrete_reg.from_state r s.system_state.machine_state)
 
 -- namespace arg_lval 
 
@@ -527,6 +546,13 @@ def value.partial_eq : Π{tp : type}, type.has_eq tp -> value tp -> value tp -> 
     in (list.zip (array.to_list v1) (array.to_list v2)).all (λ(v : (value tp × value tp)), value.partial_eq pf' v.fst v.snd)
   | (pair tp tp') pf v1 v2 := 
     band (value.partial_eq pf.left v1.fst v2.fst) (value.partial_eq pf.right v1.snd v2.snd)
+
+-- Returns the number of bits that are tt mod 2
+def bitvec.parity {n : ℕ} (b : bitvec n) : bool :=
+  bitvec.foldl bxor ff b
+
+example : bitvec.parity (3 : bitvec 4) = ff := by refl
+example : bitvec.parity (7 : bitvec 4) = tt := by refl
 
 def prim.eval : Π{tp : type}, prim tp -> evaluator (value tp)
   -- `(eq tp)` returns `true` if two values are equal.
@@ -680,8 +706,9 @@ def prim.eval : Π{tp : type}, prim tp -> evaluator (value tp)
 -- (if n < eval_nat_expr w 
 --                           then bitvec.nth b n
 --                           else bitvec.msb b)
-         end)   
-  | ._ (prim.even_parity i) := throw "prim.eval.even_parity unimplemented"
+         end)
+   
+  | ._ (prim.even_parity i) := return (λb, bitvec.parity b = ff)
   -- `(bsf i)` returns the index of least-significant bit that is 1.
   | ._ (prim.bsf i)         := throw "prim.eval.bsf unimplemented"
   -- `(bsr i)` returns the index of most-significant bit that is 1.
@@ -769,25 +796,7 @@ def expression.eval : Π{tp : type}, expression tp -> evaluator (value tp)
     arg_value.to_value av tp
 
 def evaluator.set_ip (new_ip : bitvec 64) : evaluator unit :=
-  modify (λ(s : evaluator_state), 
-          {s with machine_state := { s.machine_state with ip := new_ip}})
-
-def event.eval : event -> evaluator unit
-  | event.syscall := throw "syscall"
-  | (event.unsupported msg) := throw ("event.eval: unsupported: " ++ msg)
-  | event.pop_x87_register_stack := throw "pop_x87_register_stack"
-  | (event.call addr) := do 
-    new_ip <- expression.eval addr,
-    evaluator.set_ip new_ip
-  | (event.jmp addr) := do
-    new_ip <- expression.eval addr,
-    evaluator.set_ip new_ip
-  | (event.branch c addr) := do
-    new_ip <- expression.eval addr,
-    b      <- expression.eval c,
-    when b (evaluator.set_ip new_ip)
-  | event.hlt := throw "halt"
-  | (event.xchg addr1 addr2) := throw "xchg"
+  evaluator.map_machine_state (λ(s : machine_state), { s with ip := new_ip })
 
 def lhs.set : Π{tp : type}, lhs tp -> value tp -> evaluator unit
   | ._ (lhs.set_reg r) v        := concrete_reg.set r v
@@ -800,14 +809,103 @@ def lhs.set : Π{tp : type}, lhs tp -> value tp -> evaluator unit
     arg_value.set_value av v
   | ._ (lhs.streg idx) v  := throw "lhs.set: unsupported FP write"
 
+def lhs.read : Π{tp : type}, lhs tp -> evaluator (value tp)
+  | ._ (lhs.set_reg r)        := concrete_reg.read r
+  | ._ (lhs.write_addr ae tp) := do
+    addr <- expression.eval ae,
+    match tp with
+      | (bv we) := evaluator.read_memory_at addr (eval_nat_expr we)
+      | _ := throw "lhs.read Trying to store non-bitvector"
+    end
+  | ._ (lhs.write_arg idx tp) := do
+    av <- evaluator.arg_at_idx idx,
+    -- fixme: we ignore tp here?
+    arg_value.to_value av tp
+  | ._ (lhs.streg idx) := throw "lhs.set: unsupported FP write"
+
+def evaluator.push64 (v : value (bv 64)) : evaluator unit := do
+  sp <- lhs.read rsp,
+  let sp' := sp - 8 in do
+    lhs.set rsp sp',
+    evaluator.write_memory_at sp' v
+
+
+
+def read_cpuid : evaluator unit :=
+  -- Copied from the cpuid results from my macbook
+  -- Note: CPUID is allowed to return 0s 
+  let cpuid_values : rbmap ℕ (bitvec 32 × bitvec 32 × bitvec 32 × bitvec 32) :=
+    rbmap.from_list [ (0, (0xd, 0x756e6547, 0x6c65746e, 0x49656e69))
+                    , (1, (0x40661, 0x2100800, 0x7ffafbff, 0xbfebfbff))
+                    , (2, (0x76036301, 0xf0b5ff, 0x0, 0xc10000))
+                    , (3, (0x0, 0x0, 0x0, 0x0))
+                    , (4, (0x1c004121, 0x1c0003f, 0x3f, 0x0))
+                    , (5, (0x40, 0x40, 0x3, 0x42120))
+                    , (6, (0x77, 0x2, 0x9, 0x0))
+                    , (7, (0x0, 0x27ab, 0x0, 0x9c000000))
+                    , (8, (0x0, 0x0, 0x0, 0x0))
+                    , (9, (0x0, 0x0, 0x0, 0x0))
+                    , (10, (0x7300403, 0x0, 0x0, 0x603))
+                    , (11, (0x1, 0x2, 0x100, 0x6))
+                    , (12, (0x0, 0x0, 0x0, 0x0))
+                    , (13, (0x7, 0x340, 0x340, 0x0))
+                    , (2147483648, (0x80000008, 0x0, 0x0, 0x0))
+                    , (2147483649, (0x0, 0x0, 0x21, 0x2c100800))
+                    , (2147483650, (0x65746e49, 0x2952286c, 0x726f4320, 0x4d542865))
+                    , (2147483651, (0x37692029, 0x3839342d, 0x20514830, 0x20555043))
+                    , (2147483652, (0x2e322040, 0x48473038, 0x7a, 0x0))
+                    , (2147483653, (0x0, 0x0, 0x0, 0x0))
+                    , (2147483654, (0x0, 0x0, 0x1006040, 0x0))
+                    , (2147483655, (0x0, 0x0, 0x0, 0x100))
+                    , (2147483656, (0x3027, 0x0, 0x0, 0x0))
+                    ] in -- FIXME: we need to look at rcx sometimes as well
+    let cpuid_fn (n : ℕ) : (bitvec 32 × bitvec 32 × bitvec 32 × bitvec 32) :=
+      match cpuid_values.find n with
+      | none     := (0, 0, 0, 0)
+      | (some r) := r
+      end
+    in do 
+      raxv <- lhs.read rax,
+      match cpuid_fn raxv.to_nat with 
+      | (axv, bxv, cxv, dxv) := do 
+        lhs.set eax axv,
+        lhs.set ebx bxv,
+        lhs.set ecx cxv,
+        lhs.set edx dxv
+      end
+
+
+def event.eval : event -> evaluator unit
+  | event.syscall :=
+    adapt_state (λ(s : evaluator_state), (s.system_state, s))
+                (λs s', { s' with system_state := s })
+                os_transition
+  | (event.unsupported msg) := throw ("event.eval: unsupported: " ++ msg)
+  | event.pop_x87_register_stack := throw "pop_x87_register_stack"
+  | (event.call addr) := do
+    new_ip <- expression.eval addr,
+    s <- get,
+    evaluator.push64 s.system_state.machine_state.ip,
+    evaluator.set_ip new_ip
+
+  | (event.jmp addr) := do
+    new_ip <- expression.eval addr,
+    evaluator.set_ip new_ip
+  | (event.branch c addr) := do
+    new_ip <- expression.eval addr,
+    b      <- expression.eval c,
+    when b (evaluator.set_ip new_ip)
+  | event.hlt := throw "halt"
+  | (event.xchg addr1 addr2) := throw "xchg"
+  | event.cpuid := read_cpuid
+
 -- def lhs.read : Π{tp : type}, lhs tp -> evaluator (value tp)
 --   | ._ (lhs.reg r)       := reg.read r
 --   | ._ (lhs.addr a)      := addr.read a
 --   | ._ (lhs.arg idx tp)  := do av <- evaluator.arg_at_idx idx, 
 --                                   arg_value.to_value av tp
 --   | ._ (lhs.streg idx)   := throw "lhs.read: unsupported FP read"
-
-
+    
 def action.eval : action -> evaluator unit
   | (action.set l e) := do v <- expression.eval e,
                            lhs.set l v
@@ -827,10 +925,10 @@ def action.eval : action -> evaluator unit
   | (action.event e) := event.eval e
 
 -- FIXME: check pattern.context |- environment
-def pattern.eval (p : pattern) (e : environment) (s : machine_state) : except string machine_state :=
+def pattern.eval (p : pattern) (e : environment) (s : system_state) : except string system_state :=
   -- only machine_state is preserved across instructions
-  let st := { evaluator_state.empty with machine_state := s, environment := e } 
-  in do (_, s') <- evaluator.run (monad.mapm' action.eval p.actions) st, return s'.machine_state
+  let st := { evaluator_state.init s with environment := e }
+  in do (_, s') <- evaluator.run (monad.mapm' action.eval p.actions) st, return s'.system_state
 
 end with_nat_env
 

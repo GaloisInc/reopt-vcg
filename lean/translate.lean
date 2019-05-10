@@ -243,11 +243,11 @@ def instruction_family (inst : decodex86.instruction) : string :=
 def instruction_map : rbmap string instruction :=
   rbmap.from_list (list.map (λ(i : instruction), (i.mnemonic, i)) all_instructions)
 
-def eval_instruction (s : machine_state) (i : decodex86.instruction) : except string machine_state :=
+def eval_instruction { ost : Type } (s : system_state ost) (sys : system_m ost unit) (i : decodex86.instruction) : except string (system_state ost) :=
   match instruction_map.find (instruction_family i) with               
   | none := throw ("Unknown instruction: " ++ i.mnemonic)
-  | (some inst) := do (sigma.mk nenv env, p) <- annotate' "pattern" (instantiate_pattern s inst i),
-                      annotate' "pattern.eval" (pattern.eval nenv p env s)
+  | (some inst) := do (sigma.mk nenv env, p) <- annotate' "pattern" (instantiate_pattern s.machine_state inst i),
+                      annotate' "pattern.eval" (pattern.eval ost sys nenv p env s)
   end
 
 /- testing -/
@@ -283,14 +283,14 @@ def string_to_instruction (s : string) : option decodex86.instruction :=
 --                 end
 --   end
 
-def run_get_rax (s : string) : string :=
-  match string_to_instruction s with 
-  | none     := "No parse"
-  | (some i) := match (eval_instruction machine_state.empty i) with
-                | (except.error e) := "error: " ++ e
-                | (except.ok    s) := s.print_regs -- has_repr.repr (s.get_gpreg 0)
-                end
-  end
+-- def run_get_rax (s : string) : string :=
+--   match string_to_instruction s with 
+--   | none     := "No parse"
+--   | (some i) := match (eval_instruction machine_state.empty i) with
+--                 | (except.error e) := "error: " ++ e
+--                 | (except.ok    s) := s.print_regs -- has_repr.repr (s.get_gpreg 0)
+--                 end
+--   end
 
 -- #eval instruction_family <$> string_to_instruction "(instruction MOV32ri (register rax eax 32 0) (immediate 4 1))"
 
