@@ -748,6 +748,7 @@ inductive event
 | branch : expression bit → bv 64 → event
 | hlt : event
 | xchg {w : nat_expr} (addr1: bv w) (addr2: bv w) : event
+| cpuid : event
 
 ------------------------------------------------------------------------
 -- action

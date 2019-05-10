@@ -178,20 +178,20 @@ def mov : instruction := do
 
 def movsx : instruction := do
  definst "movsx" $ do
-   pattern λ(w : one_of [16,32,64]) (u : one_of [8, 16]) (dest : lhs (bv w)) (src : bv u), do
+   pattern λ(w : one_of [16,32,64]) (u : one_of [8, 16, 32]) (dest : lhs (bv w)) (src : bv u), do
      dest .= sext src w
    pat_end
 
 ------------------------------------------------------------------------
 -- movsxd definition
 -- Move with Sign-Extension
-
+/-
 def movsxd : instruction := do
  definst "movsxd" $ do
    pattern λ(w : one_of [16,32,64]) (u : one_of [16, 32]) (dest : lhs (bv w)) (src : bv u), do
      dest .= sext src w
    pat_end
-
+-/
 ------------------------------------------------------------------------
 -- movzx definition
 -- Move with Zero-Extend
@@ -662,6 +662,12 @@ def syscall : instruction :=
   definst "syscall" $ mk_pattern (record_event event.syscall)
 
 ------------------------------------------------------------------------
+-- cpuid definition
+
+def cpuid : instruction :=
+  definst "cpuid" $ mk_pattern (record_event event.cpuid)
+
+------------------------------------------------------------------------
 -- hlt definition
 -- Halt
 
@@ -712,11 +718,63 @@ def jmp : instruction :=
    pat_end
 
 ------------------------------------------------------------------------
+-- Condition codes
+--
+-- Conditional codes for instructions, some of these have multiple names. They only vary
+-- in the condition checked so we use helper functions to associate mnemonics with
+-- the conditions instead of defining each instruction at the top level.
+-- TODO: We might be able to remove the aliases. It looks like the instruction encodings are the same
+-- so it might suffice to find out what the decoder will pick as the canonical mnemonic.
+
+def condition_codes : list (list string × expression bit)  := 
+ [ -- Jump if above (cf = 0 and zf = 0)
+   (["a", "nbe"], expression.bit_and ((cf : bit) = bit_zero) ((zf : bit) = bit_zero))
+   -- Jump if above or equal (cf = 0)
+ , (["ae", "nb", "nc"], (cf : bit) = bit_zero)
+   -- Jump if below (cf = 1)
+ , (["b", "c", "nae"], (cf : bit))
+   -- Jump if below or equal (cf = 1 or zf = 1)
+ , (["be"], expression.bit_or (cf : bit) (zf : bit))
+   -- Jump if CX is 0
+ , (["cxz"], (cx : bv 16) = 0)
+   -- Jump if ECX is 0
+ , (["ecxz"], (ecx : bv 32) = 0)
+   -- Jump if RCX is 0
+ , (["rcxz"], (rcx : bv 64) = 0)
+   -- Jump if equal (zf = 1)
+ , (["e", "z"], (zf : bit))
+   -- Jump if greater (zf = 0 and sf = of)
+ , (["g", "nle"], expression.bit_and ((zf : bit) = bit_zero) ((sf : bit) = (of : bit)))
+   -- Jump if greater or equal (sf = of)
+ , (["ge", "nl"], (sf : bit) = (of : bit))
+   -- Jump if less (sf ≠ of)
+ , (["l", "nge"], (sf : bit) ≠ (of : bit))
+   -- Jump if less or equal (zf = 1 or sf ≠ of)
+ , (["le", "ng"], expression.bit_or (expression.of_lhs zf = bit_one) (expression.of_lhs sf ≠ expression.of_lhs of))
+   -- Jump if not above (cf = 1 or zf = 1)
+ , (["na"], expression.bit_or (expression.of_lhs cf = bit_one) (expression.of_lhs zf = bit_one))
+   -- Jump if not equal (zf = 0)
+ , (["ne", "nz"], expression.of_lhs zf = bit_zero)
+   -- Jump if not overflow (of = 0)
+ , (["no"], expression.of_lhs of = bit_zero)
+   -- Jump if not parity (pf = 0)
+ , (["np", "po"], expression.of_lhs pf = bit_zero)
+   -- Jump if not sign (sf = 0)
+ , (["ns"], expression.of_lhs sf = bit_zero)
+   -- Jump if overflow (of = 1)
+ , (["o"], expression.of_lhs of = bit_one)
+   -- Jump if parity (pf = 1)
+ , (["p", "pe"], expression.of_lhs pf = bit_one)
+   -- Jump if sign (sf = 1)
+ , (["s"], expression.of_lhs sf = bit_one)
+ ]
+
+------------------------------------------------------------------------
 -- Jcc definition
 -- Conditional jumps
 
 def mk_jcc_instruction : string × expression bit → instruction
- | (name, cc) := definst name $ do
+ | (name, cc) := definst ("j" ++ name) $ do
  pattern λ(addr : bv 64), do
    record_event (event.branch cc addr)
  pat_end
@@ -729,48 +787,29 @@ def mk_jcc_instruction_aliases : list string × expression bit → list instruct
 -- the conditions instead of defining each instruction at the top level.
 -- TODO: We might be able to remove the aliases. It looks like the instruction encodings are the same
 -- so it might suffice to find out what the decoder will pick as the canonical mnemonic.
-def jcc_instructions : list instruction := list.join $ list.map mk_jcc_instruction_aliases
- [ -- Jump if above (cf = 0 and zf = 0)
-   (["ja", "jnbe"], expression.bit_and ((cf : bit) = bit_zero) ((zf : bit) = bit_zero))
-   -- Jump if above or equal (cf = 0)
- , (["jae", "jnb", "jnc"], (cf : bit) = bit_zero)
-   -- Jump if below (cf = 1)
- , (["jb", "jc", "jnae"], (cf : bit))
-   -- Jump if below or equal (cf = 1 or zf = 1)
- , (["jbe"], expression.bit_or (cf : bit) (zf : bit))
-   -- Jump if CX is 0
- , (["jcxz"], (cx : bv 16) = 0)
-   -- Jump if ECX is 0
- , (["jecxz"], (ecx : bv 32) = 0)
-   -- Jump if RCX is 0
- , (["jrcxz"], (rcx : bv 64) = 0)
-   -- Jump if equal (zf = 1)
- , (["je", "jz"], (zf : bit))
-   -- Jump if greater (zf = 0 and sf = of)
- , (["jg", "jnle"], expression.bit_and ((zf : bit) = bit_zero) ((sf : bit) = (of : bit)))
-   -- Jump if greater or equal (sf = of)
- , (["jge", "jnl"], (sf : bit) = (of : bit))
-   -- Jump if less (sf ≠ of)
- , (["jl", "jnge"], (sf : bit) ≠ (of : bit))
-   -- Jump if less or equal (zf = 1 or sf ≠ of)
- , (["jle", "jng"], expression.bit_or (expression.of_lhs zf = bit_one) (expression.of_lhs sf ≠ expression.of_lhs of))
-   -- Jump if not above (cf = 1 or zf = 1)
- , (["jna"], expression.bit_or (expression.of_lhs cf = bit_one) (expression.of_lhs zf = bit_one))
-   -- Jump if not equal (zf = 0)
- , (["jne", "jnz"], expression.of_lhs zf = bit_zero)
-   -- Jump if not overflow (of = 0)
- , (["jno"], expression.of_lhs of = bit_zero)
-   -- Jump if not parity (pf = 0)
- , (["jnp", "jpo"], expression.of_lhs pf = bit_zero)
-   -- Jump if not sign (sf = 0)
- , (["jns"], expression.of_lhs sf = bit_zero)
-   -- Jump if overflow (of = 1)
- , (["jo"], expression.of_lhs of = bit_one)
-   -- Jump if parity (pf = 1)
- , (["jp", "jpe"], expression.of_lhs pf = bit_one)
-   -- Jump if sign (sf = 1)
- , (["js"], expression.of_lhs sf = bit_one)
- ]
+def jcc_instructions : list instruction := 
+  list.join $ list.map mk_jcc_instruction_aliases condition_codes
+
+------------------------------------------------------------------------
+-- SETcc definition
+-- Conditional sets
+
+def mk_setcc_instruction : string × expression bit → instruction
+ | (name, cc) := definst ("set" ++ name) $ do
+ pattern λ(dest : lhs (bv 8)), do
+   dest .= mux cc 0 1
+ pat_end
+
+def mk_setcc_instruction_aliases : list string × expression bit → list instruction
+ | (names, cc) := list.map (λn, mk_setcc_instruction (n, cc)) names
+
+-- Conditional jump instructions, some of these have multiple names. They only vary
+-- in the condition checked so we use helper functions to associate mnemonics with
+-- the conditions instead of defining each instruction at the top level.
+-- TODO: We might be able to remove the aliases. It looks like the instruction encodings are the same
+-- so it might suffice to find out what the decoder will pick as the canonical mnemonic.
+def setcc_instructions : list instruction := 
+  list.join $ list.map mk_setcc_instruction_aliases condition_codes
 
 ------------------------------------------------------------------------
 -- leave definition
@@ -800,12 +839,12 @@ def pop_def : instruction :=
 ------------------------------------------------------------------------
 -- push definition
 -- Push Word, Doubleword or Quadword Onto the Stack
-
+ 
 def push_def : instruction :=
  definst "push" $ do
    pattern λ(w : one_of [8, 16, 32, 64]) (value: bv w),do
      rsp .= rsp - nat_to_bv (w/8),
-     rsp .= uext value 64
+     lhs.write_addr rsp _ .= value
    pat_end
 
 
@@ -813,7 +852,7 @@ def push_def : instruction :=
 -- ret definition
 -- Return from Procedure
 def ret : instruction :=
- definst "ret" $ do
+ definst "retq" $ do
    pattern do
      addr ← eval $ expression.read (bv 64) rsp,
      rsp .= rsp + 8,
@@ -997,6 +1036,7 @@ def all_instructions :=
   , clc
   , cld
   , cmp
+  , cpuid
   , cqo
   , cwd
   , cwde
@@ -1010,13 +1050,13 @@ def all_instructions :=
   , imul
   , inc
   ] ++
-  jcc_instructions ++
+  jcc_instructions ++ setcc_instructions ++
   [ jmp
   , lea
   , leave
   , mov
   , movsx
-  , movsxd
+  -- , movsxd
   , movzx
   , mul
   , neg
