@@ -23,6 +23,26 @@ instance (w:ℕ) : decidable_eq (bitvec w) := by tactic.mk_dec_eq_instance
 -- By default just show a bitvector as a nat.
 instance (w:ℕ) : has_repr (bitvec w) := ⟨λv, repr (v.to_nat)⟩
 
+section to_hex
+
+protected def to_hex_with_leading_zeros : list char → ℕ → ℕ → string
+| prev 0 _ := prev.as_string
+| prev (nat.succ w) x :=
+  let c := (nat.land x 0xf).digit_char in
+  to_hex_with_leading_zeros (c::prev) w (nat.shiftr x 4)
+
+protected def to_hex' : list char → ℕ → ℕ → string
+| prev 0 _ := prev.as_string
+| prev w 0 := prev.as_string
+| prev (nat.succ w) x :=
+  let c := (nat.land x 0xf).digit_char in
+  to_hex' (c::prev) w (nat.shiftr x 4)
+
+--- Print word as hex
+def pp_hex {n : ℕ} (v : bitvec n) : string := "0x" ++ bitvec.to_hex' [] (n / 4) v.to_nat
+
+end to_hex
+
 section zero
 
   -- Create a zero bitvector
@@ -254,6 +274,26 @@ section listlike
 
   def slice {w: ℕ} (u l k:ℕ) (H: w = k + (u + 1 - l)) (x: bitvec w) : bitvec (u + 1 - l) :=
      bitvec.of_nat _ (nat.shiftr x.to_nat l)
+
+  protected
+  def {u} foldl' {α : Sort u} (f : α -> bool → α) (x : ℕ) (init : α) : ℕ → α
+    | zero       := init
+    | (succ idx) := f (foldl' idx) (x.test_bit idx)
+    
+  -- foldl follows nth's behaviour, so 
+  -- foldl f i b = f (f (f i b!0) b!1) b!2 etc.
+  def {u} foldl {α : Sort u} {n : ℕ} (f : α → bool → α) (init : α) (b : bitvec n) : α :=
+    bitvec.foldl' f b.to_nat init n
+
+  protected
+  def {u} foldr' {α : Sort u} (f : bool → α → α) (x : ℕ) (init : α) (n : ℕ) : ℕ → α
+    | zero       := init
+    | (succ idx) := f  (x.test_bit (n - succ idx)) (foldr' idx)
+    
+  -- foldr follows nth's behaviour, so 
+  -- foldr f i b = f b!0 (f b!1 ... (f b!(n-1) i))
+  def {u} foldr {α : Sort u} {n : ℕ} (f : bool → α → α) (init : α) (b : bitvec n) : α :=
+    bitvec.foldr' f b.to_nat init n n
 
 end listlike
 
