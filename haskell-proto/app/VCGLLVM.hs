@@ -86,8 +86,6 @@ ppEvent (ReturnEvent _) = "return"
 instance Show Event where
   show = ppEvent
 
--- TODO: add a predicate to distinguish stack address and heap address
--- TODO: arbitray size read/write to memory
 data LState = LState
   { disjoint  :: ![(SMT.Term, SMT.Term)]
   , events    :: ![Event]
@@ -235,7 +233,7 @@ assign2SMT ident (Call isTailCall retty f args) = do
   -- Evaluate function
   fSym <- case f of
             ValSymbol s -> pure s
-            _ -> fail $ "VCG currently only supports directly calls."
+            _ -> fail $ "VCG currently only supports direct calls."
   -- Evaluate arguments
   argValues <- traverse evalTyped args
   -- Add invoke event

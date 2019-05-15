@@ -66,6 +66,17 @@ import qualified VCGMacaw as M
 
 $(pure [])
 
+warning :: String -> IO ()
+warning msg = do
+  hPutStrLn stderr ("Warning: " ++ msg)
+
+fatalError :: String -> IO a
+fatalError msg = do
+  hPutStrLn stderr msg
+  exitFailure
+
+$(pure [])
+
 ppBlock :: BlockLabel -> String
 ppBlock (Named (Ident s)) = s
 ppBlock (Anon i) = show i
@@ -78,18 +89,40 @@ findBlock cfg lbl = Map.lookup (ppBlock lbl) (Ann.blocks cfg)
 
 $(pure [])
 
--- | Information needed for checking equivalence of entire module
-data ModuleInfo = ModuleInfo { moduleMem :: !(Memory 64)
-                               -- ^ Machine code memory
-                             , symbolAddrMap :: !(Map BS.ByteString (MemSegmentOff 64))
-                               -- ^ Maps bytes to the symbol name
-                             }
+------------------------------------------------------------------------
+-- ModuleVCG
 
+-- | Information needed for checking equivalence of entire module
+data ModuleVCGContext = ModuleVCGContext { moduleMem :: !(Memory 64)
+                                           -- ^ Machine code memory
+                                         , symbolAddrMap :: !(Map BS.ByteString (MemSegmentOff 64))
+                                           -- ^ Maps bytes to the symbol name
+                                         }
 
 $(pure [])
 
+-- | A monad for running verification of an entire module
+newtype ModuleVCG a = ModuleVCG { _unModuleVCG :: ReaderT ModuleVCGContext IO a }
+  deriving ( Functor
+           , Applicative
+           , Monad
+           , MonadIO
+           , MonadReader ModuleVCGContext
+           )
+
+runModuleVCG :: ModuleVCGContext -> ModuleVCG () -> IO ()
+runModuleVCG ctx (ModuleVCG m) = do
+  r <- runReaderT m ctx
+  pure r
+
+$(pure [])
+
+------------------------------------------------------------------------
+-- BlockVCG
 
 -- | Callback functions for interacting with SMT solver.
+--
+-- These are generated separately for each block.
 data CallbackFns = CallbackFns
   { addCommandCallback :: !(SMT.Command -> IO ())
     -- ^ Invoked to add an SMT command.
@@ -120,7 +153,7 @@ data BlockVCGContext = BlockVCGContext
     -- reads/writes at that address.
   , callbackFns :: !CallbackFns
     -- ^ Functions for interacting with SMT solver.
-  , mcModuleInfo :: !ModuleInfo
+  , mcModuleVCGContext :: !ModuleVCGContext
     -- ^ Information about machine code module.
   , mcBlockEndAddr :: !(MemAddr 64)
     -- ^ The end address of the block.
@@ -165,6 +198,7 @@ data BlockVCGState = BlockVCGState
 
 $(pure [])
 
+-- | A Monad for verifying an individual block.
 newtype BlockVCG a = BlockVCG { unBlockVCG :: BlockVCGContext
                                            -> (a -> BlockVCGState -> IO ())
                                            -> BlockVCGState
@@ -257,7 +291,7 @@ getMCAddrOfLLVMFunction m nm = do
 assertFnNameEq :: L.Symbol -> SMT.Term -> BlockVCG ()
 assertFnNameEq (L.Symbol nm) macawIP = do
   -- Get the map from symbol names to the associated address
-  addrMap <- asks $ symbolAddrMap . mcModuleInfo
+  addrMap <- asks $ symbolAddrMap . mcModuleVCGContext
   -- Get the address in the original binary of the executable.
   let Right addr = getMCAddrOfLLVMFunction addrMap nm
   -- Generate an SMT term with the address associated with the symbol.
@@ -573,7 +607,7 @@ getNextEvents = do
   if not (addrLt addr (mcBlockEndAddr ctx)) then
     error $ "Unexpected end of machine code events."
    else do
-    let mem = moduleMem (mcModuleInfo ctx)
+    let mem = moduleMem (mcModuleVCGContext ctx)
     let Just addrSegOff = asSegmentOff mem addr
     let loc = ExploreLoc { loc_ip = addrSegOff
                          , loc_x87_top = mcX87Top s
@@ -935,19 +969,45 @@ writeCommand :: Handle -> SMT.Command -> IO ()
 writeCommand h (SMT.Cmd b) =
   LText.hPutStrLn h (Builder.toLazyText b)
 
-interactiveVerifyGoal :: FilePath -- ^ Name of YAML file for error-reporting purposes
-                      -> String -- ^ Name of function to verify
-                      -> String -- ^ Label of block
-                      -> IORef Integer -- ^ Index of goal to discharge within block
-                      -> Handle -- ^ Command handle
-                      -> Handle -- ^ Response handle
-                      -> String
+-- | Information needed for interatively verifying goal.
+data InteractiveContext = InteractiveContext
+  { ictxAnnFile :: !FilePath
+     -- ^ Name of YAML file for error-reporting purposes
+  , ictxFunName :: !String
+    -- ^ Name of function to verify
+  , ictxBlockLabel :: !String
+     -- ^ Label of block
+  , ictxAllGoalCounter :: !(IORef Integer)
+    -- ^ Counter for all goals
+  , ictxVerifiedGoalCounter :: !(IORef Integer)
+    -- ^ Counter for all successfully verified goals.
+  , ictxBlockGoalCounter :: !(IORef Integer)
+    -- ^ Index of goal to discharge within block
+  , ictxCmdHandle :: !Handle
+     -- ^ Handle for sending commands to
+  , ictxRespHandle :: !Handle
+     -- ^ Handle for reading responses from
+  }
+
+
+-- | Function to verify a SMT proposition is unsat.
+interactiveVerifyGoal :: InteractiveContext -- ^ Context for verifying goals
                       -> SMT.Term
                          -- ^ Negation of goal to verify
+                      -> String
+                         -- ^ Name of proposition for reporting purposes.
                       -> IO ()
-interactiveVerifyGoal annFile funName lbl goalCounter cmdHandle respHandle propName ng =do
-  cnt <- readIORef goalCounter
-  modifyIORef' goalCounter (+1)
+interactiveVerifyGoal ictx ng propName = do
+  let annFile = ictxAnnFile ictx
+  let funName = ictxFunName ictx
+  let lbl = ictxBlockLabel ictx
+  let cmdHandle = ictxCmdHandle ictx
+  let respHandle = ictxRespHandle ictx
+
+  cnt <- readIORef (ictxBlockGoalCounter ictx)
+  modifyIORef' (ictxAllGoalCounter ictx)      (+1)
+  modifyIORef' (ictxVerifiedGoalCounter ictx) (+1)
+  modifyIORef' (ictxBlockGoalCounter ictx)    (+1)
   let fname = standaloneGoalFilename funName lbl cnt
   hPutStrLn stderr $ "Verifying: " ++ propName
   writeCommand cmdHandle $ SMT.checkSatAssuming [ng]
@@ -977,46 +1037,70 @@ interactiveVerifyGoal annFile funName lbl goalCounter cmdHandle respHandle propN
 
 runCallbacks :: FilePath -- ^ Name of yaml file for error reporting purposes.
              -> String -- ^ Command line for running SMT solver
-             -> String -- ^ Name of function
-             -> String -- ^ Name of block
-             -> (CallbackFns -> IO a)
+             -> (CallbackGenerator -> IO a)
              -> IO a
-runCallbacks annFile cmdline funName lbl action = do
-  goalCounter <- newIORef 0
-  let cp = (shell cmdline)
-         { std_in = CreatePipe
-         , std_out = CreatePipe
-         , std_err = CreatePipe
-         }
-  createResult <- try $ createProcess cp
-  case createResult of
-    Right (Just cmdHandle, Just respHandle, Just errHandle, ph) -> do
-      errThread <- forkIO $ reportSMTErrors errHandle
-      flip finally (cleanup ph errThread) $ do
-        writeCommand cmdHandle $ SMT.setLogic SMT.allSupported
-        writeCommand cmdHandle $ SMT.setProduceModels True
-        let fns = CallbackFns
-              { addCommandCallback = \cmd -> do
-                  writeCommand cmdHandle cmd
-              , proveFalseCallback = \p msg -> do
-                  interactiveVerifyGoal annFile funName lbl goalCounter cmdHandle respHandle msg p
-              , proveTrueCallback = \p msg -> do
-                  interactiveVerifyGoal annFile funName lbl goalCounter cmdHandle respHandle msg (SMT.not p)
+runCallbacks annFile cmdline cont = do
+  -- Counter for all goals
+  allGoalCounter <- newIORef 0
+  -- Counter for goals successfully verified.
+  verifiedGoalCounter <- newIORef 0
+  let cbg = CBG $ \funName lbl action -> do
+        -- Create Goal counter for just this block.
+        blockGoalCounter <- newIORef 0
+        let cp = (shell cmdline)
+              { std_in = CreatePipe
+              , std_out = CreatePipe
+              , std_err = CreatePipe
               }
-        action fns
-    Right _ -> do
-      hPutStrLn stderr $ "Unexpected failure running " ++ cmdline
-      exitFailure
-    Left err -> do
-      hPutStrLn stderr $ "Could not execute " ++ cmdline
-      hPutStrLn stderr $ "  " ++ show (err :: IOException)
-      exitFailure
+        createResult <- try $ createProcess cp
+        case createResult of
+          Right (Just cmdHandle, Just respHandle, Just errHandle, ph) -> do
+            errThread <- forkIO $ reportSMTErrors errHandle
+            flip finally (cleanup ph errThread) $ do
+              writeCommand cmdHandle $ SMT.setLogic SMT.allSupported
+              writeCommand cmdHandle $ SMT.setProduceModels True
+              let ictx = InteractiveContext { ictxAnnFile = annFile
+                                            , ictxFunName = funName
+                                            , ictxBlockLabel = lbl
+                                            , ictxAllGoalCounter = allGoalCounter
+                                            , ictxVerifiedGoalCounter = verifiedGoalCounter
+                                            , ictxBlockGoalCounter = blockGoalCounter
+                                            , ictxCmdHandle = cmdHandle
+                                            , ictxRespHandle = respHandle
+                                            }
+              let fns = CallbackFns
+                    { addCommandCallback = \cmd -> do
+                        writeCommand cmdHandle cmd
+                    , proveFalseCallback = \p msg -> do
+                        interactiveVerifyGoal ictx p msg
+                    , proveTrueCallback = \p msg -> do
+                        interactiveVerifyGoal ictx (SMT.not p) msg
+                    }
+              action fns
+          Right _ -> do
+            hPutStrLn stderr $ "Unexpected failure running " ++ cmdline
+            exitFailure
+          Left err -> do
+            hPutStrLn stderr $ "Could not execute " ++ cmdline
+            hPutStrLn stderr $ "  " ++ show (err :: IOException)
+            exitFailure
+  r <- cont cbg
+  do allCnt <- readIORef allGoalCounter
+     verCnt <- readIORef verifiedGoalCounter
+     if verCnt < allCnt then do
+       hPutStrLn stdout "Verification Failed"
+      else do
+       hPutStrLn stdout "Verification Succeeded"
+     hPutStrLn stdout $ "Verified " ++ show verCnt ++ "/" ++ show allCnt ++ " Goals."
+
+  pure r
 
 type FunctionName = String
 
 -- | Tool for running verification conditions.
 newtype CallbackGenerator
-   = CBG { blockCallbacks :: forall a . FunctionName -> String-> (CallbackFns -> IO a) -> IO a }
+   = CBG { blockCallbacks :: forall a . FunctionName -> String-> (CallbackFns -> IO a) -> IO a
+         }
 
 exportCheckSatProblem :: FilePath
                          -- ^ Directory to write file to.
@@ -1061,16 +1145,16 @@ exportCallbacks outDir fn lbl action = do
     }
 
 runVCGs :: CallbackGenerator
-        -> ModuleInfo -- ^ Information needed to verify module.
         -> Ann.FunctionAnn -- ^ Annotations for the function we are verifying.
         -> ExploreLoc -- ^ Segment offset of this block.
         -> Ann.BlockAnn -- ^ Annotations for the block we are verifying.
         -> BlockVCG ()
-        -> IO ()
-runVCGs gen modInfo funAnn loc blockAnn action = do
+        -> ModuleVCG ()
+runVCGs gen funAnn loc blockAnn action = do
+  modCtx <- ask
   let thisSegOff = loc_ip loc
-  let mem = moduleMem modInfo
-  blockCallbacks gen (Ann.llvmFunName funAnn) (Ann.blockLabel blockAnn) $ \fns -> do
+  let mem = moduleMem modCtx
+  liftIO $ blockCallbacks gen (Ann.llvmFunName funAnn) (Ann.blockLabel blockAnn) $ \fns -> do
     let allocaMap = Map.fromList
           [ (Ann.allocaName a, Ann.allocaBinaryOffset a)
           | a <- Ann.blockAllocas blockAnn
@@ -1104,7 +1188,7 @@ runVCGs gen modInfo funAnn loc blockAnn action = do
                                   = extractMemEvents mem
                                   $ Ann.blockEvents blockAnn
                               , callbackFns = fns
-                              , mcModuleInfo = modInfo
+                              , mcModuleVCGContext = modCtx
                               , mcBlockEndAddr = incAddr sz (segoffAddr thisSegOff)
                               , mcBlockMap = blockMap
                               }
@@ -1183,8 +1267,8 @@ showError msg = do
   hPutStrLn stderr $ "Run `reopt-vcg --help` for additional information."
   exitFailure
 
-parseVCGArgs :: IO (Ann.MetaVCGConfig, CallbackGenerator)
-parseVCGArgs = do
+withVCGArgs :: (Ann.MetaVCGConfig -> CallbackGenerator -> IO a) -> IO a
+withVCGArgs action = do
   cmdArgs <- getArgs
   let initVCG = VCGArgs { reoptYaml = Nothing, requestedMode = DefaultMode }
   args <-
@@ -1214,24 +1298,21 @@ parseVCGArgs = do
             hPutStrLn stderr $ "  " ++ show warn
           exitFailure
         pure cfg
-  gen <-
-    case requestedMode args of
-      DefaultMode ->
-        pure $ CBG $ runCallbacks annFile "cvc4 --lang=smt2 --incremental"
-      ExportMode outdir -> do
-        r <- try $ createDirectoryIfMissing True outdir
-        case r of
-          Right () -> do
-            putStrLn $ "Writing output to " ++ outdir
-            pure $ CBG $ exportCallbacks outdir
-          Left e -> do
-            hPutStrLn stderr $ "Error creating output directory: " ++ outdir
-            hPutStrLn stderr $ "  " ++ show (e :: IOError)
-            exitFailure
-      RunSolver cmdline ->
-        pure $ CBG $ runCallbacks annFile cmdline
-
-  pure (cfg, gen)
+  case requestedMode args of
+    ExportMode outdir -> do
+      r <- try $ createDirectoryIfMissing True outdir
+      case r of
+        Right () -> do
+          putStrLn $ "Writing output to " ++ outdir
+          action cfg $ CBG $ exportCallbacks outdir
+        Left e -> do
+          hPutStrLn stderr $ "Error creating output directory: " ++ outdir
+          hPutStrLn stderr $ "  " ++ show (e :: IOError)
+          exitFailure
+    DefaultMode ->
+      runCallbacks annFile "cvc4 --lang=smt2 --incremental" (action cfg)
+    RunSolver cmdline ->
+      runCallbacks annFile cmdline (action cfg)
 
 standaloneGoalFilename :: String -- ^ Name of function to verify
                        -> String  -- ^ Pretty printed version of block label.
@@ -1256,13 +1337,12 @@ defineLLVMArgs (Typed tp _val : _rest) _x86Regs =
 
 -- | Verify a block satisfies its specification.
 verifyBlock :: CallbackGenerator
-            -> ModuleInfo
-               -- ^ Information needed to verify module
             -> Define
             -> Ann.FunctionAnn
             -> L.BasicBlock
-            -> IO ()
-verifyBlock gen modInfo lFun funAnn bb = do
+            -> ModuleVCG ()
+verifyBlock gen lFun funAnn bb = do
+  modCtx <- ask
   -- Get block label
   let Just lbl = L.bbLabel bb
   -- Get annotations for this block
@@ -1274,10 +1354,10 @@ verifyBlock gen modInfo lFun funAnn bb = do
   -- Get LLVM events
   levents <- do
     let ls0 = L.inject lFun
-    reverse . L.events <$> execStateT (L.bb2SMT bb) ls0
+    liftIO $ reverse . L.events <$> execStateT (L.bb2SMT bb) ls0
   -- Lookup memory segment and offset for block.
   segOff <- do
-    let mem = moduleMem modInfo
+    let mem = moduleMem modCtx
     let absAddr = fromIntegral (Ann.blockAddr blockAnn)
     case resolveAbsoluteAddr mem absAddr of
       Just o -> pure o
@@ -1287,7 +1367,7 @@ verifyBlock gen modInfo lFun funAnn bb = do
                        , loc_df_flag = Ann.blockDFFlag blockAnn
                        }
   -- Start running verification condition generator.
-  runVCGs gen modInfo funAnn loc blockAnn $ do
+  runVCGs gen funAnn loc blockAnn $ do
     -- Add builtin functions
     do addCommand $ M.evenParityDecl
        -- Add read/write operations (independent of registers)
@@ -1311,19 +1391,20 @@ verifyBlock gen modInfo lFun funAnn bb = do
     -- Start processing events
     eventsEq levents
 
+$(pure [])
+
 -- | Verify a particular function satisfies its specification.
 verifyFunction :: CallbackGenerator
                -> Module
                -- ^ LLVM Module
-               -> ModuleInfo
-                  -- ^ Information needed to verify module.
                -> Ann.FunctionAnn
-                  -- ^ Annotations to add in mapping LLVM module and
-                  -- memory layout.
-               -> IO ()
-verifyFunction gen lMod modInfo funAnn = do
+               -- ^ Annotations to add in mapping LLVM module and
+               -- memory layout.
+               -> ModuleVCG ()
+verifyFunction gen lMod funAnn = do
+  modCtx <- ask
   let fnm = Ann.llvmFunName funAnn
-  hPutStrLn stderr $ "Analyzing " ++ fnm
+  liftIO $ hPutStrLn stderr $ "Analyzing " ++ fnm
 
   let Just lFun = L.getDefineByName lMod fnm
 
@@ -1344,15 +1425,15 @@ verifyFunction gen lMod modInfo funAnn = do
       Just b -> pure b
       Nothing -> error $ "Could not find map for block " ++ show entryLabel
 
-  let Right addr = getMCAddrOfLLVMFunction (symbolAddrMap modInfo) fnm
+  let Right addr = getMCAddrOfLLVMFunction (symbolAddrMap modCtx) fnm
   when (toInteger addr /= toInteger (Ann.blockAddr blockAnn)) $ do
     error $ "LLVM function " ++ fnm ++ " does not have expected address: " ++ show addr
 
   when (Ann.blockRSPOffset blockAnn /= 0) $ do
-    warning $ "Function entry offset must be 0."
+    liftIO $ warning $ "Function entry offset must be 0."
 
   forM_ (defBody lFun) $ \bb -> do
-    verifyBlock gen modInfo lFun funAnn bb
+    verifyBlock gen lFun funAnn bb
 
 -- | Read an elf from a binary
 readElf :: FilePath -> IO (Elf.Elf 64)
@@ -1372,9 +1453,7 @@ readElf path = do
       pure e
 
 main :: IO ()
-main = do
-  (metaCfg, gen) <- parseVCGArgs
-  putStrLn $ show metaCfg
+main = withVCGArgs $ \metaCfg gen -> do
   e <- readElf $ Ann.binFilePath metaCfg
   let loadOpts = defaultLoadOptions
   case resolveElfContents loadOpts e of
@@ -1387,11 +1466,12 @@ main = do
       forM_ warnings $ \w -> do
         hPutStrLn stderr w
       lMod <- L.getLLVMMod (Ann.llvmBCFilePath metaCfg)
-      let modInfo = ModuleInfo { moduleMem = mem
-                               , symbolAddrMap = Map.fromList
-                                 [ (memSymbolName sym, memSymbolStart sym)
-                                 | sym <- symbols
-                                 ]
-                               }
-      forM_ (Ann.functions metaCfg) $ \funAnn -> do
-        verifyFunction gen lMod modInfo funAnn
+      let modCtx = ModuleVCGContext { moduleMem = mem
+                                    , symbolAddrMap = Map.fromList
+                                                      [ (memSymbolName sym, memSymbolStart sym)
+                                                      | sym <- symbols
+                                                      ]
+                                    }
+      runModuleVCG modCtx $ do
+        forM_ (Ann.functions metaCfg) $ \funAnn -> do
+          verifyFunction gen lMod funAnn
