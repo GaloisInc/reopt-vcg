@@ -10,7 +10,7 @@ LEAN="$LEAN_DIR/bin/lean"
 LEANC="$LEAN_DIR/bin/leanc"
 
 # Build C wrappers
-clang++ "-I$LEAN_DIR/src" "-I$LEAN_DIR/src/runtime" -I$LLVM_DIR/include -std=c++11 -c io.cpp
+clang++ "-I$LEAN_DIR/src" "-I$LEAN_DIR/src/runtime" -std=c++11 -c io.cpp
 
 # so io_test can import it
 $LEAN --make io.lean 

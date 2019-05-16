@@ -4,44 +4,13 @@
 #include <unistd.h>
 
 #include "apply.h"
+#include "io.h"
 
 using namespace lean;
-
-////////////////////////////////////////////////////////////////////////
-// Copied from io.cpp
-
-extern obj_res const REAL_WORLD = box(0);
-
-static obj_res set_io_error(obj_arg r, obj_arg e) {
-    if (is_exclusive(r)) {
-        cnstr_set_tag(r, 1);
-        cnstr_set(r, 0, e);
-        return r;
-    } else {
-        dec_ref(r);
-        object * new_r = alloc_cnstr(1, 2, 0);
-        cnstr_set(new_r, 0, e);
-        cnstr_set(new_r, 1, REAL_WORLD);
-        return new_r;
-    }
-}
 
 static obj_res set_io_error_errno(obj_arg r) {
     object *msg = mk_string(strerror(errno));
     return set_io_error(r, msg);
-}
-
-static obj_res set_io_result(obj_arg r, obj_arg a) {
-    if (is_exclusive(r)) {
-        cnstr_set(r, 0, a);
-        return r;
-    } else {
-        dec_ref(r);
-        object * new_r = alloc_cnstr(0, 2, 0);
-        cnstr_set(new_r, 0, a);
-        cnstr_set(new_r, 1, REAL_WORLD);
-        return new_r;
-    }
 }
 
 ////////////////////////////////////////////////////////////////////////
