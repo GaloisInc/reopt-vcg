@@ -10,14 +10,13 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 module VCGMacaw
-  ( declRegs
-  , smtRegVar
-  , blockEvents
+  ( blockEvents
   , Event(..)
   , ppEvent
   , memVar
   , evenParityDecl
   , evalMemAddr
+  , toSMTType
     -- * EvalContext
   , EvalContext
   , primEval
@@ -48,9 +47,6 @@ import qualified What4.Protocol.SMTLib2.Syntax as SMT
 import qualified Reopt.VCG.Config as Ann
 import           VCGCommon
 
-smtRegVar :: X86Reg tp -> Text
-smtRegVar reg = "x86reg_" <> Text.pack (show reg)
-
 macawError :: HasCallStack => String -> a
 macawError msg = error $ "[Macaw Error] " ++ msg
 
@@ -64,10 +60,6 @@ evalMemAddr a =
 
 memVar :: Integer -> Text
 memVar i = "x86mem_" <> Text.pack (show i)
-
-initRegDecl :: X86Reg tp
-            -> SMT.Command
-initRegDecl reg = SMT.declareFun (smtRegVar reg) [] (toSMTType (M.typeRepr reg))
 
 ------------------------------------------------------------------------
 -- Event
@@ -275,6 +267,8 @@ signedOverflow r w = SMT.distinct [rmsb, r2msb]
   where rmsb  = SMT.extract w w r
         r2msb = SMT.extract (w-1) (w-1) r
 
+
+-- | Evaluate a Macaw app associated with the given assignment identifier.
 evalApp2SMT :: AssignId ids tp
             -> App (Value X86_64 ids) tp
             -> MStateM ()
@@ -528,9 +522,6 @@ block2SMT :: Block X86_64 ids
 block2SMT b = do
   mapM_ stmt2SMT (blockStmts b)
   termStmt2SMT (blockTerm b)
-
-declRegs :: [SMT.Command]
-declRegs = (\(Some r) -> initRegDecl r) <$> archRegs
 
 blockEvents :: Map (MemSegmentOff 64) Ann.BlockEventInfo
                -- ^ Map from addresses to annotations of events on that address.

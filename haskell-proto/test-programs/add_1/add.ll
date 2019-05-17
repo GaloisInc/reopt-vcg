@@ -1,7 +1,7 @@
-; ModuleID = 'add.c'
+; ModuleID = 'add.bc'
 source_filename = "add.c"
 target datalayout = "e-m:o-i64:64-f80:128-n8:16:32:64-S128"
-target triple = "x86_64-apple-macosx10.13.0"
+target triple = "x86_64-apple-macosx10.14.0"
 
 ; Function Attrs: noinline nounwind optnone ssp uwtable
 define i64 @add(i64) #0 {

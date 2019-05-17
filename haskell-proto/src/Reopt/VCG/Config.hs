@@ -23,6 +23,7 @@ import           Data.Word
 import           Data.Yaml ((.:), (.:?), (.!=))
 import qualified Data.Yaml as Yaml
 import           GHC.Generics
+import           GHC.Natural
 
 ------------------------------------------------------------------------
 -- JSON utilities
@@ -41,11 +42,12 @@ withFixedObject nm flds f (Yaml.Object o) =
     [] -> f o
     l -> fail $ "Unexpected fields in " ++ nm ++ ": " ++ show l
   where badFields :: Text -> Yaml.Value -> [Text] -> [Text]
-        badFields f _ l =
-          if HSet.member f flds then
+        badFields fld _ l =
+          if HSet.member fld flds then
             l
            else
-            f:l
+            fld:l
+withFixedObject _ _ _ _ = fail "Expected an object."
 
 ------------------------------------------------------------------------
 -- AllocaInfo
@@ -72,7 +74,7 @@ instance Yaml.FromJSON AllocaName where
 data AllocaInfo = AllocaInfo
   { allocaName :: !AllocaName
     -- ^ Name of allocation.
-  , allocaBinaryOffset :: !Integer
+  , allocaBinaryOffset :: !Natural
     -- ^ Number of bytes from start of alloca to offset of stack
     -- pointer in machine code.
   , allocaInThisBlock :: !Bool
@@ -90,7 +92,7 @@ instance Yaml.FromJSON AllocaInfo where
     new <- v .: "new" .!= False
     pure AllocaInfo { allocaName = nm
                     , allocaBinaryOffset = o
-                    , allocaInThisBlock = True
+                    , allocaInThisBlock = new
                     }
 
 ------------------------------------------------------------------------
@@ -134,6 +136,7 @@ instance Yaml.FromJSON BlockEvent where
         "joint_stack_access" -> do
           JointStackAccess <$> v .: "alloca"
         "heap_access" -> pure HeapAccess
+        _ -> fail "Unexpected alloca type"
     pure $ BlockEvent { eventAddr = addr
                       , eventInfo = info
                       }
@@ -205,10 +208,10 @@ instance Yaml.FromJSON FunctionAnn where
   parseJSON = withFixedObject "function" functionInfoFields $ \v -> do
     fnm <- v .: "llvm_name"
     sz  <- v .: "stack_size"
-    blocks <- v .: "blocks"
+    bl <- v .: "blocks"
     pure $! FunctionAnn { llvmFunName = fnm
                         , stackSize = sz
-                        , blocks = Map.fromList [ (blockLabel b, b) | b <- blocks ]
+                        , blocks = Map.fromList [ (blockLabel b, b) | b <- bl ]
                         }
 
 data MetaVCGConfig = MetaVCGConfig

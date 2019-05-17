@@ -15,13 +15,13 @@
                "allocas": [
                   {
                      "name": 2,
-                     "offset": -32,
+                     "offset": 32,
 		     "new": true
                   },
                   {
                      "name": 3,
-                     "offset": -16,
-		     "new": false
+                     "offset": 16,
+		     "new": true
                   }
                ],
                "events": [
@@ -72,7 +72,7 @@
                "allocas": [
                   {
                      "name": 1,
-                     "offset": -16,
+                     "offset": 16,
 		     "new": true
                   }
                ],
