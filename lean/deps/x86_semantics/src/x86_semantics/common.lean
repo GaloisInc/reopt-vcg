@@ -441,7 +441,7 @@ inductive expression : type → Type
 | undef (rtp:type) : expression rtp
 -- Apply a function to an argument.
 | app {rtp:type} {tp:type} (f : expression (type.fn tp rtp)) (a : expression tp) : expression rtp
--- Get the value of the expression associated with the assignable expression.
+-- Get the value of the expression associated with the register.
 | get_reg {tp:type} (r:concrete_reg tp) : expression tp
 -- Read the address
 | read (tp:type) (a : expression (bv 64)) : expression tp
@@ -451,7 +451,8 @@ inductive expression : type → Type
 | get_local (idx:nat) (tp:type) : expression tp
 -- Denotes the value of an argument that should be an immediate encoded in the machine code.
 | imm_arg (idx:arg_index) (tp:type) : expression tp
--- Denotes the value of an argument that should be a memory address that has been computed by the disassembler.
+-- Denotes the value of an argument that should be a memory address
+-- that has been computed by the disassembler.
 | addr_arg (idx:arg_index) : expression (bv 64)
 -- Denotes an argument that may be either a register or address.
 -- If a register, assigning to this will update current value stored in a

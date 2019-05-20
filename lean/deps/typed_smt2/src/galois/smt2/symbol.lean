@@ -1,10 +1,13 @@
-import galois.logic
+import galois.algebra.order
 import galois.category.except
-import galois.data.fin
-
 import galois.data.buffer
+import galois.data.fin
+import galois.data.sigma
+import galois.logic
 
 meta def exact_trivial_tac : tactic unit := `[exact trivial]
+
+open galois
 
 -- Defines the SMT symbol type
 namespace smt2
@@ -326,7 +329,7 @@ begin
 end
 
 theorem is_quoted_symbol.symbol_ok {b:char_buffer} (is_sym:is_quoted_symbol b)
-: is_symbol (b.slice 1 (b.size - 1) (is_quoted_symbol.size_ok is_sym)) :=
+: is_symbol (buffer.slice b 1 (b.size - 1) (is_quoted_symbol.size_ok is_sym)) :=
 begin
   dsimp [is_symbol],
   intro i,
@@ -340,7 +343,7 @@ begin
   -- Introduce forall constraint
   have q := is_sym.right ⟨1 + i, i_p_1⟩,
 
-  have pr : ¬(1 + i = 0) := by simp,
+  have pr : ¬(1 + i = 0) := begin simp only [nat.succ_add], contradiction, end,
 
   have min_le : buffer.size b - 1 ≤ buffer.size b := by apply nat.sub_le_self,
 
@@ -368,7 +371,7 @@ protected
 def parse (s:string) : except string symbol := do
   let b := s.to_char_buffer,
   if pr:is_quoted_symbol b then
-    pure ⟨ b.slice 1 (b.size - 1) (is_quoted_symbol.size_ok pr)
+    pure ⟨ buffer.slice b 1 (b.size - 1) (is_quoted_symbol.size_ok pr)
          , is_quoted_symbol.symbol_ok pr
          ⟩
   else if p:is_simple_symbol b then
@@ -436,7 +439,7 @@ begin
   simp only [buffer.to_list_to_buffer],
 
   simp only [list.nth_le_reverse_simp],
-  simp only [list.nth_le_map'],
+  simp only [list.nth_le_map],
 
   apply digit_is_symbol_char,
   apply char.digit_char_is_digit,

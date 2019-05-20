@@ -1,7 +1,9 @@
 -- Lemmas
 import galois.data.list.nth_le
 
+namespace galois
 namespace nat
+open nat
 
 /-- Show that nat.to_digits never returns empty list. -/
 theorem to_digits_ne_nil (base:ℕ) (x:ℕ) :  nat.to_digits base x ≠ list.nil :=
@@ -101,3 +103,4 @@ begin
 end
 
 end nat
+end galois

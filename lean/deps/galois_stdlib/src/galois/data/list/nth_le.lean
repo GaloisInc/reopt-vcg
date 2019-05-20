@@ -1,8 +1,10 @@
--- Lemmas primarily about nth_le
-import data.list.basic -- from mathlib
+import galois.algebra.order
 import galois.data.nat.basic
+import .basic
 
+namespace galois
 namespace list
+open list
 
 /-- Simplify a singleton list -/
 theorem nth_le_singleton {α: Type _} (x : α) (i : ℕ) (p : i < 1)
@@ -59,14 +61,15 @@ begin
   },
 end
 
+-- Utility lemms needed for nth_le_reverse_core.
 theorem nth_le_reverse_core.index2 {α} {l r:list α} {i:ℕ}
   (i_lt : i < (list.reverse_core l r).length)
   (i_ge_l : not (i < l.length))
 : i - l.length < r.length :=
 begin
-  simp only [reverse_core_eq, length_append, length_reverse] at i_lt,
-  simp at i_ge_l,
-  simp [nat.sub_lt_to_add, nat.add_comm r.length l.length, i_lt, i_ge_l],
+  simp only [list.length_reverse_core] at i_lt,
+  simp only [not_lt] at i_ge_l,
+  simp [nat.sub_lt_to_add, i_lt, i_ge_l],
 end
 
 /- Define nth_le (reverse_core ..) equationally. -/
@@ -81,7 +84,7 @@ begin
   induction l,
   case list.nil {
     intros r i i_lt,
-    simp [reverse_core],
+    simp [reverse_core, length, nat.not_lt_zero],
   },
   case list.cons : lh l_rest ind {
     intros r i i_lt,
@@ -100,9 +103,9 @@ begin
       apply or.elim (nat.eq_or_lt_of_le (i_ge_l_rest)),
       { intro l_eq,
         have ite_cond : i < length (lh :: l_rest),
-        { simp [length, l_eq, nat.zero_lt_succ], },
+        { simp [length, l_eq, nat.zero_lt_succ, nat.add_succ, nat.lt_succ_iff, nat.le_refl], },
         simp only [ dif_pos, ite_cond ],
-        simp [nat.succ_add, l_eq],
+        simp [nat.succ_add, l_eq, nat.sub_self],
       },
       {
         intro l_lt,
@@ -152,3 +155,4 @@ end
 end nth_le_reverse
 
 end list
+end galois

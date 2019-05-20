@@ -12,3 +12,14 @@ end
 
 inductive PropExists {α : Prop} (p : α → Prop) : Prop
 | intro (w : α) (h : p w) : PropExists
+
+section
+
+variables (a b c : Prop)
+
+-- Automatically simplify conjunctions on left-hand side of implication.
+-- from mathlib
+@[simp] theorem and_imp : (a ∧ b → c) ↔ (a → b → c) :=
+iff.intro (λ h ha hb, h ⟨ha, hb⟩) (λ h ⟨ha, hb⟩, h ha hb)
+
+end

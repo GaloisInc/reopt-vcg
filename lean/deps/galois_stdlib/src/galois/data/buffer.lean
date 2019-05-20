@@ -1,13 +1,51 @@
 /-
 Provides a decidable_eq instance for buffer.
 -/
-import data.buffer.basic -- from mathlib
+import data.buffer
 
+import galois.algebra.ordered_group
 import galois.data.array
 import galois.data.char
+import galois.data.fin
 import galois.data.nat
 
+namespace galois
 namespace buffer
+
+open buffer
+
+section
+variable {α:Type _}
+open galois
+
+-- Taken from mathlib
+@[simp]
+lemma to_list_append_list (b : buffer α) (xs : list α)
+ : to_list (append_list b xs) = to_list b ++ xs :=
+begin
+  induction xs generalizing b,
+  case list.nil { simp [append_list], },
+  case list.cons : h r ind {
+    cases b,
+    simp! [to_list, to_array, ind],
+  },
+end
+
+-- Taken from mathlib
+lemma ext : ∀ (b₁ b₂ : buffer α), to_list b₁ = to_list b₂ → b₁ = b₂
+| ⟨n₁, a₁⟩ ⟨n₂, a₂⟩ h :=
+begin
+  simp [to_list, to_array, array] at h,
+  have e : n₁ = n₂,
+  {
+    rw [←array.to_list_length a₁, ←array.to_list_length a₂, h],
+  },
+  subst e,
+  have g : a₁ == list.to_array (a₂.to_list) := h ▸ (array.to_list_to_array a₁).symm,
+  rw eq_of_heq (g.trans (array.to_list_to_array a₂))
+end
+
+end
 
 @[simp]
 theorem size_append_array {α} {n : nat} (nz : n > 0)  (x : buffer α) (y : array n α) (j : nat) (j_lt : j < n)
@@ -57,7 +95,7 @@ theorem read_to_nth_le {α} (b: buffer α) (i:fin b.size)
 : buffer.read b i = list.nth_le b.to_list i.val ((to_list_length b).symm ▸ i.is_lt) :=
 begin
   cases b with n a,
-  simp only [read, to_list, array.to_list_nth_le', to_array],
+  simp only [buffer.read, to_list, array.to_list_nth_le', to_array],
 end
 
 /-- Empty buffer converted to array is same as array.nil -/
@@ -133,7 +171,7 @@ begin
     intros x i,
     cases i with i i_lt,
     cases x with m a,
-    dsimp [append_array, read, size],
+    dsimp [append_array, buffer.read, size],
     simp [array.read_push_back_lt_iff],
     cases (decide (i < m)),
     case decidable.is_true : lt {
@@ -157,16 +195,16 @@ begin
     cases nat.lt_trichotomy i m,
     case or.inl : i_lt {
       have i_lt_m_p_1 : i < m + 1 := nat.lt_succ_of_lt i_lt,
-      simp [i_lt, i_lt_m_p_1, read, array.read_push_back_lt_iff],
+      simp [i_lt, i_lt_m_p_1, buffer.read, array.read_push_back_lt_iff],
     },
     case or.inr : i_geq {
       cases i_geq,
       case or.inl : i_eq {
-        have i_lt_m_p_1 : i < m + 1, { simp [i_eq, nat.zero_lt_succ], },
-        simp [i_lt_m_p_1, i_eq, read, array.read_push_back_lt_iff],
+        have i_lt_m_p_1 : i < m + 1, { simp [i_eq, nat.zero_lt_succ, nat.sub_self], },
+        simp [i_lt_m_p_1, i_eq, buffer.read, array.read_push_back_lt_iff],
         apply (congr_arg (array.read b)),
         apply fin.eq_of_veq,
-        simp [nat.succ_add, nat.add_succ, nat.sub_sub],
+        simp [nat.succ_add, nat.add_succ, nat.sub_sub, nat.sub_self],
       },
       case or.inr : i_gt {
         have not_i_lt_m : ¬ (i < m) := not_lt_of_lt i_gt,
@@ -224,7 +262,7 @@ begin
     cases decide (i < size x),
     case decidable.is_true : i_lt { simp [i_lt], },
     case decidable.is_false : not_i_lt {
-      simp [not_i_lt, read],
+      simp [not_i_lt, buffer.read, nat.add_sub_cancel_left],
       apply congr_arg (array.read b),
       exact fin.eq_of_veq (eq.refl _),
     },
@@ -338,12 +376,12 @@ begin
   case decidable.is_true : e_le_m {
     simp [size_slice, size_ctor, min_eq_left e_le_m] at i_lt,
     -- Reduce to array slice
-    simp [slice, e_le_m, read],
+    simp [slice, e_le_m, buffer.read],
     -- Simplify away try_read
     have s_i_lt_m : s+i < m :=
       calc s + i < e : nat.add_lt_of_lt_sub_left i_lt
                    ... ≤ m : e_le_m,
-    simp [try_read, size_ctor, i_lt, s_i_lt_m, read],
+    simp [try_read, size_ctor, i_lt, s_i_lt_m, buffer.read],
     -- Simplify array theorem
     simp [array.read_slice],
     apply congr_arg _ (fin.eq_of_veq (eq.refl _)),
@@ -351,14 +389,14 @@ begin
   case decidable.is_false : not_e_le_m {
     have m_le_e : m ≤ e := le_of_not_ge not_e_le_m,
     simp [size_slice, size_ctor, min_eq_right m_le_e] at i_lt,
-    simp [slice, not_e_le_m, read],
+    simp [slice, not_e_le_m, buffer.read],
     cases (decide (s ≤ m)),
     case decidable.is_true : s_le_m {
       -- Reduce to array slice
       simp [s_le_m],
       -- Simplify away try_read
       have s_i_lt_m : s+i < m := nat.add_lt_of_lt_sub_left i_lt,
-      simp [try_read, size_ctor, i_lt, s_i_lt_m, read],
+      simp [try_read, size_ctor, i_lt, s_i_lt_m, buffer.read],
       -- Simplify array theorem
       simp [array.read_slice],
       apply congr_arg _ (fin.eq_of_veq (eq.refl _)),
@@ -377,6 +415,7 @@ end
 end buffer
 
 namespace string
+open string
 
 /- Simplify functions calling through as_string -/
 theorem to_char_buffer_as_string (l:list char)
@@ -392,3 +431,5 @@ begin
 end
 
 end string
+
+end galois
