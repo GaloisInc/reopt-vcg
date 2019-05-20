@@ -104,28 +104,6 @@ inductive type
 
 instance decidable_eq_type: decidable_eq type := by tactic.mk_dec_eq_instance
 
-namespace type
-
-protected
-def pp' : Π(in_fun:bool), type → string
-| _ (bv w) := "(bv " ++ w.pp ++ ")"
-| _ bit    := "bit"
-| _ float  := "float"
-| _ double := "double"
-| _ x86_80 := "x86_80"
-| _ (vec w tp) := "(vec " ++ w.pp ++ " " ++ tp.pp' ff ++ ")"
-| _ (pair tp tp') := "(pair " ++ tp.pp' ff ++ " " ++ tp'.pp' ff ++ ")"
-| in_fun (fn a r) :=
-  if in_fun then
-     a.pp' ff ++ " " ++ r.pp' tt
-  else
-     "(fun " ++ a.pp' ff ++ " " ++ r.pp' tt ++ ")"
-
-protected
-def pp : type → string := type.pp' ff
-
-end type
-
 end mc_semantics
 
 

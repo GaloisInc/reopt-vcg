@@ -5,8 +5,8 @@ Elf
 import system.io
 import init.category.reader
 import init.category.state
-import .machine_memory
-import .buffer_map
+import x86_semantics.machine_memory
+import x86_semantics.buffer_map
 import .file_input
 
 def repeat {α : Type} {m : Type → Type} [applicative m] : ℕ → m α → m (list α)

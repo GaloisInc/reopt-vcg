@@ -1,9 +1,8 @@
 -- Evaluates actions in an environment.
 import galois.data.bitvec
-import x86_semantics.common
-import .tactic
+import .common
 import .machine_memory
-import tactic.find
+import .sexpr
 
 -- FIXME: move
 def annotate {ε} {m} [monad m] [monad_except ε m]
@@ -133,11 +132,11 @@ namespace reg
 def inject : Π(rtp : gpreg_type), bitvec rtp.width' -> machine_word -> machine_word
   | gpreg_type.reg32 b _   := bitvec.append (bitvec.zero 32) b
   | gpreg_type.reg8h b old := old.set_bits 48 b (of_as_true trivial)
-  | rtp              b old := old.set_bits (64 - rtp.width') b (begin cases rtp; dec_trivial_tac end)
+  | rtp              b old := old.set_bits (64 - rtp.width') b (begin cases rtp; simp end)
 
 def project : Π(rtp : gpreg_type), machine_word -> bitvec rtp.width'
-  | gpreg_type.reg8h b := b.get_bits 48 8 (by dec_trivial_tac)
-  | rtp              b := b.get_bits (64 - rtp.width') rtp.width' (begin cases rtp; dec_trivial_tac end)
+  | gpreg_type.reg8h b := b.get_bits 48 8 (begin simp [gpreg_type.width'], exact dec_trivial end)
+  | rtp              b := b.get_bits (64 - rtp.width') rtp.width' (begin cases rtp; simp end)
 
 end reg
 

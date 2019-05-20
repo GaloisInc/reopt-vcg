@@ -1,7 +1,7 @@
 /- This file ties together the evaluator,  elf support, and the decoder -/
 
 import system.io
-import .machine_memory
+import x86_semantics.machine_memory
 import .elf
 import .translate
 import decodex86

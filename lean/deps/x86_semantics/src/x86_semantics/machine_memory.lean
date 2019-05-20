@@ -2,7 +2,6 @@
 import galois.data.bitvec
 import data.buffer
 import .buffer_map
-import .tactic
 
 @[reducible]
 def memaddr  := bitvec 64
