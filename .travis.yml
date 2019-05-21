@@ -40,7 +40,7 @@ install:
 # any command which exits with a non-zero exit code causes the build to fail.
 script:
   # First, build/test the lean code
-  - pushd decodex86
+  - pushd lean/deps/decodex86
   - leanpkg build
   - leanpkg test
   - popd
