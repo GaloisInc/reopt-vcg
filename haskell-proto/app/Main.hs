@@ -1789,9 +1789,6 @@ verifyFunction lMod funAnn = do
   when (length (defArgs lFun) > length x86ArgRegs) $ do
     moduleError $ "Too many arguments."
 
---  when (defRetType lFun /= L.PrimType (L.Integer 64)) $
---    moduleError $ "Return type must be 64-bit integer."
-
   case defBody lFun of
     [] -> moduleError $ "Expected function to have at least one basic block."
     firstBlock:restBlocks -> do
@@ -1800,7 +1797,6 @@ verifyFunction lMod funAnn = do
         case findBlock funAnn entryLabel of
           Just b -> pure b
           Nothing ->
-
             moduleError $ printf "Could not find annotations for LLVM block %%%s." (ppBlock entryLabel)
 
       let Right addr = getMCAddrOfLLVMFunction (symbolAddrMap modCtx) fnm
