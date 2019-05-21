@@ -2,7 +2,7 @@
 # The targets are equivalent, hence expecting UNSAT.
 {
    "llvmBCFilePath": "add.bc",
-   "binFilePath": "add",
+   "binFilePath": "add-diet",
    "functions": [
       {
          "llvm_name": "add",
@@ -10,51 +10,51 @@
          "blocks": [
             {
                "label": "1",
-               "addr": 4195542,
-               "size": 26,
+               "addr": 0x201400,
+               "size": 0x1d,
                "allocas": [
                   {
-                     "name": 2,
-                     "offset": 32,
+                     "name": "2",
+                     "offset": 16,
 		     "new": true
                   },
                   {
-                     "name": 3,
-                     "offset": 16,
+                     "name": "3",
+                     "offset": 24,
 		     "new": true
                   }
                ],
                "events": [
                   {
-                     "addr": 4195542,
+                     "addr": 0x201400,
                      "type": "binary_only_access"
                   },
                   {
-                     "addr": 4195546,
+                     "addr": 0x201404,
                      "type": "joint_stack_access",
                      "alloca": 2
                   },
                   {
-                     "addr": 4195550,
+                     "addr": 0x201408,
                      "type": "joint_stack_access",
                      "alloca": 2
                   },
                   {
-                     "addr": 4195554,
+                     "addr": 0x20140c,
                      "type": "joint_stack_access",
                      "alloca": 3
                   },
                   {
-                     "addr": 4195558,
+                     "addr": 0x201410,
                      "type": "joint_stack_access",
                      "alloca": 3
                   },
                   {
-                     "addr": 4195566,
+                     "addr": 0x20141b,
                      "type": "binary_only_access"
                   },
                   {
-                     "addr": 4195567,
+                     "addr": 0x20141c,
                      "type": "binary_only_access"
                   }
                ]
@@ -67,31 +67,39 @@
          "blocks": [
             {
                "label": "0",
-               "addr": 0x4004f0,
-               "size": 0x1d,
+               "addr": 0x201480,
+               "size": 0x2d,
                "allocas": [
                   {
-                     "name": 1,
-                     "offset": 16,
+                     "name": "1",
+                     "offset": 12,
+		     "new": true
+                  },
+                  {
+                     "name": "2",
+                     "offset": 24,
 		     "new": true
                   }
                ],
                "events": [
-                  { "addr": 0x4004f0,
+                  { "addr": 0x201480,
                     "type": "binary_only_access"
                   },
-                  { "addr": 0x4004fd,
-                    "type": "binary_only_access"
-                  },
-                  { "addr": 0x400502,
+                  { "addr": 0x20148f,
                     "type": "joint_stack_access",
                     "alloca": 1
                   },
-                  { "addr": 0x40050c,
+                  { "addr": 0x201496,
                     "type": "binary_only_access",
-                    "alloca": 1
                   },
-                  { "addr": 0x40050b,
+                  { "addr": 0x20149d,
+                    "type": "joint_stack_access",
+                    "alloca": 2
+                  },
+                  { "addr": 0x2014a7,
+                    "type": "binary_only_access",
+                  },
+                  { "addr": 0x2014a8,
                     "type": "binary_only_access"
                   },
 	       ]

@@ -41,6 +41,7 @@ executable reopt-vcg
   build-depends:
                 base >=4.7 && <5
               , ansi-wl-pprint
+              , async
               , bytestring
               , containers
               , directory
@@ -63,7 +64,6 @@ executable reopt-vcg
   other-modules:
       LLVMExamples
       VCGCommon
-      VCGLLVM
       VCGMacaw
   default-language: Haskell2010
 

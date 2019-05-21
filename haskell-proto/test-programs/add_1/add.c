@@ -11,7 +11,7 @@ unsigned long fib(unsigned long x) {
     }
 }
 
-long main() {
+int main() {
   long x = add(42);
   return 0;
 }

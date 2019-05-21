@@ -1,1 +1,4 @@
 out
+add.ll
+add-diet.dis
+glibc/placeholder_initfini.o
