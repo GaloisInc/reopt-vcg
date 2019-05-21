@@ -5,6 +5,7 @@ structure {u v} data.imap.imap_entry (k : Type u) (val : Type v) : Type (max u v
   (extent : k)
   (value : val)
 
+@[reducible]
 def {u v} data.imap (k : Type u) (val : Type v) (lt : k -> k -> Prop)
   := list (data.imap.imap_entry k val)
 
@@ -27,6 +28,9 @@ def lookup (key : k) : data.imap k val lt -> option (k × val)
 -- FIXME: add overlap check
 def insert (start : k) (extent : k) (value : val) : data.imap k val lt -> data.imap k val lt :=
   λm, { start := start, extent := extent, value := value } :: m
+
+instance {k} {v} [has_repr k] /- [has_repr v] -/ : has_repr (data.imap.imap_entry k v) :=
+  ⟨λe, "( [" ++ has_repr.repr e.start ++ " ..+ " ++ has_repr.repr e.extent ++ "]" /-" -> " ++ has_repr.repr e.value -/ ++ ")"⟩                  
 
 end 
 end data.imap

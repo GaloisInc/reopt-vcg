@@ -313,6 +313,7 @@ protected def sexpr : event → sexpr atom
 | (branch cond addr) := app "branch" [cond.sexpr, addr.sexpr]
 | hlt := app "hlt" []
 | (xchg addr1 addr2) := app "xchg" [addr1.sexpr, addr2.sexpr]
+| cpuid  := app "cpuid" []
 
 end event
 

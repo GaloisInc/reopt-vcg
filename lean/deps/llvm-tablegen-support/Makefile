@@ -16,8 +16,13 @@ src/%.cpp: src/Instruction.h
 # %.o: %.cpp
 # 	clang++ -g -O3 -c $^ -I ${LLVM_SOURCE_ROOT}/lib/Target/X86 `${LLVM_CONFIG} --cxxflags` -o $@
 
-llvm-tablegen-support: src/main.o src/X86Disassembler.o
+src/Metadata.o: src/operand_table.inc
+
+llvm-tablegen-support: src/main.o src/X86Disassembler.o src/Metadata.o
 	clang++ -g -O3 $^ `${LLVM_CONFIG} --cxxflags --ldflags --system-libs --libs x86` -o $@
 
 dump_mcinst: dump_mcinst.o
+	clang++ -g -O3 $^ `${LLVM_CONFIG} --cxxflags --ldflags --system-libs --libs x86` -o $@
+
+dump_intinst: dump_intinst.o
 	clang++ -g -O3 $^ `${LLVM_CONFIG} --cxxflags --ldflags --system-libs --libs x86` -o $@
