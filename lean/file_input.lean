@@ -23,11 +23,13 @@ def run_file_input {a} (filename : string) (fr : file_input a) : io (except stri
 
 def read (n:ℕ) : file_input char_buffer := do
   s <- get,
-  monad_lift (io.fs.read s.handle n)
+  bs <- monad_lift (io.fs.read s.handle n),
+  put { s with pos := s.pos + n },
+  return bs
 
 def seek (n : ℕ) : file_input unit := do
   s <- get, 
-  if s.pos < n 
+  if s.pos ≤ n 
   then monad_lift (io.fs.read s.handle (n - s.pos)) >> put { pos := n, ..s }
   else monad_lift (do s' <- new_state s.filename,
                       _  <- io.fs.read s'.handle n,

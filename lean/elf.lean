@@ -5,8 +5,8 @@ Elf
 import system.io
 import init.category.reader
 import init.category.state
-import decodex86
-import .imap
+import x86_semantics.machine_memory
+import x86_semantics.buffer_map
 import .file_input
 
 def repeat {α : Type} {m : Type → Type} [applicative m] : ℕ → m α → m (list α)
@@ -370,6 +370,10 @@ def repr (phfs : phdr_flags) :  string := phfs.val.val.repr
 
 instance : has_repr phdr_flags := ⟨repr⟩
 
+def has_X (f : phdr_flags) : bool := f.val.val.test_bit 0
+def has_W (f : phdr_flags) : bool := f.val.val.test_bit 1
+def has_R (f : phdr_flags) : bool := f.val.val.test_bit 2
+
 end phdr_flags
 
 structure phdr (c : elf_class) :=
@@ -562,9 +566,10 @@ def pp_phdrs {c:elf_class} (phdrs:list (phdr c)) : io unit := do
 -- A region is the contents of memory as it appears at load time.
 @[reducible] def region := char_buffer
 
--- An elfmem represeents the load-time address space represented by
+-- An elfmem represents the load-time address space represented by
 -- the elf file.  It is indexed by virtual address
-def elfmem : Type := data.imap ℕ region (<)
+@[reducible]
+def elfmem : Type := init_memory
 
 -- Helper for read_elfmem: add the region corresponding to the phdr in ph
 def read_one_elfmem {c : elf_class} (m : elfmem) (ph : phdr c) : file_input elfmem :=
@@ -572,55 +577,32 @@ def read_one_elfmem {c : elf_class} (m : elfmem) (ph : phdr c) : file_input elfm
   then do
     file_input.seek ph.offset.val,
     fbs <- file_input.read (min ph.filesz.val ph.memsz.val),
-    monad_lift (io.put_str_ln ("read_one_elfmem: read " ++ fbs.size.repr ++ " bytes")),
-    let val := buffer.append_list fbs (list.repeat (char.of_nat 0) (ph.memsz.val - ph.filesz.val)) 
-    in pure $ data.imap.insert ph.vaddr.val ph.memsz.val val m
+    monad_lift (io.put_str_ln ("read_one_elfmem: read " ++ fbs.size.repr ++ " bytes at " ++ repr ph.offset.val)),
+    let fbs'   := memory.char_buffer_to_region fbs in
+    let zeroes : memory.region := array.to_buffer (mk_array (ph.memsz.val - ph.filesz.val) 0)
+    in pure $ m.insert ph.vaddr.val (buffer.append fbs' zeroes)
   else pure m
 
 def read_elfmem {c : elf_class} (path : string) (phdrs : list (phdr c)) : io elfmem  := do
-    r <- file_input.run_file_input path $ list.mfoldl read_one_elfmem [] phdrs,
+    r <- file_input.run_file_input path $ list.mfoldl read_one_elfmem buffer_map.empty phdrs,
     match r with                  
     | except.error s := io.fail s
     | except.ok r    := return r
     end
+
 /---
 Read the elf file from the given path, and print out ehdr and
 program headers.
 -/
-def read_info_from_file (path:string) : io elfmem := do
+def read_info_from_file (path : string) : io ((Σ(e : ehdr), list (phdr e.elf_class)) × elfmem) := do
   bracket (io.mk_file_handle path io.mode.read tt) io.fs.close $ λh, do
   e ← read_ehdr_from_handle h,
   let i := e.info in do
   let ehdr_size := ehdr.size i.elf_class in do
   move_to_target h ehdr_size e.phoff.val,
   phdrs ← read_phdrs_from_handle e h,
-  read_elfmem path phdrs
+  mem <- read_elfmem path phdrs,
+  return ((sigma.mk e phdrs), mem)
   -- pp_phdrs phdrs
 
 end elf
-
-def get_filename_arg : io (string × string × ℕ × ℕ) := do
-  args ← io.cmdline_args,
-  match args with
-  | [name, decoder, first, last_plus_1 ] := do
-      return ( name, decoder, string.to_nat first, string.to_nat last_plus_1 )
-  | _ := do
-      io.fail "Usage: CMD elf_file decoder first_byte last_byte_plus_1"
-  end
-
-def main : io unit := do
-  (file, decoder, first, last_plus_1) ← get_filename_arg,
-  mem <- elf.read_info_from_file file,
-  match data.imap.lookup first mem with
-  | none := io.fail ("Could not find start address: " ++ repr first)
-  | (some (buf_start, buf)) :=
-    if last_plus_1 - buf_start > buffer.size buf then
-      io.fail ("Last byte outside buffer: " ++ repr last_plus_1)
-    else do
-      buf' <- return (buffer.take (buffer.drop buf (first - buf_start)) (last_plus_1 - first)),
-      res  <- decodex86.decode decoder buf',
-      match res with
-      | (sum.inl e) := io.fail ("Decode error: " ++ e)
-      | (sum.inr r) := io.put_str_ln (repr r)
-      end
-  end

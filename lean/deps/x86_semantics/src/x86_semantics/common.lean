@@ -58,6 +58,15 @@ instance : has_mul nat_expr := ⟨nat_expr.do_mul⟩
 instance : has_div nat_expr := ⟨nat_expr.do_div⟩
 
 instance nat_coe_nat_expr : has_coe ℕ nat_expr := ⟨λx, lit x⟩
+instance decidable_eq_nat_expr : decidable_eq nat_expr := by tactic.mk_dec_eq_instance
+
+def pp : nat_expr -> string
+| (lit n) := repr n
+| (var i) := "(var " ++ repr i ++ ")"
+| (add e e') := "(add " ++ e.pp ++ " " ++ e'.pp ++ ")"
+| (sub e e') := "(sub " ++ e.pp ++ " " ++ e'.pp ++ ")"
+| (mul e e') := "(mul " ++ e.pp ++ " " ++ e'.pp ++ ")"
+| (div e e') := "(div " ++ e.pp ++ " " ++ e'.pp ++ ")"
 
 end nat_expr
 ------------------------------------------------------------------------
@@ -93,6 +102,8 @@ inductive type
 -- A function from arg to res
 | fn (arg:type) (res:type) : type
 
+instance decidable_eq_type: decidable_eq type := by tactic.mk_dec_eq_instance
+
 end mc_semantics
 
 
@@ -116,6 +127,14 @@ inductive gpreg_type : Type
 | reg64 : gpreg_type
 
 namespace gpreg_type
+
+@[reducible]
+def width' : gpreg_type → nat
+| reg8l  := 8
+| reg8h  := 8
+| reg16 := 16
+| reg32 := 32
+| reg64 := 64
 
 @[reducible]
 def width : gpreg_type → nat_expr
@@ -152,6 +171,13 @@ protected def r8l_names : list string :=
   , "r12b", "r13b", "r14b", "r15b"
   ]
 
+protected def r8h_names : list string :=
+  [ "ah",   "ch",   "dh",   "bh"
+  , "sph_undefined",  "bph_undefined",  "sih_undefined",  "dih_undefined"
+  , "r8h_undefined" , "r9h_undefined" , "r10h_undefined", "r11h_undefined"
+  , "r12h_undefined", "r13h_undefined", "r14h_undefined", "r15h_undefined"
+  ]
+
 protected def r16_names : list string :=
   [ "ax",   "cx",   "dx", "bx"
   , "sp",   "bp",   "si", "di"
@@ -178,6 +204,35 @@ protected def flag_names : list string :=
   , "tf", "if",         "df",  "of",         "iopl1", "iopl2",      "nt", "RESERVED_15"
   , "rf", "vm",         "ac",  "vif",        "vip",   "id"
   ]
+
+end reg
+
+namespace concrete_reg
+
+protected
+def repr : Π{tp:type}, concrete_reg tp → string
+| ._ (gpreg idx tp) := "$" ++
+  match tp with
+  | gpreg_type.reg8l := list.nth_le reg.r8l_names idx.val idx.is_lt
+  | gpreg_type.reg8h := list.nth_le reg.r8h_names idx.val idx.is_lt
+  | gpreg_type.reg16 := list.nth_le reg.r16_names idx.val idx.is_lt
+  | gpreg_type.reg32 := list.nth_le reg.r32_names idx.val idx.is_lt
+  | gpreg_type.reg64 := list.nth_le reg.r64_names idx.val idx.is_lt
+  end
+| ._ (flagreg idx) := "$" ++
+   match list.nth reg.flag_names idx.val with
+   | (option.some nm) := nm
+   | option.none :=  "RESERVED_" ++ idx.val.repr
+   end
+
+end concrete_reg
+
+namespace reg
+
+protected
+def repr : Π{tp:type}, reg tp -> string
+| _ (concrete r) := r.repr
+| _ (arg idx)    := "arg" ++ idx.repr
 
 end reg
 
@@ -407,6 +462,57 @@ inductive expression : type → Type
 
 end prim
 
+--namespace prim
+--
+-- def pp : Π{tp:type}, prim tp → string
+-- | ._ (add i) := "add " ++ i.pp
+-- | ._ (adc i) := "adc " ++ i.pp
+-- | ._ (mul i) := "mul " ++ i.pp
+-- | ._ (quot i) := "quot " ++ i.pp
+-- | ._ (rem i) := "rem " ++ i.pp
+-- | ._ (squot i) := "squot " ++ i.pp
+-- | ._ (srem i) := "srem " ++ i.pp
+-- | ._ (slice w u l) := "slice " ++ w.pp ++ " " ++ u.pp ++ " " ++ l.pp
+-- | ._ (sext i o) := "sext " ++ i.pp ++ " " ++ o.pp
+-- | ._ (uext i o) := "uext " ++ i.pp ++ " " ++ o.pp
+-- | ._ (trunc i o) := "trunc " ++ i.pp ++ " " ++ o.pp
+-- | ._ (bsf i) := "bsf " ++ i.pp
+-- | ._ (bsr i) := "bsr " ++ i.pp
+-- | ._ (bswap i) := "bswap " ++ i.pp
+-- | ._ bit_zero := sexp.app "bit" ["0"]
+-- | ._ bit_one  := sexp.app "bit" ["1"]
+-- | ._ (eq tp) := "eq " ++ tp.pp
+-- | ._ (neq tp) := "neq " ++ tp.pp
+-- | ._ (neg tp) := "neg " ++ tp.pp
+-- | ._ x87_fadd := "x87_fadd"
+-- | ._ float_to_x86_80 := "float_to_x86_80"
+-- | ._ double_to_x86_80 := "double_to_X86_80"
+-- | ._ (bv_to_x86_80 w) := "sext " ++ w.pp
+-- | ._ (bv_nat w n) := sexp.app "bv_nat" [w.pp, n.pp]
+-- | ._ (sub i) := "sub " ++ i.pp
+-- | ._ (ssbb_overflows i) := "ssbb_overflows " ++ i.pp
+-- | ._ (usbb_overflows i) := "usbb_overflows " ++ i.pp
+-- | ._ (uadc_overflows i) := "uadc_overflows " ++ i.pp
+-- | ._ (sadc_overflows i) := "sadc_overflows " ++ i.pp
+-- | ._ (and i) := "and " ++ i.pp
+-- | ._ (or  i) := "or "  ++ i.pp
+-- | ._ (xor i) := "xor " ++ i.pp
+-- | ._ (shl i) := "shl " ++ i.pp
+-- | ._ (shr i) := "shr " ++ i.pp
+-- | ._ (sar i) := "sar " ++ i.pp
+-- | ._ (bv_bit i) := "bv_bit " ++ i.pp
+-- | ._ (complement i) := "complement " ++ i.pp
+-- | ._ (cat i) := "cat " ++ i.pp
+-- | ._ (msb i) := "msb " ++ i.pp
+-- | ._ (even_parity i) := "even_parity " ++ i.pp
+-- | ._ bit_or  := "bit_or"
+-- | ._ bit_and := "bit_and"
+-- | ._ bit_xor := "bit_xor"
+-- | ._ (ule i) := "ule " ++ i.pp
+-- | ._ (ult i) := "ult " ++ i.pp
+--
+-- end prim
+
 namespace expression
 
 local notation ℕ := nat_expr
@@ -621,6 +727,7 @@ inductive event
 | branch : expression bit → bv 64 → event
 | hlt : event
 | xchg {w : nat_expr} (addr1: bv w) (addr2: bv w) : event
+| cpuid : event
 
 ------------------------------------------------------------------------
 -- action
