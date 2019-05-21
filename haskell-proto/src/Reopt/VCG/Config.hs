@@ -20,8 +20,8 @@ import           Data.String
 import           Data.Text (Text)
 import qualified Data.Text as Text
 import           Data.Word
-import           Data.Yaml ((.:), (.:?), (.!=))
-import qualified Data.Yaml as Yaml
+import qualified Data.Aeson.Types as Aeson
+import           Data.Aeson.Types ((.:), (.:?), (.!=))
 import           GHC.Generics
 import           GHC.Natural
 
@@ -36,12 +36,16 @@ fields :: [Text] -> FieldList
 fields = HSet.fromList
 
 -- | Parse a YAML and fail if there are any fields not in the set.
-withFixedObject :: String -> FieldList -> (Yaml.Object -> Yaml.Parser a) -> Yaml.Value -> Yaml.Parser a
-withFixedObject nm flds f (Yaml.Object o) =
+withFixedObject :: String
+                -> FieldList
+                -> (Aeson.Object -> Aeson.Parser a)
+                -> Aeson.Value
+                -> Aeson.Parser a
+withFixedObject nm flds f (Aeson.Object o) =
   case HMap.foldrWithKey badFields [] o of
     [] -> f o
     l -> fail $ "Unexpected fields in " ++ nm ++ ": " ++ show l
-  where badFields :: Text -> Yaml.Value -> [Text] -> [Text]
+  where badFields :: Text -> Aeson.Value -> [Text] -> [Text]
         badFields fld _ l =
           if HSet.member fld flds then
             l
@@ -62,9 +66,9 @@ instance IsString AllocaName where
 instance Show AllocaName where
   show (AllocaName nm) = Text.unpack nm
 
-instance Yaml.FromJSON AllocaName where
-  parseJSON (Yaml.String nm) = pure $ AllocaName nm
-  parseJSON (Yaml.Number n)
+instance Aeson.FromJSON AllocaName where
+  parseJSON (Aeson.String nm) = pure $ AllocaName nm
+  parseJSON (Aeson.Number n)
     | Just off <- toBoundedInteger n :: Maybe Word64 =
         pure $ AllocaName (Text.pack (show off))
   parseJSON v =
@@ -85,7 +89,7 @@ data AllocaInfo = AllocaInfo
 allocaInfoFields :: FieldList
 allocaInfoFields = fields ["name", "offset", "new"]
 
-instance Yaml.FromJSON AllocaInfo where
+instance Aeson.FromJSON AllocaInfo where
   parseJSON = withFixedObject "AllocaInfo" allocaInfoFields $ \v -> do
     nm <- v .: "name"
     o <- v .: "offset"
@@ -126,7 +130,7 @@ data BlockEvent = BlockEvent
 blockEventFields :: FieldList
 blockEventFields = fields ["addr", "type", "alloca"]
 
-instance Yaml.FromJSON BlockEvent where
+instance Aeson.FromJSON BlockEvent where
   parseJSON = withFixedObject "BlockEvent" blockEventFields $ \v -> do
     addr <- v .: "addr"
     tp <- v .: "type"
@@ -171,7 +175,7 @@ data BlockAnn = BlockAnn
 blockInfoFields :: FieldList
 blockInfoFields = fields ["label", "addr", "size", "rsp_offset", "allocas", "events"]
 
-instance Yaml.FromJSON BlockAnn where
+instance Aeson.FromJSON BlockAnn where
   parseJSON = withFixedObject "block" blockInfoFields $ \v -> do
     lbl  <- v .: "label"
     addr <- v .: "addr"
@@ -204,7 +208,7 @@ data FunctionAnn = FunctionAnn
 functionInfoFields :: FieldList
 functionInfoFields = fields ["llvm_name", "stack_size", "blocks"]
 
-instance Yaml.FromJSON FunctionAnn where
+instance Aeson.FromJSON FunctionAnn where
   parseJSON = withFixedObject "function" functionInfoFields $ \v -> do
     fnm <- v .: "llvm_name"
     sz  <- v .: "stack_size"
@@ -223,4 +227,4 @@ data MetaVCGConfig = MetaVCGConfig
   }
   deriving (Show, Generic)
 
-instance Yaml.FromJSON MetaVCGConfig
+instance Aeson.FromJSON MetaVCGConfig
