@@ -1,8 +1,8 @@
 # Verifying a simple add function.
 # The targets are equivalent, hence expecting UNSAT.
 {
-   "llvmBCFilePath": "add.bc",
-   "binFilePath": "add-diet",
+   "llvmBCFilePath": "test_add.bc",
+   "binFilePath": "test_add_diet.exe",
    "functions": [
       {
          "llvm_name": "add",
@@ -16,12 +16,14 @@
                   {
                      "name": "2",
                      "offset": 16,
-		     "new": true
+		     "size": 8,
+		     "existing": false
                   },
                   {
                      "name": "3",
                      "offset": 24,
-		     "new": true
+		     "size": 8,
+		     "existing": false
                   }
                ],
                "events": [
@@ -67,39 +69,41 @@
          "blocks": [
             {
                "label": "0",
-               "addr": 0x201480,
+               "addr": 0x201420,
                "size": 0x2d,
                "allocas": [
                   {
                      "name": "1",
                      "offset": 12,
-		     "new": true
+		     "size": 4,
+		     "existing": false
                   },
                   {
                      "name": "2",
                      "offset": 24,
-		     "new": true
+		     "size": 8,
+		     "existing": false
                   }
                ],
                "events": [
-                  { "addr": 0x201480,
+                  { "addr": 0x201420,
                     "type": "binary_only_access"
                   },
-                  { "addr": 0x20148f,
+                  { "addr": 0x20142f,
                     "type": "joint_stack_access",
                     "alloca": 1
                   },
-                  { "addr": 0x201496,
+                  { "addr": 0x201436,
                     "type": "binary_only_access",
                   },
-                  { "addr": 0x20149d,
+                  { "addr": 0x20143d,
                     "type": "joint_stack_access",
                     "alloca": 2
                   },
-                  { "addr": 0x2014a7,
+                  { "addr": 0x201447,
                     "type": "binary_only_access",
                   },
-                  { "addr": 0x2014a8,
+                  { "addr": 0x201448,
                     "type": "binary_only_access"
                   },
 	       ]

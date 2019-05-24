@@ -1,6 +1,12 @@
+{-|
+
+This module defines the data structures used to representation
+annotation information, and routines for serializing and deserializing
+to JSON.
+-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
-module Reopt.VCG.Config
+module Reopt.VCG.Annotations
   ( MetaVCGConfig(..)
   , FunctionAnn(..)
   , BlockAnn(..)
@@ -8,22 +14,27 @@ module Reopt.VCG.Config
   , AllocaName(..)
   , BlockEvent(..)
   , BlockEventInfo(..)
+  , Expr(..)
+  , BlockVar(..)
+  , calleeSavedGPRegs
   ) where
 
+import           Control.Monad
+import           Data.Aeson.Types ((.:), (.:?), (.!=))
+import qualified Data.Aeson.Types as Aeson
 import qualified Data.HashMap.Strict as HMap
 import           Data.HashSet (HashSet)
 import qualified Data.HashSet as HSet
-import           Data.Map (Map)
-import qualified Data.Map.Strict as Map
 import           Data.Scientific (toBoundedInteger)
 import           Data.String
 import           Data.Text (Text)
 import qualified Data.Text as Text
 import           Data.Word
-import qualified Data.Aeson.Types as Aeson
-import           Data.Aeson.Types ((.:), (.:?), (.!=))
+import qualified Flexdis86 as F
 import           GHC.Generics
 import           GHC.Natural
+
+import           Reopt.VCG.SMTParser
 
 ------------------------------------------------------------------------
 -- JSON utilities
@@ -81,22 +92,28 @@ data AllocaInfo = AllocaInfo
   , allocaBinaryOffset :: !Natural
     -- ^ Number of bytes from start of alloca to offset of stack
     -- pointer in machine code.
-  , allocaInThisBlock :: !Bool
-    -- ^ Stores true if the allocation is made in this block.
+  , allocaSize :: !Natural
+    -- ^ Size of allocation in bytes.
+  , allocaExisting :: !Bool
+    -- ^ Stores true if the allocation already exists at this block.
+    -- The default is true, so we only need to assign this to false.
   }
   deriving (Show)
 
 allocaInfoFields :: FieldList
-allocaInfoFields = fields ["name", "offset", "new"]
+allocaInfoFields = fields ["name", "offset", "size", "existing"]
 
 instance Aeson.FromJSON AllocaInfo where
   parseJSON = withFixedObject "AllocaInfo" allocaInfoFields $ \v -> do
     nm <- v .: "name"
     o <- v .: "offset"
-    new <- v .: "new" .!= False
+    sz <- v .: "size"
+    existing <- (v .:? "existing") .!= True
+    when (sz > o) $ fail $ "Allocation size " ++ show sz ++ " must not be greater than offset " ++ show o ++ "."
     pure AllocaInfo { allocaName = nm
                     , allocaBinaryOffset = o
-                    , allocaInThisBlock = new
+                    , allocaSize = sz
+                    , allocaExisting = existing
                     }
 
 ------------------------------------------------------------------------
@@ -148,8 +165,57 @@ instance Aeson.FromJSON BlockEvent where
 ------------------------------------------------------------------------
 -- BlockAnn
 
--- | Our VCG supports cases where each LLVM block corresponds to a contiguous range
--- of instructions.
+-- | A variable that may appear in a block invariant.
+data BlockVar
+   = StackHigh
+     -- ^ Denotes the high address on the stack.
+     --
+     -- This is the address the return address is stored at.
+   | InitGPReg64 !F.Reg64
+     -- ^ Denotes a 64-bit general purpose register a
+   | FnStartGPReg64 !F.Reg64
+     -- ^ Denotes the value of GPReg when the function starts.
+   | MCStack !(Expr BlockVar) !Natural
+     -- ^ @MCStack a w@ denotes @w@-bit value stored at the address @a@.
+     --
+     -- The width @w@ should be @8@, @16@, @32@, or @64@.
+     --
+     -- Our memory model only tracks the mc-only variables, so if the
+     -- address is not a stack-only variable, then the value just
+     -- means some arbitrary value.
+  deriving (Show)
+
+-- | This is the list of callee saved registers.
+calleeSavedGPRegs :: [F.Reg64]
+calleeSavedGPRegs = [ F.RBP, F.RBX, F.R12, F.R13, F.R14, F.R15 ]
+
+-- | Hashmap that maps constants to their block var.
+blockVarNameMap :: HMap.HashMap Text (BlockVar, ExprType)
+blockVarNameMap = HMap.fromList $
+  [ (Text.pack (show r), (InitGPReg64 r, BVType 64))
+  | r <- F.Reg64 <$> [0..15]
+  ]
+  ++ [("stack_high", (StackHigh, BVType 64))]
+  ++ [ (Text.pack ("fnstart_" ++ show r), (FnStartGPReg64 r, BVType 64))
+     | r <- calleeSavedGPRegs
+     ]
+
+instance IsExprVar BlockVar where
+  fromExpr (List [Atom "mcstack", sa, sw]) = do
+    (a, tp) <- evalExpr sa
+    when (tp /= BVType 64) $ fail "Expected 64-bit address."
+    w <- case sw of
+           List [Atom "_", Atom "BitVec", Number w] | w `elem` [8,16,32,64] -> pure w
+           _ -> fail $ "mcstack could not interpet memory type."
+    pure (Var (MCStack a w), BVType w)
+
+  fromExpr (Atom nm)
+    | Just (v,tp) <- HMap.lookup nm blockVarNameMap = Right (Var v, tp)
+  fromExpr s =
+    Left $ "Could not interpret " ++ ppSExpr s ""
+
+-- | Our VCG supports cases where each LLVM block corresponds to a
+-- contiguous range of instructions.
 data BlockAnn = BlockAnn
   { blockLabel :: !String
     -- ^ LLVM label of block
@@ -157,15 +223,15 @@ data BlockAnn = BlockAnn
     -- ^ Address of start of block in machine code
   , blockCodeSize :: !Integer
     -- ^ Number of bytes in block
-  , blockRSPOffset :: !Integer
-    -- ^ Offset of RSP when block starts versus initial RSP for function.
-    -- Since the stack grows down, this will typically be non-positive.
   , blockX87Top  :: !Int
     -- ^ The top of x87 stack (empty = 7, full = 0)
   , blockDFFlag  :: !Bool
-    -- ^ The value of the DF flag (default = FalsE)
+    -- ^ The value of the DF flag (default = False)
+  , blockPreconditions :: ![Expr BlockVar]
+    -- ^ List of preconditions for block.
   , blockAllocas :: ![AllocaInfo]
-    -- ^ Maps LLVM allocations to an offset of the stack where it starts.
+    -- ^ Maps LLVM allocations to an offset of the stack where it
+    -- starts.
   , blockEvents :: ![BlockEvent]
     -- ^ Annotates events within the block.
   }
@@ -173,24 +239,32 @@ data BlockAnn = BlockAnn
 
 
 blockInfoFields :: FieldList
-blockInfoFields = fields ["label", "addr", "size", "rsp_offset", "allocas", "events"]
+blockInfoFields =
+  fields ["label", "addr", "size", "x87_top", "df_flag", "allocas", "preconditions", "events"]
+
+parsePred :: Text -> Aeson.Parser (Expr BlockVar)
+parsePred t =
+  case readPred t of
+    Left msg -> fail msg
+    Right e -> pure e
 
 instance Aeson.FromJSON BlockAnn where
   parseJSON = withFixedObject "block" blockInfoFields $ \v -> do
     lbl  <- v .: "label"
     addr <- v .: "addr"
     sz   <- v .: "size"
-    rspOff  <- v .:? "rsp_offset" .!= 0
     x87Top  <- v .:? "x87_top"    .!= 7
     dfFlag  <- v .:? "df_flag"    .!= False
+    precondStrs <- v .:? "preconditions" .!= []
+    preconditions <- traverse parsePred precondStrs
     allocas <- v .:? "allocas"    .!= []
     events  <- v .:? "events"     .!= []
     pure BlockAnn { blockLabel = lbl
                   , blockAddr  = addr
                   , blockCodeSize = sz
-                  , blockRSPOffset = rspOff
                   , blockX87Top    = x87Top
                   , blockDFFlag    = dfFlag
+                  , blockPreconditions = preconditions
                   , blockAllocas = allocas
                   , blockEvents = events
                   }
@@ -198,9 +272,9 @@ instance Aeson.FromJSON BlockAnn where
 data FunctionAnn = FunctionAnn
   { llvmFunName    :: !String
     -- ^ LLVM function name
-  , stackSize :: !Integer
+  , stackSize :: !Natural
     -- ^ Number of bytes in binary stack size.
-  , blocks :: !(Map String BlockAnn)
+  , blocks :: !(HMap.HashMap String BlockAnn)
     -- ^ Maps LLVM labels to the block associated with that label.
   }
   deriving (Show)
@@ -215,7 +289,7 @@ instance Aeson.FromJSON FunctionAnn where
     bl <- v .: "blocks"
     pure $! FunctionAnn { llvmFunName = fnm
                         , stackSize = sz
-                        , blocks = Map.fromList [ (blockLabel b, b) | b <- bl ]
+                        , blocks = HMap.fromList [ (blockLabel b, b) | b <- bl ]
                         }
 
 data MetaVCGConfig = MetaVCGConfig

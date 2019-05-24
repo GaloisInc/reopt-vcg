@@ -13,7 +13,6 @@ module VCGMacaw
   ( blockEvents
   , Event(..)
   , ppEvent
-  , memVar
   , evenParityDecl
   , evalMemAddr
   , toSMTType
@@ -44,7 +43,7 @@ import           GHC.Stack
 import           Text.PrettyPrint.ANSI.Leijen as PP hiding ((<$>))
 import qualified What4.Protocol.SMTLib2.Syntax as SMT
 
-import qualified Reopt.VCG.Config as Ann
+import qualified Reopt.VCG.Annotations as Ann
 import           VCGCommon
 
 macawError :: HasCallStack => String -> a
@@ -57,9 +56,6 @@ evalMemAddr a =
     SMT.bvhexadecimal (toInteger (addrOffset a)) 64
    else
     error "evalMemAddr only supports static binaries."
-
-memVar :: Integer -> Text
-memVar i = "x86mem_" <> Text.pack (show i)
 
 ------------------------------------------------------------------------
 -- Event
@@ -139,17 +135,14 @@ data MState = MState
     -- ^ Events in reverse order.
   }
 
-newtype MStateM a = MStateM (State MState a)
+newtype MStateM a = MStateM (ExceptT String (State MState) a)
   deriving (Functor, Applicative, Monad, MonadState MState)
 
-{-
-instance MonadState MState MStateM where
-  get   = MStateM $ lift $ ask
-  put t = MStateM $ ContT $ \c -> ReaderT $ \_ -> runReaderT (c ()) t
--}
-
-runMStateM :: MState -> MStateM () -> MState
-runMStateM s (MStateM f) = execState f s
+runMStateM :: MState -> MStateM () -> Either String MState
+runMStateM s (MStateM f) = do
+  case runState (runExceptT f) s of
+    (Left e,   _) -> Left e
+    (Right (), t) -> Right t
 
 addEvent :: Event -> MStateM ()
 addEvent e = do
@@ -167,7 +160,7 @@ getCurrentEventInfo = do
   a <- gets mcCurAddr
   case Map.lookup a m of
     Just info -> pure info
-    Nothing -> error $ "Unannotated memory event at " ++ show a
+    Nothing -> MStateM $ throwError $ "Unannotated memory event at " ++ show a
 
 ------------------------------------------------------------------------
 -- Translation
@@ -255,13 +248,13 @@ setUndefined aid tp = do
   v <- recordLocal aid
   addCommand $ SMT.declareFun v [] (toSMTType tp)
 
--- | Signed overflow occurs when the most significant bit is 1.
--- In @unsignedOverflow r w@ the w is one less than the number of bits.
+-- | Unsigned overflow occurs when the most significant bit is 1.
+-- In @unsignedOverflow r w@, the argument @w@ must be one less than the width of @r@.
 unsignedOverflow :: SMT.Term -> Natural -> SMT.Term
 unsignedOverflow r w = SMT.eq [SMT.extract w w r, SMT.bit1]
 
 -- | Signed overflow occurs when the most significant bit and second most significant bit are distinct.
--- In @unsignedOverflow r w@ the w is one less than the number of bits.
+-- In @unsignedOverflow r w@ the argument @w@ must be one less than the width of @r@.
 signedOverflow :: SMT.Term -> Natural -> SMT.Term
 signedOverflow r w = SMT.distinct [rmsb, r2msb]
   where rmsb  = SMT.extract w w r
@@ -531,7 +524,7 @@ blockEvents :: Map (MemSegmentOff 64) Ann.BlockEventInfo
                -- ^ Next Local variable index
             -> ExploreLoc
                -- ^ Location to explore
-            -> ([Event], Integer, MemWord 64)
+            -> Either String ([Event], Integer, MemWord 64)
 blockEvents evtMap regs nextLocal loc = runST $ do
   Some stGen <- newSTNonceGenerator
   let addr = loc_ip loc
@@ -548,5 +541,8 @@ blockEvents evtMap regs nextLocal loc = runST $ do
                        , nextLocalIndex = nextLocal
                        , revEvents = []
                        }
-      let ms1 = runMStateM ms0 (block2SMT b)
-      pure (reverse (revEvents ms1), nextLocalIndex ms1, sz)
+      case runMStateM ms0 (block2SMT b) of
+        Left e -> do
+          pure $! Left e
+        Right ms1 ->
+          pure $! Right (reverse (revEvents ms1), nextLocalIndex ms1, sz)
