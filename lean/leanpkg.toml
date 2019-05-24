@@ -5,6 +5,6 @@ lean_version = "3.4.1"
 path="src"
 
 [dependencies]
-decodex86     = { path = "deps/decodex86/" }
+decodex86     = { path = "deps/llvm-tablegen-support" }
 typed_smt2    = { path = "deps/typed_smt2" }
 x86_semantics = { path = "deps/x86_semantics" }

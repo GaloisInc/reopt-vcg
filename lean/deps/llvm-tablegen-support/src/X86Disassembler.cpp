@@ -125,46 +125,46 @@ namespace X86 {
 
 }
 
-static void
-print_register_lowercase(unsigned reg, std::ostream &out, const llvm::MCRegisterInfo *reginfo)
-{
-  // from http://www.cplusplus.com/reference/locale/tolower/
-  std::locale loc;
-  for(const char *regname = reginfo->getName(reg);
-      *regname;
-      regname++) {
-    out << std::tolower(*regname,loc);  
-  }
-}
+// static void
+// print_register_lowercase(unsigned reg, std::ostream &out, const llvm::MCRegisterInfo *reginfo)
+// {
+//   // from http://www.cplusplus.com/reference/locale/tolower/
+//   std::locale loc;
+//   for(const char *regname = reginfo->getName(reg);
+//       *regname;
+//       regname++) {
+//     out << std::tolower(*regname,loc);  
+//   }
+// }
 
-static void
-print_sexp_for_register(unsigned reg, std::ostream &out, const llvm::MCRegisterInfo *reginfo)
-{
-  if (reg == X86::NoRegister)
-    out << "no-register";
-  else {
-    // This assumes we have a top register.
-    unsigned top = reg;
+// static void
+// print_sexp_for_register(unsigned reg, std::ostream &out, const llvm::MCRegisterInfo *reginfo)
+// {
+//   if (reg == X86::NoRegister)
+//     out << "no-register";
+//   else {
+//     // This assumes we have a top register.
+//     unsigned top = reg;
     
-    for (llvm::MCSuperRegIterator I(reg, reginfo); I.isValid(); ++I)
-        if (reginfo->isSuperRegister(top, *I))
-            top = *I;
+//     for (llvm::MCSuperRegIterator I(reg, reginfo); I.isValid(); ++I)
+//         if (reginfo->isSuperRegister(top, *I))
+//             top = *I;
 
-    unsigned subidx = reginfo->getSubRegIndex(top, reg);
-    out << "(register ";
-    print_register_lowercase(top, out, reginfo);
-    out << " ";
-    print_register_lowercase(reg, out, reginfo);
-    out << " ";
+//     unsigned subidx = reginfo->getSubRegIndex(top, reg);
+//     out << "(register ";
+//     print_register_lowercase(top, out, reginfo);
+//     out << " ";
+//     print_register_lowercase(reg, out, reginfo);
+//     out << " ";
     
-    if (subidx) 
-        out << reginfo->getSubRegIdxSize(subidx) << " " << reginfo->getSubRegIdxOffset(subidx);
-    else
-        out << "0 0";
+//     if (subidx) 
+//         out << reginfo->getSubRegIdxSize(subidx) << " " << reginfo->getSubRegIdxOffset(subidx);
+//     else
+//         out << "0 0";
 
-    out << ")";
-  }
-}
+//     out << ")";
+//   }
+// }
 
 
 // fwd decl.
@@ -256,16 +256,16 @@ getInstruction(vadd::instruction_t &Instr, uint64_t &Size, ArrayRef<uint8_t> Byt
   }
 }
         
-struct reg_t {
-    llvm::MCPhysReg r;
-    reg_t(llvm::MCPhysReg r) : r(r) {}
-};
+// struct reg_t {
+//     llvm::MCPhysReg r;
+//     reg_t(llvm::MCPhysReg r) : r(r) {}
+// };
 
-void
-print_sexp(const reg_t& x, std::ostream& out, const llvm::MCRegisterInfo *reginfo)
-{
-    print_sexp_for_register(x.r, out, reginfo);
-}
+// void
+// print_sexp(const reg_t& x, std::ostream& out, const llvm::MCRegisterInfo *reginfo)
+// {
+//     print_sexp_for_register(x.r, out, reginfo);
+// }
 
 //
 // Private code that translates from struct InternalInstructions to MCInsts.
@@ -282,7 +282,7 @@ static void translateRegister(vadd::instruction_t &Inst, Reg reg, const char *op
 #undef ENTRY
 
   MCPhysReg llvmRegnum = llvmRegnums[reg];
-  Inst.addOperand(optype, reg_t(llvmRegnum));
+  Inst.addOperand(vadd::mk_operand_register(optype, llvmRegnum));
 }
 
 /// tryAddingSymbolicOperand - trys to add a symbolic operand in place of the
@@ -339,22 +339,22 @@ static const uint8_t segmentRegnums[SEG_OVERRIDE_max] = {
   X86::GS
 };
 
-struct segment_index_op_t {
-  llvm::MCPhysReg segmentreg;// = llvm::X86::NoRegister;
-  llvm::MCPhysReg basereg;// = llvm::X86::NoRegister;
-  segment_index_op_t(llvm::MCPhysReg segmentreg, llvm::MCPhysReg basereg)
-    : segmentreg(segmentreg), basereg(basereg) {}
-};
+// struct segment_index_op_t {
+//   llvm::MCPhysReg segmentreg;// = llvm::X86::NoRegister;
+//   llvm::MCPhysReg basereg;// = llvm::X86::NoRegister;
+//   segment_index_op_t(llvm::MCPhysReg segmentreg, llvm::MCPhysReg basereg)
+//     : segmentreg(segmentreg), basereg(basereg) {}
+// };
 
-void
-print_sexp(const segment_index_op_t& x, std::ostream& out, const llvm::MCRegisterInfo *reginfo)
-{
-    out << "(segment-index ";
-    print_sexp_for_register(x.segmentreg, out, reginfo);
-    out << " ";
-    print_sexp_for_register(x.basereg, out, reginfo);
-    out << ")";
-}
+// void
+// print_sexp(const segment_index_op_t& x, std::ostream& out, const llvm::MCRegisterInfo *reginfo)
+// {
+//     out << "(segment-index ";
+//     print_sexp_for_register(x.segmentreg, out, reginfo);
+//     out << " ";
+//     print_sexp_for_register(x.basereg, out, reginfo);
+//     out << ")";
+// }
 
 /// translateSrcIndex   - Appends a source index operand to an MCInst.
 ///
@@ -372,7 +372,7 @@ static bool translateSrcIndex(vadd::instruction_t &Inst, InternalInstruction &in
     baseRegNo = insn.hasAdSize ? X86::ESI : X86::SI;
   }
 
-  Inst.addOperand(optype, segment_index_op_t(segmentRegnums[insn.segmentOverride], baseRegNo));
+  Inst.addOperand(vadd::mk_operand_segment(optype, segmentRegnums[insn.segmentOverride], baseRegNo));
   
   return false;
 }
@@ -393,7 +393,7 @@ static bool translateDstIndex(vadd::instruction_t &Inst, InternalInstruction &in
     assert(insn.mode == MODE_16BIT);
     baseRegNo = insn.hasAdSize ? X86::EDI : X86::DI;
   }
-  Inst.addOperand(optype, reg_t(baseRegNo));
+  Inst.addOperand(vadd::mk_operand_register(optype, baseRegNo));
   return false;
 }
 
@@ -443,37 +443,37 @@ print_sexp(const rel_immediate_t& x, std::ostream& out, const llvm::MCRegisterIn
     out << "(rel-immediate " << x.pc_off << " " << x.nbytes << " " << x.value << ")";
 }
 
-class memloc_op_t {
- public:
-    llvm::MCPhysReg segmentreg = llvm::X86::NoRegister;
-    llvm::MCPhysReg basereg = llvm::X86::NoRegister;
-    uint64_t scale = 1;
-    llvm::MCPhysReg indexreg = llvm::X86::NoRegister;
-    uint64_t displacement;
+// class memloc_op_t {
+//  public:
+//     llvm::MCPhysReg segmentreg = llvm::X86::NoRegister;
+//     llvm::MCPhysReg basereg = llvm::X86::NoRegister;
+//     uint64_t scale = 1;
+//     llvm::MCPhysReg indexreg = llvm::X86::NoRegister;
+//     uint64_t displacement;
 
-    memloc_op_t() {}
+//     memloc_op_t() {}
     
-    memloc_op_t(llvm::MCPhysReg segmentreg, 
-                 llvm::MCPhysReg basereg, 
-                 uint64_t scale, 
-                 llvm::MCPhysReg indexreg,
-                 uint64_t displacement)
-        : segmentreg(segmentreg), basereg(basereg), scale(scale)
-        , indexreg(indexreg), displacement(displacement)
-    {}
-};
+//     memloc_op_t(llvm::MCPhysReg segmentreg, 
+//                  llvm::MCPhysReg basereg, 
+//                  uint64_t scale, 
+//                  llvm::MCPhysReg indexreg,
+//                  uint64_t displacement)
+//         : segmentreg(segmentreg), basereg(basereg), scale(scale)
+//         , indexreg(indexreg), displacement(displacement)
+//     {}
+// };
 
-void
-print_sexp(const memloc_op_t& x, std::ostream& out, const llvm::MCRegisterInfo *reginfo)
-{
-    out << "(memloc ";
-    print_sexp_for_register(x.segmentreg, out, reginfo);
-    out << " ";
-    print_sexp_for_register(x.basereg, out, reginfo);
-    out << " " << x.scale << " ";
-    print_sexp_for_register(x.indexreg, out, reginfo);
-    out << " " << x.displacement << ")";
-}
+// void
+// print_sexp(const memloc_op_t& x, std::ostream& out, const llvm::MCRegisterInfo *reginfo)
+// {
+//     out << "(memloc ";
+//     print_sexp_for_register(x.segmentreg, out, reginfo);
+//     out << " ";
+//     print_sexp_for_register(x.basereg, out, reginfo);
+//     out << " " << x.scale << " ";
+//     print_sexp_for_register(x.indexreg, out, reginfo);
+//     out << " " << x.displacement << ")";
+// }
 
 /// translateImmediate  - Appends an immediate operand to an MCInst.
 ///
@@ -519,15 +519,15 @@ static void translateImmediate(vadd::instruction_t &Inst, uint64_t immediate,
     return;
     
   case TYPE_XMM:
-    Inst.addOperand(optype, reg_t(X86::XMM0 + (immediate >> 4)));
+    Inst.addOperand(vadd::mk_operand_register(optype, X86::XMM0 + (immediate >> 4)));
     return;
   case TYPE_YMM:
-    Inst.addOperand(optype, reg_t(X86::YMM0 + (immediate >> 4)));
+    Inst.addOperand(vadd::mk_operand_register(optype, X86::YMM0 + (immediate >> 4)));
     return;
 
   case TYPE_MOFFS: {
     MCPhysReg seg = segmentRegnums[insn.segmentOverride];
-    Inst.addOperand(optype, memloc_op_t(seg, llvm::X86::NoRegister, 1, llvm::X86::NoRegister, immediate));
+    Inst.addOperand(vadd::mk_operand_memloc(optype, seg, llvm::X86::NoRegister, 1, llvm::X86::NoRegister, immediate));
     return;
   }
     
@@ -561,16 +561,16 @@ static void translateImmediate(vadd::instruction_t &Inst, uint64_t immediate,
                                mcInst, Dis))
   */
     if (type == TYPE_REL)
-      Inst.addOperand(optype, rel_immediate_t(insn.startLocation + insn.length, nbytes, immediate)); // FIXME: 1 here?
+      Inst.addOperand(vadd::mk_operand_rel_immediate(optype, insn.startLocation + insn.length, nbytes, immediate));
     else
-      Inst.addOperand(optype, immediate_t(nbytes, immediate)); // FIXME: 1 here?
+      Inst.addOperand(vadd::mk_operand_immediate(optype, nbytes, immediate));
     return;;
   }
     
   case TYPE_UIMM8: /* fallthru */
   case TYPE_IMM3:  /* fallthru */
   case TYPE_IMM5:
-    Inst.addOperand(optype, immediate_t(1, immediate)); // FIXME: 1 here?
+    Inst.addOperand(vadd::mk_operand_immediate(optype, 1, immediate)); // 1 here?
     return;
   }
 }
@@ -605,7 +605,7 @@ static bool translateRMRegister(vadd::instruction_t &Inst,
     return true;
 #define ENTRY(x)                                                      \
   case EA_REG_##x:                                                    \
-    Inst.addOperand(optype, reg_t(X86::x)); break;
+    Inst.addOperand(vadd::mk_operand_register(optype, X86::x)); break;
   ALL_REGS
 #undef ENTRY
   }
@@ -634,7 +634,8 @@ static bool translateRMMemory(vadd::instruction_t &Inst, InternalInstruction &in
   //   4. displacement  (immediate) 0, or the displacement if there is one
   //   5. segmentreg    (register)  x86_registerNONE for now, but could be set
   //                                if we have segment overrides
-  memloc_op_t mloc;
+  llvm::MCPhysReg segmentreg = X86::NoRegister, basereg = X86::NoRegister, indexreg = X86::NoRegister;
+  uint64_t scale = 1, displacement = 0;
 
   if (insn.eaBase == EA_BASE_sib || insn.eaBase == EA_BASE_sib64) {
     if (insn.sibBase != SIB_BASE_NONE) {
@@ -644,7 +645,7 @@ static bool translateRMMemory(vadd::instruction_t &Inst, InternalInstruction &in
         return true;
 #define ENTRY(x)                                          \
       case SIB_BASE_##x:                                  \
-        mloc.basereg = X86::x; break;
+        basereg = X86::x; break;
       ALL_SIB_BASES
 #undef ENTRY
       }
@@ -657,7 +658,7 @@ static bool translateRMMemory(vadd::instruction_t &Inst, InternalInstruction &in
         return true;
 #define ENTRY(x)                                          \
       case SIB_INDEX_##x:                                 \
-        mloc.indexreg = X86::x; break;
+        indexreg = X86::x; break;
       EA_BASES_32BIT
       EA_BASES_64BIT
       REGS_XMM
@@ -678,11 +679,11 @@ static bool translateRMMemory(vadd::instruction_t &Inst, InternalInstruction &in
           (insn.sibBase != SIB_BASE_NONE &&
            insn.sibBase != SIB_BASE_ESP && insn.sibBase != SIB_BASE_RSP &&
            insn.sibBase != SIB_BASE_R12D && insn.sibBase != SIB_BASE_R12))
-        mloc.indexreg = insn.addressSize == 4 ? X86::EIZ : X86::RIZ;
+        indexreg = insn.addressSize == 4 ? X86::EIZ : X86::RIZ;
       
     }
 
-    mloc.scale = insn.sibScale;
+    scale = insn.sibScale;
   } else {
     switch (insn.eaBase) {
     case EA_BASE_NONE:
@@ -692,24 +693,24 @@ static bool translateRMMemory(vadd::instruction_t &Inst, InternalInstruction &in
       }
       if (insn.mode == MODE_64BIT) {
         // Section 2.2.1.6
-        mloc.basereg = insn.addressSize == 4 ? X86::EIP : X86::RIP;
+        basereg = insn.addressSize == 4 ? X86::EIP : X86::RIP;
       }
       break;
     case EA_BASE_BX_SI:
-      mloc.basereg = X86::BX;
-      mloc.indexreg = X86::SI;
+      basereg = X86::BX;
+      indexreg = X86::SI;
       break;
     case EA_BASE_BX_DI:
-      mloc.basereg = X86::BX;
-      mloc.indexreg = X86::DI;
+      basereg = X86::BX;
+      indexreg = X86::DI;
       break;
     case EA_BASE_BP_SI:
-      mloc.basereg = X86::BP;
-      mloc.indexreg = X86::SI;
+      basereg = X86::BP;
+      indexreg = X86::SI;
       break;
     case EA_BASE_BP_DI:
-      mloc.basereg = X86::BP;
-      mloc.indexreg = X86::DI;
+      basereg = X86::BP;
+      indexreg = X86::DI;
       break;
     default:
       switch (insn.eaBase) {
@@ -722,7 +723,7 @@ static bool translateRMMemory(vadd::instruction_t &Inst, InternalInstruction &in
         //   placeholders to keep the compiler happy.
 #define ENTRY(x)                                        \
       case EA_BASE_##x:                                 \
-        mloc.basereg = X86::x; break;
+        basereg = X86::x; break;
       ALL_EA_BASES
 #undef ENTRY
 #define ENTRY(x) case EA_REG_##x:
@@ -735,10 +736,10 @@ static bool translateRMMemory(vadd::instruction_t &Inst, InternalInstruction &in
     }
   }
 
-  mloc.displacement = insn.displacement;
-  mloc.segmentreg = segmentRegnums[insn.segmentOverride];
+  displacement = insn.displacement;
+  segmentreg = segmentRegnums[insn.segmentOverride];
  
-  Inst.addOperand(optype, mloc);
+  Inst.addOperand(vadd::mk_operand_memloc(optype, segmentreg, basereg, scale, indexreg, displacement));
   return false;
 }
 
@@ -786,7 +787,7 @@ static bool translateRM(vadd::instruction_t &Inst, const OperandSpecifier &opera
 static void translateFPRegister(vadd::instruction_t &Inst,
                                 uint8_t stackPos,
                                 const char *optype) {
-  Inst.addOperand(optype, reg_t(X86::ST0 + stackPos));
+  Inst.addOperand(vadd::mk_operand_register(optype, X86::ST0 + stackPos));
 }
 
 /// translateMaskRegister - Translates a 3-bit mask register number to
@@ -802,8 +803,7 @@ static bool translateMaskRegister(vadd::instruction_t &Inst,
     debug("Invalid mask register number");
     return true;
   }
-
-  Inst.addOperand(optype, reg_t(X86::K0 + maskRegNum));
+  Inst.addOperand(vadd::mk_operand_register(optype, X86::K0 + maskRegNum));
   return false;
 }
 
@@ -840,7 +840,7 @@ static bool translateOperand(vadd::instruction_t &Inst, const OperandSpecifier &
                        insn, optype);
     return false;
   case ENCODING_IRC:
-    Inst.addOperand(optype, immediate_t(1, insn.RC));
+    Inst.addOperand(vadd::mk_operand_immediate(optype, 1, insn.RC));
     return false;
   case ENCODING_SI:
     return translateSrcIndex(Inst, insn, optype);
