@@ -1007,7 +1007,7 @@ llvmInvoke isTailCall fsym args lRet = do
       addCommand $ SMT.defineFun (identVar llvmIdent) [] smtSort  mRetVal
     Nothing -> pure ()
 
--- | Add all the declarations needed to reference an allocation.
+-- | Add the LLVM declarations for an allocation.
 allocaDeclarations :: Ann.AllocaName
                    -> Natural -- Size
                    -> BlockVCG ()
