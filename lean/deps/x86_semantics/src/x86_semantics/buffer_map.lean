@@ -1,59 +1,55 @@
-/- A map from indexes onto buffers -/
-import data.buffer
-
-structure {u v} buffer_map.entry (k : Type u) (val : Type v) : Type (max u v) := 
+/- A map from indexes onto buffers, specialised to bytes -/
+structure {u} buffer_map.entry (k : Type u) : Type u := 
   (start : k) 
-  (value : buffer val)
+  (value : ByteArray)
 
 -- distance here is essentially subtraction.  distance k k' < 0 iff k < k'
-structure {u v} buffer_map (k : Type u) (val : Type v) (distance : k -> k -> ℤ) :=
-  (entries : list (buffer_map.entry k val) )
+structure {u} buffer_map (k : Type u) (distance : k -> k -> Int) :=
+  (entries : List (buffer_map.entry k))
 
 namespace buffer_map
 section
 
-universes u v
+universe u
 
-parameters {k : Type u} {val : Type v} {distance : k -> k -> ℤ}
+variables {k : Type u} {distance : k -> k -> Int}
 
 /- construction -/
-def empty : buffer_map k val distance := buffer_map.mk distance []
+def empty : buffer_map k distance := buffer_map.mk distance []
 
 /- lookup -/
-def in_entry (key : k) (e : entry k val) : Prop :=
-  distance key e.start ≥ 0 ∧ int.nat_abs (distance key e.start) < e.value.size
+def in_entry (key : k) (e : entry k) : Prop :=
+  distance key e.start ≥ 0 ∧ Int.natAbs (distance key e.start) < e.value.size
 
-def entry_idx (key : k) (e : entry k val) : option (fin e.value.size) :=
-  if H : distance key e.start ≥ 0 ∧ int.nat_abs (distance key e.start) < e.value.size
-  then some (fin.mk _ H.right) 
+def entry_idx (key : k) (e : entry k) : Option (Fin e.value.size) :=
+  if H : distance key e.start ≥ 0 ∧ Int.natAbs (distance key e.start) < e.value.size
+  then some (Fin.mk _ H.right) 
   else none
 
 protected
-def lookup' : list (buffer_map.entry k val) -> k -> option val
+def lookup' : List (buffer_map.entry k) -> k -> Option UInt8
   | [] _         := none
   | (e :: m) key := 
-    match entry_idx key e with
+    match @entry_idx k distance key e with
     | none       := lookup' m key
-    | (some idx) := some (e.value.read idx)
-    end
+    | (some idx) := some (e.value.get idx.val)
 
-def lookup (m : buffer_map k val distance) := lookup' m.entries
+def lookup (m : buffer_map k distance) := @buffer_map.lookup' k distance m.entries
 
 protected
-def lookup_buffer' : list (buffer_map.entry k val) -> k -> option (k × buffer val)
+def lookup_buffer' : List (buffer_map.entry k) -> k -> Option (k × ByteArray)
   | [] _         := none
   | (e :: m) key := 
-    match entry_idx key e with
+    match @entry_idx k distance key e with
     | none       := lookup_buffer' m key
     | (some idx) := some (e.start, e.value)
-    end
 
-def lookup_buffer (m : buffer_map k val distance) := lookup_buffer' m.entries
+def lookup_buffer (m : buffer_map k distance) := @buffer_map.lookup_buffer' k distance m.entries
 
 /- insertion -/
 
 -- FIXME: add overlap check
-def insert (m : buffer_map k val distance) (start : k) (value : buffer val) : buffer_map k val distance :=
+def insert (m : buffer_map k distance) (start : k) (value : ByteArray) : buffer_map k distance :=
   buffer_map.mk distance ({ start := start, value := value } :: m.entries)
 
 end 
@@ -62,12 +58,12 @@ end buffer_map
 
 section 
 
-universes u v
-parameters {k : Type u} {val : Type v} {distance : k -> k -> ℤ} [has_repr k]
+universes u
+variables {k : Type u} {distance : k -> k -> Int} [HasRepr k]
 
-instance : has_repr (buffer_map.entry k val) :=
+instance : HasRepr (buffer_map.entry k) :=
   ⟨λe, "( [" ++ repr e.start ++ " ..+ " ++ repr e.value.size ++ "]" /-" -> " ++ has_repr.repr e.value -/ ++ ")"⟩                  
 
-instance : has_repr (buffer_map k val distance) := ⟨λm, repr m.entries ⟩
+instance : HasRepr (buffer_map k distance) := ⟨λm, repr m.entries ⟩
 
 end
