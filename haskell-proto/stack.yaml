@@ -1,7 +1,23 @@
 resolver: lts-13.21
 
 packages:
+<<<<<<< Updated upstream
 - .
+=======
+  - .
+  - ../annotations
+  - deps/crucible/crucible
+  - deps/crucible/what4
+  - deps/llvm-pretty
+  - deps/llvm-pretty-bc-parser
+  - deps/parameterized-utils
+  - deps/dwarf
+  - deps/elf-edit
+  - deps/flexdis86
+  - deps/flexdis86/binary-symbols
+  - deps/macaw/base
+  - deps/macaw/x86
+>>>>>>> Stashed changes
 
 extra-deps:
 - fgl-visualize-0.1.0.1@sha256:e682066053a6e75478a08fd6822dd0143a3b8ea23244bdb01dd389a266447c5e

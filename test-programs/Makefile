@@ -4,8 +4,25 @@ all : test_add_diet.exe test_fib_diet.exe test_add_glibc.exe test_add.bc test_fi
 test_%_diet.exe : diet/start.o diet/libc.a test_%.o
 	ld.lld -static -o $@ $+
 
+# Generate a the blocks file.
+test_add_diet_reopt.blocks : test_add_diet.exe
+	reopt -o $@ --include add test_add_diet.exe
+
+# Generate the .o file using reopt.
+test_add_diet_reopt.o : test_add_diet.exe
+	reopt -o $@ --include add test_add_diet.exe
+
+# Generate an LLVM file using reopt.
+test_add_diet_reopt.ll : test_add_diet.exe
+	reopt -o test_add_add.ll --include add test_add_diet.exe
+
+# Generate a the executable file.
+test_add_diet_reopt.exe : test_add_diet.exe
+	reopt -o $@ --include add test_add_diet.exe
+
 # This builds with glibc libraries in case we want an alternate.
-test_%_glibc.exe : glibc/libgcc_eh.a glibc/libgcc.a glibc/placeholder_initfini.o glibc/libc.a glibc/crt1.o test_%.o
+test_%_glibc.exe : glibc/libgcc_eh.a glibc/libgcc.a glibc/placeholder_initfini.o \
+		   glibc/libc.a glibc/crt1.o test_%.o
 	ld.lld -static -o $@ $+
 
 # Create disassembly from exe
