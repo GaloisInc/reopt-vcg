@@ -1,6 +1,7 @@
 
 namespace decodex86
 
+@[reducible]
 def regN := String
 
 structure register :=
@@ -332,8 +333,24 @@ def mk_decode_success (i : instruction) : decode_result := Sum.inr i
 @[export decodex86.exported.mk_decode_failure]
 def mk_decode_failure (nbytes : ℕ) : decode_result := Sum.inl nbytes
 
+namespace prim
+
 -- Imported (FFI) functions
 @[extern 2 cpp "vadd::decode"]
-def decode ( b : @& ByteArray ) (nbytes : @& ℕ) : decode_result := default _
+def decode ( b : @& ByteArray ) (offset : @& ℕ) : decode_result := default _
+
+end prim
+
+structure decoder :=
+  (bytes : ByteArray)
+  (vaddr : Nat)
+
+def mk_decoder (bs : ByteArray) (v : Nat) : decoder :=
+  decoder.mk bs v
+
+def decode (d : decoder) (v : Nat) : decode_result :=
+  if v < d.vaddr 
+  then Sum.inl 0
+  else prim.decode d.bytes (v - d.vaddr)
 
 end decodex86

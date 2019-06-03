@@ -2,7 +2,7 @@
 This module defines the core datatypes used to represent x86 instruction semantics.
 -/
 import galois.category.coe1
-import galois.sexpr
+-- import galois.sexpr
 
 namespace mc_semantics
 
@@ -14,13 +14,40 @@ namespace mc_semantics
 It is equivant to a deBrujin level.
 -/
 @[reducible]
-def arg_index := nat
+def arg_index := Nat
+
+-- inductive foo : Type
+--   | base  : Nat -> foo
+--   | three : foo -> Nat -> foo -> foo -> foo
+
+-- namespace foo
+
+-- protected
+-- def decEq : Π(e e':foo), Decidable (e = e')
+--   | (base n1)     (base n2)     := 
+--     if h : n1 = n2 
+--     then isTrue (h ▸ rfl)
+--     else isFalse (λh', foo.noConfusion h' h)
+--   | (three e1 n1 e1' e1'') (three e2 n2 e2' e2'') := 
+--   if h : n1 = n2 then
+--     (match decEq e1 e2, decEq e1' e2', decEq e1'' e2''  with
+--     | (isTrue h1), (isTrue h2), (isTrue h3) := isTrue (h1 ▸ h ▸ h2 ▸ h3 ▸ rfl)
+--     | (isFalse h1), _          , _ := isFalse (λh, foo.noConfusion h $ λh1' hh' h2' h3', absurd h1' h1 )
+--     | (isTrue h1), (isFalse h2), _ := isFalse (λh, foo.noConfusion h $ λh1' hh' h2' h3', absurd h2' h2 )
+--     | (isTrue h1), (isTrue h2), (isFalse h3) := isFalse (λh, foo.noConfusion h $ λh1' hh' h2' h3', absurd h3' h3))
+--   else isFalse (λh', foo.noConfusion h' $ λh1' hh' h2' h3', absurd hh' h)
+--   | (base _) (three _ _ _ _) := isFalse (λh, foo.noConfusion h)
+--   | (three _ _ _ _) (base _) := isFalse (λh, foo.noConfusion h)
+
+-- #check foo.decEq
+
+-- end foo
 
 ------------------------------------------------------------------------
 -- nat_expr
 
 inductive nat_expr : Type
-| lit : nat → nat_expr
+| lit : Nat → nat_expr
 | var : arg_index → nat_expr
 | add : nat_expr → nat_expr → nat_expr
 | sub : nat_expr → nat_expr → nat_expr
@@ -50,17 +77,85 @@ protected def do_div : nat_expr → nat_expr → nat_expr
 | (lit x) (lit y) := lit (x/y)
 | x y := div x y
 
-instance : has_zero nat_expr := ⟨nat_expr.zero⟩
-instance : has_one nat_expr := ⟨nat_expr.one⟩
-instance : has_add nat_expr := ⟨nat_expr.do_add⟩
-instance : has_sub nat_expr := ⟨nat_expr.do_sub⟩
-instance : has_mul nat_expr := ⟨nat_expr.do_mul⟩
-instance : has_div nat_expr := ⟨nat_expr.do_div⟩
+instance : HasZero nat_expr := ⟨nat_expr.zero⟩
+instance : HasOne nat_expr := ⟨nat_expr.one⟩
+instance : HasAdd nat_expr := ⟨nat_expr.do_add⟩
+instance : HasSub nat_expr := ⟨nat_expr.do_sub⟩
+instance : HasMul nat_expr := ⟨nat_expr.do_mul⟩
+instance : HasDiv nat_expr := ⟨nat_expr.do_div⟩
 
-instance nat_coe_nat_expr : has_coe ℕ nat_expr := ⟨λx, lit x⟩
-instance decidable_eq_nat_expr : decidable_eq nat_expr := by tactic.mk_dec_eq_instance
+instance nat_coe_nat_expr : HasCoe ℕ nat_expr := ⟨λx, lit x⟩
 
-def pp : nat_expr -> string
+protected
+def decEq : Π(e e':nat_expr), Decidable (e = e')
+  | (lit n1)     (lit n2)     := 
+    if h : n1 = n2 
+    then isTrue (h ▸ rfl)
+    else isFalse (λh', nat_expr.noConfusion h' h)
+  | (var i1)     (var i2)     := 
+    if h : i1 = i2 
+    then isTrue (h ▸ rfl)
+    else isFalse (λh', nat_expr.noConfusion h' h)
+  | (add e1 e1') (add e2 e2') := 
+    (match decEq e1 e2, decEq e1' e2' with
+    | (isTrue h1), (isTrue h2) := isTrue (h1 ▸ h2 ▸ rfl)
+    | (isFalse h1), _          := isFalse (λh, nat_expr.noConfusion h $ λhp h', absurd hp h1)
+    | (isTrue h1), (isFalse h2) := isFalse (λh, nat_expr.noConfusion h $ λhp h', absurd h' h2))
+  | (sub e1 e1') (sub e2 e2') := -- FIXME: cut and paste
+    (match decEq e1 e2, decEq e1' e2' with
+    | (isTrue h1), (isTrue h2) := isTrue (h1 ▸ h2 ▸ rfl)
+    | (isFalse h1), _          := isFalse (λh, nat_expr.noConfusion h $ λhp h', absurd hp h1)
+    | (isTrue h1), (isFalse h2) := isFalse (λh, nat_expr.noConfusion h $ λhp h', absurd h' h2))
+  | (mul e1 e1') (mul e2 e2') := -- FIXME: cut and paste
+    (match decEq e1 e2, decEq e1' e2' with
+    | (isTrue h1), (isTrue h2) := isTrue (h1 ▸ h2 ▸ rfl)
+    | (isFalse h1), _          := isFalse (λh, nat_expr.noConfusion h $ λhp h', absurd hp h1)
+    | (isTrue h1), (isFalse h2) := isFalse (λh, nat_expr.noConfusion h $ λhp h', absurd h' h2))
+  | (div e1 e1') (div e2 e2') := -- FIXME: cut and paste
+    (match decEq e1 e2, decEq e1' e2' with
+    | (isTrue h1), (isTrue h2) := isTrue (h1 ▸ h2 ▸ rfl)
+    | (isFalse h1), _          := isFalse (λh, nat_expr.noConfusion h $ λhp h', absurd hp h1)
+    | (isTrue h1), (isFalse h2) := isFalse (λh, nat_expr.noConfusion h $ λhp h', absurd h' h2))
+  | (lit _) (var _)   := isFalse (λh, nat_expr.noConfusion h)
+  | (lit _) (add _ _) := isFalse (λh, nat_expr.noConfusion h)
+  | (lit _) (sub _ _) := isFalse (λh, nat_expr.noConfusion h)
+  | (lit _) (mul _ _) := isFalse (λh, nat_expr.noConfusion h)
+  | (lit _) (div _ _) := isFalse (λh, nat_expr.noConfusion h)
+
+  | (var _) (lit _)   := isFalse (λh, nat_expr.noConfusion h)
+  | (var _) (add _ _) := isFalse (λh, nat_expr.noConfusion h)
+  | (var _) (sub _ _) := isFalse (λh, nat_expr.noConfusion h)
+  | (var _) (mul _ _) := isFalse (λh, nat_expr.noConfusion h)
+  | (var _) (div _ _) := isFalse (λh, nat_expr.noConfusion h)
+
+  | (add _ _) (lit _)   := isFalse (λh, nat_expr.noConfusion h)
+  | (add _ _) (var _) := isFalse (λh, nat_expr.noConfusion h)
+  | (add _ _) (sub _ _) := isFalse (λh, nat_expr.noConfusion h)
+  | (add _ _) (mul _ _) := isFalse (λh, nat_expr.noConfusion h)
+  | (add _ _) (div _ _) := isFalse (λh, nat_expr.noConfusion h)
+
+  | (sub _ _) (lit _)   := isFalse (λh, nat_expr.noConfusion h)
+  | (sub _ _) (var _) := isFalse (λh, nat_expr.noConfusion h)
+  | (sub _ _) (add _ _) := isFalse (λh, nat_expr.noConfusion h)
+  | (sub _ _) (mul _ _) := isFalse (λh, nat_expr.noConfusion h)
+  | (sub _ _) (div _ _) := isFalse (λh, nat_expr.noConfusion h)
+
+  | (mul _ _) (lit _)   := isFalse (λh, nat_expr.noConfusion h)
+  | (mul _ _) (var _) := isFalse (λh, nat_expr.noConfusion h)
+  | (mul _ _) (add _ _) := isFalse (λh, nat_expr.noConfusion h)
+  | (mul _ _) (sub _ _) := isFalse (λh, nat_expr.noConfusion h)
+  | (mul _ _) (div _ _) := isFalse (λh, nat_expr.noConfusion h)
+
+  | (div _ _) (lit _)   := isFalse (λh, nat_expr.noConfusion h)
+  | (div _ _) (var _) := isFalse (λh, nat_expr.noConfusion h)
+  | (div _ _) (add _ _) := isFalse (λh, nat_expr.noConfusion h)
+  | (div _ _) (sub _ _) := isFalse (λh, nat_expr.noConfusion h)
+  | (div _ _) (mul _ _) := isFalse (λh, nat_expr.noConfusion h)
+  
+instance decidable_eq_nat_expr : DecidableEq nat_expr := -- by tactic.mk_dec_eq_instance
+  { decEq := nat_expr.decEq }
+
+def pp : nat_expr -> String
 | (lit n) := repr n
 | (var i) := "(var " ++ repr i ++ ")"
 | (add e e') := "(add " ++ e.pp ++ " " ++ e'.pp ++ ")"
@@ -72,15 +167,15 @@ end nat_expr
 ------------------------------------------------------------------------
 -- one_of
 
-inductive one_of (l:list ℕ) : Type
+inductive one_of (l:List ℕ) : Type
 | var{} : arg_index → one_of
 
 namespace one_of
 
-def to_nat_expr {l:list ℕ} : one_of l → nat_expr
+def to_nat_expr {l:List ℕ} : one_of l → nat_expr
 | (one_of.var i) := nat_expr.var i
 
-instance (l:list ℕ) : has_coe (one_of l) nat_expr :=
+instance (l:List ℕ) : HasCoe (one_of l) nat_expr :=
 ⟨ one_of.to_nat_expr ⟩
 
 end one_of
@@ -102,7 +197,92 @@ inductive type
 -- A function from arg to res
 | fn (arg:type) (res:type) : type
 
-instance decidable_eq_type: decidable_eq type := by tactic.mk_dec_eq_instance
+namespace type
+
+protected def hasDecEq : Π(e e' : type), Decidable (e = e')
+| (bv c1) (bv c1') := 
+ (match decEq c1 c1' with 
+  | (isTrue h1) := isTrue (h1 ▸ rfl)
+  | (isFalse nh) := isFalse (λh, type.noConfusion h $ λh1', absurd h1' nh))
+| bit bit := isTrue rfl
+| float float := isTrue rfl
+| double double := isTrue rfl
+| x86_80 x86_80 := isTrue rfl
+| (vec c1 c2) (vec c1' c2') := 
+ (match decEq c1 c1', hasDecEq c2 c2' with 
+  | (isTrue h1), (isTrue h2) := isTrue (h1 ▸ h2 ▸ rfl)
+  | (isFalse nh), _ := isFalse (λh, type.noConfusion h $ λh1' h2', absurd h1' nh)
+  | (isTrue _), (isFalse nh) := isFalse (λh, type.noConfusion h $ λh1' h2', absurd h2' nh))
+| (pair c1 c2) (pair c1' c2') := 
+ (match hasDecEq c1 c1', hasDecEq c2 c2' with 
+  | (isTrue h1), (isTrue h2) := isTrue (h1 ▸ h2 ▸ rfl)
+  | (isFalse nh), _ := isFalse (λh, type.noConfusion h $ λh1' h2', absurd h1' nh)
+  | (isTrue _), (isFalse nh) := isFalse (λh, type.noConfusion h $ λh1' h2', absurd h2' nh))
+| (fn c1 c2) (fn c1' c2') := 
+ (match hasDecEq c1 c1', hasDecEq c2 c2' with 
+  | (isTrue h1), (isTrue h2) := isTrue (h1 ▸ h2 ▸ rfl)
+  | (isFalse nh), _ := isFalse (λh, type.noConfusion h $ λh1' h2', absurd h1' nh)
+  | (isTrue _), (isFalse nh) := isFalse (λh, type.noConfusion h $ λh1' h2', absurd h2' nh))
+| (bv _) bit := isFalse (λh, type.noConfusion h)
+| (bv _) float := isFalse (λh, type.noConfusion h)
+| (bv _) double := isFalse (λh, type.noConfusion h)
+| (bv _) x86_80 := isFalse (λh, type.noConfusion h)
+| (bv _) (vec _ _) := isFalse (λh, type.noConfusion h)
+| (bv _) (pair _ _) := isFalse (λh, type.noConfusion h)
+| (bv _) (fn _ _) := isFalse (λh, type.noConfusion h)
+| bit (bv _) := isFalse (λh, type.noConfusion h)
+| bit float := isFalse (λh, type.noConfusion h)
+| bit double := isFalse (λh, type.noConfusion h)
+| bit x86_80 := isFalse (λh, type.noConfusion h)
+| bit (vec _ _) := isFalse (λh, type.noConfusion h)
+| bit (pair _ _) := isFalse (λh, type.noConfusion h)
+| bit (fn _ _) := isFalse (λh, type.noConfusion h)
+| float (bv _) := isFalse (λh, type.noConfusion h)
+| float bit := isFalse (λh, type.noConfusion h)
+| float double := isFalse (λh, type.noConfusion h)
+| float x86_80 := isFalse (λh, type.noConfusion h)
+| float (vec _ _) := isFalse (λh, type.noConfusion h)
+| float (pair _ _) := isFalse (λh, type.noConfusion h)
+| float (fn _ _) := isFalse (λh, type.noConfusion h)
+| double (bv _) := isFalse (λh, type.noConfusion h)
+| double bit := isFalse (λh, type.noConfusion h)
+| double float := isFalse (λh, type.noConfusion h)
+| double x86_80 := isFalse (λh, type.noConfusion h)
+| double (vec _ _) := isFalse (λh, type.noConfusion h)
+| double (pair _ _) := isFalse (λh, type.noConfusion h)
+| double (fn _ _) := isFalse (λh, type.noConfusion h)
+| x86_80 (bv _) := isFalse (λh, type.noConfusion h)
+| x86_80 bit := isFalse (λh, type.noConfusion h)
+| x86_80 float := isFalse (λh, type.noConfusion h)
+| x86_80 double := isFalse (λh, type.noConfusion h)
+| x86_80 (vec _ _) := isFalse (λh, type.noConfusion h)
+| x86_80 (pair _ _) := isFalse (λh, type.noConfusion h)
+| x86_80 (fn _ _) := isFalse (λh, type.noConfusion h)
+| (vec _ _) (bv _) := isFalse (λh, type.noConfusion h)
+| (vec _ _) bit := isFalse (λh, type.noConfusion h)
+| (vec _ _) float := isFalse (λh, type.noConfusion h)
+| (vec _ _) double := isFalse (λh, type.noConfusion h)
+| (vec _ _) x86_80 := isFalse (λh, type.noConfusion h)
+| (vec _ _) (pair _ _) := isFalse (λh, type.noConfusion h)
+| (vec _ _) (fn _ _) := isFalse (λh, type.noConfusion h)
+| (pair _ _) (bv _) := isFalse (λh, type.noConfusion h)
+| (pair _ _) bit := isFalse (λh, type.noConfusion h)
+| (pair _ _) float := isFalse (λh, type.noConfusion h)
+| (pair _ _) double := isFalse (λh, type.noConfusion h)
+| (pair _ _) x86_80 := isFalse (λh, type.noConfusion h)
+| (pair _ _) (vec _ _) := isFalse (λh, type.noConfusion h)
+| (pair _ _) (fn _ _) := isFalse (λh, type.noConfusion h)
+| (fn _ _) (bv _) := isFalse (λh, type.noConfusion h)
+| (fn _ _) bit := isFalse (λh, type.noConfusion h)
+| (fn _ _) float := isFalse (λh, type.noConfusion h)
+| (fn _ _) double := isFalse (λh, type.noConfusion h)
+| (fn _ _) x86_80 := isFalse (λh, type.noConfusion h)
+| (fn _ _) (vec _ _) := isFalse (λh, type.noConfusion h)
+| (fn _ _) (pair _ _) := isFalse (λh, type.noConfusion h)
+
+instance decidable_eq_type: DecidableEq type := { decEq := type.hasDecEq }
+
+end type
 
 end mc_semantics
 
@@ -129,7 +309,7 @@ inductive gpreg_type : Type
 namespace gpreg_type
 
 @[reducible]
-def width' : gpreg_type → nat
+def width' : gpreg_type → Nat
 | reg8l  := 8
 | reg8h  := 8
 | reg16 := 16
@@ -148,8 +328,8 @@ end gpreg_type
 
 -- Type for concrete x86 registers
 inductive concrete_reg : type → Type
-| gpreg   (idx:fin 16) (tp:gpreg_type) : concrete_reg (bv (tp.width))
-| flagreg (idx:fin 32) : concrete_reg bit
+| gpreg   (idx:Fin 16) (tp:gpreg_type) : concrete_reg (bv (tp.width))
+| flagreg (idx:Fin 32) : concrete_reg bit
 
 -- Type for x86 registers
 inductive reg (tp:type) : Type
@@ -158,48 +338,48 @@ inductive reg (tp:type) : Type
 
 namespace reg
 
-protected def gpreg_prefix (x:fin 16) : string :=
+protected def gpreg_prefix (x:Fin 16) : String :=
   match x.val with
   | 0 := "a"
   | v := "r" ++ v.repr
-  end
 
-protected def r8l_names : list string :=
+
+protected def r8l_names : List String :=
   [ "al",   "cl",   "dl",   "bl"
   , "spl",  "bpl",  "sil",  "dil"
   , "r8b" , "r9b" , "r10b", "r11b"
   , "r12b", "r13b", "r14b", "r15b"
   ]
 
-protected def r8h_names : list string :=
+protected def r8h_names : List String :=
   [ "ah",   "ch",   "dh",   "bh"
   , "sph_undefined",  "bph_undefined",  "sih_undefined",  "dih_undefined"
   , "r8h_undefined" , "r9h_undefined" , "r10h_undefined", "r11h_undefined"
   , "r12h_undefined", "r13h_undefined", "r14h_undefined", "r15h_undefined"
   ]
 
-protected def r16_names : list string :=
+protected def r16_names : List String :=
   [ "ax",   "cx",   "dx", "bx"
   , "sp",   "bp",   "si", "di"
   , "r8w" , "r9w" , "r10w", "r11w"
   , "r12w", "r13w", "r14w", "r15w"
   ]
 
-protected def r32_names : list string :=
+protected def r32_names : List String :=
   [ "eax",  "ecx",  "edx",  "ebx"
   , "esp",  "ebp",  "esi",  "edi"
   , "r8d" , "r9d" , "r10d", "r11d"
   , "r12d", "r13d", "r14d", "r15d"
   ]
 
-protected def r64_names : list string :=
+protected def r64_names : List String :=
   [ "rax", "rcx", "rdx", "rbx"
   , "rsp", "rbp", "rsi", "rdi"
   , "r8" , "r9" , "r10", "r11"
   , "r12", "r13", "r14", "r15"
   ]
 
-protected def flag_names : list string :=
+protected def flag_names : List String :=
   [ "cf", "RESERVED_1", "pf",  "RESERVED_3", "af",    "RESERVED_5", "zf", "sf"
   , "tf", "if",         "df",  "of",         "iopl1", "iopl2",      "nt", "RESERVED_15"
   , "rf", "vm",         "ac",  "vif",        "vip",   "id"
@@ -210,27 +390,27 @@ end reg
 namespace concrete_reg
 
 protected
-def repr : Π{tp:type}, concrete_reg tp → string
+def repr : Π{tp:type}, concrete_reg tp → String
 | ._ (gpreg idx tp) := "$" ++
-  match tp with
-  | gpreg_type.reg8l := list.nth_le reg.r8l_names idx.val idx.is_lt
-  | gpreg_type.reg8h := list.nth_le reg.r8h_names idx.val idx.is_lt
-  | gpreg_type.reg16 := list.nth_le reg.r16_names idx.val idx.is_lt
-  | gpreg_type.reg32 := list.nth_le reg.r32_names idx.val idx.is_lt
-  | gpreg_type.reg64 := list.nth_le reg.r64_names idx.val idx.is_lt
-  end
+  (match tp with
+  | gpreg_type.reg8l := List.get idx.val reg.r8l_names
+  | gpreg_type.reg8h := List.get idx.val reg.r8h_names
+  | gpreg_type.reg16 := List.get idx.val reg.r16_names
+  | gpreg_type.reg32 := List.get idx.val reg.r32_names
+  | gpreg_type.reg64 := List.get idx.val reg.r64_names)
+ 
 | ._ (flagreg idx) := "$" ++
-   match list.nth reg.flag_names idx.val with
-   | (option.some nm) := nm
-   | option.none :=  "RESERVED_" ++ idx.val.repr
-   end
+   (match List.getOpt idx.val reg.flag_names with
+   | (Option.some nm) := nm
+   | Option.none :=  "RESERVED_" ++ idx.val.repr)
+
 
 end concrete_reg
 
 namespace reg
 
 protected
-def repr : Π{tp:type}, reg tp -> string
+def repr : Π{tp:type}, reg tp -> String
 | _ (concrete r) := r.repr
 | _ (arg idx)    := "arg" ++ idx.repr
 
@@ -245,7 +425,7 @@ inductive addr (tp:type) : Type
 
 namespace addr
 
-protected def repr {tp:type} : addr tp → string
+protected def repr {tp:type} : addr tp → String
 | (arg idx) := idx.repr
 
 end addr
@@ -446,9 +626,9 @@ inductive expression : type → Type
 -- Read the address
 | read (tp:type) (a : expression (bv 64)) : expression tp
 -- Denotes the current value of a register as identified by an offset relative to the current stack top value.
-| streg (idx : fin 8) : expression x86_80
+| streg (idx : Fin 8) : expression x86_80
 -- Denotes the value of a local variable at the given index.
-| get_local (idx:nat) (tp:type) : expression tp
+| get_local (idx:Nat) (tp:type) : expression tp
 -- Denotes the value of an argument that should be an immediate encoded in the machine code.
 | imm_arg (idx:arg_index) (tp:type) : expression tp
 -- Denotes the value of an argument that should be a memory address
@@ -464,7 +644,7 @@ end prim
 
 --namespace prim
 --
--- def pp : Π{tp:type}, prim tp → string
+-- def pp : Π{tp:type}, prim tp → String
 -- | ._ (add i) := "add " ++ i.pp
 -- | ._ (adc i) := "adc " ++ i.pp
 -- | ._ (mul i) := "mul " ++ i.pp
@@ -520,9 +700,9 @@ local notation ℕ := nat_expr
 def of_addr : Π{tp:type}, addr tp → expression (bv 64)
 | tp (@addr.arg _ i) := expression.addr_arg i
 
-instance prim_is_expr (rtp:type) : has_coe (prim rtp) (expression rtp) := ⟨expression.primitive⟩
+instance prim_is_expr (rtp:type) : HasCoe (prim rtp) (expression rtp) := ⟨expression.primitive⟩
 
-instance (a:type) (f:type) : has_coe_to_fun (expression (type.fn a f)) :=
+instance (a:type) (f:type) : HasCoeToFun (expression (type.fn a f)) :=
 { F := λ_, Π(y:expression a), expression f
 , coe := app
 }
@@ -538,11 +718,11 @@ def sub : Π{w:ℕ}, expression (bv w) → expression (bv w) → expression (bv 
 def neg : Π{w:ℕ}, expression (bv w) → expression (bv w)
   | _ x := app (primitive (prim.neg _)) x
 
-instance (w:ℕ) : has_zero (expression (bv w)) := ⟨prim.bv_nat w 0⟩
-instance (w:ℕ) : has_one  (expression (bv w)) := ⟨prim.bv_nat w 1⟩
-instance (w:ℕ) : has_add  (expression (bv w)) := ⟨add⟩
-instance (w:ℕ) : has_sub  (expression (bv w)) := ⟨sub⟩
-instance (w:ℕ) : has_neg  (expression (bv w)) := ⟨neg⟩
+instance (w:ℕ) : HasZero (expression (bv w)) := ⟨prim.bv_nat w 0⟩
+instance (w:ℕ) : HasOne  (expression (bv w)) := ⟨prim.bv_nat w 1⟩
+instance (w:ℕ) : HasAdd  (expression (bv w)) := ⟨add⟩
+instance (w:ℕ) : HasSub  (expression (bv w)) := ⟨sub⟩
+instance (w:ℕ) : HasNeg  (expression (bv w)) := ⟨neg⟩
 
 def adc         {w:ℕ} (x y : expression (bv w)) (b : expression bit) : expression (bv w) := prim.adc   w x y b
 def bswap       {w:ℕ} (v : expression (bv w))                        : expression (bv w) := prim.bswap w v
@@ -558,12 +738,12 @@ def of_reg {tp:type} : reg tp → expression tp
 | (reg.concrete r) := expression.get_reg r
 | (reg.arg a) := expression.read_arg a tp
 
-instance addr_is_expression (tp:type) : has_coe (addr tp) (expression tp) :=
+instance addr_is_expression (tp:type) : HasCoe (addr tp) (expression tp) :=
 ⟨ expression.read_addr ⟩
 
 
 
-instance type_is_sort     : has_coe_to_sort type := ⟨Type, expression⟩
+instance type_is_sort     : HasCoeToSort type := ⟨Type, expression⟩
 instance all_reg_is_expression : has_coe1 reg expression := ⟨λ_, expression.of_reg⟩
 
 end expression
@@ -572,7 +752,7 @@ protected
 def expression.imm : Π{tp:type}, imm tp → expression tp
 | ._ (@imm.arg i tp) := expression.imm_arg i tp
 
-instance expression.imm_is_expression (tp:type) : has_coe (imm tp) (expression tp) := ⟨expression.imm⟩
+instance expression.imm_is_expression (tp:type) : HasCoe (imm tp) (expression tp) := ⟨expression.imm⟩
 
 -- Operations on expressions
 
@@ -596,17 +776,17 @@ def eq {tp:type} (x y : tp) : bit := prim.eq tp x y
 def bit_one  : bit := prim.bit_one
 def bit_zero : bit := prim.bit_zero
 
-instance bv_has_mul (w:nat_expr) : has_mul (bv w) := ⟨λx y, prim.mul w x y⟩
+instance bv_has_mul (w:nat_expr) : HasMul (bv w) := ⟨λx y, prim.mul w x y⟩
 
 -- Add two 80-bit numbers using the current x87 floating point control.
 def x87_fadd (x y : x86_80) : x86_80 := prim.x87_fadd x y
 
-instance float_extends_to_80  : has_coe float  x86_80 := ⟨prim.float_to_x86_80⟩
+instance float_extends_to_80  : HasCoe float  x86_80 := ⟨prim.float_to_x86_80⟩
 
-instance double_extends_to_80 : has_coe double x86_80 := ⟨prim.double_to_x86_80⟩
+instance double_extends_to_80 : HasCoe double x86_80 := ⟨prim.double_to_x86_80⟩
 
 -- These are lossless conversions.
-instance bv_to_x86_80  (w:one_of [16,32]) : has_coe (bv w) x86_80 := ⟨prim.bv_to_x86_80 w⟩
+instance bv_to_x86_80  (w:one_of [16,32]) : HasCoe (bv w) x86_80 := ⟨prim.bv_to_x86_80 w⟩
 
 ------------------------------------------------------------------------
 -- Left-hand sides for assignments.
@@ -621,7 +801,7 @@ inductive lhs : type → Type
 -- register.  If a memory address, this will write to the current address stored in memory.
 | write_arg (idx:arg_index) (tp:type) : lhs tp
 -- ST reg with the offset relative to the current stack top value.
-| streg (idx : fin 8) : lhs x86_80
+| streg (idx : Fin 8) : lhs x86_80
 
 namespace lhs
 
@@ -644,15 +824,15 @@ def of_lhs : Π{tp:type}, lhs tp → expression tp
 
 instance all_lhs_is_expression : has_coe1 lhs expression := ⟨λ_, expression.of_lhs⟩
 
-instance lhs_is_expression (tp:type) : has_coe (lhs tp) (expression tp) := ⟨expression.of_lhs⟩
+instance lhs_is_expression (tp:type) : HasCoe (lhs tp) (expression tp) := ⟨expression.of_lhs⟩
 
 end expression
 
 
 section
 
-def reg8l (i:fin 16) : lhs (bv 8) := lhs.set_reg $ concrete_reg.gpreg i gpreg_type.reg8l
-def reg8h (i:fin 16) : lhs (bv 8) := lhs.set_reg $ concrete_reg.gpreg i gpreg_type.reg8h
+def reg8l (i:Fin 16) : lhs (bv 8) := lhs.set_reg $ concrete_reg.gpreg i gpreg_type.reg8l
+def reg8h (i:Fin 16) : lhs (bv 8) := lhs.set_reg $ concrete_reg.gpreg i gpreg_type.reg8h
 
 def al  := reg8l 0
 def cl  := reg8l 1
@@ -664,21 +844,21 @@ def sil := reg8l 6
 def dil := reg8l 7
 def ah  := reg8h 0
 
-def reg16 (i:fin 16) := lhs.set_reg $ concrete_reg.gpreg i gpreg_type.reg16
+def reg16 (i:Fin 16) := lhs.set_reg $ concrete_reg.gpreg i gpreg_type.reg16
 
 def ax := reg16 0
 def cx := reg16 1
 def dx := reg16 2
 def bx := reg16 3
 
-def reg32 (i:fin 16) := lhs.set_reg $ concrete_reg.gpreg i gpreg_type.reg32
+def reg32 (i:Fin 16) := lhs.set_reg $ concrete_reg.gpreg i gpreg_type.reg32
 
 def eax := reg32 0
 def ecx := reg32 1
 def edx := reg32 2
 def ebx := reg32 3
 
-def reg64 (i:fin 16) := lhs.set_reg $ concrete_reg.gpreg i gpreg_type.reg64
+def reg64 (i:Fin 16) := lhs.set_reg $ concrete_reg.gpreg i gpreg_type.reg64
 
 def rax := reg64 0
 def rcx := reg64 1
@@ -697,7 +877,7 @@ def r13 := reg64 13
 def r14 := reg64 14
 def r15 := reg64 15
 
-def flagreg (i:fin 32) := lhs.set_reg $ concrete_reg.flagreg i
+def flagreg (i:Fin 32) := lhs.set_reg $ concrete_reg.flagreg i
 
 def cf  := flagreg  0
 def pf  := flagreg  2
@@ -720,7 +900,7 @@ end
 -- not return values.
 inductive event
 | syscall : event
-| unsupported (msg:string) : event
+| unsupported (msg:String) : event
 | pop_x87_register_stack : event
 | call (addr: bv 64) : event
 | jmp  (addr: bv 64) : event
@@ -743,7 +923,7 @@ inductive action
 -- respected.
 | set_aligned    {tp:type} (l:lhs tp) (v:expression tp) (alignment:nat_expr) : action
 -- Define a local variable for an expression.
-| local_def {tp:type} (idx:nat) (v:expression tp) : action
+| local_def {tp:type} (idx:Nat) (v:expression tp) : action
 | event (e:event) : action
 
 --- Mark an lhs as undefined
@@ -757,7 +937,7 @@ def action.set_undef_cond {tp:type} (l:lhs tp) (c: expression bit) : action :=
 -- binding
 
 inductive binding
-| one_of : list nat → binding
+| one_of : List Nat → binding
 | reg  : type → binding
 | addr : type → binding
 | imm  : type → binding
@@ -768,16 +948,16 @@ inductive binding
 -- context
 
 structure context :=
-(bindings : list binding)
+(bindings : List binding)
 
 def context.length (c:context) : arg_index := c.bindings.length
 
 def context.add (b:binding) (ctx:context) : context :=
 { bindings := b :: ctx.bindings }
 
-instance : has_insert binding context := ⟨context.add⟩
+instance : HasInsert binding context := ⟨context.add⟩
 
-instance : has_emptyc context :=
+instance : HasEmptyc context :=
 ⟨{bindings := []}⟩
 
 ------------------------------------------------------------------------
@@ -785,14 +965,14 @@ instance : has_emptyc context :=
 
 structure pattern :=
 (context : context)
-(actions : list action)
+(actions : List action)
 
 ------------------------------------------------------------------------
 -- instruction
 
 structure instruction :=
-(mnemonic:string)
-(patterns:list pattern)
+(mnemonic:String)
+(patterns:List pattern)
 
 ------------------------------------------------------------------------
 -- is_bound_var
@@ -802,7 +982,7 @@ class is_bound_var (tp:Type) :=
 (to_binding{} : binding)
 (mk_arg{} : arg_index → tp)
 
-instance one_of_is_bound_var (range:list nat) : is_bound_var (one_of range) :=
+instance one_of_is_bound_var (range:List Nat) : is_bound_var (one_of range) :=
 { to_binding := binding.one_of range
 , mk_arg := one_of.var
 }
@@ -838,9 +1018,9 @@ instance expression_is_bound_var (tp:type) : is_bound_var (expression tp) :=
 
 structure semantics_state : Type :=
 -- Actions seen so far in reverse order.
-(actions : list action)
+(actions : List action)
 -- Number of local constants to use.
-(local_variable_count : nat)
+(local_variable_count : Nat)
 
 namespace semantics_state
 
@@ -852,9 +1032,9 @@ def init : semantics_state :=
 end semantics_state
 
 structure semantics (α:Type) :=
-(monad : state semantics_state α)
+(monad : State semantics_state α)
 
-instance : monad semantics :=
+instance : Monad semantics :=
 { pure := λ_ x, { monad := pure x }
 , bind := λ_ _ m h, { monad := m.monad >>= λv, (h v).monad }
 , map := λ_ _ f m, { monad := f <$> m.monad }
@@ -864,43 +1044,43 @@ namespace semantics
 
 --- Get the index to use for the next local variable.
 protected
-def next_local_index : semantics nat :=
+def next_local_index : semantics Nat :=
   { monad := do
-      s ← state_t.get,
-      state_t.put {s with local_variable_count := s.local_variable_count + 1 },
-      return s.local_variable_count
+      s ← StateT.get,
+      StateT.set {s with local_variable_count := s.local_variable_count + 1 },
+      pure s.local_variable_count
   }
 
---- Add an action to the list of actions.
+--- Add an action to the List of actions.
 protected
-def add_action (e:action) : semantics unit :=
-  { monad := state_t.modify (λs, { s with actions := e :: s.actions}) }
+def add_action (e:action) : semantics Unit :=
+  { monad := StateT.modify (λs, { s with actions := e :: s.actions}) }
 
-def record_event (e:event) : semantics unit :=
+def record_event (e:event) : semantics Unit :=
   semantics.add_action (action.event e)
 
 -- Record that some code path is unsupported.
-def unsupported (msg:string) := record_event (event.unsupported msg)
+def unsupported (msg:String) := record_event (event.unsupported msg)
 
 --- Set the expression of the left-hand side to the expression.
-def set {tp:type} (l:lhs tp) (v:expression tp) : semantics unit :=
+def set {tp:type} (l:lhs tp) (v:expression tp) : semantics Unit :=
   semantics.add_action (action.set l v)
 
 --- Set the expression of the left-hand side to the expression and respect alignment.
-def set_aligned {tp:type} (l:lhs tp) (v:expression tp) (a:ℕ): semantics unit :=
+def set_aligned {tp:type} (l:lhs tp) (v:expression tp) (a:ℕ): semantics Unit :=
   semantics.add_action (action.set_aligned l v a)
 
-def set_cond {tp:type} (l:lhs tp) (c: expression bit) (v:expression tp) : semantics unit :=
+def set_cond {tp:type} (l:lhs tp) (c: expression bit) (v:expression tp) : semantics Unit :=
   semantics.add_action (action.set_cond l c v)
 
 --- Evaluate the given expression and return a local expression that will not mutate.
 def eval {tp : type} (v:expression tp) : semantics (expression tp) := do
   idx ← semantics.next_local_index,
   semantics.add_action (action.local_def idx v),
-  return (expression.get_local idx tp)
+  pure (expression.get_local idx tp)
 
 protected
-def run (m:semantics unit) : list action := do
+def run (m:semantics Unit) : List action := do
   (m.monad.run semantics_state.init).snd.actions.reverse
 
 end semantics
@@ -908,7 +1088,7 @@ end semantics
 ------------------------------------------------------------------------
 -- pattern_def
 
--- Class for functions of form λ... -> semantics unit
+-- Class for functions of form λ... -> semantics Unit
 --
 -- This is used to define patterns with lambdas to bind arguments.  The context variable
 -- is needed so that we can infer how many variables have been bound outside of the
@@ -917,7 +1097,7 @@ class pattern_def (ctx : context) (tp:Type) :=
 { define{} : tp → pattern }
 
 instance semantics_is_pattern_def (ctx : context)
-: pattern_def ctx (semantics unit) := { define := λm,
+: pattern_def ctx (semantics Unit) := { define := λm,
     { context := ctx
     , actions := semantics.run m
     }
@@ -934,24 +1114,25 @@ instance pi_is_pattern_def
     pattern_def.define (insert (is_bound_var.to_binding tp) ctx) (f (is_bound_var.mk_arg ctx.length))
 }
 
--- Contains a list of patten matches defined using a monadic syntax.
-def pattern_list : Type → Type := state (list pattern)
+-- Contains a List of patten matches defined using a monadic syntax.
+@[derive Monad]
+def pattern_list : Type → Type := State (List pattern)
 
-instance pattern_list_is_monad : monad pattern_list :=
-begin
-  simp [pattern_list],
-  apply_instance,
-end
+-- instance pattern_list_is_monad : Monad pattern_list :=
+-- begin
+--   simp [pattern_list],
+--   apply_instance,
+-- end
 
 -- Record pattern in current instruction
-def mk_pattern {α:Type} [h : pattern_def ∅ α] (x:α) : pattern_list unit := do
-  state_t.modify (list.cons (pattern_def.define ∅ x))
+def mk_pattern {α:Type} [h : pattern_def ∅ α] (x:α) : pattern_list Unit := do
+  StateT.modify (List.cons (pattern_def.define ∅ x))
 
 ------------------------------------------------------------------------
 -- definst
 
 -- Create an instruction definition from mnemonic name and likst of patterns.
-def definst (mnem:string) (pat: pattern_list unit) : instruction :=
+def definst (mnem:String) (pat: pattern_list Unit) : instruction :=
 { mnemonic := mnem
 , patterns := (pat.run []).snd.reverse
 }

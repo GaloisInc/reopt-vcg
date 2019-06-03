@@ -1,5 +1,5 @@
 import .common
-import system.io
+-- import system.io
 
 namespace x86
 
@@ -55,12 +55,12 @@ def nat_to_bv {w:ℕ} (n:ℕ) : bv w := prim.bv_nat w n
 
 def undef {tp:type} : expression tp := expression.undef tp
 
-def set_result_flags {w:ℕ} (res : bv w) : semantics unit := do
+def set_result_flags {w:ℕ} (res : bv w) : semantics Unit := do
   sf .= msb res,
   zf .= res = 0,
   pf .= even_parity (least_byte res)
 
-def set_bitwise_flags {w:ℕ} (res : bv w) : semantics unit := do
+def set_bitwise_flags {w:ℕ} (res : bv w) : semantics Unit := do
   of .= bit_zero,
   cf .= bit_zero,
   af .= undef,
@@ -81,7 +81,7 @@ def uadd4_overflows {w:ℕ} (dest : bv w) (src : bv w)               : bit := ua
 def sadc_overflows  {w:ℕ} (dest : bv w) (src : bv w) (carry : bit) : bit := prim.sadc_overflows w dest src carry
 def sadd_overflows  {w:ℕ} (dest : bv w) (src : bv w)               : bit := sadc_overflows dest src bit_zero
 
-def do_xchg {w:ℕ} (addr1 : bv w) (addr2 : bv w) : semantics unit :=
+def do_xchg {w:ℕ} (addr1 : bv w) (addr2 : bv w) : semantics Unit :=
   record_event (event.xchg addr1 addr2)
 
 def mux {tp:type} (c:bit) (t f : tp) : tp := prim.mux tp c t f
@@ -89,7 +89,7 @@ def mux {tp:type} (c:bit) (t f : tp) : tp := prim.mux tp c t f
 ------------------------------------------------------------------------
 -- imul and mul definitions
 
-def set_overflow (be:bit) : semantics unit := do
+def set_overflow (be:bit) : semantics Unit := do
   b ← eval be,
   cf .= b,
   of .= b,
@@ -314,10 +314,10 @@ def neg : instruction := do
 def nop : instruction := do
  definst "nop" $ do
    pattern do
-     (return () : semantics unit)
+     (pure () : semantics Unit)
    pat_end,
    pattern λ(w : one_of [16, 32]), do
-     (return () : semantics unit)
+     (pure () : semantics Unit)
    pat_end
 
 ------------------------------------------------------------------------
@@ -327,7 +327,7 @@ def nop : instruction := do
 def pause : instruction := do
  definst "pause" $ do
    pattern do
-     (return () : semantics unit)
+     (pure () : semantics Unit)
    pat_end
 
 ------------------------------------------------------------------------
@@ -337,8 +337,8 @@ def pause : instruction := do
 def pair_fst {x y : type} (e:pair x y) : x := prim.pair_fst x y e
 def pair_snd {x y : type} (e:pair x y) : y := prim.pair_snd x y e
 
-def set_undef (l:list (lhs bit)) : semantics unit := do
-  l.mmap' (λr, r .= undef)
+def set_undef (l:List (lhs bit)) : semantics Unit := do
+  _ <- l.mmap (λr, r .= undef), pure ()
 
 
 def div : instruction := do
@@ -497,7 +497,7 @@ def bt : instruction := do
 def bitf := Π(w:one_of [16,32,64]) (j:ℕ), prim (fn (bv w) (fn (bv j) (bv w)))
 
 -- Common function  for btc,btr and bts.
-def btX (nm:string) (f: bitf) : instruction := do
+def btX (nm:String) (f: bitf) : instruction := do
  definst nm $ do
    pattern λ(wr : one_of [16, 32, 64]) (wi : one_of [8,16, 32, 64]) (base : reg (bv wr)) (idx : bv wi), do
      cf .= expression.bit_test (expression.of_reg base) idx,
@@ -726,7 +726,7 @@ def jmp : instruction :=
 -- TODO: We might be able to remove the aliases. It looks like the instruction encodings are the same
 -- so it might suffice to find out what the decoder will pick as the canonical mnemonic.
 
-def condition_codes : list (list string × expression bit)  := 
+def condition_codes : List (List String × expression bit)  := 
  [ -- Jump if above (cf = 0 and zf = 0)
    (["a", "nbe"], expression.bit_and ((cf : bit) = bit_zero) ((zf : bit) = bit_zero))
    -- Jump if above or equal (cf = 0)
@@ -773,43 +773,43 @@ def condition_codes : list (list string × expression bit)  :=
 -- Jcc definition
 -- Conditional jumps
 
-def mk_jcc_instruction : string × expression bit → instruction
+def mk_jcc_instruction : String × expression bit → instruction
  | (name, cc) := definst ("j" ++ name) $ do
  pattern λ(addr : bv 64), do
    record_event (event.branch cc addr)
  pat_end
 
-def mk_jcc_instruction_aliases : list string × expression bit → list instruction
- | (names, cc) := list.map (λn, mk_jcc_instruction (n, cc)) names
+def mk_jcc_instruction_aliases : List String × expression bit → List instruction
+ | (names, cc) := List.map (λn, mk_jcc_instruction (n, cc)) names
 
 -- Conditional jump instructions, some of these have multiple names. They only vary
 -- in the condition checked so we use helper functions to associate mnemonics with
 -- the conditions instead of defining each instruction at the top level.
 -- TODO: We might be able to remove the aliases. It looks like the instruction encodings are the same
 -- so it might suffice to find out what the decoder will pick as the canonical mnemonic.
-def jcc_instructions : list instruction := 
-  list.join $ list.map mk_jcc_instruction_aliases condition_codes
+def jcc_instructions : List instruction := 
+  List.join $ List.map mk_jcc_instruction_aliases condition_codes
 
 ------------------------------------------------------------------------
 -- SETcc definition
 -- Conditional sets
 
-def mk_setcc_instruction : string × expression bit → instruction
+def mk_setcc_instruction : String × expression bit → instruction
  | (name, cc) := definst ("set" ++ name) $ do
  pattern λ(dest : lhs (bv 8)), do
    dest .= mux cc 0 1
  pat_end
 
-def mk_setcc_instruction_aliases : list string × expression bit → list instruction
- | (names, cc) := list.map (λn, mk_setcc_instruction (n, cc)) names
+def mk_setcc_instruction_aliases : List String × expression bit → List instruction
+ | (names, cc) := List.map (λn, mk_setcc_instruction (n, cc)) names
 
 -- Conditional jump instructions, some of these have multiple names. They only vary
 -- in the condition checked so we use helper functions to associate mnemonics with
 -- the conditions instead of defining each instruction at the top level.
 -- TODO: We might be able to remove the aliases. It looks like the instruction encodings are the same
 -- so it might suffice to find out what the decoder will pick as the canonical mnemonic.
-def setcc_instructions : list instruction := 
-  list.join $ list.map mk_setcc_instruction_aliases condition_codes
+def setcc_instructions : List instruction := 
+  List.join $ List.map mk_setcc_instruction_aliases condition_codes
 
 ------------------------------------------------------------------------
 -- leave definition
@@ -957,44 +957,44 @@ def do_sh {w:ℕ}
           (v: lhs (bv w))                -- value to be shifted
           (count: bv 8)                  -- amount to shift by
           (count_mask: bv 8)             -- mask for the counter
-          : semantics unit := do
+          : semantics Unit := do
   -- The intel manual says that the count is masked to give an upper
   -- bound on the time the shift takes, with a mask of 63 in the case
   -- of a 64 bit operand, and 31 in the other cases.
   low_count ← eval $ count .&. count_mask,
   -- compute the result
   res ← eval $
-        match op with
+        (match op with
         | shift_op.shl := prim.shl w v low_count
         | shift_op.shr := prim.shr w v low_count
-        | shift_op.sar := prim.sar w v low_count
-        end,
+        | shift_op.sar := prim.sar w v low_count)
+        ,
   -- When the count is zero, nothing happens, and no flags change
   let is_nonzero := low_count ≠ 0,
   -- Set the af flag
   set_cond af is_nonzero undef,
-  match op with
+  (match op with
   | shift_op.shl :=
      cf .= prim.shl_carry w cf v low_count
   | shift_op.shr := do
      cf .= prim.shr_carry w v cf low_count
   | shift_op.sar := do
      cf .= prim.sar_carry w v cf low_count
-  end,
+  ),
   -- Compute value of of_flag if low_count is 1.
   let of_flag :=
-        match op with
+        (match op with
         | shift_op.shl := expression.bit_xor (@msb w res) (@msb w v)
         | shift_op.sar := bit_zero
         | shift_op.shr := @msb w v
-        end,
+       ),
   set_cond of is_nonzero (mux (low_count = 1) of_flag undef),
   set_cond sf is_nonzero (msb res),
   set_cond zf is_nonzero (res = 0),
   set_cond pf is_nonzero (even_parity (least_byte res)),
   set_cond v  is_nonzero res
 
-def shift_def (nm:string) (o : shift_op) : instruction :=
+def shift_def (nm:String) (o : shift_op) : instruction :=
   definst nm $ do
     pattern λ(w : one_of [8, 16, 32]) (value: lhs (bv w)) (count: bv 8),do
       do_sh o value count (32-1)
@@ -1016,7 +1016,7 @@ def shl_def : instruction := shift_def "shl" shift_op.shl
 def sal_def : instruction := shift_def "sal" shift_op.shl
 
 ------------------------------------------------------------------------
--- Instruction list
+-- Instruction List
 
 def all_instructions :=
   [ and_def
@@ -1084,6 +1084,6 @@ end x86
 /-
 open x86
 
-def main : io unit := do
+def main : io Unit := do
   monad.mapm' (io.put_str_ln ∘ repr) all_instructions
 -/

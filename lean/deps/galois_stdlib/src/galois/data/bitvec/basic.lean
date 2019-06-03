@@ -22,6 +22,7 @@ import galois.init.int
 -- FIXME: obviously this needs to be replaced by actual proofs
 axiom power_hack (n : ℕ) (e : ℕ) : n < 2 ^ e
 
+@[derive DecidableEq]
 def bitvec (sz : ℕ) := { x // x < 2 ^ sz }
 
 namespace bitvec
@@ -29,8 +30,8 @@ namespace bitvec
 
 def to_nat {w : ℕ} (b : bitvec w) : ℕ := b.val
 
-instance (w:ℕ) : DecidableEq (bitvec w) := 
-  { decEq := (λx y, @decEq _ (@Subtype.DecidableEq ℕ (λn, n < 2 ^ w) _) x y) }
+-- instance (w:ℕ) : DecidableEq (bitvec w) := 
+--   { decEq := (λx y, @decEq _ (@Subtype.DecidableEq ℕ (λn, n < 2 ^ w) _) x y) }
 
 -- By default just show a bitvector as a nat.
 instance (w:ℕ) : HasRepr (bitvec w) := ⟨λv, repr (v.to_nat)⟩
@@ -114,7 +115,7 @@ protected def cong {a b : ℕ} (h : a = b) : bitvec a → bitvec b
 -- | ⟨x, h1⟩ ⟨.(_), h2⟩ rfl := rfl
 
 -- FIXME: more efficient implementation of of_Nat
--- protected def of_Nat (n : ℕ) (x:ℕ) : bitvec n := ⟨ x % ((Nat.shiftl 1 n)), sorry⟩
+-- protected def of_nat (n : ℕ) (x:ℕ) : bitvec n := ⟨ x % (Nat.shiftl 1 n), power_hack _ _⟩
 
 protected def of_nat (n : ℕ) (x:ℕ) : bitvec n :=
   ⟨ x % 2^n, Nat.modLt _ (Nat.posPowOfPos n (zero_lt_pow 1))⟩

@@ -3,8 +3,8 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#include "apply.h"
-#include "io.h"
+#include "runtime/apply.h"
+#include "runtime/io.h"
 
 using namespace lean;
 
@@ -68,6 +68,7 @@ do_read(b_obj_arg hdl_obj, obj_arg n_obj, obj_arg r) {
 
     ssize_t nread = read(hdl, bytes, sz);
     if (nread == -1) {
+        dec(bytes_obj);
         return set_io_error_errno(r);
     }
     
