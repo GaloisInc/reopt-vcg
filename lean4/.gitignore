@@ -1,4 +1,5 @@
 *.depend
 *.o
 *.olean
+*.cpp
 bin
