@@ -47,9 +47,9 @@ def toBytesPartialAux (bs : ByteArray) (off : ℕ) : ℕ -> List UInt8 -> List U
 def toBytesPartial (bs : ByteArray) (off : ℕ) (n : ℕ) : List UInt8 := 
   ByteArray.toBytesPartialAux bs off n []
 
--- FIXME: Causes a compiler bug
--- def append (b : ByteArray) (b' : ByteArray) : ByteArray :=
---   ByteArray.mk (Array.append b.data b'.data)
+-- FIXME: this is not a cheap way of doing this.
+def append (b : ByteArray) (b' : ByteArray) : ByteArray :=
+  ByteArray.mk (Array.append b.data b'.data)
 
 end ByteArray
 
@@ -582,7 +582,7 @@ def read_one_elfmem (h : Galois.Fs.handle) {c : elf_class} (m : elfmem) (ph : ph
     _ <- Galois.IO.Prim.handle.lseek h  (Int.ofNat ph.offset.toNat) Galois.Fs.Whence.set,
     fbs <- Galois.IO.Prim.handle.read h (if ph.filesz.toNat < ph.memsz.toNat then ph.filesz.toNat else ph.memsz.toNat),   
     let zeroes : memory.region := ByteArray.mk (Array.mkArray (ph.memsz.toNat - ph.filesz.toNat) 0)
-    in pure $ m.insert ph.vaddr.toNat fbs -- (ByteArray.append fbs zeroes)
+    in pure $ m.insert ph.vaddr.toNat (ByteArray.append fbs zeroes)
   else pure m
 
 def read_elfmem {c : elf_class} (h : Galois.Fs.handle) (phdrs : List (phdr c)) : IO elfmem  := do
