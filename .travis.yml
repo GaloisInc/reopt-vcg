@@ -40,14 +40,19 @@ install:
 # any command which exits with a non-zero exit code causes the build to fail.
 script:
   # First, build/test the lean code
-  - pushd lean/deps/decodex86
-  - leanpkg build
-  - leanpkg test
-  - popd
+  # - pushd lean/deps/decodex86
+  # - leanpkg build
+  # - leanpkg test
+  # - popd
 
+  # - pushd lean
+  # - leanpkg build
+  # - leanpkg test
+  # - popd
+
+  # Build the semantics binary
   - pushd lean
-  - leanpkg build
-  - leanpkg test
+  - make
   - popd
 
   # Now go into the haskell-proto directory to test the Haskell side of things
