@@ -28,7 +28,7 @@ LEANC ?= leanc
 
 LEANDIR := ${dir ${shell which lean}}../
 
-MAKEDEPEND = $(LEAN) --deps $< | sed -n 's@${SRCROOT}@@p' | xargs echo "$*.olean:" > $@
+MAKEDEPEND = $(LEAN) --deps $< | sed -n 's@${SRCROOT}@@p' | xargs echo "$(BUILDDIR)/$*.cpp $*.olean:" > $@
 
 # depend: ${DEPENDS}
 
@@ -41,14 +41,14 @@ $(TARGET): ${CPPLEAN} ${patsubst %.cpp,${BUILDDIR}/%.o,${EXTRACXXFILES}}
 	$(MAKEDEPEND)
 
 # The olean have to be in the same directory :/
-%.olean : %.lean
-	$(LEAN) --make $<
+# %.olean : %.lean
+# 	$(LEAN) --make $<
 
 # could do this when making the olean
-$(BUILDDIR)/%.cpp: %.lean %.olean
-	@mkdir -p $(@D)
-	$(LEAN) --cpp="$@.tmp" $<
-	mv $@.tmp $@
+$(BUILDDIR)/%.cpp %.olean: %.lean 
+	@mkdir -p ${dir $(BUILDDIR)/$*.cpp}
+	$(LEAN) --cpp="$(BUILDDIR)/$*.cpp.tmp" --make $<
+	mv $(BUILDDIR)/$*.cpp.tmp $(BUILDDIR)/$*.cpp
 
 $(BUILDDIR)/%.o: %.cpp
 	@mkdir -p $(@D)
