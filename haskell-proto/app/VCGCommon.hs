@@ -13,16 +13,11 @@ module VCGCommon
   , ptrSort
   , memSort
   , writeBVLE
-    -- * Error reporting
-  , warning
-  , fatalError
   ) where
 
 import           Data.Text (Text)
 import qualified Data.Text.Lazy.Builder as Builder
 import           Numeric.Natural
-import           System.Exit
-import           System.IO
 import qualified What4.Protocol.SMTLib2.Syntax as SMT
 
 type Var = Text
@@ -52,13 +47,3 @@ writeBVLE mem ptr0 val w
         go i =
           let ptr = SMT.bvadd ptr0 [SMT.bvdecimal (toInteger i) 64]
            in SMT.store (go (i-1)) ptr (SMT.extract (8*i+7) (8*i) val)
-
-
-warning :: String -> IO ()
-warning msg = do
-  hPutStrLn stderr ("Warning: " ++ msg)
-
-fatalError :: String -> IO a
-fatalError msg = do
-  hPutStrLn stderr msg
-  exitFailure
