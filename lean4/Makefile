@@ -7,14 +7,14 @@
 BUILDDIR ?= build
 # $(shell mkdir -p $(DEPDIR) >/dev/null)
 
-LEANFILES := deps/galois_stdlib/src/galois/data/bitvec/basic.lean deps/galois_stdlib/src/galois/data/bitvec/default.lean deps/galois_stdlib/src/galois/init/int.lean deps/galois_stdlib/src/galois/init/io.lean deps/galois_stdlib/src/galois/init/nat.lean deps/llvm-tablegen-support/lean/decodex86/basic.lean deps/llvm-tablegen-support/lean/decodex86/default.lean deps/x86_semantics/src/x86_semantics/buffer_map.lean deps/x86_semantics/src/x86_semantics/common.lean deps/x86_semantics/src/x86_semantics/evaluator.lean deps/x86_semantics/src/x86_semantics/instructions.lean deps/x86_semantics/src/x86_semantics/machine_memory.lean elf.lean runelf.lean translate.lean deps/galois_stdlib/src/galois/category/coe1.lean
+LEANFILES := deps/galois_stdlib/src/galois/data/bitvec/basic.lean deps/galois_stdlib/src/galois/data/bitvec/default.lean deps/galois_stdlib/src/galois/init/int.lean deps/galois_stdlib/src/galois/init/io.lean deps/galois_stdlib/src/galois/init/nat.lean deps/llvm-tablegen-support/lean/decodex86/basic.lean deps/llvm-tablegen-support/lean/decodex86/default.lean deps/x86_semantics/src/x86_semantics/buffer_map.lean deps/x86_semantics/src/x86_semantics/common.lean deps/x86_semantics/src/x86_semantics/evaluator.lean deps/x86_semantics/src/x86_semantics/instructions.lean deps/x86_semantics/src/x86_semantics/machine_memory.lean simulator/elf.lean simulator/runelf.lean simulator/translate.lean deps/galois_stdlib/src/galois/category/coe1.lean
 
 DEPENDS := ${patsubst %.lean,%.d,${LEANFILES}}
 OLEAN   := ${patsubst %.lean,%.olean,${LEANFILES}}
 CPPLEAN := ${patsubst %.lean,$(BUILDDIR)/%.cpp,${LEANFILES}}
 
 SRCROOT := $(dir $(realpath $(firstword $(MAKEFILE_LIST))))
-TARGET  := $(BUILDDIR)/simulator
+TARGET  := $(BUILDDIR)/sim
 
 # FIXME: move to llvm-tablegen-support submake
 LLVM_BUILD_ROOT ?= ${HOME}/galois/vadds/llvm-stuff/llvm-build
