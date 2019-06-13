@@ -1,4 +1,5 @@
-// This contains function prototypes for the test_add.c example.
+// This file provides annotations for test_add.c to help reopt
+// infer function arguments.
 
 typedef long uint64_t;
 
