@@ -5,9 +5,9 @@ language:  minimal
 git:
   submodules: false  # whether to recursively clone submodules
 
-cache:
-  directories:
-    - $HOME/.stack
+#cache:
+#  directories:
+#    - $HOME/.stack
 
 before_install:
   # Download and unpack the stack executable
