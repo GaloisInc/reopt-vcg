@@ -1666,7 +1666,8 @@ runVCGs funAnn firstLabel lbl blockAnn action = do
               ]
             | otherwise =
               []
-      declareAddrStartRegValues prover (addrName (segoffAddr thisSegOff)) (locRegValues ++ rspRegValues ++ calleeRegValues)
+      declareAddrStartRegValues prover (addrName (segoffAddr thisSegOff))
+        (locRegValues ++ rspRegValues ++ calleeRegValues)
     -- Create block state.
     let s = BlockVCGState { mcCurAddr   = thisSegOff
                           , mcCurSize   = 0
