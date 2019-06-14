@@ -1,14 +1,12 @@
-resolver: lts-13.23
+resolver: nightly-2019-06-12
 
 packages:
 - .
 - ../annotations
 
 extra-deps:
-- aeson-1.4.3.0
 - fgl-visualize-0.1.0.1@sha256:e682066053a6e75478a08fd6822dd0143a3b8ea23244bdb01dd389a266447c5e
 - monadLib-3.9@sha256:dc0d8579840968be03fc2ce1c21d5af055fe5a38b65b99793dd720f5e07aaa34
-- th-abstraction-0.3.1.0@sha256:96042f6658f2dccfac03b33f0fd59f62b1f65b9b0a765d8a2ea6026f4081ee4a
 - ./deps/crucible/what4
 - ./deps/llvm-pretty
 - ./deps/llvm-pretty-bc-parser
