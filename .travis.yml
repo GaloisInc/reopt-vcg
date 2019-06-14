@@ -26,7 +26,7 @@ install:
   # Setup GHC using stack
   - travis_wait stack --stack-yaml stack.yaml setup
   # Build stackage now, so that during the script phase we only see the project build.
-  - stack --stack-yaml stack.yaml build --haddock --dependencies-only reopt-vcg
+  - stack --stack-yaml stack.yaml build --dependencies-only reopt-vcg
   - popd
 
   # Setup elan so we can use it to install lean
@@ -52,6 +52,6 @@ script:
 
   # Now go into the haskell-proto directory to test the Haskell side of things
   - pushd haskell-proto
-  - stack --stack-yaml stack.yaml build --haddock reopt-vcg
+  - stack --stack-yaml stack.yaml build reopt-vcg
   - stack --stack-yaml stack.yaml test  reopt-vcg
   - popd
