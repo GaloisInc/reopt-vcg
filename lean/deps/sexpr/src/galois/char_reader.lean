@@ -1,9 +1,9 @@
 /-
 This defines an interface for reading characters with one-character lookahead.
 -/
--- import data.buffer
--- import system.io
--- import galois.data.list
+import data.buffer
+import system.io
+import galois.data.list
 
 ------------------------------------------------------------------------
 -- is_parse_error
@@ -13,7 +13,7 @@ class is_parse_error (ε : Type _) :=
 
 namespace is_parse_error
 
-instance string_is_parse_error : is_parse_error String :=
+instance string_is_parse_error : is_parse_error string :=
 { end_of_input := "end of input" }
 
 end is_parse_error
@@ -22,25 +22,22 @@ end is_parse_error
 -- char_reader
 
 /-- A class for a monad that can read characters with a one-byte lookahead. -/
-class {u v} char_reader (ε : outParam (Type u)) (m : Type → Type v)
-  extends is_parse_error ε, Monad m, MonadExcept ε m :=
-(at_end {} : m Bool)
-(peek_char {} : m (Option Char))
+class {u v} char_reader (ε : out_param (Type u)) (m : Type → Type v)
+  extends is_parse_error ε, monad m, monad_except ε m :=
+(at_end {} : m bool)
+(peek_char {} : m (option char))
 -- Drop the next character
-(consume_char {} : m Unit)
-(read_char {} : m Char)
-
-@[reducible]
-def char_buffer := ByteArray
+(consume_char {} : m unit)
+(read_char {} : m char)
 
 namespace char_reader
 
 section read_while
 
-variable {m : Type → Type}
-variable [char_reader String m]
-variable (p : Char → Prop)
-variable [DecidablePred p]
+parameter {m : Type → Type}
+parameter [char_reader string m]
+parameter (p : char → Prop)
+parameter [decidable_pred p]
 
 /--  Append characters to buffer while not at end of file and the predicate is true. -/
 def read_while_f :
@@ -49,16 +46,16 @@ def read_while_f :
    char_buffer → m char_buffer
 | 0 f prev := do
   throw "Maximum length exceeded"
-| (Nat.succ i) f prev := do
+| (nat.succ i) f prev := do
   mc ← peek_char,
   match mc with
-  | Option.none := pure prev
-  | Option.some c :=
+  | option.none := pure prev
+  | option.some c :=
      if p c then do
-       consume_char, f i (Nat.ltSuccSelf _) (prev.push (UInt8.ofNat c.toNat))
+       consume_char, f i (nat.lt_succ_self _) (prev.push_back c)
      else
        pure prev
-
+  end
 
 /-- @read_append_while n c@ reads up to @n@-characters satisfying @p@ and appends them to @c@. -/
 def read_append_while : ℕ → char_buffer → m char_buffer := do

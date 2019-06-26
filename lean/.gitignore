@@ -1,4 +1,3 @@
 *.olean
-*.d
 leanpkg.path
 /_target

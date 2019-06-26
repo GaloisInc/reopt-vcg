@@ -7,18 +7,9 @@ LLVM_BUILD_ROOT ?= ${HOME}/galois/vadds/llvm-stuff/llvm-build
 
 LLVM_CONFIG ?= ${LLVM_BUILD_ROOT}/bin/llvm-config
 
-LEANFILES=lean/instruction.lean 
-CXXFILES=src/Metadata.cpp src/lean_support.cpp src/X86Disassembler.cpp
+CXXFLAGS := -g -O3 -I src/ -I llvm-files/ `${LLVM_CONFIG} --cxxflags`
 
-LEAN=${LEAN_DIR}/bin/lean
-LEANC=${LEAN_DIR}/bin/leanc
-
-all: test_decoder
-
-test_decoder: $(patsubst %.cpp,%.o,${CXXFILES}) $(patsubst %.lean,%.o,${LEANFILES}) test/test.o
-	${LEANC} `${LLVM_CONFIG} --cxxflags --ldflags --system-libs --libs x86` -o $@ $^
-
-src/%: CXXFLAGS := -g -O3 -I src/ -I llvm-files/ `${LLVM_CONFIG} --cxxflags` -I${LEAN_DIR}/src -I${LEAN_DIR}/src/runtime -std=c++14 -fexceptions
+all: llvm-tablegen-support dump_mcinst
 
 src/%.cpp: src/Instruction.h
 
@@ -27,15 +18,8 @@ src/%.cpp: src/Instruction.h
 
 src/Metadata.o: src/operand_table.inc
 
-%.cpp: %.lean
-	${LEAN} --cpp=$@ $^
-
-test/% lean/%: CXX=${LEANC}
-
-
-
-# llvm-tablegen-support: src/main.o src/X86Disassembler.o src/Metadata.o
-# 	clang++ -g -O3 $^ `${LLVM_CONFIG} --cxxflags --ldflags --system-libs --libs x86` -o $@
+llvm-tablegen-support: src/main.o src/X86Disassembler.o src/Metadata.o
+	clang++ -g -O3 $^ `${LLVM_CONFIG} --cxxflags --ldflags --system-libs --libs x86` -o $@
 
 dump_mcinst: dump_mcinst.o
 	clang++ -g -O3 $^ `${LLVM_CONFIG} --cxxflags --ldflags --system-libs --libs x86` -o $@
