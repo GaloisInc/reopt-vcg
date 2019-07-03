@@ -1,0 +1,4 @@
+
+HERE := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
+LOCALFILES := src/x86_semantics/buffer_map.lean src/x86_semantics/common.lean src/x86_semantics/evaluator.lean src/x86_semantics/instructions.lean src/x86_semantics/machine_memory.lean
+LEANFILES += $(patsubst %,${HERE}%,${LOCALFILES})

@@ -7,21 +7,30 @@
 BUILDDIR ?= build
 # $(shell mkdir -p $(DEPDIR) >/dev/null)
 
-LEANFILES := deps/galois_stdlib/src/galois/data/bitvec/basic.lean deps/galois_stdlib/src/galois/data/bitvec/default.lean deps/galois_stdlib/src/galois/init/int.lean deps/galois_stdlib/src/galois/init/io.lean deps/galois_stdlib/src/galois/init/nat.lean deps/llvm-tablegen-support/lean/decodex86/basic.lean deps/llvm-tablegen-support/lean/decodex86/default.lean deps/x86_semantics/src/x86_semantics/buffer_map.lean deps/x86_semantics/src/x86_semantics/common.lean deps/x86_semantics/src/x86_semantics/evaluator.lean deps/x86_semantics/src/x86_semantics/instructions.lean deps/x86_semantics/src/x86_semantics/machine_memory.lean simulator/elf.lean simulator/runelf.lean simulator/translate.lean deps/galois_stdlib/src/galois/category/coe1.lean
+# This forces LEANFILES to be strict
+LEANFILES := 
+EXTRACXXFILES :=
 
-DEPENDS := ${patsubst %.lean,%.d,${LEANFILES}}
-OLEAN   := ${patsubst %.lean,%.olean,${LEANFILES}}
-CPPLEAN := ${patsubst %.lean,$(BUILDDIR)/%.cpp,${LEANFILES}}
+include deps/galois_stdlib/Makefile.include
+include deps/llvm-tablegen-support/Makefile.include
+include deps/x86_semantics/Makefile.include
+include simulator/Makefile.include
 
 SRCROOT := $(dir $(realpath $(firstword $(MAKEFILE_LIST))))
+
+#LEANFILES are absolute, we need them to be relative to the root dir for the rest to work.
+LEANFILES_REL := ${patsubst ${SRCROOT}%,%,${LEANFILES}}
+EXTRAOBJ      := ${patsubst ${SRCROOT}%.cpp,${BUILDDIR}/%.o,${EXTRACXXFILES}}
+
+DEPENDS := ${patsubst %.lean,%.d,${LEANFILES_REL}}
+OLEAN   := ${patsubst %.lean,%.olean,${LEANFILES_REL}}
+CPPLEAN := ${patsubst %.lean,$(BUILDDIR)/%.cpp,${LEANFILES_REL}}
+
 TARGET  := $(BUILDDIR)/sim
 
 # FIXME: move to llvm-tablegen-support submake
 LLVM_BUILD_ROOT ?= ${HOME}/galois/vadds/llvm-stuff/llvm-build
 LLVM_CONFIG = ${LLVM_BUILD_ROOT}/bin/llvm-config
-LLVMCXXFILES = deps/llvm-tablegen-support/src/Metadata.cpp deps/llvm-tablegen-support/src/lean_support.cpp deps/llvm-tablegen-support/src/X86Disassembler.cpp
-
-EXTRACXXFILES = deps/galois_stdlib/src/galois/init/io_runtime.cpp ${LLVMCXXFILES}
 
 LEAN ?= lean
 LEANC ?= leanc
@@ -34,7 +43,7 @@ MAKEDEPEND = $(LEAN) --deps $< | sed -n 's@${SRCROOT}@@p' | xargs echo "$(BUILDD
 
 all: $(TARGET)
 
-$(TARGET): ${CPPLEAN} ${patsubst %.cpp,${BUILDDIR}/%.o,${EXTRACXXFILES}}
+$(TARGET): ${CPPLEAN} ${EXTRAOBJ}
 	${LEANC} `${LLVM_CONFIG} --cxxflags --ldflags --system-libs --libs x86`  ${CXXFLAGS} -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^
 
 %.d: %.lean

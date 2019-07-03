@@ -1,0 +1,6 @@
+
+HERE := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
+LOCAL_LLVM := src/galois/data/bitvec/basic.lean src/galois/data/bitvec/default.lean src/galois/init/int.lean src/galois/init/io.lean src/galois/init/nat.lean src/galois/category/coe1.lean
+LOCAL_CXX  := src/galois/init/io_runtime.cpp
+LEANFILES += $(patsubst %,${HERE}%,${LOCAL_LLVM})
+EXTRACXXFILES += $(patsubst %,${HERE}%,${LOCAL_CXX})
