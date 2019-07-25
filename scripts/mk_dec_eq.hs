@@ -22,7 +22,7 @@ ctors =
 mismatch :: String -> Type -> [String]
 mismatch tname cons = [ doOne x y | x <- cons, y <- cons, x /= y ]
   where
-    noConf = "isFalse (λh, " ++ tname ++ ".noConfusion h)"
+    noConf = "isFalse (fun h => " ++ tname ++ ".noConfusion h)"
     underscores c 0 = c
     underscores c n = "(" ++ c ++ " " ++ intercalate " " (replicate n "_") ++ ")"
     doOne (c1, args1) (c2, args2) = "| "   ++ underscores c1 (length args1)
@@ -45,18 +45,18 @@ recursive tname cons recName = map doOne cons
     
     hyps n sfx = map (\n -> "h" ++ show n ++ sfx) [1..n]
     trueMatch n      =
-      "  | " ++ intercalate ", " (map (\h -> "(isTrue " ++ h ++ ")") (hyps n "")) ++ " := "
+      "  | " ++ intercalate ", " (map (\h -> "(isTrue " ++ h ++ ")") (hyps n "")) ++ " => "
              ++ "isTrue (" ++ intercalate " ▸ " (hyps n "" ++ ["rfl"]) ++ ")"
 
     falseMatch n pos = "  | "
       ++ intercalate ", " (replicate (pos - 1) "(isTrue _)" ++ ["(isFalse nh)"] ++ (replicate (n - pos) "_"))
-      ++ " := " ++ noConf n pos
-    noConf n pos = "isFalse (λh, " ++ tname ++ ".noConfusion h $ λ"
-                   ++ intercalate " " (hyps n "'") ++ ", absurd h" ++ show pos ++ "' nh)"
+      ++ " => " ++ noConf n pos
+    noConf n pos = "isFalse (fun h => " ++ tname ++ ".noConfusion h $ fun "
+                   ++ intercalate " " (hyps n "'") ++ " => absurd h" ++ show pos ++ "' nh)"
 
 mkDecEq :: String -> Type -> String -> String
 mkDecEq tname cons recName =
-  "protected def " ++ recName ++ " : Π(e e' : " ++ tname ++ "), Decidable (e = e')\n"
+  "protected def " ++ recName ++ " : ∀(e e' : " ++ tname ++ "), Decidable (e = e')\n"
   ++ intercalate "\n" (recursive tname cons recName ++ mismatch tname cons)
 
   

@@ -14,15 +14,20 @@ open semantics
 notation `pattern` body `pat_end` := mk_pattern body
 
 -- Introduces notation x[h..l] to slice the h..l bits out of x.
-local notation x `[[`:1025 h `..` l `]]` := slice x h l
+-- local
+notation x `[[`:1025 h `..` l `]]` := slice x h l
 
-local infix ≠ := neq
+-- local
+infix ≠ := neq
 
-local infix = := eq
+-- local
+infix = := eq
 
-local notation `⇑`:max x:max := coe1 x
+-- local
+notation `⇑`:max x:max := coe1 x
 
-local notation ℕ := nat_expr
+-- local 
+abbreviation ℕ := nat_expr
 
 infix `.=`:20 := set
 
@@ -56,14 +61,14 @@ def nat_to_bv {w:ℕ} (n:ℕ) : bv w := prim.bv_nat w n
 def undef {tp:type} : expression tp := expression.undef tp
 
 def set_result_flags {w:ℕ} (res : bv w) : semantics Unit := do
-  sf .= msb res,
-  zf .= res = 0,
+  sf .= msb res;
+  zf .= res = 0;
   pf .= even_parity (least_byte res)
 
 def set_bitwise_flags {w:ℕ} (res : bv w) : semantics Unit := do
-  of .= bit_zero,
-  cf .= bit_zero,
-  af .= undef,
+  of .= bit_zero;
+  cf .= bit_zero;
+  af .= undef;
   set_result_flags res
 
 def ssbb_overflows  {w:ℕ} (dest : bv w) (src : bv w) (borrow : bit) : bit := prim.ssbb_overflows w dest src borrow
@@ -90,69 +95,69 @@ def mux {tp:type} (c:bit) (t f : tp) : tp := prim.mux tp c t f
 -- imul and mul definitions
 
 def set_overflow (be:bit) : semantics Unit := do
-  b ← eval be,
-  cf .= b,
-  of .= b,
-  sf .= undef,
-  zf .= undef,
-  af .= undef,
+  b ← eval be;
+  cf .= b;
+  of .= b;
+  sf .= undef;
+  zf .= undef;
+  af .= undef;
   pf .= undef
 
 def imul : instruction :=
  definst "imul" $ do
-   pattern λ(src : bv 8), do
-     tmp ← eval $ sext (⇑al) 16 * sext src _,
-     ax .= tmp,
+   pattern fun (src : bv 8) => do
+     tmp ← eval $ sext (⇑al) 16 * sext src _;
+     ax .= tmp;
      set_overflow $ sext tmp[[7..0]] _ ≠ tmp
-   pat_end,
-   pattern λ(src : bv 16), do
-     tmp ← eval $ sext (⇑ax) 32 * sext src _,
-     dx .= tmp[[31..16]],
-     ax .= tmp[[15.. 0]],
+   pat_end;
+   pattern fun (src : bv 16) => do
+     tmp ← eval $ sext (⇑ax) 32 * sext src _;
+     dx .= tmp[[31..16]];
+     ax .= tmp[[15.. 0]];
      set_overflow $ sext tmp[[15..0]] _ ≠ tmp
-   pat_end,
-   pattern λ(src : bv 32), do
-     tmp ← eval $ sext ⇑eax 64 * sext src _,
-     edx .= tmp[[63..32]],
-     eax .= tmp[[31.. 0]],
+   pat_end;
+   pattern fun (src : bv 32) => do
+     tmp ← eval $ sext ⇑eax 64 * sext src _;
+     edx .= tmp[[63..32]];
+     eax .= tmp[[31.. 0]];
      set_overflow $ sext tmp[[31..0]] _ ≠ tmp
-   pat_end,
-   pattern λ(w : one_of [8,16,32,64]) (dest : lhs (bv w)) (src : bv w), do
-     tmp     ← eval $ sext ⇑dest (2*w) * sext src (2*w),
-     tmp_low ← eval $ trunc tmp w,
-     dest .= tmp_low,
+   pat_end;
+   pattern fun (w : one_of [8,16,32,64]) (dest : lhs (bv w)) (src : bv w) => do
+     tmp     ← eval $ sext ⇑dest (2*w) * sext src (2*w);
+     tmp_low ← eval $ trunc tmp w;
+     dest .= tmp_low;
      set_overflow $ sext tmp_low (2*w) ≠ tmp
-   pat_end,
-   pattern λ(w : one_of [16,32,64]) (dest : lhs (bv w)) (src1 src2 : bv w), do
-     tmp     ← eval $ sext ⇑src1 (2*w) * sext src2 (2*w),
-     tmp_low ← eval $ trunc tmp w,
-     dest .= tmp_low,
+   pat_end;
+   pattern fun (w : one_of [16,32,64]) (dest : lhs (bv w)) (src1 src2 : bv w) => do
+     tmp     ← eval $ sext ⇑src1 (2*w) * sext src2 (2*w);
+     tmp_low ← eval $ trunc tmp w;
+     dest .= tmp_low;
      set_overflow $ sext tmp_low (2*w) ≠ tmp
    pat_end
 
 def mul : instruction := do
  definst "mul" $ do
-   pattern λ(src : bv 8), do
-     tmp ← eval $ uext ⇑al 16 * uext src 16,
-     ax .= tmp,
+   pattern fun (src : bv 8) => do
+     tmp ← eval $ uext ⇑al 16 * uext src 16;
+     ax .= tmp;
      set_overflow $ tmp[[16..8]] ≠ 0
-   pat_end,
-   pattern λ(src : bv 16), do
-     tmp ← eval $ uext (⇑ax) 32 * uext src _,
-     dx .= tmp[[31..16]],
-     ax .= tmp[[15.. 0]],
+   pat_end;
+   pattern fun (src : bv 16) => do
+     tmp ← eval $ uext (⇑ax) 32 * uext src _;
+     dx .= tmp[[31..16]];
+     ax .= tmp[[15.. 0]];
      set_overflow $ tmp[[31..16]] ≠ 0
-   pat_end,
-   pattern λ(src : bv 32), do
-     tmp ← eval $ uext ⇑eax 64 * uext src _,
-     edx .= tmp[[63..32]],
-     eax .= tmp[[31.. 0]],
+   pat_end;
+   pattern fun (src : bv 32) => do
+     tmp ← eval $ uext ⇑eax 64 * uext src _;
+     edx .= tmp[[63..32]];
+     eax .= tmp[[31.. 0]];
      set_overflow $ tmp[[63..32]] ≠ 0
-   pat_end,
-   pattern λ(src : bv 64), do
-     tmp ← eval $ uext ⇑rax 128 * uext src _,
-     rdx .= tmp[[127..64]],
-     rax .= tmp[[63 .. 0]],
+   pat_end;
+   pattern fun (src : bv 64) => do
+     tmp ← eval $ uext ⇑rax 128 * uext src _;
+     rdx .= tmp[[127..64]];
+     rax .= tmp[[63 .. 0]];
      set_overflow $ tmp[[127..64]] ≠ 0
    pat_end
 
@@ -161,7 +166,7 @@ def mul : instruction := do
 
 def mov : instruction := do
  definst "mov" $ do
-   pattern λ(w : one_of [8,16,32,64]) (dest : lhs (bv w)) (src : bv w), do
+   pattern fun (w : one_of [8,16,32,64]) (dest : lhs (bv w)) (src : bv w) => do
      dest .= src
    pat_end
 
@@ -178,7 +183,7 @@ def mov : instruction := do
 
 def movsx : instruction := do
  definst "movsx" $ do
-   pattern λ(w : one_of [16,32,64]) (u : one_of [8, 16, 32]) (dest : lhs (bv w)) (src : bv u), do
+   pattern fun (w : one_of [16,32,64]) (u : one_of [8, 16, 32]) (dest : lhs (bv w)) (src : bv u) => do
      dest .= sext src w
    pat_end
 
@@ -188,7 +193,7 @@ def movsx : instruction := do
 /-
 def movsxd : instruction := do
  definst "movsxd" $ do
-   pattern λ(w : one_of [16,32,64]) (u : one_of [16, 32]) (dest : lhs (bv w)) (src : bv u), do
+   pattern fun (w : one_of [16 =>32,64]) (u : one_of [16, 32]) (dest : lhs (bv w)) (src : bv u), do
      dest .= sext src w
    pat_end
 -/
@@ -198,7 +203,7 @@ def movsxd : instruction := do
 
 def movzx : instruction := do
  definst "movzx" $ do
-   pattern λ(w : one_of [16,32,64]) (u : one_of [8, 16]) (dest : lhs (bv w)) (src : bv u), do
+   pattern fun (w : one_of [16,32,64]) (u : one_of [8, 16]) (dest : lhs (bv w)) (src : bv u) => do
      dest .= uext src w
    pat_end
 
@@ -208,7 +213,7 @@ def movzx : instruction := do
 
 def movdqa : instruction := do
  definst "movdqa" $ do
-   pattern λ(n : one_of [4, 8, 16]) (dest : lhs (vec n (bv 32))) (src : vec n (bv 32)), do
+   pattern fun (n : one_of [4, 8, 16]) (dest : lhs (vec n (bv 32))) (src : vec n (bv 32)) => do
      set_aligned dest src 16
    pat_end
 
@@ -218,7 +223,7 @@ def movdqa : instruction := do
 
 def movaps : instruction := do
  definst "movaps" $ do
-   pattern λ(n : one_of [4, 8, 16]) (dest : lhs (vec n (bv 32))) (src : vec n (bv 32)), do
+   pattern fun (n : one_of [4, 8, 16]) (dest : lhs (vec n (bv 32))) (src : vec n (bv 32)) => do
      set_aligned dest src 16
    pat_end
 
@@ -227,7 +232,7 @@ def movaps : instruction := do
 -- Exchange Register/Memory with Register
 def xchg : instruction := do
  definst "xchg" $ do
-   pattern λ(w : one_of [8,16,32,64]) (dest : lhs (bv w)) (src : lhs (bv w)), do
+   pattern fun (w : one_of [8,16,32,64]) (dest : lhs (bv w)) (src : lhs (bv w)) => do
      do_xchg ⇑dest ⇑src
    pat_end
 
@@ -237,11 +242,11 @@ def xchg : instruction := do
 
 def cmp : instruction := do
  definst "cmp" $ do
-   pattern λ(u v : one_of [8,16,32,64]) (x : bv u) (src2 : bv v), do
-     y ← eval (sext src2 u),
-     of .= ssub_overflows x y,
-     af .= usub4_overflows x y,
-     cf .= usub_overflows x y,
+   pattern fun (u v : one_of [8, 16,32,64]) (x : bv u) (src2 : bv v) => do
+     y ← eval (sext src2 u);
+     of .= ssub_overflows x y;
+     af .= usub4_overflows x y;
+     cf .= usub_overflows x y;
      set_result_flags (x - y)
    pat_end
 
@@ -257,7 +262,7 @@ need a notion of muxing on a bit.
 
 def cmpxchg : instruction := do
  definst "cmpxchg" $ do
-   pattern λ(dest : lhs (bv 8)) (src : bv 8), do
+   pattern fun (dest : lhs (bv 8)) (src : bv 8) => do
      temp ← eval $ ⇑dest,
      do_cmp ⇑al temp,
      zf .= temp = dest
@@ -270,11 +275,11 @@ def cmpxchg : instruction := do
 
 def dec : instruction := do
  definst "dec" $ do
-   pattern λ(w : one_of [8,16,32,64]) (value : lhs (bv w)), do
-     temp ← eval $ ⇑value - 1,
-     of .= ssub_overflows temp 1,
-     af .= usub4_overflows temp 1,
-     set_result_flags temp,
+   pattern fun (w : one_of [8, 16,32,64]) (value : lhs (bv w)) => do
+     temp ← eval $ ⇑value - 1;
+     of .= ssub_overflows temp 1;
+     af .= usub4_overflows temp 1;
+     set_result_flags temp;
      value .= temp
    pat_end
 
@@ -284,11 +289,11 @@ def dec : instruction := do
 
 def inc : instruction := do
  definst "inc" $ do
-   pattern λ(w : one_of [8,16,32,64]) (value : lhs (bv w)), do
-     temp ← eval $ ⇑value + 1,
-     of .= sadd_overflows temp 1,
-     af .= uadd4_overflows temp 1,
-     set_result_flags temp,
+   pattern fun (w : one_of [8, 16,32,64]) (value : lhs (bv w)) => do
+     temp ← eval $ ⇑value + 1;
+     of .= sadd_overflows temp 1;
+     af .= uadd4_overflows temp 1;
+     set_result_flags temp;
      value .= temp
    pat_end
 
@@ -298,12 +303,12 @@ def inc : instruction := do
 
 def neg : instruction := do
  definst "neg" $ do
-   pattern λ(w : one_of [8,16,32,64]) (dest : lhs (bv w)), do
-     cf .= ⇑dest = 0,
-     of .= ssub_overflows 0 ⇑dest,
-     af .= usub4_overflows 0 ⇑dest,
-     r ← eval $ -⇑dest,
-     set_result_flags r,
+   pattern fun (w : one_of [8, 16,32,64]) (dest : lhs (bv w)) => do
+     cf .= ⇑dest = 0;
+     of .= ssub_overflows 0 ⇑dest;
+     af .= usub4_overflows 0 ⇑dest;
+     r ← eval $ -⇑dest;
+     set_result_flags r;
      dest .= r
    pat_end
 
@@ -315,8 +320,8 @@ def nop : instruction := do
  definst "nop" $ do
    pattern do
      (pure () : semantics Unit)
-   pat_end,
-   pattern λ(w : one_of [16, 32]), do
+   pat_end;
+   pattern fun (w : one_of [16, 32]) => do
      (pure () : semantics Unit)
    pat_end
 
@@ -338,34 +343,34 @@ def pair_fst {x y : type} (e:pair x y) : x := prim.pair_fst x y e
 def pair_snd {x y : type} (e:pair x y) : y := prim.pair_snd x y e
 
 def set_undef (l:List (lhs bit)) : semantics Unit := do
-  _ <- l.mmap (λr, r .= undef), pure ()
+  _ <- l.mmap (fun r => r .= undef); pure ()
 
 
 def div : instruction := do
  definst "div" $ do
    -- TODO: would it be better to have a single div primitive?
-   pattern λ(src : bv 8), do
-     r ← eval $ prim.quotRem 8 ⇑ax src,
-     al .= pair_fst r,
-     ah .= pair_snd r,
+   pattern fun (src : bv 8) => do
+     r ← eval $ prim.quotRem 8 ⇑ax src;
+     al .= pair_fst r;
+     ah .= pair_snd r;
      set_undef [cf, of, sf, zf, af, pf]
-   pat_end,
-   pattern λ(src : bv 16), do
-     r ← eval $ prim.quotRem 16 (cat ⇑dx ⇑ax) src,
-     ax .= pair_fst r,
-     dx .= pair_snd r,
+   pat_end;
+   pattern fun (src : bv 16) => do
+     r ← eval $ prim.quotRem 16 (cat ⇑dx ⇑ax) src;
+     ax .= pair_fst r;
+     dx .= pair_snd r;
      set_undef [cf, of, sf, zf, af, pf]
-   pat_end,
-   pattern λ(src : bv 32), do
-     r ← eval $ prim.quotRem 32 (cat ⇑edx ⇑eax) src,
-     eax .= pair_fst r,
-     edx .= pair_snd r,
+   pat_end;
+   pattern fun (src : bv 32) => do
+     r ← eval $ prim.quotRem 32 (cat ⇑edx ⇑eax) src;
+     eax .= pair_fst r;
+     edx .= pair_snd r;
      set_undef [cf, of, sf, zf, af, pf]
-   pat_end,
-   pattern λ(src : bv 64), do
-     r ← eval $ prim.quotRem 64 (cat ⇑rdx ⇑rax) src,
-     rax .= pair_fst r,
-     rdx .= pair_snd r,
+   pat_end;
+   pattern fun (src : bv 64) => do
+     r ← eval $ prim.quotRem 64 (cat ⇑rdx ⇑rax) src;
+     rax .= pair_fst r;
+     rdx .= pair_snd r;
      set_undef [cf, of, sf, zf, af, pf]
    pat_end
 
@@ -376,28 +381,28 @@ def div : instruction := do
 def idiv : instruction := do
  definst "idiv" $ do
    -- TODO: would it be better to have a single div primitive?
-   pattern λ(src : bv 8), do
-     r ← eval $ prim.squotRem 8 ⇑ax src,
-     al .= pair_fst r,
-     ah .= pair_snd r,
+   pattern fun (src : bv 8) => do
+     r ← eval $ prim.squotRem 8 ⇑ax src;
+     al .= pair_fst r;
+     ah .= pair_snd r;
      set_undef [cf, of, sf, zf, af, pf]
-   pat_end,
-   pattern λ(src : bv 16), do
-     r ← eval $ prim.squotRem 16 (cat ⇑dx ⇑ax) src,
-     ax .= pair_fst r,
-     dx .= pair_snd r,
+   pat_end;
+   pattern fun (src : bv 16) => do
+     r ← eval $ prim.squotRem 16 (cat ⇑dx ⇑ax) src;
+     ax .= pair_fst r;
+     dx .= pair_snd r;
      set_undef [cf, of, sf, zf, af, pf]
-   pat_end,
-   pattern λ(src : bv 32), do
-     r ← eval $ prim.squotRem 32 (cat ⇑edx ⇑eax) src,
-     eax .= pair_fst r,
-     edx .= pair_snd r,
+   pat_end;
+   pattern fun (src : bv 32) => do
+     r ← eval $ prim.squotRem 32 (cat ⇑edx ⇑eax) src;
+     eax .= pair_fst r;
+     edx .= pair_snd r;
      set_undef [cf, of, sf, zf, af, pf]
-   pat_end,
-   pattern λ(src : bv 64), do
-     r ← eval $ prim.quotRem 64 (cat ⇑rdx ⇑rax) src,
-     rax .= pair_fst r,
-     rdx .= pair_snd r,
+   pat_end;
+   pattern fun (src : bv 64) => do
+     r ← eval $ prim.quotRem 64 (cat ⇑rdx ⇑rax) src;
+     rax .= pair_fst r;
+     rdx .= pair_snd r;
      set_undef [cf, of, sf, zf, af, pf]
    pat_end
 
@@ -407,9 +412,9 @@ def idiv : instruction := do
 
 def and_def : instruction := do
  definst "and" $ do
-   pattern λ(w : one_of [8, 16, 32, 64]) (dest : lhs (bv w)) (src : bv w), do
-     tmp ← eval $ ⇑dest .&. src,
-     set_bitwise_flags tmp,
+   pattern fun (w : one_of [8, 16, 32, 64]) (dest : lhs (bv w)) (src : bv w) => do
+     tmp ← eval $ ⇑dest .&. src;
+     set_bitwise_flags tmp;
      dest .= tmp
    pat_end
 
@@ -419,7 +424,7 @@ def and_def : instruction := do
 
 def not : instruction := do
  definst "not" $ do
-   pattern λ(w : one_of [8, 16, 32, 64]) (dest : lhs (bv w)), do
+   pattern fun (w : one_of [8, 16, 32, 64]) (dest : lhs (bv w)) => do
      dest .= complement ⇑dest
    pat_end
 
@@ -429,11 +434,11 @@ def not : instruction := do
 
 def or_def : instruction := do
  definst "or" $ do
-   pattern λ(u v : one_of [8, 16, 32, 64]) (dest : lhs (bv u)) (src : bv v), do
-     dest .= ⇑dest .|. sext src u,
-     af .= undef,
-     of .= bit_zero,
-     cf .= bit_zero,
+   pattern fun (u v : one_of [8, 16, 32, 64]) (dest : lhs (bv u)) (src : bv v) => do
+     dest .= ⇑dest .|. sext src u;
+     af .= undef;
+     of .= bit_zero;
+     cf .= bit_zero;
      set_result_flags ⇑dest
    pat_end
 
@@ -443,11 +448,11 @@ def or_def : instruction := do
 
 def xor_def : instruction := do
  definst "xor" $ do
-   pattern λ(u v : one_of [8, 16, 32, 64]) (dest : lhs (bv u)) (src : bv v), do
-     dest .= xor ⇑dest (sext src u),
-     af .= undef,
-     of .= bit_zero,
-     cf .= bit_zero,
+   pattern fun (u v : one_of [8, 16, 32, 64]) (dest : lhs (bv u)) (src : bv v) => do
+     dest .= xor ⇑dest (sext src u);
+     af .= undef;
+     of .= bit_zero;
+     cf .= bit_zero;
      set_result_flags ⇑dest
    pat_end
 
@@ -456,7 +461,7 @@ def xor_def : instruction := do
 -- Logical compare
 def test : instruction :=
  definst "test" $ do
-   pattern λ(w : one_of [8, 16, 32, 64]) (x y : bv w), do
+   pattern fun (w : one_of [8, 16, 32, 64]) (x y : bv w) => do
      set_bitwise_flags (x .&. y)
    pat_end
 
@@ -466,27 +471,27 @@ def test : instruction :=
 
 def bt : instruction := do
  definst "bt" $ do
-   pattern λ(wr : one_of [16, 32, 64]) (wi : one_of [8,16, 32, 64]) (base : reg (bv wr)) (idx : bv wi), do
-     cf .= expression.bit_test (expression.of_reg base) idx,
-     of .= undef,
-     sf .= undef,
-     af .= undef,
+   pattern fun (wr : one_of [16, 32, 64]) (wi : one_of [8,16, 32, 64]) (base : reg (bv wr)) (idx : bv wi) => do
+     cf .= expression.bit_test (expression.of_reg base) idx;
+     of .= undef;
+     sf .= undef;
+     af .= undef;
      pf .= undef
-   pat_end,
-   pattern λ(w : one_of [16, 32, 64]) (base : addr (bv w)) (idx : reg (bv w)), do
-     let i := sext (expression.of_reg idx : bv w) 64,
-     addr ← eval $ expression.of_addr base + expression.mulc (w/8) (expression.quotc w i),
-     cf .= expression.bit_test (expression.read (bv w) addr) (expression.of_reg idx),
-     of .= undef,
-     sf .= undef,
-     af .= undef,
+   pat_end;
+   pattern fun (w : one_of [16, 32, 64]) (base : addr (bv w)) (idx : reg (bv w)) => do
+     let i := sext (expression.of_reg idx : bv w) 64;
+     addr ← eval $ expression.of_addr base + expression.mulc (w/8) (expression.quotc w i);
+     cf .= expression.bit_test (expression.read (bv w) addr) (expression.of_reg idx);
+     of .= undef;
+     sf .= undef;
+     af .= undef;
      pf .= undef
-   pat_end,
-   pattern λ(w : one_of [16, 32, 64]) (base : addr (bv w)) (idx : imm (bv 8)), do
-     cf .= expression.bit_test (expression.read_addr base) (expression.imm idx),
-     of .= undef,
-     sf .= undef,
-     af .= undef,
+   pat_end;
+   pattern fun (w : one_of [16, 32, 64]) (base : addr (bv w)) (idx : imm (bv 8)) => do
+     cf .= expression.bit_test (expression.read_addr base) (expression.imm idx);
+     of .= undef;
+     sf .= undef;
+     af .= undef;
      pf .= undef
    pat_end
 
@@ -494,36 +499,36 @@ def bt : instruction := do
 -- btX definition
 
 -- Type for functions for setting bits.
-def bitf := Π(w:one_of [16,32,64]) (j:ℕ), prim (fn (bv w) (fn (bv j) (bv w)))
+def bitf := ∀(w:one_of [16,32,64]) (j:ℕ), prim (fn (bv w) (fn (bv j) (bv w)))
 
 -- Common function  for btc,btr and bts.
 def btX (nm:String) (f: bitf) : instruction := do
  definst nm $ do
-   pattern λ(wr : one_of [16, 32, 64]) (wi : one_of [8,16, 32, 64]) (base : reg (bv wr)) (idx : bv wi), do
-     cf .= expression.bit_test (expression.of_reg base) idx,
-     of .= undef,
-     sf .= undef,
-     af .= undef,
-     pf .= undef,
+   pattern fun (wr : one_of [16, 32, 64]) (wi : one_of [8,16, 32, 64]) (base : reg (bv wr)) (idx : bv wi) => do
+     cf .= expression.bit_test (expression.of_reg base) idx;
+     of .= undef;
+     sf .= undef;
+     af .= undef;
+     pf .= undef;
      lhs.of_reg base .= f wr wi (expression.of_reg base) idx
-   pat_end,
-   pattern λ(w : one_of [16, 32, 64]) (base : addr (bv w)) (idx : reg (bv w)), do
-     let i := sext (expression.of_reg idx : bv w) 64,
-     addr ← eval $ expression.of_addr base + expression.mulc (w/8) (expression.quotc w i),
-     cf .= expression.bit_test (expression.read (bv w) addr) (expression.of_reg idx),
-     of .= undef,
-     sf .= undef,
-     af .= undef,
-     pf .= undef,
+   pat_end;
+   pattern fun (w : one_of [16, 32, 64]) (base : addr (bv w)) (idx : reg (bv w)) => do
+     let i := sext (expression.of_reg idx : bv w) 64;
+     addr ← eval $ expression.of_addr base + expression.mulc (w/8) (expression.quotc w i);
+     cf .= expression.bit_test (expression.read (bv w) addr) (expression.of_reg idx);
+     of .= undef;
+     sf .= undef;
+     af .= undef;
+     pf .= undef;
      lhs.write_addr addr (bv w) .= f w w (expression.read (bv w) addr) (expression.of_reg idx)
-   pat_end,
-   pattern λ(w : one_of [16, 32, 64]) (base : addr (bv w)) (idx : imm (bv 8)), do
-     val ← eval (expression.read_addr base),
-     cf .= expression.bit_test val (expression.imm idx),
-     of .= undef,
-     sf .= undef,
-     af .= undef,
-     pf .= undef,
+   pat_end;
+   pattern fun (w : one_of [16, 32, 64]) (base : addr (bv w)) (idx : imm (bv 8)) => do
+     val ← eval (expression.read_addr base);
+     cf .= expression.bit_test val (expression.imm idx);
+     of .= undef;
+     sf .= undef;
+     af .= undef;
+     pf .= undef;
      lhs.of_addr base .= f w 8 val (expression.imm idx)
    pat_end
 
@@ -540,13 +545,13 @@ def bts : instruction := btX "bts" prim.bts
 
 def bsf_def : instruction := do
  definst "bsf" $ do
-   pattern λ(w : one_of [16, 32, 64]) (r : lhs (bv w)) (y : bv w), do
-     cf .= undef,
-     of .= undef,
-     sf .= undef,
-     af .= undef,
-     pf .= undef,
-     zf .= y = 0,
+   pattern fun (w : one_of [16, 32, 64]) (r : lhs (bv w)) (y : bv w) => do
+     cf .= undef;
+     of .= undef;
+     sf .= undef;
+     af .= undef;
+     pf .= undef;
+     zf .= y = 0;
      r .= bsf y
   pat_end
 
@@ -556,13 +561,13 @@ def bsf_def : instruction := do
 
 def bsr_def : instruction := do
  definst "bsr" $ do
-   pattern λ(w : one_of [16, 32, 64]) (r : lhs (bv w)) (y : bv w), do
-     cf .= undef,
-     of .= undef,
-     sf .= undef,
-     af .= undef,
-     pf .= undef,
-     zf .= y = 0,
+   pattern fun (w : one_of [16, 32, 64]) (r : lhs (bv w)) (y : bv w) => do
+     cf .= undef;
+     of .= undef;
+     sf .= undef;
+     af .= undef;
+     pf .= undef;
+     zf .= y = 0;
      r .= bsr y
   pat_end
 
@@ -572,7 +577,7 @@ def bsr_def : instruction := do
 
 def bswap : instruction := do
  definst "bswap" $ do
-   pattern λ(w : one_of [32, 64]) (dest : lhs (bv w)), do
+   pattern fun (w : one_of [32, 64]) (dest : lhs (bv w)) => do
      dest .= expression.bswap ⇑dest
    pat_end
 
@@ -581,12 +586,12 @@ def bswap : instruction := do
 
 def add : instruction := do
  definst "add" $ do
-   pattern λ(w : one_of [8, 16, 32, 64]) (dest : lhs (bv w)) (src : bv w), do
-     tmp ← eval $ ⇑dest + src,
-     set_result_flags tmp,
-     cf .= uadd_overflows tmp src,
-     of .= sadd_overflows tmp src,
-     af .= uadd4_overflows tmp src,
+   pattern fun (w : one_of [8, 16, 32, 64]) (dest : lhs (bv w)) (src : bv w) => do
+     tmp ← eval $ ⇑dest + src;
+     set_result_flags tmp;
+     cf .= uadd_overflows tmp src;
+     of .= sadd_overflows tmp src;
+     af .= uadd4_overflows tmp src;
      dest .= tmp
    pat_end
 
@@ -596,12 +601,12 @@ def add : instruction := do
 
 def adc : instruction := do
  definst "adc" $ do
-   pattern λ(w : one_of [8, 16, 32, 64]) (dest : lhs (bv w)) (src : bv w), do
-     tmp ← eval $ expression.adc ⇑dest src cf,
-     set_result_flags tmp,
-     cf .= uadc_overflows  tmp src cf,
-     of .= sadc_overflows  tmp src cf,
-     af .= uadc4_overflows tmp src cf,
+   pattern fun (w : one_of [8, 16, 32, 64]) (dest : lhs (bv w)) (src : bv w) => do
+     tmp ← eval $ expression.adc ⇑dest src cf;
+     set_result_flags tmp;
+     cf .= uadc_overflows  tmp src cf;
+     of .= sadc_overflows  tmp src cf;
+     af .= uadc4_overflows tmp src cf;
      dest .= tmp
    pat_end
 
@@ -611,13 +616,13 @@ def adc : instruction := do
 
 def xadd : instruction := do
  definst "xadd" $ do
-   pattern λ(w : one_of [8, 16, 32, 64]) (dest : lhs (bv w)) (src : lhs (bv w)), do
-     tmp ← eval $ ⇑dest + ⇑src,
-     src .= ⇑dest,
-     set_result_flags tmp,
-     cf .= uadd_overflows  tmp src,
-     of .= sadd_overflows  tmp src,
-     af .= uadd4_overflows tmp src,
+   pattern fun (w : one_of [8, 16, 32, 64]) (dest : lhs (bv w)) (src : lhs (bv w)) => do
+     tmp ← eval $ ⇑dest + ⇑src;
+     src .= ⇑dest;
+     set_result_flags tmp;
+     cf .= uadd_overflows  tmp src;
+     of .= sadd_overflows  tmp src;
+     af .= uadd4_overflows tmp src;
      dest .= tmp
    pat_end
 
@@ -626,14 +631,14 @@ def xadd : instruction := do
 
 def fadd : instruction := do
  definst "fadd" $ do
-   pattern λ(dest : lhs x86_80) (src : lhs x86_80), do
+   pattern fun (dest : lhs x86_80) (src : lhs x86_80) => do
      dest .= x87_fadd dest src
-   pat_end,
-   pattern λ(src : lhs float), do
-     st0  .= x87_fadd st0 ↑src
-   pat_end,
-   pattern λ(src : lhs double), do
-     st0  .= x87_fadd st0 ↑src
+   pat_end;
+   pattern fun (src : lhs float) => do
+     st0  .= x87_fadd st0 src
+   pat_end;
+   pattern fun (src : lhs double) => do
+     st0  .= x87_fadd st0 src
    pat_end
 
 ------------------------------------------------------------------------
@@ -641,8 +646,8 @@ def fadd : instruction := do
 
 def faddp : instruction := do
  definst "faddp" $ do
-   pattern λ(dest : lhs x86_80) (src : lhs x86_80), do
-     dest .= x87_fadd dest src,
+   pattern fun (dest : lhs x86_80) (src : lhs x86_80) => do
+     dest .= x87_fadd dest src;
      record_event event.pop_x87_register_stack
    pat_end
 
@@ -651,8 +656,8 @@ def faddp : instruction := do
 
 def fiadd : instruction := do
  definst "fiadd" $ do
-   pattern λ(w : one_of [16,32]) (src : lhs (bv w)), do
-     st0 .= x87_fadd st0 ↑src
+   pattern fun (w : one_of [16, 32]) (src : lhs (bv w)) => do
+     st0 .= x87_fadd st0 src
    pat_end
 
 ------------------------------------------------------------------------
@@ -679,12 +684,12 @@ def hlt : instruction :=
 
 def sub_def : instruction := do
  definst "sub" $ do
-   pattern λ(w : one_of [8, 16, 32, 64]) (dest : lhs (bv w)) (src : bv w), do
-     tmp ← eval $ ⇑dest - src,
-     set_result_flags tmp,
-     cf .= usub_overflows tmp src,
-     of .= ssub_overflows tmp src,
-     af .= usub4_overflows tmp src,
+   pattern fun (w : one_of [8, 16, 32, 64]) (dest : lhs (bv w)) (src : bv w) => do
+     tmp ← eval $ ⇑dest - src;
+     set_result_flags tmp;
+     cf .= usub_overflows tmp src;
+     of .= ssub_overflows tmp src;
+     af .= usub4_overflows tmp src;
      dest .= tmp
    pat_end
 
@@ -694,7 +699,7 @@ def sub_def : instruction := do
 
 def lea : instruction :=
  definst "lea" $ do
-   pattern λ(w : one_of [16, 32, 64]) (dest : lhs (bv w)) (src : addr (bv 64)), do
+   pattern fun (w : one_of [16, 32, 64]) (dest : lhs (bv w)) (src : addr (bv 64)) => do
      dest .= trunc (expression.of_addr src) w
    pat_end
 
@@ -704,7 +709,7 @@ def lea : instruction :=
 
 def call : instruction :=
  definst "call" $ do
-   pattern λ(v : bv 64), do
+   pattern fun (v : bv 64) => do
      record_event (event.call v)
    pat_end
 
@@ -713,7 +718,7 @@ def call : instruction :=
 -- Jump
 def jmp : instruction :=
  definst "jmp" $ do
-   pattern λ(v : bv 64), do
+   pattern fun (v : bv 64) => do
      record_event (event.jmp v)
    pat_end
 
@@ -775,12 +780,12 @@ def condition_codes : List (List String × expression bit)  :=
 
 def mk_jcc_instruction : String × expression bit → instruction
  | (name, cc) := definst ("j" ++ name) $ do
- pattern λ(addr : bv 64), do
+ pattern fun (addr : bv 64) => do
    record_event (event.branch cc addr)
  pat_end
 
 def mk_jcc_instruction_aliases : List String × expression bit → List instruction
- | (names, cc) := List.map (λn, mk_jcc_instruction (n, cc)) names
+ | (names, cc) := List.map (fun n => mk_jcc_instruction (n, cc)) names
 
 -- Conditional jump instructions, some of these have multiple names. They only vary
 -- in the condition checked so we use helper functions to associate mnemonics with
@@ -796,12 +801,12 @@ def jcc_instructions : List instruction :=
 
 def mk_setcc_instruction : String × expression bit → instruction
  | (name, cc) := definst ("set" ++ name) $ do
- pattern λ(dest : lhs (bv 8)), do
+ pattern fun (dest : lhs (bv 8)) => do
    dest .= mux cc 0 1
  pat_end
 
 def mk_setcc_instruction_aliases : List String × expression bit → List instruction
- | (names, cc) := List.map (λn, mk_setcc_instruction (n, cc)) names
+ | (names, cc) := List.map (fun n => mk_setcc_instruction (n, cc)) names
 
 -- Conditional jump instructions, some of these have multiple names. They only vary
 -- in the condition checked so we use helper functions to associate mnemonics with
@@ -818,9 +823,9 @@ def setcc_instructions : List instruction :=
 def leave : instruction :=
  definst "leave" $ do
    pattern do
-     rsp .= rbp,
-     v ← eval (expression.read (bv 64) rsp),
-     rsp .= rsp + nat_to_bv 8,
+     rsp .= rbp;
+     v ← eval (expression.read (bv 64) rsp);
+     rsp .= rsp + nat_to_bv 8;
      rbp .= v
    pat_end
 
@@ -830,20 +835,20 @@ def leave : instruction :=
 -- Pop a Value from the Stack
 def pop_def : instruction :=
  definst "pop" $ do
-   pattern λ(w : one_of [16, 32, 64]) (dest: lhs (bv w)),do
-     v ← eval (expression.read (bv w) rsp),
-     rsp  .= rsp + nat_to_bv (w/8),
+   pattern fun (w : one_of [16, 32, 64]) (dest: lhs (bv w)) => do
+     v ← eval (expression.read (bv w) rsp);
+     rsp  .= rsp + nat_to_bv (w/8);
      dest .= v
    pat_end
 
 ------------------------------------------------------------------------
 -- push definition
--- Push Word, Doubleword or Quadword Onto the Stack
+-- Push Word => doubleword or Quadword Onto the Stack
  
 def push_def : instruction :=
  definst "push" $ do
-   pattern λ(w : one_of [8, 16, 32, 64]) (value: bv w),do
-     rsp .= rsp - nat_to_bv (w/8),
+   pattern fun (w : one_of [8, 16, 32, 64]) (value: bv w) => do
+     rsp .= rsp - nat_to_bv (w/8);
      lhs.write_addr rsp _ .= value
    pat_end
 
@@ -854,13 +859,13 @@ def push_def : instruction :=
 def ret : instruction :=
  definst "retq" $ do
    pattern do
-     addr ← eval $ expression.read (bv 64) rsp,
-     rsp .= rsp + 8,
+     addr ← eval $ expression.read (bv 64) rsp;
+     rsp .= rsp + 8;
      record_event (event.jmp addr)
-   pat_end,
-   pattern λ(off : bv 16), do
-     addr ← eval $ expression.read (bv 64) rsp,
-     rsp .= rsp + (8 + uext off 64),
+   pat_end;
+   pattern fun (off : bv 16) => do
+     addr ← eval $ expression.read (bv 64) rsp;
+     rsp .= rsp + (8 + uext off 64);
      record_event (event.jmp addr)
    pat_end
 
@@ -879,7 +884,7 @@ def cbw : instruction :=
 def cdq : instruction :=
  definst "cdq" $ do
    pattern do
-     let quadword := sext ⇑eax 64, do
+     let quadword := sext ⇑eax 64 in do
      edx .= quadword[[63..32]]
    pat_end
 
@@ -916,7 +921,7 @@ def cld : instruction :=
 def cqo : instruction :=
  definst "cqo" $ do
    pattern do
-     let octword := sext ⇑rax 128, do
+     let octword := sext ⇑rax 128 in do
      rdx .= octword[[127..64]]
    pat_end
 
@@ -926,7 +931,7 @@ def cqo : instruction :=
 def cwd : instruction :=
  definst "cwd" $ do
    pattern do
-     let doubleword := sext ⇑ax 32, do
+     let doubleword := sext ⇑ax 32 in do
      dx .= doubleword[[31..16]]
    pat_end
 
@@ -961,45 +966,45 @@ def do_sh {w:ℕ}
   -- The intel manual says that the count is masked to give an upper
   -- bound on the time the shift takes, with a mask of 63 in the case
   -- of a 64 bit operand, and 31 in the other cases.
-  low_count ← eval $ count .&. count_mask,
+  low_count ← eval $ count .&. count_mask;
   -- compute the result
   res ← eval $
         (match op with
-        | shift_op.shl := prim.shl w v low_count
-        | shift_op.shr := prim.shr w v low_count
-        | shift_op.sar := prim.sar w v low_count)
-        ,
+        | shift_op.shl => prim.shl w v low_count
+        | shift_op.shr => prim.shr w v low_count
+        | shift_op.sar => prim.sar w v low_count)
+        ;
   -- When the count is zero, nothing happens, and no flags change
-  let is_nonzero := low_count ≠ 0,
+  let is_nonzero : expression bit := low_count ≠ 0;
   -- Set the af flag
-  set_cond af is_nonzero undef,
+  set_cond af is_nonzero undef;
   (match op with
-  | shift_op.shl :=
+  | shift_op.shl =>
      cf .= prim.shl_carry w cf v low_count
-  | shift_op.shr := do
+  | shift_op.shr => do
      cf .= prim.shr_carry w v cf low_count
-  | shift_op.sar := do
+  | shift_op.sar => do
      cf .= prim.sar_carry w v cf low_count
-  ),
+  );
   -- Compute value of of_flag if low_count is 1.
   let of_flag :=
         (match op with
-        | shift_op.shl := expression.bit_xor (@msb w res) (@msb w v)
-        | shift_op.sar := bit_zero
-        | shift_op.shr := @msb w v
-       ),
-  set_cond of is_nonzero (mux (low_count = 1) of_flag undef),
-  set_cond sf is_nonzero (msb res),
-  set_cond zf is_nonzero (res = 0),
-  set_cond pf is_nonzero (even_parity (least_byte res)),
+        | shift_op.shl => expression.bit_xor (@msb w res) (@msb w v)
+        | shift_op.sar => bit_zero
+        | shift_op.shr => @msb w v
+       );
+  set_cond of is_nonzero (mux (low_count = 1) of_flag undef);
+  set_cond sf is_nonzero (msb res);
+  set_cond zf is_nonzero (res = 0);
+  set_cond pf is_nonzero (even_parity (least_byte res));
   set_cond v  is_nonzero res
 
 def shift_def (nm:String) (o : shift_op) : instruction :=
   definst nm $ do
-    pattern λ(w : one_of [8, 16, 32]) (value: lhs (bv w)) (count: bv 8),do
+    pattern fun (w : one_of [8, 16, 32]) (value: lhs (bv w)) (count: bv 8) => do
       do_sh o value count (32-1)
-    pat_end,
-    pattern λ(value: lhs (bv 64)) (count: bv 8), do
+    pat_end;
+    pattern fun (value: lhs (bv 64)) (count: bv 8) => do
       do_sh o value count (64-1)
     pat_end
 

@@ -11,17 +11,17 @@ import x86_semantics.buffer_map
 import galois.init.io
 import galois.init.nat
 
-def repeat {α : Type} {m : Type → Type} [Applicative m] : ℕ → m α → m (List α)
+def repeat {α : Type} {m : Type → Type} [Applicative m] : Nat → m α → m (List α)
 | 0 m := pure []
 | (Nat.succ n)  m := List.cons <$> m <*> repeat n m
 
 def forM' {m : Type → Type} [Monad m] {α : Type} {β:Type} (l:List α) (f:α → m β) : m Unit :=
-  List.mmap f l >>= λ_, pure ()
+  List.mmap f l >>= fun _ => pure ()
 
 def bracket {α β:Type} (c:IO α) (d:α → IO Unit) (f:α → IO β) : IO β := do
-  x ← c,
-  v <- catch (f x) (λe, do d x, throw e),
-  d x,
+  x ← c;
+  v <- catch (f x) (fun e => do d x; throw e);
+  d x;
   pure v
 
 -- @[reducible]
@@ -40,11 +40,11 @@ def bracket {α β:Type} (c:IO α) (d:α → IO Unit) (f:α → IO β) : IO β :
 namespace ByteArray
 
 protected
-def toBytesPartialAux (bs : ByteArray) (off : ℕ) : ℕ -> List UInt8 -> List UInt8
+def toBytesPartialAux (bs : ByteArray) (off : Nat) : Nat -> List UInt8 -> List UInt8
   | 0            acc := acc
   | (Nat.succ n) acc := toBytesPartialAux n (bs.get (off + n)  :: acc)
 
-def toBytesPartial (bs : ByteArray) (off : ℕ) (n : ℕ) : List UInt8 := 
+def toBytesPartial (bs : ByteArray) (off : Nat) (n : Nat) : List UInt8 := 
   ByteArray.toBytesPartialAux bs off n []
 
 -- FIXME: this is not a cheap way of doing this.
@@ -56,33 +56,33 @@ end ByteArray
 namespace buffer
 
 @[reducible]
-def reader := EState String (ByteArray × ℕ)
+def reader := EState String (ByteArray × Nat)
 
 namespace reader
 
 protected
-def read_bytes (n:ℕ) : reader (List UInt8) := do
-  s ← get,
-  when (s.fst.size < s.snd + n) (throw "read_bytes eof"),
-  set { s with snd := s.snd + n },
+def read_bytes (n:Nat) : reader (List UInt8) := do
+  s ← get;
+  when (s.fst.size < s.snd + n) (throw "read_bytes eof");
+  set { s with snd := s.snd + n };
   pure (s.fst.toBytesPartial s.snd n)
 
-def skip (n:ℕ) : reader Unit := do
-  s ← get,
-  when (s.fst.size < s.snd + n) (throw "skip eof"),
+def skip (n:Nat) : reader Unit := do
+  s ← get;
+  when (s.fst.size < s.snd + n) (throw "skip eof");
   set { s with snd := s.snd + n }
 
 def read_UInt8 : reader UInt8 := do
-  l ← reader.read_bytes 1,
+  l ← reader.read_bytes 1;
   match l with
-  | [h] := pure h
-  | _   := throw "internal: read_UInt8"
+  | [h] => pure h
+  | _   => throw "internal: read_UInt8"
 
-def from_handle {α} (h:Galois.Fs.handle) (n:ℕ) (r:reader α) : IO α := do
-  b ← Galois.IO.Prim.handle.read h n,
+def from_handle {α} (h:Galois.Fs.handle) (n:Nat) (r:reader α) : IO α := do
+  b ← Galois.IO.Prim.handle.read h n;
   match r.run (b, 0) with
-  | (EState.Result.ok r _) := pure r
-  | (EState.Result.error e _) := throw e
+  | (EState.Result.ok r _)    => pure r
+  | (EState.Result.error e _) => throw e
 
 end reader
 end buffer
@@ -101,11 +101,11 @@ protected def repr : elf_class → String
 | ELF32 := "ELF32"
 | ELF64 := "ELF64"
 
-protected def bytes : elf_class → ℕ
+protected def bytes : elf_class → Nat
 | ELF32 := 4
 | ELF64 := 8
 
-protected def bits : elf_class → ℕ
+protected def bits : elf_class → Nat
 | ELF32 := 32
 | ELF64 := 64
 
@@ -156,24 +156,24 @@ protected def pp (e:info) : String
 open buffer
 
 def read : reader info := do
-  b ← reader.read_bytes 4,
-  when (b ≠ magic) (throw "Not an elf file."),
-  cl_val ← reader.read_UInt8,
+  b ← reader.read_bytes 4;
+  when (b ≠ magic) (throw "Not an elf file.");
+  cl_val ← reader.read_UInt8;
   cl ←
     (match cl_val.toNat with
-    | 1 := pure ELF32
-    | 2 := pure ELF64
-    | _ := throw "Invalid elf data."),
-  dt_val ← reader.read_UInt8,
+    | 1 => pure ELF32
+    | 2 => pure ELF64
+    | _ => throw "Invalid elf data.");
+  dt_val ← reader.read_UInt8;
   dt ←
     (match dt_val.toNat with
-    | 1 := pure ELFDATA2LSB
-    | 2 := pure ELFDATA2MSB
-    | _ := throw "Invalid elf data."),
-  elf_version ← reader.read_UInt8,
-  when (elf_version ≠ 1) (throw "Mismatched elf version."),
-  osabi ← reader.read_UInt8,
-  osabi_ver ← reader.read_UInt8,
+    | 1 => pure ELFDATA2LSB
+    | 2 => pure ELFDATA2MSB
+    | _ => throw "Invalid elf data.");
+  elf_version ← reader.read_UInt8;
+  when (elf_version ≠ 1) (throw "Mismatched elf version.");
+  osabi ← reader.read_UInt8;
+  osabi_ver ← reader.read_UInt8;
   pure { elf_class := cl
        , elf_data := dt
        , osabi := ⟨osabi⟩
@@ -189,50 +189,50 @@ def file_reader := ReaderT info buffer.reader
 namespace file_reader
 
 protected
-def from_handle {α:Type} (i:info) (h:Galois.Fs.handle) (n:ℕ) (r:file_reader α) : IO α := do
-  b ← Galois.IO.Prim.handle.read h n,
+def from_handle {α:Type} (i:info) (h:Galois.Fs.handle) (n:Nat) (r:file_reader α) : IO α := do
+  b ← Galois.IO.Prim.handle.read h n;
   match (r.run i).run (b, 0) with
-  | (EState.Result.ok r _) := pure r
-  | (EState.Result.error e _) := throw e
+  | (EState.Result.ok r _)    => pure r
+  | (EState.Result.error e _) => throw e
 
 def read_u8  : file_reader UInt8  :=
   ReaderT.lift $ buffer.reader.read_UInt8
 
 protected
-def read_chars_lsb (w:ℕ) : file_reader (List UInt8) := do
-  i ← read,
+def read_chars_lsb (w:Nat) : file_reader (List UInt8) := do
+  i ← read;
   let f (l:List UInt8) : List UInt8 :=
         match i.elf_data with
-        | ELFDATA2LSB := l
-        | ELFDATA2MSB := l.reverse
+        | ELFDATA2LSB => l
+        | ELFDATA2MSB => l.reverse
         in do
   ReaderT.lift $ f <$> buffer.reader.read_bytes w
 
 def read_u16 : file_reader UInt16 := do
-  l ← file_reader.read_chars_lsb 2,
+  l ← file_reader.read_chars_lsb 2;
   match l with
-  | [x0,x1] :=
+  | [x0,x1] =>
     pure $ UInt16.ofNat
       $ Nat.shiftl x1.toNat 8
       + x0.toNat
-  | _ := throw "internal: read_UInt16"
+  | _ => throw "internal: read_UInt16"
 
 def read_u32 : file_reader UInt32 := do
-  l ← file_reader.read_chars_lsb 4,
+  l ← file_reader.read_chars_lsb 4;
   match l with
-  | [x0,x1,x2,x3] :=
+  | [x0,x1,x2,x3] =>
     pure $ UInt32.ofNat
       $ Nat.shiftl x3.toNat 24
       + Nat.shiftl x2.toNat 16
       + Nat.shiftl x1.toNat 8
       + x0.toNat
-  | _ := throw "internal: read_UInt32"
+  | _ => throw "internal: read_UInt32"
 
 
 def read_u64 : file_reader UInt64 := do
-  l ← file_reader.read_chars_lsb 8,
+  l ← file_reader.read_chars_lsb 8;
   match l with
-  | [x0,x1,x2,x3, x4, x5, x6, x7] :=
+  | [x0,x1,x2,x3, x4, x5, x6, x7] =>
     pure $ UInt64.ofNat
       $ Nat.shiftl x7.toNat 56
       + Nat.shiftl x6.toNat 48
@@ -242,7 +242,7 @@ def read_u64 : file_reader UInt64 := do
       + Nat.shiftl x2.toNat 16
       + Nat.shiftl x1.toNat 8
       + x0.toNat
-  | _ := throw "internal: read_UInt64"
+  | _ => throw "internal: read_UInt64"
  
 
 end file_reader
@@ -260,22 +260,22 @@ instance UInt16_si_elf_file_data : elf_file_data UInt16 :=
 -- A 32 or 64-bit word dependent on the class.
 def word (c:elf_class) := 
   match c with 
-  | ELF32 := UInt32
-  | ELF64 := UInt64
+  | ELF32 => UInt32
+  | ELF64 => UInt64
 
 namespace word
 
-def toNat : Π{c : elf_class}, word c -> ℕ
+def toNat : ∀{c : elf_class}, word c -> Nat
 | ELF32 v := UInt32.toNat v
 | ELF64 v := UInt64.toNat v
 
-protected def to_hex_with_leading_zeros : List Char → ℕ → ℕ → String
+protected def to_hex_with_leading_zeros : List Char → Nat → Nat → String
 | prev 0 _ := prev.asString
 | prev (Nat.succ w) x :=
   let c := (Nat.land x 0xf).digitChar in
   to_hex_with_leading_zeros (c::prev) w (Nat.shiftr x 4)
 
-protected def to_hex' : List Char → ℕ → ℕ → String
+protected def to_hex' : List Char → Nat → Nat → String
 | prev 0 _ := prev.asString
 | prev w 0 := prev.asString
 | prev (Nat.succ w) x :=
@@ -286,55 +286,55 @@ protected def to_hex' : List Char → ℕ → ℕ → String
 protected def pp_dec {c:elf_class} (w : word c) : String := repr w.toNat
   
 --- Print word as hex
-protected def pp_hex : Π{c:elf_class}, word c → String
+protected def pp_hex : ∀{c:elf_class}, word c → String
 | ELF32 v := "0x" ++ word.to_hex' []  8 v.toNat
 | ELF64 v := "0x" ++ word.to_hex' [] 16 v.toNat
 
-protected def size : elf_class → ℕ := elf_class.bytes
+protected def size : elf_class → Nat := elf_class.bytes
 
--- theorem dbl_is_bit0 (x y:ℕ) : bit0 x*y = bit0 (x*y) :=
+-- theorem dbl_is_bit0 (x y:Nat) : bit0 x*y = bit0 (x*y) :=
 -- begin
---   simp [bit0, nat.right_distrib],
+--   simp [bit0, nat.right_distrib];
 -- end
 
 --- `bit1_dec d x` is a utility function that denotes `(d+1)*x-1`
 -- It is primarily used
-def bit1_dec : ℕ →  ℕ → ℕ
+def bit1_dec : Nat →  Nat → Nat
 | d x := (d+1)*x-1
 
--- theorem bit0_sub_1_congr (x:ℕ)  : bit0 x - 1 = bit1_dec 1 x :=
+-- theorem bit0_sub_1_congr (x:Nat)  : bit0 x - 1 = bit1_dec 1 x :=
 -- begin
---   simp [bit1_dec, bit1, bit0, nat.add_succ, nat.succ_mul],
+--   simp [bit1_dec, bit1, bit0, nat.add_succ, nat.succ_mul];
 -- end
 
--- theorem bit1_dec_bit0 (d x:ℕ) : bit1_dec d (bit0 x) = bit1_dec (bit1 d) x :=
+-- theorem bit1_dec_bit0 (d x:Nat) : bit1_dec d (bit0 x) = bit1_dec (bit1 d) x :=
 -- begin
---   simp [bit1_dec, bit1, bit0, nat.add_succ, nat.succ_mul,
---         nat.left_distrib, nat.right_distrib],
+--   simp [bit1_dec, bit1, bit0, nat.add_succ, nat.succ_mul;
+--         nat.left_distrib, nat.right_distrib];
 -- end
 
--- theorem bit1_dec_one (d:ℕ) : bit1_dec d 1 = d :=
+-- theorem bit1_dec_one (d:Nat) : bit1_dec d 1 = d :=
 -- begin
---   simp [bit1_dec],
+--   simp [bit1_dec];
 -- end
 
 -- theorem word32_is_UInt32 : UInt32 = word ELF32 :=
 -- begin
 --   simp [UInt32, word, elf_class.bits, has_pow.pow, nat.pow, dbl_is_bit0, bit0_sub_1_congr
---        , bit1_dec_bit0, bit1_dec_one],
+--        , bit1_dec_bit0, bit1_dec_one];
 -- end
 
 -- theorem word64_is_UInt64 : UInt64 = word ELF64 :=
 -- begin
 --   simp [UInt32, word, elf_class.bits, has_pow.pow, nat.pow, dbl_is_bit0, bit0_sub_1_congr
---        , bit1_dec_bit0, bit1_dec_one],
+--        , bit1_dec_bit0, bit1_dec_one];
 -- end
 
 instance (c:elf_class) : elf_file_data (word c) :=
 { read := do
   match c with
-  | ELF32 := file_reader.read_u32
-  | ELF64 := file_reader.read_u64
+  | ELF32 => file_reader.read_u32
+  | ELF64 => file_reader.read_u64
 }
 
 end word
@@ -342,8 +342,11 @@ end word
 ------------------------------------------------------------------------
 -- phdr
 
-@[derive DecidableEq HasOne]
+-- @[derive DecidableEq HasOne]
 def phdr_type := UInt32
+
+instance : DecidableEq phdr_type := inferInstanceAs (DecidableEq UInt32)
+instance : HasOne phdr_type := inferInstanceAs (HasOne UInt32)
 
 namespace phdr_type
 
@@ -352,14 +355,14 @@ instance : elf_file_data phdr_type :=
 
 def repr (pht : phdr_type) : String :=
   match pht.toNat with
-  | 0 := "PT_NULL"                
-  | 1 := "PT_LOAD"                 
-  | 2 := "PT_DYNAMIC"              
-  | 3 := "PT_INTERP"               
-  | 4 := "PT_NOTE"                 
-  | 5 := "PT_SHLIB"                
-  | 6 := "PT_PHDR"                 
-  | _ := "PT_PROC " ++ repr pht.toNat
+  | 0 => "PT_NULL"                
+  | 1 => "PT_LOAD"                 
+  | 2 => "PT_DYNAMIC"              
+  | 3 => "PT_INTERP"               
+  | 4 => "PT_NOTE"                 
+  | 5 => "PT_SHLIB"                
+  | 6 => "PT_PHDR"                 
+  | _ => "PT_PROC " ++ repr pht.toNat
 
 instance : HasRepr phdr_type := ⟨repr⟩
 
@@ -368,8 +371,9 @@ def PT_LOAD : phdr_type := 1
 end phdr_type
 
 /-- Flags for a program header. -/
-@[derive DecidableEq]
+-- @[derive DecidableEq]
 def phdr_flags := UInt32
+instance phdr_flags_DecidableEq: DecidableEq phdr_flags := inferInstanceAs (DecidableEq UInt32)
 
 namespace phdr_flags
 
@@ -398,7 +402,7 @@ structure phdr (c : elf_class) :=
 
 namespace phdr
 
-def size (c:elf_class) : ℕ := 8 + 6 * word.size c
+def size (c:elf_class) : Nat := 8 + 6 * word.size c
 
 protected def pp {c:elf_class} (x:phdr c)
   := "Type:             " ++ x.phdr_type.repr ++ "\n"
@@ -412,16 +416,16 @@ protected def pp {c:elf_class} (x:phdr c)
 
 end phdr
 
-def read_phdr : Π(c:elf_class), file_reader (phdr c)
+def read_phdr : ∀(c:elf_class), file_reader (phdr c)
 | ELF32 := do
-  tp ← elf_file_data.read,
-  offset ← elf_file_data.read,
-  vaddr  ← elf_file_data.read,
-  paddr  ← elf_file_data.read,
-  filesz ← elf_file_data.read,
-  memsz  ← elf_file_data.read,
-  flags ← elf_file_data.read,
-  align  ← elf_file_data.read,
+  tp ← elf_file_data.read;
+  offset ← elf_file_data.read;
+  vaddr  ← elf_file_data.read;
+  paddr  ← elf_file_data.read;
+  filesz ← elf_file_data.read;
+  memsz  ← elf_file_data.read;
+  flags ← elf_file_data.read;
+  align  ← elf_file_data.read;
   pure { phdr_type := tp
        , flags := flags
        , offset := offset
@@ -432,14 +436,14 @@ def read_phdr : Π(c:elf_class), file_reader (phdr c)
        , align := align
        }
 | ELF64 := do
-  tp ← elf_file_data.read,
-  flags ← elf_file_data.read,
-  offset ← elf_file_data.read,
-  vaddr  ← elf_file_data.read,
-  paddr  ← elf_file_data.read,
-  filesz ← elf_file_data.read,
-  memsz  ← elf_file_data.read,
-  align  ← elf_file_data.read,
+  tp ← elf_file_data.read;
+  flags ← elf_file_data.read;
+  offset ← elf_file_data.read;
+  vaddr  ← elf_file_data.read;
+  paddr  ← elf_file_data.read;
+  filesz ← elf_file_data.read;
+  memsz  ← elf_file_data.read;
+  align  ← elf_file_data.read;
   pure { phdr_type := tp
        , flags := flags
        , offset := offset
@@ -495,7 +499,7 @@ structure ehdr :=
 namespace ehdr
 
 -- Number of bytes in the ehdr after the 16 byte info.
-protected def size (c:elf_class) : ℕ := 16 + 24 + 3 * c.bytes
+protected def size (c:elf_class) : Nat := 16 + 24 + 3 * c.bytes
 
 protected def elf_class (e:ehdr) := e.info.elf_class
 
@@ -515,21 +519,21 @@ end ehdr
 
 -- Read the remainder of the elf header after the first 16 bytes for the info.
 def read_ehdr_remainder : file_reader ehdr := do
-  i ← read,
-  tp ← elf_file_data.read,
-  mach ← elf_file_data.read,
-  ver ← file_reader.read_u32,
-  when (ver ≠ 1) (throw $ "Unexpected version: " ++ repr ver.toNat),
-  entry ← elf_file_data.read,
-  phoff ← elf_file_data.read,
-  shoff ← elf_file_data.read,
-  flags ← elf_file_data.read,
-  _ehsize ← file_reader.read_u16,
-  _phentsize ← file_reader.read_u16,
-  phnum ← elf_file_data.read,
-  _shentsize ← file_reader.read_u16,
-  shnum ← elf_file_data.read,
-  shstrndx ← elf_file_data.read,
+  i ← read;
+  tp ← elf_file_data.read;
+  mach ← elf_file_data.read;
+  ver ← file_reader.read_u32;
+  when (ver ≠ 1) (throw $ "Unexpected version: " ++ repr ver.toNat);
+  entry ← elf_file_data.read;
+  phoff ← elf_file_data.read;
+  shoff ← elf_file_data.read;
+  flags ← elf_file_data.read;
+  _ehsize ← file_reader.read_u16;
+  _phentsize ← file_reader.read_u16;
+  phnum ← elf_file_data.read;
+  _shentsize ← file_reader.read_u16;
+  shnum ← elf_file_data.read;
+  shstrndx ← elf_file_data.read;
   pure { info := i
        , elf_type := tp
        , machine  := mach
@@ -545,26 +549,26 @@ def read_ehdr_remainder : file_reader ehdr := do
 -- The the elf header from the handle (which should be at the
 -- beginning of the file.
 def read_ehdr_from_handle (h:Galois.Fs.handle) : IO ehdr := do
- i ← buffer.reader.from_handle h 16 info.read,
+ i ← buffer.reader.from_handle h 16 info.read;
  let ehdr_size := ehdr.size i.elf_class in do
  file_reader.from_handle i h (ehdr_size - 16) read_ehdr_remainder
 
 -- Pure size of phdr table
-def phdr_table_size (e:ehdr) : ℕ := phdr.size e.elf_class * e.phnum.toNat
+def phdr_table_size (e:ehdr) : Nat := phdr.size e.elf_class * e.phnum.toNat
 
 def read_phdrs_from_handle (e:ehdr) (h:Galois.Fs.handle)  : IO (List (phdr e.elf_class)) :=
    file_reader.from_handle (e.info) h (phdr_table_size e) (
       repeat (e.phnum.toNat) $ read_phdr e.elf_class)
 
 -- Move from current offset to target offset.
-def move_to_target (h:Galois.Fs.handle) (target_off:ℕ) : IO Unit :=
-  do _ <- Galois.IO.Prim.handle.lseek h (Int.ofNat target_off) Galois.Fs.Whence.set,
+def move_to_target (h:Galois.Fs.handle) (target_off:Nat) : IO Unit :=
+  do _ <- Galois.IO.Prim.handle.lseek h (Int.ofNat target_off) Galois.Fs.Whence.set;
     pure ()
 
 def pp_phdrs {c:elf_class} (phdrs:List (phdr c)) : IO Unit := do
-  forM' (List.zip (List.range phdrs.length) phdrs) (λphdr, do
+  forM' (List.zip (List.range phdrs.length) phdrs) (fun phdr => do
     let idx := phdr.fst in do
-    IO.println $ "Index:            " ++ repr idx,
+    IO.println $ "Index:            " ++ repr idx;
     IO.println phdr.snd.pp)
 
 -- A region is the contents of memory as it appears at load time.
@@ -579,8 +583,8 @@ def elfmem : Type := init_memory
 def read_one_elfmem (h : Galois.Fs.handle) {c : elf_class} (m : elfmem) (ph : phdr c) : IO elfmem :=
   if ph.phdr_type = phdr_type.PT_LOAD 
   then do
-    _ <- Galois.IO.Prim.handle.lseek h  (Int.ofNat ph.offset.toNat) Galois.Fs.Whence.set,
-    fbs <- Galois.IO.Prim.handle.read h (if ph.filesz.toNat < ph.memsz.toNat then ph.filesz.toNat else ph.memsz.toNat),   
+    _ <- Galois.IO.Prim.handle.lseek h  (Int.ofNat ph.offset.toNat) Galois.Fs.Whence.set;
+    fbs <- Galois.IO.Prim.handle.read h (if ph.filesz.toNat < ph.memsz.toNat then ph.filesz.toNat else ph.memsz.toNat);
     let zeroes : memory.region := ByteArray.mk (Array.mkArray (ph.memsz.toNat - ph.filesz.toNat) 0)
     in pure $ m.insert ph.vaddr.toNat (ByteArray.append fbs zeroes)
   else pure m
@@ -592,14 +596,14 @@ def read_elfmem {c : elf_class} (h : Galois.Fs.handle) (phdrs : List (phdr c)) :
 Read the elf file from the given path, and print out ehdr and
 program headers.
 -/
-def read_info_from_file (path : String) : IO ((Σ(e : ehdr), List (phdr e.elf_class)) × elfmem) := do
-  bracket (Galois.IO.Prim.handle.mk path Galois.Fs.Mode.read true) Galois.IO.Prim.handle.close $ λh, do
-  e ← read_ehdr_from_handle h,
+def read_info_from_file (path : String) : IO ((Sigma (fun (e : ehdr) => List (phdr e.elf_class)) × elfmem)) := do
+  bracket (Galois.IO.Prim.handle.mk path Galois.Fs.Mode.read true) Galois.IO.Prim.handle.close $ fun h => do
+  e ← read_ehdr_from_handle h;
   let i := e.info in do
   let ehdr_size := ehdr.size i.elf_class in do
-  move_to_target h e.phoff.toNat,
-  phdrs ← read_phdrs_from_handle e h,
-  mem <- read_elfmem h phdrs,
+  move_to_target h e.phoff.toNat;
+  phdrs ← read_phdrs_from_handle e h;
+  mem <- read_elfmem h phdrs;
   pure ((Sigma.mk e phdrs), mem)
   -- pp_phdrs phdrs
 

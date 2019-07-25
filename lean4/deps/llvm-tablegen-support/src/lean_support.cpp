@@ -241,7 +241,7 @@ decode(b_obj_arg buffer_o, b_obj_arg offset_o)
 {
     size_t nbytes      = sarray_size(buffer_o);
     uint8_t *raw_bytes = sarray_cptr<uint8_t>(buffer_o);
-    uint64_t offset    = nat2uint64(offset_o);
+    uint64_t offset    = unbox(offset_o);
     
     llvm::ArrayRef<uint8_t> bytes_array(raw_bytes, nbytes);
     vadd::instruction_t inst;

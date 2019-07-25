@@ -29,8 +29,9 @@ CPPLEAN := ${patsubst %.lean,$(BUILDDIR)/%.cpp,${LEANFILES_REL}}
 TARGET  := $(BUILDDIR)/sim
 
 # FIXME: move to llvm-tablegen-support submake
-LLVM_BUILD_ROOT ?= ${HOME}/galois/vadds/llvm-stuff/llvm-build
-LLVM_CONFIG = ${LLVM_BUILD_ROOT}/bin/llvm-config
+# LLVM_BUILD_ROOT ?= ${HOME}/galois/vadds/llvm-stuff/llvm-build
+# LLVM_CONFIG = ${LLVM_BUILD_ROOT}/bin/llvm-config
+LLVM_CONFIG ?= llvm-config
 
 LEAN ?= lean
 LEANC ?= leanc

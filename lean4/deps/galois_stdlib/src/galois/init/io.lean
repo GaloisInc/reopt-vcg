@@ -20,7 +20,7 @@ open Fs
 
 @[extern 4 cpp "galois::io::prim::handle::mk"]
 constant handle.mk (s : @& String) (m : Mode) (bin : Bool := false) : IO handle := default _
--- @[extern 2 cpp "galois::io::prim::handle::is_eof"]
+-- @[extern 2 cpp "galois::io::prim::handle::do_is_eof"]
 -- constant handle.isEof (h : @& handle) : IO Bool := default _
 -- @[extern 2 cpp "galois::io::prim::handle::do_flush"]
 -- constant handle.flush (h : @& handle) : IO Unit := default _

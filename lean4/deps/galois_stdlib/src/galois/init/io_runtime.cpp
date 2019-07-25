@@ -31,7 +31,7 @@ to_lean_handle(size_t n) { return box(n); }
 // constant handle.mk (s : @& String) (m : Mode) (bin : Bool := false) : IO handle := default _
 // It looks like lean will pass simple sum types as uint8s, hence mode and bin below.
 obj_res
-mk(b_obj_arg s, uint8 mode, uint8 bin, obj_arg w) {
+mk(b_obj_arg s, uint8 mode, uint8 bin /* unused */, obj_arg w) {
     size_t hdl;
     std::string filename = string_to_std(s);
     // FIXME: we should maybe take oflag as an arg instead of mode, or
@@ -56,13 +56,30 @@ mk(b_obj_arg s, uint8 mode, uint8 bin, obj_arg w) {
     
     return set_io_result(w, to_lean_handle(hdl));
 }
-    
+
+// obj_res
+// do_is_eof(b_obj_arg hdl_obj, obj_arg w) {
+//     int hdl      = (int) from_lean_handle(hdl_obj);
+
+//     while(sz > 0) {
+//         ssize_t nwritten = write(hdl, bytes, sz);
+//         if (nwritten == -1) {
+//             return set_io_error_errno(r);
+//         }
+
+//         bytes += nwritten;
+//         sz    -= nwritten;
+//     }
+
+//     return r; // FIXME: do we need to add the Unit result?
+// }
+
 obj_res
 do_read(b_obj_arg hdl_obj, obj_arg n_obj, obj_arg r) {
     int hdl      = (int) from_lean_handle(hdl_obj);
 
     // FIXME: asserts that n_obj is a scalar -- should we fail more gracefully?
-    uint64 sz         = nat2uint64(n_obj);
+    uint64 sz         = unbox(n_obj);
     object *bytes_obj = alloc_sarray(1, sz, sz);
     uint8 *bytes      = sarray_cptr<uint8>(bytes_obj);
 

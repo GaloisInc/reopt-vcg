@@ -1,10 +1,10 @@
 /- A map from indexes onto buffers, specialised to bytes -/
-structure {u} buffer_map.entry (k : Type u) : Type u := 
+structure buffer_map.entry.{u} (k : Type u) : Type u := 
   (start : k) 
   (value : ByteArray)
 
 -- distance here is essentially subtraction.  distance k k' < 0 iff k < k'
-structure {u} buffer_map (k : Type u) (distance : k -> k -> Int) :=
+structure buffer_map.{u} (k : Type u) (distance : k -> k -> Int) :=
   (entries : List (buffer_map.entry k))
 
 namespace buffer_map
@@ -31,8 +31,8 @@ def lookup' : List (buffer_map.entry k) -> k -> Option UInt8
   | [] _         := none
   | (e :: m) key := 
     match @entry_idx k distance key e with
-    | none       := lookup' m key
-    | (some idx) := some (e.value.get idx.val)
+    | none       => lookup' m key
+    | (some idx) => some (e.value.get idx.val)
 
 def lookup (m : buffer_map k distance) := @buffer_map.lookup' k distance m.entries
 
@@ -41,8 +41,8 @@ def lookup_buffer' : List (buffer_map.entry k) -> k -> Option (k × ByteArray)
   | [] _         := none
   | (e :: m) key := 
     match @entry_idx k distance key e with
-    | none       := lookup_buffer' m key
-    | (some idx) := some (e.start, e.value)
+    | none       => lookup_buffer' m key
+    | (some idx) => some (e.start, e.value)
 
 def lookup_buffer (m : buffer_map k distance) := @buffer_map.lookup_buffer' k distance m.entries
 
@@ -62,8 +62,8 @@ universes u
 variables {k : Type u} {distance : k -> k -> Int} [HasRepr k]
 
 instance : HasRepr (buffer_map.entry k) :=
-  ⟨λe, "( [" ++ repr e.start ++ " ..+ " ++ repr e.value.size ++ "]" /-" -> " ++ has_repr.repr e.value -/ ++ ")"⟩                  
+  ⟨fun e => "( [" ++ repr e.start ++ " ..+ " ++ repr e.value.size ++ "]" /-" -> " ++ has_repr.repr e.value -/ ++ ")"⟩                  
 
-instance : HasRepr (buffer_map k distance) := ⟨λm, repr m.entries ⟩
+instance : HasRepr (buffer_map k distance) := ⟨fun m => repr m.entries ⟩
 
 end

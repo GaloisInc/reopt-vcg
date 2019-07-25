@@ -9,12 +9,12 @@ import decodex86
 
 open x86
  
--- def evaluate_one (s : machine_state) : (ℕ × sum unknown_byte instruction) -> except String machine_state
+-- def evaluate_one (s : machine_state) : (Nat × sum unknown_byte instruction) -> except String machine_state
 --   | (n, sum.inl err)  := throw "Got an unknown byte"
 --   | (n, sum.inr inst) := eval_instruction {s with ip := s.ip + bitvec.of_nat _ n} inst
 
 def get_text_segment (e : elf.ehdr) (phdrs : List (elf.phdr e.elf_class)) : Option (elf.phdr e.elf_class) :=
-    phdrs.find (λp, p.flags.has_X)
+    phdrs.find (fun p => p.flags.has_X)
 
 def throwS { a : Type} (e : String) : IO a := throw (IO.userError e)
 
@@ -40,10 +40,10 @@ def initialise { ost : Type } (st : system_state ost) : system_state ost :=
     let rsp_idx : Fin 16 := 4 in -- FIXME
     let stack_top := bitvec.of_nat 64 (2 ^ 47) in
     let words     := [ 0 /- argc -/, 0 /- argv term. -/, 0 /- envp term -/, 0, 0 /- auxv term (2 words) -/ ] in
-    let f (acc : (bitvec 64 × machine_state)) (v : ℕ) : bitvec 64 × machine_state :=         
+    let f (acc : (bitvec 64 × machine_state)) (v : Nat) : bitvec 64 × machine_state :=         
         (acc.fst + bitvec.of_nat _ 8, acc.snd.store_word acc.fst (bitvec.of_nat (8 * 8) v)) in
     let s'        := List.foldl f (stack_top, st.machine_state) words in
-    { st with machine_state := machine_state.update_gpreg rsp_idx (λ_, stack_top) s'.snd }
+    { st with machine_state := machine_state.update_gpreg rsp_idx (fun _ => stack_top) s'.snd }
 
 end x86_64
 
@@ -59,41 +59,41 @@ def os_state := Unit
 def os_state.empty := ()
 
 def simple_syscall (f : system_state os_state -> machine_word) : system_m os_state Unit :=
-  modify (λs, { s with machine_state := s.machine_state.update_gpreg rax_idx (λ_, f s) })
+  modify (fun s => { s with machine_state := s.machine_state.update_gpreg rax_idx (fun _ => f s) })
 
 def sys_getuid : system_m os_state Unit := 
   let res     := bitvec.of_nat 64 4242
-  in simple_syscall (λ_, res)
+  in simple_syscall (fun _ => res)
 
 -- FIXME: maybe use the euid of the current (lean) process?  We could
 -- also forward these to the underlying (Linux) kernel
 def sys_geteuid : system_m os_state Unit := 
   let res     := bitvec.of_nat 64 4242
-  in simple_syscall (λ_, res)
+  in simple_syscall (fun _ => res)
 
 def sys_getgid : system_m os_state Unit := 
   let res     := bitvec.of_nat 64 4242
-  in simple_syscall (λ_, res)
+  in simple_syscall (fun _ => res)
 
 -- FIXME: maybe use the euid of the current (lean) process?  We could
 -- also forward these to the underlying (Linux) kernel
 def sys_getegid : system_m os_state Unit := 
   let res     := bitvec.of_nat 64 4242
-  in simple_syscall (λ_, res)
+  in simple_syscall (fun _ => res)
 
-def syscalls : RBMap ℕ (system_m os_state Unit) (λx y, decide (x < y)) := 
+def syscalls : RBMap Nat (system_m os_state Unit) (fun x y => decide (x < y)) := 
   RBMap.fromList [ (0x66, sys_geteuid)
                   , (0x6b, sys_geteuid)
                   , (0x68, sys_getgid)
                   , (0x6c, sys_getegid)
-                  ] (λx y, decide (x < y))
+                  ] (fun x y => decide (x < y))
 
 def syscall_handler : system_m os_state Unit := do
-  s <- get,
+  s <- get;
   let syscall_no := (s.machine_state.get_gpreg rax_idx).to_nat 
   in match syscalls.find syscall_no with
-     | none := throw ("Unknown syscall: " ++ repr syscall_no)
-     | (some m) := m
+     | none     => throw ("Unknown syscall: " ++ repr syscall_no)
+     | (some m) => m
 
 end x86_64
 end linux
@@ -105,30 +105,30 @@ def dump_state (s : system_state linux.x86_64.os_state) : IO Unit := do
   let line := s.machine_state.ip.pp_hex ++ ": " ++ s.machine_state.print_regs ++ " " ++ s.machine_state.print_set_flags
   in IO.println line
 
-def decode_loop (d : decodex86.decoder) : ℕ -> system_state linux.x86_64.os_state -> IO Unit
+def decode_loop (d : decodex86.decoder) : Nat -> system_state linux.x86_64.os_state -> IO Unit
   | Nat.zero    _   := throw "Out of fuel"
   | (Nat.succ n) s  := do
-  dump_state s,
+  dump_state s;
   let inst := decodex86.decode d s.machine_state.ip.to_nat in
   match inst with 
-  | (Sum.inl b) := throw ("Unknown byte")
-  | (Sum.inr i) := 
-    (match eval_instruction { s with machine_state := { s.machine_state with ip := s.machine_state.ip + bitvec.of_nat _ i.nbytes} } linux.x86_64.syscall_handler i with
-    | (Except.error e) := throwS ("Eval failed: (" ++ repr i ++ ") "  ++ e)
-    | (Except.ok s')    := decode_loop n s')
+  | (Sum.inl b) => throw ("Unknown byte")
+  | (Sum.inr i) => 
+    (match eval_instruction { machine_state := { ip := s.machine_state.ip + bitvec.of_nat _ i.nbytes, .. s.machine_state}, ..s } linux.x86_64.syscall_handler i with
+    | (Except.error e) => throwS ("Eval failed: (" ++ repr i ++ ") "  ++ e)
+    | (Except.ok s')   => decode_loop n s')
 
 def doit (elffile : String) : IO Unit := do
-  ((Sigma.mk ehdr phdrs), init_mem) <- elf.read_info_from_file elffile,
+  ((Sigma.mk ehdr phdrs), init_mem) <- elf.read_info_from_file elffile;
   text_phdr <- (match get_text_segment ehdr phdrs with
-                | none     := throw "No executable segment"
-                | (some p) := pure p),
+                | none     => throw "No executable segment"
+                | (some p) => pure p);
   text_bytes <- (match init_mem.lookup_buffer (bitvec.of_nat 64 text_phdr.vaddr.toNat) with
-                | none     := throw "No text region"
-                | some (_, b) := pure b),
-  let entry := ehdr.entry.toNat in do
+                | none        => throw "No text region"
+                | some (_, b) => pure b);
+  let entry := ehdr.entry.toNat;
   IO.println ("Entry is " ++ repr entry ++ " imm:" ++ repr (18446744073709551616 : Nat) 
                           ++ " exp:"    ++ repr (2 ^ 64)
-                          ++ " mul:"  ++ repr (9223372036854775808 * 2) ),
+                          ++ " mul:"  ++ repr (9223372036854775808 * 2) );
   let d := decodex86.mk_decoder text_bytes text_phdr.vaddr.toNat in
   let init_state := 
       system_state.mk { machine_state.empty with 
@@ -136,12 +136,12 @@ def doit (elffile : String) : IO Unit := do
                       , mem := memory.from_init init_mem } 
                       linux.x86_64.os_state.empty in
     let init_state_abi := sysv_abi.x86_64.initialise init_state in
-    let fuel : ℕ := 100000 in decode_loop d fuel init_state_abi
+    let fuel : Nat := 100000 in decode_loop d fuel init_state_abi
   
 def main (xs : List String) : IO UInt32 :=
   match xs with 
-  | [f] := do doit f, pure 0
-  | _   := throw "Expected a file"
+  | [f] => do doit f; pure 0
+  | _   => throw "Expected a file"
 
 -- set_option profiler true
 -- #eval doit ("../testfiles/two", "../llvm-tablegen-support/llvm-tablegen-support", 1530, 1544)

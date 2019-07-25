@@ -51,7 +51,7 @@ script:
   # - popd
 
   # Build the semantics binary
-  - pushd lean
+  - pushd lean4
   - make
   - popd
 
@@ -60,3 +60,4 @@ script:
   - stack --stack-yaml stack.yaml build --haddock reopt-vcg
   - stack --stack-yaml stack.yaml test  reopt-vcg
   - popd
+  

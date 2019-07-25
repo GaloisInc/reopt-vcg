@@ -7,10 +7,10 @@ def regN := String
 structure register :=
   (top : regN)
   (reg : regN)
-  (width : ℕ)
-  (offset : ℕ)
+  (width : Nat)
+  (offset : Nat)
 
-def register_to_String : register -> String := λr, 
+def register_to_String : register -> String := fun r =>
   String.intercalate " " ["(", "R", r.top, r.reg, repr r.width, repr r.offset, ")"]
 
 instance register_has_repr : HasRepr register := ⟨register_to_String⟩
@@ -185,7 +185,7 @@ instance register_has_repr : HasRepr register := ⟨register_to_String⟩
 -- };
 
 inductive operand_type 
-  | mem : ℕ -> operand_type
+  | mem : Nat -> operand_type
   | other : operand_type
 
 def operand_type_to_String : operand_type -> String
@@ -197,9 +197,9 @@ instance operand_type_has_repr : HasRepr operand_type := ⟨operand_type_to_Stri
 inductive operand_value
   | register : register -> operand_value
   | segment  : Option register -> register -> operand_value
-  | immediate : ℕ -> ℕ -> operand_value
-  | rel_immediate : ℕ -> ℕ -> ℕ -> operand_value
-  | memloc : Option register -> Option register -> ℕ -> Option register -> ℕ -> operand_value
+  | immediate : Nat -> Nat -> operand_value
+  | rel_immediate : Nat -> Nat -> Nat -> operand_value
+  | memloc : Option register -> Option register -> Nat -> Option register -> Nat -> operand_value
 
 def operand_value_to_String : operand_value -> String
   | (operand_value.register r) := repr r
@@ -214,26 +214,27 @@ structure operand :=
   (type  : operand_type)
   (value : operand_value)
 
-def operand_to_String : operand -> String := λop, 
+def operand_to_String : operand -> String := fun op =>
   "(" ++ repr op.value ++ " :: " ++ repr op.type ++ ")"
 
 instance operand_has_repr : HasRepr operand := ⟨operand_to_String⟩
 
 structure instruction :=
-  (nbytes   : ℕ)
+  (nbytes   : Nat)
   (mnemonic : String)
   (operands : List operand)
 
-instance instruction_has_repr : HasRepr instruction := ⟨λi, i.mnemonic ++ " " ++ repr i.operands⟩
+instance instruction_has_repr : HasRepr instruction := 
+  ⟨fun i => i.mnemonic ++ " " ++ repr i.operands⟩
 
 structure unknown_byte :=
-  (byte : ℕ)
-  (bytes_tried : ℕ)
+  (byte : Nat)
+  (bytes_tried : Nat)
 
-instance unknown_bytes_has_repr : HasRepr unknown_byte := ⟨λi, "???" ++ repr i.byte ++ "(" ++ repr i.bytes_tried ++ ")"⟩
+instance unknown_bytes_has_repr : HasRepr unknown_byte := ⟨fun i => "???" ++ repr i.byte ++ "(" ++ repr i.bytes_tried ++ ")"⟩
 
-def operand_memtyp_map : RBMap String ℕ (λs1 s2, decide (s1 < s2)) :=
-  List.foldl (λm (v : String × ℕ), m.insert v.fst v.snd) 
+def operand_memtyp_map : RBMap String Nat (fun s1 s2 => decide (s1 < s2)) :=
+  List.foldl (fun m (v : String × Nat) => m.insert v.fst v.snd) 
        RBMap.empty
        [("anymem"       , 0  )   -- ??
        ,("f128mem"      , 128) 
@@ -273,12 +274,12 @@ def operand_memtyp_map : RBMap String ℕ (λs1 s2, decide (s1 < s2)) :=
 
 def operand_memtyp (tp : String) : operand_type :=
   match operand_memtyp_map.find tp with 
-  | (some n) := operand_type.mem n
-  | none     := operand_type.other
+  | (some n) => operand_type.mem n
+  | none     => operand_type.other
 
 -- Exported (to CPP) functions
 @[export decodex86.exported.mk_reg]
-def mk_reg (top : String) (reg : String) (width : ℕ) (offset : ℕ) : register :=
+def mk_reg (top : String) (reg : String) (width : Nat) (offset : Nat) : register :=
     register.mk top reg width offset
 
 @[export decodex86.exported.mk_some_reg]
@@ -296,48 +297,48 @@ def mk_operand_segment (tp : String) (seg : Option register) (r : register) : op
     operand.mk (operand_memtyp tp) (operand_value.segment seg r)
 
 @[export decodex86.exported.mk_operand_immediate]
-def mk_operand_immediate (tp : String) (n : ℕ) (v : ℕ) : operand :=
+def mk_operand_immediate (tp : String) (n : Nat) (v : Nat) : operand :=
     operand.mk (operand_memtyp tp) (operand_value.immediate n v)
 
 @[export decodex86.exported.mk_operand_rel_immediate]
-def mk_operand_rel_immediate (tp : String) (off : ℕ) (n : ℕ) (v : ℕ) : operand :=
+def mk_operand_rel_immediate (tp : String) (off : Nat) (n : Nat) (v : Nat) : operand :=
     operand.mk (operand_memtyp tp) (operand_value.rel_immediate off n v)
 
 @[export decodex86.exported.mk_operand_memloc]
-def mk_operand_memloc (tp : String) (seg : Option register) (b : Option register) (s : ℕ) (i : Option register) (d : ℕ) :=
+def mk_operand_memloc (tp : String) (seg : Option register) (b : Option register) (s : Nat) (i : Option register) (d : Nat) :=
     operand.mk (operand_memtyp tp) (operand_value.memloc seg b s i d)
 
 @[export decodex86.exported.mk_instruction_0]
-def mk_instruction_0 (n : ℕ) (m : String) : instruction :=
+def mk_instruction_0 (n : Nat) (m : String) : instruction :=
   instruction.mk n m []
 
 @[export decodex86.exported.mk_instruction_1]
-def mk_instruction_1 (n : ℕ) (m : String) (o1 : operand) : instruction :=
+def mk_instruction_1 (n : Nat) (m : String) (o1 : operand) : instruction :=
   instruction.mk n m [o1]
 
 @[export decodex86.exported.mk_instruction_2]
-def mk_instruction_2 (n : ℕ) (m : String) (o1 : operand) (o2 : operand) : instruction :=
+def mk_instruction_2 (n : Nat) (m : String) (o1 : operand) (o2 : operand) : instruction :=
   instruction.mk n m [o1, o2]
 
 @[export decodex86.exported.mk_instruction_3]
-def mk_instruction_3 (n : ℕ) (m : String) (o1 : operand) (o2 : operand) (o3 : operand) : instruction :=
+def mk_instruction_3 (n : Nat) (m : String) (o1 : operand) (o2 : operand) (o3 : operand) : instruction :=
   instruction.mk n m [o1, o2, o3]
 
 -- Handling the result of decoding
 @[reducible]
-def decode_result := Sum ℕ instruction
+def decode_result := Sum Nat instruction
 
 @[export decodex86.exported.mk_decode_success]
 def mk_decode_success (i : instruction) : decode_result := Sum.inr i
 
 @[export decodex86.exported.mk_decode_failure]
-def mk_decode_failure (nbytes : ℕ) : decode_result := Sum.inl nbytes
+def mk_decode_failure (nbytes : Nat) : decode_result := Sum.inl nbytes
 
 namespace prim
 
 -- Imported (FFI) functions
 @[extern 2 cpp "vadd::decode"]
-def decode ( b : @& ByteArray ) (offset : @& ℕ) : decode_result := default _
+def decode ( b : @& ByteArray ) (offset : @& Nat) : decode_result := default _
 
 end prim
 
