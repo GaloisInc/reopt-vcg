@@ -22,3 +22,6 @@
 [submodule "parameterized-utils"]
 	path = haskell-proto/deps/parameterized-utils
 	url = git@github.com:GaloisInc/parameterized-utils.git
+[submodule "lean4"]
+	path = lean4/deps/lean4
+	url = git@github.com:leanprover/lean4.git
