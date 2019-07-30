@@ -24,6 +24,7 @@ before_install:
   - git submodule update --init
 
   # for lean4
+  - sudo apt-add-repository 'http://archive.ubuntu.com/ubuntu bionic-updates main restricted'
   - sudo apt install -y llvm-8
   - sudo apt install -y ninja-build
 
