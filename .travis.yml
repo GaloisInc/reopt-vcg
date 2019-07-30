@@ -21,6 +21,10 @@ before_install:
   - sed -i 's/git@github.com:/https:\/\/github.com\//' .gitmodules
   - git submodule update --init
 
+  # for lean4
+  - apt install llvm-8
+  - apt install ninja-build
+
 install:
   - pushd haskell-proto
   # Setup GHC using stack
@@ -36,23 +40,26 @@ install:
   - source $HOME/.elan/env
   - elan install 3.4.1
 
+  # Install lean4
+  - ./scripts/build-lean4.sh lean4/deps/lean4 build/lean4 local
+  
 # Here starts the actual work to be performed for the package under test;
 # any command which exits with a non-zero exit code causes the build to fail.
 script:
   # First, build/test the lean code
-  # - pushd lean/deps/decodex86
-  # - leanpkg build
-  # - leanpkg test
-  # - popd
+  - pushd lean/deps/decodex86
+  - leanpkg build
+  - leanpkg test
+  - popd
 
-  # - pushd lean
-  # - leanpkg build
-  # - leanpkg test
-  # - popd
+  - pushd lean
+  - leanpkg build
+  - leanpkg test
+  - popd
 
   # Build the semantics binary
   - pushd lean4
-  - make
+  - make LEAN=$PWD/../local/bin/lean LEANC=$PWD/../local/bin/leanc LLVM_CONFIG=llvm-config-8
   - popd
 
   # Now go into the haskell-proto directory to test the Haskell side of things
