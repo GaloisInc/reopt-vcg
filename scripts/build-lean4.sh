@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-if [ $# < 3 ];
+if [ $# -lt 3 ];
 then
     echo "Usage: build-lean4.sh srcdir builddir installdir"
     exit 1
