@@ -7,9 +7,9 @@ language:  minimal
 git:
   submodules: false  # whether to recursively clone submodules
 
-cache:
-  directories:
-    - $HOME/.stack
+#cache:
+#  directories:
+#    - $HOME/.stack
 
 before_install:
   # Download and unpack the stack executable
@@ -35,7 +35,7 @@ install:
   # Setup GHC using stack
   ## - travis_wait stack --stack-yaml stack.yaml setup
   # Build stackage now, so that during the script phase we only see the project build.
-  ## - stack --stack-yaml stack.yaml build --haddock --dependencies-only reopt-vcg
+  ## - stack --stack-yaml stack.yaml build --dependencies-only reopt-vcg
   - popd
 
   # Setup elan so we can use it to install lean
@@ -67,9 +67,8 @@ script:
   - make LEAN=$PWD/../local/bin/lean LEANC=$PWD/../local/bin/leanc LLVM_CONFIG=llvm-config-8 CXX=clang-8
   - popd
 
-  # Now go into the haskell-proto directory to test the Haskell side of things
+  # Now go into the haskell-proto directory to test the Haskell side of things  
   ## - pushd haskell-proto
-  ## - stack --stack-yaml stack.yaml build --haddock reopt-vcg
+  ## - stack --stack-yaml stack.yaml build reopt-vcg
   ## - stack --stack-yaml stack.yaml test  reopt-vcg
   ## - popd
-  

@@ -165,6 +165,10 @@ instance Aeson.FromJSON BlockEvent where
 ------------------------------------------------------------------------
 -- BlockAnn
 
+-- | This is the list of callee saved registers.
+calleeSavedGPRegs :: [F.Reg64]
+calleeSavedGPRegs = [ F.RBP, F.RBX, F.R12, F.R13, F.R14, F.R15 ]
+
 -- | A variable that may appear in a block invariant.
 data BlockVar
    = StackHigh
@@ -174,7 +178,10 @@ data BlockVar
    | InitGPReg64 !F.Reg64
      -- ^ Denotes a 64-bit general purpose register a
    | FnStartGPReg64 !F.Reg64
-     -- ^ Denotes the value of GPReg when the function starts.
+     -- ^ Denotes the value of a general purpose when the function starts.
+     --
+     -- Note. We do not support all registers here, only the registers
+     -- in `calleeSavedGPRegs`
    | MCStack !(Expr BlockVar) !Natural
      -- ^ @MCStack a w@ denotes @w@-bit value stored at the address @a@.
      --
@@ -184,10 +191,6 @@ data BlockVar
      -- address is not a stack-only variable, then the value just
      -- means some arbitrary value.
   deriving (Show)
-
--- | This is the list of callee saved registers.
-calleeSavedGPRegs :: [F.Reg64]
-calleeSavedGPRegs = [ F.RBP, F.RBX, F.R12, F.R13, F.R14, F.R15 ]
 
 -- | Hashmap that maps constants to their block var.
 blockVarNameMap :: HMap.HashMap Text (BlockVar, ExprType)

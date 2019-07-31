@@ -1,3 +1,4 @@
+#include<inttypes.h>
 #include<stdint.h>
 #include<stdio.h>
 
@@ -10,6 +11,6 @@ uint64_t fib(uint64_t x) {
 }
 
 int main() {
-  printf("fib(5): %llx\n", fib(5));
+  printf("fib(5): %" PRIx64 "\n", fib(5));
   return 0;
 }
