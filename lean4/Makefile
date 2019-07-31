@@ -36,7 +36,7 @@ LLVM_CONFIG ?= llvm-config
 LEAN ?= lean
 LEANC ?= leanc
 
-LEANDIR := ${dir ${shell which lean}}../
+LEANDIR := ${dir ${shell which $LEAN}}../
 
 MAKEDEPEND = $(LEAN) --deps $< | sed -n 's@${SRCROOT}@@p' | xargs echo "$(BUILDDIR)/$*.cpp $*.olean:" > $@
 
