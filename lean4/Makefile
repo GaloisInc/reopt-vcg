@@ -47,7 +47,7 @@ MAKEDEPEND = $(LEAN) --deps $< | sed -n 's@${SRCROOT}@@p' | xargs echo "$(BUILDD
 all: $(TARGET)
 
 $(TARGET): ${CPPLEAN} ${EXTRAOBJ}
-	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cxxflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86`
+	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cxxflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86` -lstdc++
 
 %.d: %.lean
 	$(MAKEDEPEND)

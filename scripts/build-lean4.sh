@@ -12,7 +12,7 @@ RELBUILDDIR=$2
 mkdir -p $3
 INSTALLDIR=$(cd $3 && pwd)
 
-echo rm -rf $RELBUILDDIR
+rm -rf $RELBUILDDIR
 mkdir -p $RELBUILDDIR
 BUILDDIR=$(cd $RELBUILDDIR && pwd)
 
@@ -20,7 +20,7 @@ BUILDDIR=$(cd $RELBUILDDIR && pwd)
 
 pushd $BUILDDIR > /dev/null
 
-cmake  $SRCDIR/src -G Ninja -DCMAKE_BUILD_TYPE=debug -DCMAKE_INSTALL_PREFIX=$INSTALLDIR             
+cmake $SRCDIR/src -G Ninja -DCMAKE_BUILD_TYPE=debug -DCMAKE_INSTALL_PREFIX=$INSTALLDIR             
 ninja
 ninja install
 popd
