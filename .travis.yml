@@ -33,17 +33,17 @@ before_install:
 install:
   - pushd haskell-proto
   # Setup GHC using stack
-  ## - travis_wait stack --stack-yaml stack.yaml setup
+  - travis_wait stack --stack-yaml stack.yaml setup
   # Build stackage now, so that during the script phase we only see the project build.
-  ## - stack --stack-yaml stack.yaml build --dependencies-only reopt-vcg
+  - stack --stack-yaml stack.yaml build --dependencies-only reopt-vcg
   - popd
 
   # Setup elan so we can use it to install lean
-  ## - curl https://raw.githubusercontent.com/Kha/elan/master/elan-init.sh -sSf > elan-init.sh
-  ## - chmod a+x elan-init.sh
-  ## - ./elan-init.sh -y
-  ## - source $HOME/.elan/env
-  ## - elan install 3.4.1
+  - curl https://raw.githubusercontent.com/Kha/elan/master/elan-init.sh -sSf > elan-init.sh
+  - chmod a+x elan-init.sh
+  - ./elan-init.sh -y
+  - source $HOME/.elan/env
+  - elan install 3.4.1
 
   # Install lean4
   - ./scripts/build-lean4.sh lean4/deps/lean4 build/lean4 local
@@ -52,15 +52,15 @@ install:
 # any command which exits with a non-zero exit code causes the build to fail.
 script:
   # First, build/test the lean code
-  ## - pushd lean/deps/decodex86
-  ## - leanpkg build
-  ## - leanpkg test
-  ## - popd
-  ##  
-  ## - pushd lean
-  ## - leanpkg build
-  ## - leanpkg test
-  ## - popd
+  - pushd lean/deps/decodex86
+  - leanpkg build
+  - leanpkg test
+  - popd
+   
+  - pushd lean
+  - leanpkg build
+  - leanpkg test
+  - popd
 
   # Build the semantics binary
   - pushd lean4
@@ -68,7 +68,7 @@ script:
   - popd
 
   # Now go into the haskell-proto directory to test the Haskell side of things  
-  ## - pushd haskell-proto
-  ## - stack --stack-yaml stack.yaml build reopt-vcg
-  ## - stack --stack-yaml stack.yaml test  reopt-vcg
-  ## - popd
+  - pushd haskell-proto
+  - stack --stack-yaml stack.yaml build reopt-vcg
+  - stack --stack-yaml stack.yaml test  reopt-vcg
+  - popd
