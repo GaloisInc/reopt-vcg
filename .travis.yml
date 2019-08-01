@@ -64,7 +64,7 @@ script:
 
   # Build the semantics binary
   - pushd lean4
-  - make LEAN=$PWD/../local/bin/lean LEANC=$PWD/../local/bin/leanc LLVM_CONFIG=llvm-config-8 CXX=clang-8
+  - LEAN_CXX=clang-8 make LEAN=$PWD/../local/bin/lean LEANC=$PWD/../local/bin/leanc LLVM_CONFIG=llvm-config-8 CXX=clang-8
   - popd
 
   # Now go into the haskell-proto directory to test the Haskell side of things  
