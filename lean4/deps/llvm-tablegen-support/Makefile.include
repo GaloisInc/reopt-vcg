@@ -1,0 +1,7 @@
+
+HERE := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
+LOCAL_LLVM := lean/decodex86/basic.lean lean/decodex86/default.lean
+LOCAL_CXX  := src/Metadata.cpp src/lean_support.cpp src/X86Disassembler.cpp
+
+LEANFILES += $(patsubst %,${HERE}%,${LOCAL_LLVM})
+EXTRACXXFILES += $(patsubst %,${HERE}%,${LOCAL_CXX})

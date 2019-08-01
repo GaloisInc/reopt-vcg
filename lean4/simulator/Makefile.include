@@ -1,0 +1,5 @@
+
+HERE := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
+LOCALFILES := elf.lean runelf.lean translate.lean
+LEANFILES += $(patsubst %,${HERE}%,${LOCALFILES})
+

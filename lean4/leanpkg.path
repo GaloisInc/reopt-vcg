@@ -1,2 +1,5 @@
 builtin_path
-path .
+path ./deps/galois_stdlib/src
+path ./deps/x86_semantics/src
+path ./deps/llvm-tablegen-support/lean
+path ./.
