@@ -66,7 +66,7 @@ $(BUILDDIR)/%.o: %.cpp
 
 $(BUILDDIR)/deps/galois_stdlib/src/galois/init/%: CXXFLAGS += -I${LEANDIR}/include  -std=c++14
 
-$(BUILDDIR)/deps/llvm-tablegen-support/src/%: CXXFLAGS := -g -O3 -I deps/llvm-tablegen-support/src/ -I deps/llvm-tablegen-support/llvm-files/ `${LLVM_CONFIG} --cxxflags` -I${LEAN_DIR}/src -I${LEAN_DIR}/src/runtime -std=c++14 -fexceptions
+$(BUILDDIR)/deps/llvm-tablegen-support/src/%: CXXFLAGS := -g -O3 -I deps/llvm-tablegen-support/src/ -I deps/llvm-tablegen-support/llvm-files/ `${LLVM_CONFIG} --cxxflags` -I${LEANDIR}/src -I${LEANDIR}/src/runtime -std=c++14 -fexceptions
 
 # %.olean %.cpp : %.lean %.d
 # 	@mkdir -p $(@D);
