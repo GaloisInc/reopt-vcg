@@ -38,6 +38,8 @@ LEANC ?= leanc
 
 LEANDIR := ${dir ${shell which ${LEAN}}}../
 
+CXXFLAGS += -fPIC
+
 MAKEDEPEND = $(LEAN) --deps $< | sed -n 's@${SRCROOT}@@p' | xargs echo "$(BUILDDIR)/$*.cpp $*.olean:" > $@
 
 # depend: ${DEPENDS}
@@ -45,7 +47,7 @@ MAKEDEPEND = $(LEAN) --deps $< | sed -n 's@${SRCROOT}@@p' | xargs echo "$(BUILDD
 all: $(TARGET)
 
 $(TARGET): ${CPPLEAN} ${EXTRAOBJ}
-	${LEANC} `${LLVM_CONFIG} --cxxflags --ldflags --system-libs --libs x86`  ${CXXFLAGS} -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^
+	${LEANC} `${LLVM_CONFIG} --cxxflags --ldflags --system-libs --libs x86` ${CXXFLAGS} -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^
 
 %.d: %.lean
 	$(MAKEDEPEND)
@@ -64,9 +66,9 @@ $(BUILDDIR)/%.o: %.cpp
 	@mkdir -p $(@D)
 	$(CXX) $(CXXFLAGS) -o $@ -c $^
 
-$(BUILDDIR)/deps/galois_stdlib/src/galois/init/%: CXXFLAGS += -I${LEANDIR}/include  -std=c++14
+$(BUILDDIR)/deps/galois_stdlib/src/galois/init/%: CXXFLAGS += -I${LEANDIR}/include -std=c++14
 
-$(BUILDDIR)/deps/llvm-tablegen-support/src/%: CXXFLAGS := -g -O3 -I deps/llvm-tablegen-support/src/ -I deps/llvm-tablegen-support/llvm-files/ `${LLVM_CONFIG} --cxxflags` -I${LEANDIR}/include/ -I${LEANDIR}/include/runtime -std=c++14 -fexceptions
+$(BUILDDIR)/deps/llvm-tablegen-support/src/%: CXXFLAGS += -g -O3 -I deps/llvm-tablegen-support/src/ -I deps/llvm-tablegen-support/llvm-files/ `${LLVM_CONFIG} --cxxflags` -I${LEANDIR}/include/ -I${LEANDIR}/include/runtime -std=c++14 -fexceptions
 
 # %.olean %.cpp : %.lean %.d
 # 	@mkdir -p $(@D);
