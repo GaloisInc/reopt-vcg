@@ -1,0 +1,316 @@
+
+Parsing finished:  268.153 s
+
+Initialization finished
+==================================
+Stats for each phase, time, used memory, implicit main GC time percentage:
+Total                 :  268.224 s,	 1482 MB, gc:  0.000 %
+  Parsing             :  268.153 s,	 1464 MB, gc:  0.000 %
+  Init                :    0.071 s,	 1482 MB, gc:  0.000 %
+
+Init+Execution time:       0.071 s
+
+  Time and top-level event counts:
+  resolveFunctionAndAnywhere time  :    0.002 s,      #         11
+    applyAnywhereRules time          :    0.000 s,      #         11
+      no anywhere rules                :           ,      #         11
+    remaining time & # cached        :    0.002 s,      #          0
+
+  Recursive event counts:
+  resolveFunctionAndAnywhere time  :           ,      #          0
+    applyAnywhereRules time          :           ,      #          0
+      no anywhere rules                :           ,      #          0
+    # cached                         :           ,      #          0
+==================================
+
+sets_X86-SYNTAX (v_2316 : R8)
+  v_4125 <- getRegister sf
+  v_4126 <- eval (eq v_4125 (bv_nat 1 1))
+  v_4127 <- eval (mux v_4126 (bv_nat 8 1) (bv_nat 8 0))
+  setRegister (v_2316 : R8) v_4127
+==========================================
+sets_X86-SYNTAX (v_2322 : Rh)
+  v_4129 <- getRegister sf
+  v_4130 <- eval (eq v_4129 (bv_nat 1 1))
+  v_4131 <- eval (mux v_4130 (bv_nat 8 1) (bv_nat 8 0))
+  setRegister (v_2322 : Rh) v_4131
+==========================================
+setz_X86-SYNTAX (v_2327 : R8)
+  v_4136 <- getRegister zf
+  v_4137 <- eval (eq v_4136 (bv_nat 1 1))
+  v_4138 <- eval (mux v_4137 (bv_nat 8 1) (bv_nat 8 0))
+  setRegister (v_2327 : R8) v_4138
+==========================================
+setz_X86-SYNTAX (v_2333 : Rh)
+  v_4140 <- getRegister zf
+  v_4141 <- eval (eq v_4140 (bv_nat 1 1))
+  v_4142 <- eval (mux v_4141 (bv_nat 8 1) (bv_nat 8 0))
+  setRegister (v_2333 : Rh) v_4142
+==========================================
+shlb_X86-SYNTAX cl (v_2345 : R8)
+  v_4154 <- getRegister rcx
+  v_4155 <- eval (extract v_4154 56 64)
+  v_4156 <- eval (bv_and v_4155 (bv_nat 8 31))
+  v_4157 <- eval (uge v_4156 (bv_nat 8 8))
+  v_4158 <- eval (bit_and v_4157 undef)
+  v_4159 <- eval (notBool_ v_4157)
+  v_4160 <- eval (eq v_4156 (bv_nat 8 0))
+  v_4161 <- eval (notBool_ v_4160)
+  v_4162 <- getRegister (v_2345 : R8)
+  v_4163 <- eval (concat (bv_nat 1 0) v_4162)
+  v_4164 <- eval (concat (bv_nat 1 0) v_4156)
+  v_4165 <- eval (uvalueMInt v_4164)
+  v_4166 <- eval (shl v_4163 v_4165)
+  v_4167 <- eval (bitwidthMInt v_4163)
+  v_4168 <- eval (extract v_4166 0 v_4167)
+  v_4169 <- eval (extract v_4168 0 1)
+  v_4170 <- eval (eq v_4169 (bv_nat 1 1))
+  v_4171 <- eval (bit_and v_4161 v_4170)
+  v_4172 <- eval (notBool_ v_4161)
+  v_4173 <- getRegister cf
+  v_4174 <- eval (eq v_4173 (bv_nat 1 1))
+  v_4175 <- eval (bit_and v_4172 v_4174)
+  v_4176 <- eval (bit_or v_4171 v_4175)
+  v_4177 <- eval (bit_and v_4159 v_4176)
+  v_4178 <- eval (bit_or v_4158 v_4177)
+  v_4179 <- eval (mux v_4178 (bv_nat 1 1) (bv_nat 1 0))
+  v_4180 <- eval (extract v_4168 1 2)
+  v_4181 <- eval (eq v_4180 (bv_nat 1 1))
+  v_4182 <- eval (bit_and v_4161 v_4181)
+  v_4183 <- getRegister sf
+  v_4184 <- eval (eq v_4183 (bv_nat 1 1))
+  v_4185 <- eval (bit_and v_4172 v_4184)
+  v_4186 <- eval (bit_or v_4182 v_4185)
+  v_4187 <- eval (mux v_4186 (bv_nat 1 1) (bv_nat 1 0))
+  v_4188 <- eval (bit_and v_4161 undef)
+  v_4189 <- getRegister af
+  v_4190 <- eval (eq v_4189 (bv_nat 1 1))
+  v_4191 <- eval (bit_and v_4172 v_4190)
+  v_4192 <- eval (bit_or v_4188 v_4191)
+  v_4193 <- eval (mux v_4192 (bv_nat 1 1) (bv_nat 1 0))
+  v_4194 <- eval (extract v_4168 1 9)
+  v_4195 <- eval (eq v_4194 (bv_nat 8 0))
+  v_4196 <- eval (bit_and v_4161 v_4195)
+  v_4197 <- getRegister zf
+  v_4198 <- eval (eq v_4197 (bv_nat 1 1))
+  v_4199 <- eval (bit_and v_4172 v_4198)
+  v_4200 <- eval (bit_or v_4196 v_4199)
+  v_4201 <- eval (mux v_4200 (bv_nat 1 1) (bv_nat 1 0))
+  v_4202 <- eval (extract v_4168 8 9)
+  v_4203 <- eval (eq v_4202 (bv_nat 1 1))
+  v_4204 <- eval (extract v_4168 7 8)
+  v_4205 <- eval (eq v_4204 (bv_nat 1 1))
+  v_4206 <- eval (eq v_4203 v_4205)
+  v_4207 <- eval (notBool_ v_4206)
+  v_4208 <- eval (extract v_4168 6 7)
+  v_4209 <- eval (eq v_4208 (bv_nat 1 1))
+  v_4210 <- eval (eq v_4207 v_4209)
+  v_4211 <- eval (notBool_ v_4210)
+  v_4212 <- eval (extract v_4168 5 6)
+  v_4213 <- eval (eq v_4212 (bv_nat 1 1))
+  v_4214 <- eval (eq v_4211 v_4213)
+  v_4215 <- eval (notBool_ v_4214)
+  v_4216 <- eval (extract v_4168 4 5)
+  v_4217 <- eval (eq v_4216 (bv_nat 1 1))
+  v_4218 <- eval (eq v_4215 v_4217)
+  v_4219 <- eval (notBool_ v_4218)
+  v_4220 <- eval (extract v_4168 3 4)
+  v_4221 <- eval (eq v_4220 (bv_nat 1 1))
+  v_4222 <- eval (eq v_4219 v_4221)
+  v_4223 <- eval (notBool_ v_4222)
+  v_4224 <- eval (extract v_4168 2 3)
+  v_4225 <- eval (eq v_4224 (bv_nat 1 1))
+  v_4226 <- eval (eq v_4223 v_4225)
+  v_4227 <- eval (notBool_ v_4226)
+  v_4228 <- eval (eq v_4227 v_4181)
+  v_4229 <- eval (notBool_ v_4228)
+  v_4230 <- eval (notBool_ v_4229)
+  v_4231 <- eval (bit_and v_4161 v_4230)
+  v_4232 <- getRegister pf
+  v_4233 <- eval (eq v_4232 (bv_nat 1 1))
+  v_4234 <- eval (bit_and v_4172 v_4233)
+  v_4235 <- eval (bit_or v_4231 v_4234)
+  v_4236 <- eval (mux v_4235 (bv_nat 1 1) (bv_nat 1 0))
+  v_4237 <- eval (eq v_4156 (bv_nat 8 1))
+  v_4238 <- eval (eq v_4178 v_4181)
+  v_4239 <- eval (notBool_ v_4238)
+  v_4240 <- eval (bit_and v_4237 v_4239)
+  v_4241 <- eval (notBool_ v_4237)
+  v_4242 <- getRegister of
+  v_4243 <- eval (eq v_4242 (bv_nat 1 1))
+  v_4244 <- eval (bit_and v_4172 v_4243)
+  v_4245 <- eval (bit_or v_4188 v_4244)
+  v_4246 <- eval (bit_and v_4241 v_4245)
+  v_4247 <- eval (bit_or v_4240 v_4246)
+  v_4248 <- eval (mux v_4247 (bv_nat 1 1) (bv_nat 1 0))
+  setRegister (v_2345 : R8) v_4194
+  setRegister of v_4248
+  setRegister pf v_4236
+  setRegister zf v_4201
+  setRegister af v_4193
+  setRegister sf v_4187
+  setRegister cf v_4179
+==========================================
+shlb_X86-SYNTAX (v_2349 : Imm) (v_2350 : R8)
+  v_4256 <- eval (handleImmediateWithSignExtend (v_2349 : Imm) 8 8)
+  v_4257 <- eval (bv_and v_4256 (bv_nat 8 31))
+  v_4258 <- eval (uge v_4257 (bv_nat 8 8))
+  v_4259 <- eval (bit_and v_4258 undef)
+  v_4260 <- eval (notBool_ v_4258)
+  v_4261 <- eval (eq v_4257 (bv_nat 8 0))
+  v_4262 <- eval (notBool_ v_4261)
+  v_4263 <- getRegister (v_2350 : R8)
+  v_4264 <- eval (concat (bv_nat 1 0) v_4263)
+  v_4265 <- eval (concat (bv_nat 1 0) v_4257)
+  v_4266 <- eval (uvalueMInt v_4265)
+  v_4267 <- eval (shl v_4264 v_4266)
+  v_4268 <- eval (bitwidthMInt v_4264)
+  v_4269 <- eval (extract v_4267 0 v_4268)
+  v_4270 <- eval (extract v_4269 0 1)
+  v_4271 <- eval (eq v_4270 (bv_nat 1 1))
+  v_4272 <- eval (bit_and v_4262 v_4271)
+  v_4273 <- eval (notBool_ v_4262)
+  v_4274 <- getRegister cf
+  v_4275 <- eval (eq v_4274 (bv_nat 1 1))
+  v_4276 <- eval (bit_and v_4273 v_4275)
+  v_4277 <- eval (bit_or v_4272 v_4276)
+  v_4278 <- eval (bit_and v_4260 v_4277)
+  v_4279 <- eval (bit_or v_4259 v_4278)
+  v_4280 <- eval (mux v_4279 (bv_nat 1 1) (bv_nat 1 0))
+  v_4281 <- eval (extract v_4269 1 2)
+  v_4282 <- eval (eq v_4281 (bv_nat 1 1))
+  v_4283 <- eval (bit_and v_4262 v_4282)
+  v_4284 <- getRegister sf
+  v_4285 <- eval (eq v_4284 (bv_nat 1 1))
+  v_4286 <- eval (bit_and v_4273 v_4285)
+  v_4287 <- eval (bit_or v_4283 v_4286)
+  v_4288 <- eval (mux v_4287 (bv_nat 1 1) (bv_nat 1 0))
+  v_4289 <- eval (bit_and v_4262 undef)
+  v_4290 <- getRegister af
+  v_4291 <- eval (eq v_4290 (bv_nat 1 1))
+  v_4292 <- eval (bit_and v_4273 v_4291)
+  v_4293 <- eval (bit_or v_4289 v_4292)
+  v_4294 <- eval (mux v_4293 (bv_nat 1 1) (bv_nat 1 0))
+  v_4295 <- eval (extract v_4269 1 9)
+  v_4296 <- eval (eq v_4295 (bv_nat 8 0))
+  v_4297 <- eval (bit_and v_4262 v_4296)
+  v_4298 <- getRegister zf
+  v_4299 <- eval (eq v_4298 (bv_nat 1 1))
+  v_4300 <- eval (bit_and v_4273 v_4299)
+  v_4301 <- eval (bit_or v_4297 v_4300)
+  v_4302 <- eval (mux v_4301 (bv_nat 1 1) (bv_nat 1 0))
+  v_4303 <- eval (extract v_4269 8 9)
+  v_4304 <- eval (eq v_4303 (bv_nat 1 1))
+  v_4305 <- eval (extract v_4269 7 8)
+  v_4306 <- eval (eq v_4305 (bv_nat 1 1))
+  v_4307 <- eval (eq v_4304 v_4306)
+  v_4308 <- eval (notBool_ v_4307)
+  v_4309 <- eval (extract v_4269 6 7)
+  v_4310 <- eval (eq v_4309 (bv_nat 1 1))
+  v_4311 <- eval (eq v_4308 v_4310)
+  v_4312 <- eval (notBool_ v_4311)
+  v_4313 <- eval (extract v_4269 5 6)
+  v_4314 <- eval (eq v_4313 (bv_nat 1 1))
+  v_4315 <- eval (eq v_4312 v_4314)
+  v_4316 <- eval (notBool_ v_4315)
+  v_4317 <- eval (extract v_4269 4 5)
+  v_4318 <- eval (eq v_4317 (bv_nat 1 1))
+  v_4319 <- eval (eq v_4316 v_4318)
+  v_4320 <- eval (notBool_ v_4319)
+  v_4321 <- eval (extract v_4269 3 4)
+  v_4322 <- eval (eq v_4321 (bv_nat 1 1))
+  v_4323 <- eval (eq v_4320 v_4322)
+  v_4324 <- eval (notBool_ v_4323)
+  v_4325 <- eval (extract v_4269 2 3)
+  v_4326 <- eval (eq v_4325 (bv_nat 1 1))
+  v_4327 <- eval (eq v_4324 v_4326)
+  v_4328 <- eval (notBool_ v_4327)
+  v_4329 <- eval (eq v_4328 v_4282)
+  v_4330 <- eval (notBool_ v_4329)
+  v_4331 <- eval (notBool_ v_4330)
+  v_4332 <- eval (bit_and v_4262 v_4331)
+  v_4333 <- getRegister pf
+  v_4334 <- eval (eq v_4333 (bv_nat 1 1))
+  v_4335 <- eval (bit_and v_4273 v_4334)
+  v_4336 <- eval (bit_or v_4332 v_4335)
+  v_4337 <- eval (mux v_4336 (bv_nat 1 1) (bv_nat 1 0))
+  v_4338 <- eval (eq v_4257 (bv_nat 8 1))
+  v_4339 <- eval (eq v_4279 v_4282)
+  v_4340 <- eval (notBool_ v_4339)
+  v_4341 <- eval (bit_and v_4338 v_4340)
+  v_4342 <- eval (notBool_ v_4338)
+  v_4343 <- getRegister of
+  v_4344 <- eval (eq v_4343 (bv_nat 1 1))
+  v_4345 <- eval (bit_and v_4273 v_4344)
+  v_4346 <- eval (bit_or v_4289 v_4345)
+  v_4347 <- eval (bit_and v_4342 v_4346)
+  v_4348 <- eval (bit_or v_4341 v_4347)
+  v_4349 <- eval (mux v_4348 (bv_nat 1 1) (bv_nat 1 0))
+  setRegister (v_2350 : R8) v_4295
+  setRegister of v_4349
+  setRegister pf v_4337
+  setRegister zf v_4302
+  setRegister af v_4294
+  setRegister sf v_4288
+  setRegister cf v_4280
+==========================================
+
+==========================================
+Top term when exception was thrown:
+==========================================
+
+<generatedTop>(<k>(exit_0_X86-FETCH-EXECUTE(.KList)),, _0_2297:K,, _1_2298:K,, _2_2299:K,, _3_2300:K,, _4_2301:K,, _5_2302:K,, _6_2303:K,, _7_2304:K,, _8_2305:K,, <leanmemory>(MemMap_2315:Map),, _9_2306:K,, <regstate>(leanSetRegister(%cf_X86-SYNTAX(.KList),, extractMInt(extractMInt(shlMInt(concatenateMInt(MInt(#"1'0"),, leanGetRegister(R_R2_2354:R8,, RegMap_2296:Map)),, Int(#"1")),, Int(#"0"),, bitwidthMInt(concatenateMInt(MInt(#"1'0"),, leanGetRegister(R_R2_2354:R8,, RegMap_2296:Map)))),, Int(#"0"),, Int(#"1")),, leanSetRegister(%sf_X86-SYNTAX(.KList),, extractMInt(extractMInt(shlMInt(concatenateMInt(MInt(#"1'0"),, leanGetRegister(R_R2_2354:R8,, RegMap_2296:Map)),, Int(#"1")),, Int(#"0"),, bitwidthMInt(concatenateMInt(MInt(#"1'0"),, leanGetRegister(R_R2_2354:R8,, RegMap_2296:Map)))),, Int(#"1"),, Int(#"2")),, leanSetRegister(%af_X86-SYNTAX(.KList),, undefMInt_MINT-WRAPPER-SYNTAX(.KList),, leanSetRegister(%zf_X86-SYNTAX(.KList),, #ifMInt_#then_#else_#fi_MINT-WRAPPER-SYNTAX(eqMInt(extractMInt(extractMInt(shlMInt(concatenateMInt(MInt(#"1'0"),, leanGetRegister(R_R2_2354:R8,, RegMap_2296:Map)),, Int(#"1")),, Int(#"0"),, bitwidthMInt(concatenateMInt(MInt(#"1'0"),, leanGetRegister(R_R2_2354:R8,, RegMap_2296:Map)))),, Int(#"1"),, Int(#"9")),, MInt(#"8'0")),, MInt(#"1'1"),, MInt(#"1'0")),, leanSetRegister(%pf_X86-SYNTAX(.KList),, #ifMInt_#then_#else_#fi_MINT-WRAPPER-SYNTAX(notBool_(notBool_(_==K_(notBool_(_==K_(notBool_(_==K_(notBool_(_==K_(notBool_(_==K_(notBool_(_==K_(notBool_(_==K_(eqMInt(extractMInt(extractMInt(shlMInt(concatenateMInt(MInt(#"1'0"),, leanGetRegister(R_R2_2354:R8,, RegMap_2296:Map)),, Int(#"1")),, Int(#"0"),, bitwidthMInt(concatenateMInt(MInt(#"1'0"),, leanGetRegister(R_R2_2354:R8,, RegMap_2296:Map)))),, Int(#"8"),, Int(#"9")),, MInt(#"1'1")),, eqMInt(extractMInt(extractMInt(shlMInt(concatenateMInt(MInt(#"1'0"),, leanGetRegister(R_R2_2354:R8,, RegMap_2296:Map)),, Int(#"1")),, Int(#"0"),, bitwidthMInt(concatenateMInt(MInt(#"1'0"),, leanGetRegister(R_R2_2354:R8,, RegMap_2296:Map)))),, Int(#"7"),, Int(#"8")),, MInt(#"1'1")))),, eqMInt(extractMInt(extractMInt(shlMInt(concatenateMInt(MInt(#"1'0"),, leanGetRegister(R_R2_2354:R8,, RegMap_2296:Map)),, Int(#"1")),, Int(#"0"),, bitwidthMInt(concatenateMInt(MInt(#"1'0"),, leanGetRegister(R_R2_2354:R8,, RegMap_2296:Map)))),, Int(#"6"),, Int(#"7")),, MInt(#"1'1")))),, eqMInt(extractMInt(extractMInt(shlMInt(concatenateMInt(MInt(#"1'0"),, leanGetRegister(R_R2_2354:R8,, RegMap_2296:Map)),, Int(#"1")),, Int(#"0"),, bitwidthMInt(concatenateMInt(MInt(#"1'0"),, leanGetRegister(R_R2_2354:R8,, RegMap_2296:Map)))),, Int(#"5"),, Int(#"6")),, MInt(#"1'1")))),, eqMInt(extractMInt(extractMInt(shlMInt(concatenateMInt(MInt(#"1'0"),, leanGetRegister(R_R2_2354:R8,, RegMap_2296:Map)),, Int(#"1")),, Int(#"0"),, bitwidthMInt(concatenateMInt(MInt(#"1'0"),, leanGetRegister(R_R2_2354:R8,, RegMap_2296:Map)))),, Int(#"4"),, Int(#"5")),, MInt(#"1'1")))),, eqMInt(extractMInt(extractMInt(shlMInt(concatenateMInt(MInt(#"1'0"),, leanGetRegister(R_R2_2354:R8,, RegMap_2296:Map)),, Int(#"1")),, Int(#"0"),, bitwidthMInt(concatenateMInt(MInt(#"1'0"),, leanGetRegister(R_R2_2354:R8,, RegMap_2296:Map)))),, Int(#"3"),, Int(#"4")),, MInt(#"1'1")))),, eqMInt(extractMInt(extractMInt(shlMInt(concatenateMInt(MInt(#"1'0"),, leanGetRegister(R_R2_2354:R8,, RegMap_2296:Map)),, Int(#"1")),, Int(#"0"),, bitwidthMInt(concatenateMInt(MInt(#"1'0"),, leanGetRegister(R_R2_2354:R8,, RegMap_2296:Map)))),, Int(#"2"),, Int(#"3")),, MInt(#"1'1")))),, eqMInt(extractMInt(extractMInt(shlMInt(concatenateMInt(MInt(#"1'0"),, leanGetRegister(R_R2_2354:R8,, RegMap_2296:Map)),, Int(#"1")),, Int(#"0"),, bitwidthMInt(concatenateMInt(MInt(#"1'0"),, leanGetRegister(R_R2_2354:R8,, RegMap_2296:Map)))),, Int(#"1"),, Int(#"2")),, MInt(#"1'1"))))),, MInt(#"1'1"),, MInt(#"1'0")),, leanSetRegister(%of_X86-SYNTAX(.KList),, #ifMInt_#then_#else_#fi_MINT-WRAPPER-SYNTAX(notBool_(_==K_(eqMInt(extractMInt(extractMInt(shlMInt(concatenateMInt(MInt(#"1'0"),, leanGetRegister(R_R2_2354:R8,, RegMap_2296:Map)),, Int(#"1")),, Int(#"0"),, bitwidthMInt(concatenateMInt(MInt(#"1'0"),, leanGetRegister(R_R2_2354:R8,, RegMap_2296:Map)))),, Int(#"0"),, Int(#"1")),, MInt(#"1'1")),, eqMInt(extractMInt(extractMInt(shlMInt(concatenateMInt(MInt(#"1'0"),, leanGetRegister(R_R2_2354:R8,, RegMap_2296:Map)),, Int(#"1")),, Int(#"0"),, bitwidthMInt(concatenateMInt(MInt(#"1'0"),, leanGetRegister(R_R2_2354:R8,, RegMap_2296:Map)))),, Int(#"1"),, Int(#"2")),, MInt(#"1'1")))),, MInt(#"1'1"),, MInt(#"1'0")),, leanSetRegister(R_R2_2354:R8,, extractMInt(extractMInt(shlMInt(concatenateMInt(MInt(#"1'0"),, leanGetRegister(R_R2_2354:R8,, RegMap_2296:Map)),, Int(#"1")),, Int(#"0"),, bitwidthMInt(concatenateMInt(MInt(#"1'0"),, leanGetRegister(R_R2_2354:R8,, RegMap_2296:Map)))),, Int(#"1"),, Int(#"9")),, RegMap_2296:Map)))))))),, _10_2307:K,, _11_2308:K,, _12_2309:K,, _13_2310:K,, _14_2311:K)
+/\
+ConjunctiveFormula(
+  new substitutions:
+    _==K_(Opcode_2312:Opcode,, shlb_X86-SYNTAX(.KList))
+    _==K_(Ops_2313:InstructionOperands,, operandlist(HexConstant(#"$0x1"),, operandlist(R_R2_2354:R8,, .List{"operandlist"}(.KList))))
+)
+
+
+SPEC ERROR: /Users/andrei/work/galois/vadd/reopt-vcg/lean4/deps/x86_semantics/k-semantics/instruction-template-spec.k Location(5,5,7,50)
+==================================
+Success execution paths: 7
+Failed execution paths: 0
+Paths in progress: 248
+Longest path: 3 steps
+Stats for each phase, time, used memory, implicit main GC time percentage:
+Total                 :  272.107 s,	 1490 MB, gc:  0.000 %
+  Parsing             :  268.153 s,	 1464 MB, gc:  0.000 %
+  Init                :    0.071 s,	 1482 MB, gc:  0.000 %
+  Execution           :    3.883 s,	 1490 MB, gc:  0.000 %
+
+Init+Execution time:       3.954 s
+
+  Time and top-level event counts:
+  resolveFunctionAndAnywhere time  :    0.838 s,      #      33152
+    evaluateFunction time            :    0.789 s,      #      10695
+      builtin evaluation               :           ,      #       1129
+      function rule                    :           ,      #       1016
+      sort predicate                   :           ,      #         13
+      no rule applicable               :           ,      #       7762
+      no function rules                :           ,      #        775
+    applyAnywhereRules time          :    0.003 s,      #       5238
+      no anywhere rules                :           ,      #       5238
+    remaining time & # cached        :    0.047 s,      #      17219
+  impliesSMT time                  :    0.005 s,      #       1825
+
+  Recursive event counts:
+  resolveFunctionAndAnywhere time  :           ,      #     165583
+    evaluateFunction time            :           ,      #       7497
+      builtin evaluation               :           ,      #       1912
+      function rule                    :           ,      #       2205
+      sort predicate                   :           ,      #         29
+      no rule applicable               :           ,      #       2663
+      no function rules                :           ,      #        688
+    applyAnywhereRules time          :           ,      #       1125
+      no anywhere rules                :           ,      #       1125
+    # cached                         :           ,      #     156961
+
+Max memory : 4096 MB
+==================================
+
+[Error] Internal: Uncaught exception thrown of type AssertionError.
+Please rerun your program with the --debug flag to generate a stack trace, and
+file a bug report at https://github.com/kframework/k/issues (unexpected term:
+HexConstant(#"$0x1"))

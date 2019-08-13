@@ -1,0 +1,353 @@
+
+Parsing finished:  209.008 s
+
+Initialization finished
+==================================
+Stats for each phase, time, used memory, implicit main GC time percentage:
+Total                 :  209.087 s,	  409 MB, gc:  0.000 %
+  Parsing             :  209.008 s,	  390 MB, gc:  0.000 %
+  Init                :    0.079 s,	  409 MB, gc:  0.000 %
+
+Init+Execution time:       0.079 s
+
+  Time and top-level event counts:
+  resolveFunctionAndAnywhere time  :    0.004 s,      #         11
+    applyAnywhereRules time          :    0.000 s,      #         11
+      no anywhere rules                :           ,      #         11
+    remaining time & # cached        :    0.004 s,      #          0
+
+  Recursive event counts:
+  resolveFunctionAndAnywhere time  :           ,      #          0
+    applyAnywhereRules time          :           ,      #          0
+      no anywhere rules                :           ,      #          0
+    # cached                         :           ,      #          0
+==================================
+
+lzcntq_X86-SYNTAX (v_2355 : R64) (v_2356 : R64)
+  v_3873 <- getRegister (v_2355 : R64)
+  v_3874 <- eval (extract v_3873 0 1)
+  v_3875 <- eval (eq v_3874 (bv_nat 1 1))
+  v_3876 <- eval (extract v_3873 1 2)
+  v_3877 <- eval (eq v_3876 (bv_nat 1 1))
+  v_3878 <- eval (extract v_3873 2 3)
+  v_3879 <- eval (eq v_3878 (bv_nat 1 1))
+  v_3880 <- eval (extract v_3873 3 4)
+  v_3881 <- eval (eq v_3880 (bv_nat 1 1))
+  v_3882 <- eval (extract v_3873 4 5)
+  v_3883 <- eval (eq v_3882 (bv_nat 1 1))
+  v_3884 <- eval (extract v_3873 5 6)
+  v_3885 <- eval (eq v_3884 (bv_nat 1 1))
+  v_3886 <- eval (extract v_3873 6 7)
+  v_3887 <- eval (eq v_3886 (bv_nat 1 1))
+  v_3888 <- eval (extract v_3873 7 8)
+  v_3889 <- eval (eq v_3888 (bv_nat 1 1))
+  v_3890 <- eval (extract v_3873 8 9)
+  v_3891 <- eval (eq v_3890 (bv_nat 1 1))
+  v_3892 <- eval (extract v_3873 9 10)
+  v_3893 <- eval (eq v_3892 (bv_nat 1 1))
+  v_3894 <- eval (extract v_3873 10 11)
+  v_3895 <- eval (eq v_3894 (bv_nat 1 1))
+  v_3896 <- eval (extract v_3873 11 12)
+  v_3897 <- eval (eq v_3896 (bv_nat 1 1))
+  v_3898 <- eval (extract v_3873 12 13)
+  v_3899 <- eval (eq v_3898 (bv_nat 1 1))
+  v_3900 <- eval (extract v_3873 13 14)
+  v_3901 <- eval (eq v_3900 (bv_nat 1 1))
+  v_3902 <- eval (extract v_3873 14 15)
+  v_3903 <- eval (eq v_3902 (bv_nat 1 1))
+  v_3904 <- eval (extract v_3873 15 16)
+  v_3905 <- eval (eq v_3904 (bv_nat 1 1))
+  v_3906 <- eval (extract v_3873 16 17)
+  v_3907 <- eval (eq v_3906 (bv_nat 1 1))
+  v_3908 <- eval (extract v_3873 17 18)
+  v_3909 <- eval (eq v_3908 (bv_nat 1 1))
+  v_3910 <- eval (extract v_3873 18 19)
+  v_3911 <- eval (eq v_3910 (bv_nat 1 1))
+  v_3912 <- eval (extract v_3873 19 20)
+  v_3913 <- eval (eq v_3912 (bv_nat 1 1))
+  v_3914 <- eval (extract v_3873 20 21)
+  v_3915 <- eval (eq v_3914 (bv_nat 1 1))
+  v_3916 <- eval (extract v_3873 21 22)
+  v_3917 <- eval (eq v_3916 (bv_nat 1 1))
+  v_3918 <- eval (extract v_3873 22 23)
+  v_3919 <- eval (eq v_3918 (bv_nat 1 1))
+  v_3920 <- eval (extract v_3873 23 24)
+  v_3921 <- eval (eq v_3920 (bv_nat 1 1))
+  v_3922 <- eval (extract v_3873 24 25)
+  v_3923 <- eval (eq v_3922 (bv_nat 1 1))
+  v_3924 <- eval (extract v_3873 25 26)
+  v_3925 <- eval (eq v_3924 (bv_nat 1 1))
+  v_3926 <- eval (extract v_3873 26 27)
+  v_3927 <- eval (eq v_3926 (bv_nat 1 1))
+  v_3928 <- eval (extract v_3873 27 28)
+  v_3929 <- eval (eq v_3928 (bv_nat 1 1))
+  v_3930 <- eval (extract v_3873 28 29)
+  v_3931 <- eval (eq v_3930 (bv_nat 1 1))
+  v_3932 <- eval (extract v_3873 29 30)
+  v_3933 <- eval (eq v_3932 (bv_nat 1 1))
+  v_3934 <- eval (extract v_3873 30 31)
+  v_3935 <- eval (eq v_3934 (bv_nat 1 1))
+  v_3936 <- eval (extract v_3873 31 32)
+  v_3937 <- eval (eq v_3936 (bv_nat 1 1))
+  v_3938 <- eval (extract v_3873 32 33)
+  v_3939 <- eval (eq v_3938 (bv_nat 1 1))
+  v_3940 <- eval (extract v_3873 33 34)
+  v_3941 <- eval (eq v_3940 (bv_nat 1 1))
+  v_3942 <- eval (extract v_3873 34 35)
+  v_3943 <- eval (eq v_3942 (bv_nat 1 1))
+  v_3944 <- eval (extract v_3873 35 36)
+  v_3945 <- eval (eq v_3944 (bv_nat 1 1))
+  v_3946 <- eval (extract v_3873 36 37)
+  v_3947 <- eval (eq v_3946 (bv_nat 1 1))
+  v_3948 <- eval (extract v_3873 37 38)
+  v_3949 <- eval (eq v_3948 (bv_nat 1 1))
+  v_3950 <- eval (extract v_3873 38 39)
+  v_3951 <- eval (eq v_3950 (bv_nat 1 1))
+  v_3952 <- eval (extract v_3873 39 40)
+  v_3953 <- eval (eq v_3952 (bv_nat 1 1))
+  v_3954 <- eval (extract v_3873 40 41)
+  v_3955 <- eval (eq v_3954 (bv_nat 1 1))
+  v_3956 <- eval (extract v_3873 41 42)
+  v_3957 <- eval (eq v_3956 (bv_nat 1 1))
+  v_3958 <- eval (extract v_3873 42 43)
+  v_3959 <- eval (eq v_3958 (bv_nat 1 1))
+  v_3960 <- eval (extract v_3873 43 44)
+  v_3961 <- eval (eq v_3960 (bv_nat 1 1))
+  v_3962 <- eval (extract v_3873 44 45)
+  v_3963 <- eval (eq v_3962 (bv_nat 1 1))
+  v_3964 <- eval (extract v_3873 45 46)
+  v_3965 <- eval (eq v_3964 (bv_nat 1 1))
+  v_3966 <- eval (extract v_3873 46 47)
+  v_3967 <- eval (eq v_3966 (bv_nat 1 1))
+  v_3968 <- eval (extract v_3873 47 48)
+  v_3969 <- eval (eq v_3968 (bv_nat 1 1))
+  v_3970 <- eval (extract v_3873 48 49)
+  v_3971 <- eval (eq v_3970 (bv_nat 1 1))
+  v_3972 <- eval (extract v_3873 49 50)
+  v_3973 <- eval (eq v_3972 (bv_nat 1 1))
+  v_3974 <- eval (extract v_3873 50 51)
+  v_3975 <- eval (eq v_3974 (bv_nat 1 1))
+  v_3976 <- eval (extract v_3873 51 52)
+  v_3977 <- eval (eq v_3976 (bv_nat 1 1))
+  v_3978 <- eval (extract v_3873 52 53)
+  v_3979 <- eval (eq v_3978 (bv_nat 1 1))
+  v_3980 <- eval (extract v_3873 53 54)
+  v_3981 <- eval (eq v_3980 (bv_nat 1 1))
+  v_3982 <- eval (extract v_3873 54 55)
+  v_3983 <- eval (eq v_3982 (bv_nat 1 1))
+  v_3984 <- eval (extract v_3873 55 56)
+  v_3985 <- eval (eq v_3984 (bv_nat 1 1))
+  v_3986 <- eval (extract v_3873 56 57)
+  v_3987 <- eval (eq v_3986 (bv_nat 1 1))
+  v_3988 <- eval (extract v_3873 57 58)
+  v_3989 <- eval (eq v_3988 (bv_nat 1 1))
+  v_3990 <- eval (extract v_3873 58 59)
+  v_3991 <- eval (eq v_3990 (bv_nat 1 1))
+  v_3992 <- eval (extract v_3873 59 60)
+  v_3993 <- eval (eq v_3992 (bv_nat 1 1))
+  v_3994 <- eval (extract v_3873 60 61)
+  v_3995 <- eval (eq v_3994 (bv_nat 1 1))
+  v_3996 <- eval (extract v_3873 61 62)
+  v_3997 <- eval (eq v_3996 (bv_nat 1 1))
+  v_3998 <- eval (extract v_3873 62 63)
+  v_3999 <- eval (eq v_3998 (bv_nat 1 1))
+  v_4000 <- eval (extract v_3873 63 64)
+  v_4001 <- eval (eq v_4000 (bv_nat 1 1))
+  v_4002 <- eval (mux v_4001 (bv_nat 64 63) (bv_nat 64 64))
+  v_4003 <- eval (mux v_3999 (bv_nat 64 62) v_4002)
+  v_4004 <- eval (mux v_3997 (bv_nat 64 61) v_4003)
+  v_4005 <- eval (mux v_3995 (bv_nat 64 60) v_4004)
+  v_4006 <- eval (mux v_3993 (bv_nat 64 59) v_4005)
+  v_4007 <- eval (mux v_3991 (bv_nat 64 58) v_4006)
+  v_4008 <- eval (mux v_3989 (bv_nat 64 57) v_4007)
+  v_4009 <- eval (mux v_3987 (bv_nat 64 56) v_4008)
+  v_4010 <- eval (mux v_3985 (bv_nat 64 55) v_4009)
+  v_4011 <- eval (mux v_3983 (bv_nat 64 54) v_4010)
+  v_4012 <- eval (mux v_3981 (bv_nat 64 53) v_4011)
+  v_4013 <- eval (mux v_3979 (bv_nat 64 52) v_4012)
+  v_4014 <- eval (mux v_3977 (bv_nat 64 51) v_4013)
+  v_4015 <- eval (mux v_3975 (bv_nat 64 50) v_4014)
+  v_4016 <- eval (mux v_3973 (bv_nat 64 49) v_4015)
+  v_4017 <- eval (mux v_3971 (bv_nat 64 48) v_4016)
+  v_4018 <- eval (mux v_3969 (bv_nat 64 47) v_4017)
+  v_4019 <- eval (mux v_3967 (bv_nat 64 46) v_4018)
+  v_4020 <- eval (mux v_3965 (bv_nat 64 45) v_4019)
+  v_4021 <- eval (mux v_3963 (bv_nat 64 44) v_4020)
+  v_4022 <- eval (mux v_3961 (bv_nat 64 43) v_4021)
+  v_4023 <- eval (mux v_3959 (bv_nat 64 42) v_4022)
+  v_4024 <- eval (mux v_3957 (bv_nat 64 41) v_4023)
+  v_4025 <- eval (mux v_3955 (bv_nat 64 40) v_4024)
+  v_4026 <- eval (mux v_3953 (bv_nat 64 39) v_4025)
+  v_4027 <- eval (mux v_3951 (bv_nat 64 38) v_4026)
+  v_4028 <- eval (mux v_3949 (bv_nat 64 37) v_4027)
+  v_4029 <- eval (mux v_3947 (bv_nat 64 36) v_4028)
+  v_4030 <- eval (mux v_3945 (bv_nat 64 35) v_4029)
+  v_4031 <- eval (mux v_3943 (bv_nat 64 34) v_4030)
+  v_4032 <- eval (mux v_3941 (bv_nat 64 33) v_4031)
+  v_4033 <- eval (mux v_3939 (bv_nat 64 32) v_4032)
+  v_4034 <- eval (mux v_3937 (bv_nat 64 31) v_4033)
+  v_4035 <- eval (mux v_3935 (bv_nat 64 30) v_4034)
+  v_4036 <- eval (mux v_3933 (bv_nat 64 29) v_4035)
+  v_4037 <- eval (mux v_3931 (bv_nat 64 28) v_4036)
+  v_4038 <- eval (mux v_3929 (bv_nat 64 27) v_4037)
+  v_4039 <- eval (mux v_3927 (bv_nat 64 26) v_4038)
+  v_4040 <- eval (mux v_3925 (bv_nat 64 25) v_4039)
+  v_4041 <- eval (mux v_3923 (bv_nat 64 24) v_4040)
+  v_4042 <- eval (mux v_3921 (bv_nat 64 23) v_4041)
+  v_4043 <- eval (mux v_3919 (bv_nat 64 22) v_4042)
+  v_4044 <- eval (mux v_3917 (bv_nat 64 21) v_4043)
+  v_4045 <- eval (mux v_3915 (bv_nat 64 20) v_4044)
+  v_4046 <- eval (mux v_3913 (bv_nat 64 19) v_4045)
+  v_4047 <- eval (mux v_3911 (bv_nat 64 18) v_4046)
+  v_4048 <- eval (mux v_3909 (bv_nat 64 17) v_4047)
+  v_4049 <- eval (mux v_3907 (bv_nat 64 16) v_4048)
+  v_4050 <- eval (mux v_3905 (bv_nat 64 15) v_4049)
+  v_4051 <- eval (mux v_3903 (bv_nat 64 14) v_4050)
+  v_4052 <- eval (mux v_3901 (bv_nat 64 13) v_4051)
+  v_4053 <- eval (mux v_3899 (bv_nat 64 12) v_4052)
+  v_4054 <- eval (mux v_3897 (bv_nat 64 11) v_4053)
+  v_4055 <- eval (mux v_3895 (bv_nat 64 10) v_4054)
+  v_4056 <- eval (mux v_3893 (bv_nat 64 9) v_4055)
+  v_4057 <- eval (mux v_3891 (bv_nat 64 8) v_4056)
+  v_4058 <- eval (mux v_3889 (bv_nat 64 7) v_4057)
+  v_4059 <- eval (mux v_3887 (bv_nat 64 6) v_4058)
+  v_4060 <- eval (mux v_3885 (bv_nat 64 5) v_4059)
+  v_4061 <- eval (mux v_3883 (bv_nat 64 4) v_4060)
+  v_4062 <- eval (mux v_3881 (bv_nat 64 3) v_4061)
+  v_4063 <- eval (mux v_3879 (bv_nat 64 2) v_4062)
+  v_4064 <- eval (mux v_3877 (bv_nat 64 1) v_4063)
+  v_4065 <- eval (mux v_3875 (bv_nat 64 0) v_4064)
+  v_4066 <- eval (eq v_4065 (bv_nat 64 64))
+  v_4067 <- eval (mux v_4066 (bv_nat 1 1) (bv_nat 1 0))
+  v_4068 <- eval (eq v_4065 (bv_nat 64 0))
+  v_4069 <- eval (mux v_4068 (bv_nat 1 1) (bv_nat 1 0))
+  setRegister (v_2356 : R64) v_4065
+  setRegister of undef
+  setRegister pf undef
+  setRegister af undef
+  setRegister zf v_4069
+  setRegister sf undef
+  setRegister cf v_4067
+==========================================
+lzcntw_X86-SYNTAX (v_2364 : R16) (v_2365 : R16)
+  v_4081 <- getRegister (v_2364 : R16)
+  v_4082 <- eval (extract v_4081 0 1)
+  v_4083 <- eval (eq v_4082 (bv_nat 1 1))
+  v_4084 <- eval (extract v_4081 1 2)
+  v_4085 <- eval (eq v_4084 (bv_nat 1 1))
+  v_4086 <- eval (extract v_4081 2 3)
+  v_4087 <- eval (eq v_4086 (bv_nat 1 1))
+  v_4088 <- eval (extract v_4081 3 4)
+  v_4089 <- eval (eq v_4088 (bv_nat 1 1))
+  v_4090 <- eval (extract v_4081 4 5)
+  v_4091 <- eval (eq v_4090 (bv_nat 1 1))
+  v_4092 <- eval (extract v_4081 5 6)
+  v_4093 <- eval (eq v_4092 (bv_nat 1 1))
+  v_4094 <- eval (extract v_4081 6 7)
+  v_4095 <- eval (eq v_4094 (bv_nat 1 1))
+  v_4096 <- eval (extract v_4081 7 8)
+  v_4097 <- eval (eq v_4096 (bv_nat 1 1))
+  v_4098 <- eval (extract v_4081 8 9)
+  v_4099 <- eval (eq v_4098 (bv_nat 1 1))
+  v_4100 <- eval (extract v_4081 9 10)
+  v_4101 <- eval (eq v_4100 (bv_nat 1 1))
+  v_4102 <- eval (extract v_4081 10 11)
+  v_4103 <- eval (eq v_4102 (bv_nat 1 1))
+  v_4104 <- eval (extract v_4081 11 12)
+  v_4105 <- eval (eq v_4104 (bv_nat 1 1))
+  v_4106 <- eval (extract v_4081 12 13)
+  v_4107 <- eval (eq v_4106 (bv_nat 1 1))
+  v_4108 <- eval (extract v_4081 13 14)
+  v_4109 <- eval (eq v_4108 (bv_nat 1 1))
+  v_4110 <- eval (extract v_4081 14 15)
+  v_4111 <- eval (eq v_4110 (bv_nat 1 1))
+  v_4112 <- eval (extract v_4081 15 16)
+  v_4113 <- eval (eq v_4112 (bv_nat 1 1))
+  v_4114 <- eval (mux v_4113 (bv_nat 16 15) (bv_nat 16 16))
+  v_4115 <- eval (mux v_4111 (bv_nat 16 14) v_4114)
+  v_4116 <- eval (mux v_4109 (bv_nat 16 13) v_4115)
+  v_4117 <- eval (mux v_4107 (bv_nat 16 12) v_4116)
+  v_4118 <- eval (mux v_4105 (bv_nat 16 11) v_4117)
+  v_4119 <- eval (mux v_4103 (bv_nat 16 10) v_4118)
+  v_4120 <- eval (mux v_4101 (bv_nat 16 9) v_4119)
+  v_4121 <- eval (mux v_4099 (bv_nat 16 8) v_4120)
+  v_4122 <- eval (mux v_4097 (bv_nat 16 7) v_4121)
+  v_4123 <- eval (mux v_4095 (bv_nat 16 6) v_4122)
+  v_4124 <- eval (mux v_4093 (bv_nat 16 5) v_4123)
+  v_4125 <- eval (mux v_4091 (bv_nat 16 4) v_4124)
+  v_4126 <- eval (mux v_4089 (bv_nat 16 3) v_4125)
+  v_4127 <- eval (mux v_4087 (bv_nat 16 2) v_4126)
+  v_4128 <- eval (mux v_4085 (bv_nat 16 1) v_4127)
+  v_4129 <- eval (mux v_4083 (bv_nat 16 0) v_4128)
+  v_4130 <- eval (eq v_4129 (bv_nat 16 16))
+  v_4131 <- eval (mux v_4130 (bv_nat 1 1) (bv_nat 1 0))
+  v_4132 <- eval (eq v_4129 (bv_nat 16 0))
+  v_4133 <- eval (mux v_4132 (bv_nat 1 1) (bv_nat 1 0))
+  setRegister (v_2365 : R16) v_4129
+  setRegister of undef
+  setRegister pf undef
+  setRegister zf v_4133
+  setRegister af undef
+  setRegister sf undef
+  setRegister cf v_4131
+==========================================
+
+==========================================
+Top term when exception was thrown:
+==========================================
+
+<generatedTop>(<k>(exit_0_X86-FETCH-EXECUTE(.KList)),, _0_2299:K,, _1_2300:K,, _2_2301:K,, _3_2302:K,, _4_2303:K,, _5_2304:K,, _6_2305:K,, _7_2306:K,, _8_2307:K,, <leanmemory>(MemMap_2314:Map),, _9_2308:K,, <regstate>(leanSetRegister(R_R2_2374:Xmm,, concatenateMInt(#ifMInt_#then_#else_#fi_MINT-WRAPPER-SYNTAX(eqMInt(_(_,_)_MINT-WRAPPER-SYNTAX(UIFBinOperation(#"maxcmp_double"),, extractMInt(leanGetRegister(R_R2_2374:Xmm,, RegMap_2296:Map),, Int(#"0"),, Int(#"64")),, extractMInt(leanGetRegister(R_R1_2373:Xmm,, RegMap_2296:Map),, Int(#"0"),, Int(#"64"))),, MInt(#"1'1")),, extractMInt(leanGetRegister(R_R2_2374:Xmm,, RegMap_2296:Map),, Int(#"0"),, Int(#"64")),, extractMInt(leanGetRegister(R_R1_2373:Xmm,, RegMap_2296:Map),, Int(#"0"),, Int(#"64"))),, #ifMInt_#then_#else_#fi_MINT-WRAPPER-SYNTAX(eqMInt(_(_,_)_MINT-WRAPPER-SYNTAX(UIFBinOperation(#"maxcmp_double"),, extractMInt(leanGetRegister(R_R2_2374:Xmm,, RegMap_2296:Map),, Int(#"64"),, Int(#"128")),, extractMInt(leanGetRegister(R_R1_2373:Xmm,, RegMap_2296:Map),, Int(#"64"),, Int(#"128"))),, MInt(#"1'1")),, extractMInt(leanGetRegister(R_R2_2374:Xmm,, RegMap_2296:Map),, Int(#"64"),, Int(#"128")),, extractMInt(leanGetRegister(R_R1_2373:Xmm,, RegMap_2296:Map),, Int(#"64"),, Int(#"128")))),, RegMap_2296:Map)),, _10_2309:K,, _11_2310:K,, _12_2311:K,, _13_2312:K,, _14_2313:K)
+/\
+ConjunctiveFormula(
+  new substitutions:
+    _==K_(Opcode_2297:Opcode,, maxpd_X86-SYNTAX(.KList))
+    _==K_(Ops_2315:InstructionOperands,, operandlist(R_R1_2373:Xmm,, operandlist(R_R2_2374:Xmm,, .List{"operandlist"}(.KList))))
+)
+
+
+SPEC ERROR: /Users/andrei/work/galois/vadd/reopt-vcg/lean4/deps/x86_semantics/k-semantics/instruction-template-spec.k Location(5,5,7,50)
+==================================
+Success execution paths: 3
+Failed execution paths: 0
+Paths in progress: 213
+Longest path: 3 steps
+Stats for each phase, time, used memory, implicit main GC time percentage:
+Total                 :  212.864 s,	  434 MB, gc:  0.000 %
+  Parsing             :  209.008 s,	  390 MB, gc:  0.000 %
+  Init                :    0.079 s,	  409 MB, gc:  0.000 %
+  Execution           :    3.777 s,	  434 MB, gc:  0.000 %
+
+Init+Execution time:       3.857 s
+
+  Time and top-level event counts:
+  resolveFunctionAndAnywhere time  :    0.488 s,      #      11514
+    evaluateFunction time            :    0.450 s,      #       2462
+      builtin evaluation               :           ,      #        329
+      function rule                    :           ,      #        236
+      sort predicate                   :           ,      #         13
+      no rule applicable               :           ,      #       1796
+      no function rules                :           ,      #         88
+    applyAnywhereRules time          :    0.003 s,      #       4487
+      no anywhere rules                :           ,      #       4487
+    remaining time & # cached        :    0.035 s,      #       4565
+  impliesSMT time                  :    0.005 s,      #       1240
+
+  Recursive event counts:
+  resolveFunctionAndAnywhere time  :           ,      #      26287
+    evaluateFunction time            :           ,      #       3972
+      builtin evaluation               :           ,      #        665
+      function rule                    :           ,      #        773
+      sort predicate                   :           ,      #         16
+      no rule applicable               :           ,      #       1553
+      no function rules                :           ,      #        965
+    applyAnywhereRules time          :           ,      #        339
+      no anywhere rules                :           ,      #        339
+    # cached                         :           ,      #      21976
+
+Max memory : 4096 MB
+==================================
+
+[Error] Internal: Uncaught exception thrown of type AssertionError.
+Please rerun your program with the --debug flag to generate a stack trace, and
+file a bug report at https://github.com/kframework/k/issues (unexpected term:
+UIFBinOperation(#"maxcmp_double"))
