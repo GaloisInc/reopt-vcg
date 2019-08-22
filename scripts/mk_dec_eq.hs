@@ -8,6 +8,7 @@ type Type = [ (String, [Bool]) ]
 -- (ctore_name, args (True == is recursive))
 ctors =
   [ ("bv", [False])
+  , ("int", [])
   , ("bit", [])
   , ("float", [])
   , ("double", [])

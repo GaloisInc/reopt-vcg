@@ -7,3 +7,4 @@ path="src"
 [dependencies]
 decodex86     = { path = "deps/llvm-tablegen-support" }
 x86_semantics = { path = "deps/x86_semantics" }
+k_x86_semantics = { path = "deps/k-x86-semantics" }
