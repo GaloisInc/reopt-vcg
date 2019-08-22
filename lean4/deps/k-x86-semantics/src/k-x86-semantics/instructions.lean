@@ -19,7 +19,7 @@ section
 variable handleImmediateWithSignExtend (e : expression int) (n m : Nat) : expression (bv m)
 variable svalueMInt {n : Nat} (e : expression (bv n)) : expression int
 variable mi (n : Nat) (e : expression int) : expression (bv n)
-variable extract {n : Nat} (e : bv n) (first last : Nat) : bv (last - first)
+variable extract {n : Nat} (e : expression (bv n)) (first last : Nat) : expression (bv (last - first))
 
 def concat {i j:Nat} (x: bv i) (y : bv j) : bv (i + j) := prim.cat i j x y
 def bv_xor {i :Nat} (x: bv i) (y : bv i) : bv i := prim.bv_xor i x y
@@ -32,6 +32,21 @@ def notBool_ (e : bit) : bit := eq e bit_zero
 
 
 instance reg_lhs_coe {t : type}: HasCoe (reg t) (lhs t) := ⟨fun r => lhs.of_reg r⟩
+
+@[reducible]
+def R64 : Type := reg (bv 64)
+
+@[reducible]
+def Mem : Type := addr
+
+def evaluateAddress (x : bv 64) : semantics (bv 64) := eval x
+
+def load (ptr : expression (bv 64)) (n : Nat) : semantics (expression (bv (n * 8))) := eval (expression.read (bv (n * 8)) ptr)
+
+def bv_nat := expression.bv_nat
+def add {w:Nat} : expression (bv w) → expression (bv w) → expression (bv w) := @expression.add w
+
+def bit_and := expression.bit_and
 
 def addq1 : instruction :=
   definst "addq" $ do
@@ -94,13 +109,81 @@ def addq1 : instruction :=
       v_5894 <- eval (notBool_ v_5893);
       v_5895 <- eval (expression.bit_and v_5891 v_5894);
       v_5896 <- eval (mux v_5895 (expression.bv_nat 1 1) (expression.bv_nat 1 0));
-      setRegister v_2598 v_5853;
+      setRegister (lhs.of_reg v_2598) v_5853;
       setRegister of v_5896;
       setRegister pf v_5886;
       setRegister zf v_5855;
       setRegister af v_5852;
       setRegister sf v_5847;
       setRegister cf v_5846;
+      pure ()
+    pat_end;
+
+    pattern fun (v_2606 : Mem) (v_2607 : R64) => do
+      v_11405 <- evaluateAddress v_2606;
+      v_11406 <- load v_11405 8;
+      v_11407 <- eval (concat (bv_nat 1 0) v_11406);
+      v_11408 <- getRegister (v_2607 : R64);
+      v_11409 <- eval (concat (bv_nat 1 0) v_11408);
+      v_11410 <- eval (add v_11407 v_11409);
+      v_11411 <- eval (extract v_11410 0 1);
+      v_11412 <- eval (extract v_11410 1 2);
+      v_11413 <- eval (extract v_11410 1 65); 
+      v_11414 <- eval (eq v_11413 (bv_nat 64 0));
+      v_11415 <- eval (mux v_11414 (bv_nat 1 1) (bv_nat 1 0));
+      v_11416 <- eval (extract v_11406 59 60);
+      v_11417 <- eval (extract v_11408 59 60);
+      v_11418 <- eval (bv_xor v_11416 v_11417);
+      v_11419 <- eval (extract v_11410 60 61);
+      v_11420 <- eval (bv_xor v_11418 v_11419);
+      v_11421 <- eval (extract v_11410 64 65);
+      v_11422 <- eval (eq v_11421 (bv_nat 1 1));
+      v_11423 <- eval (extract v_11410 63 64);
+      v_11424 <- eval (eq v_11423 (bv_nat 1 1));
+      v_11425 <- eval (eq v_11422 v_11424);
+      v_11426 <- eval (notBool_ v_11425);
+      v_11427 <- eval (extract v_11410 62 63);
+      v_11428 <- eval (eq v_11427 (bv_nat 1 1));
+      v_11429 <- eval (eq v_11426 v_11428);
+      v_11430 <- eval (notBool_ v_11429);
+      v_11431 <- eval (extract v_11410 61 62);
+      v_11432 <- eval (eq v_11431 (bv_nat 1 1));
+      v_11433 <- eval (eq v_11430 v_11432);
+      v_11434 <- eval (notBool_ v_11433);
+      v_11435 <- eval (eq v_11419 (bv_nat 1 1));
+      v_11436 <- eval (eq v_11434 v_11435);
+      v_11437 <- eval (notBool_ v_11436);
+      v_11438 <- eval (extract v_11410 59 60);
+      v_11439 <- eval (eq v_11438 (bv_nat 1 1));
+      v_11440 <- eval (eq v_11437 v_11439);
+      v_11441 <- eval (notBool_ v_11440);
+      v_11442 <- eval (extract v_11410 58 59);
+      v_11443 <- eval (eq v_11442 (bv_nat 1 1));
+      v_11444 <- eval (eq v_11441 v_11443);
+      v_11445 <- eval (notBool_ v_11444);
+      v_11446 <- eval (extract v_11410 57 58);
+      v_11447 <- eval (eq v_11446 (bv_nat 1 1));
+      v_11448 <- eval (eq v_11445 v_11447);
+      v_11449 <- eval (notBool_ v_11448);
+      v_11450 <- eval (notBool_ v_11449);
+      v_11451 <- eval (mux v_11450 (bv_nat 1 1) (bv_nat 1 0));
+      v_11452 <- eval (extract v_11406 0 1);
+      v_11453 <- eval (eq v_11452 (bv_nat 1 1));
+      v_11454 <- eval (extract v_11408 0 1);
+      v_11455 <- eval (eq v_11454 (bv_nat 1 1));
+      v_11456 <- eval (eq v_11453 v_11455);
+      v_11457 <- eval (eq v_11412 (bv_nat 1 1));
+      v_11458 <- eval (eq v_11453 v_11457);
+      v_11459 <- eval (notBool_ v_11458);
+      v_11460 <- eval (bit_and v_11456 v_11459);
+      v_11461 <- eval (mux v_11460 (bv_nat 1 1) (bv_nat 1 0));
+      setRegister (lhs.of_reg v_2607) v_11413;
+      setRegister of v_11461;
+      setRegister pf v_11451;
+      setRegister af v_11420;
+      setRegister zf v_11415;
+      setRegister sf v_11412;
+      setRegister cf v_11411;
       pure ()
     pat_end
 

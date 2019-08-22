@@ -305,12 +305,12 @@ end reg
 -- Addresses
 
 -- Denotes an address to a value of a specific type.
-inductive addr (tp:type) : Type
+inductive addr : Type
 | arg {} (idx: arg_index) : addr
 
 namespace addr
 
-protected def repr {tp:type} : addr tp → String
+protected def repr : addr → String
 | (arg idx) := idx.repr
 
 end addr
@@ -583,8 +583,8 @@ namespace expression
 
 -- local notation Nat := Nat
 
-def of_addr : ∀{tp:type}, addr tp → expression (bv 64)
-| tp (@addr.arg _ i) := expression.addr_arg i
+def of_addr : addr → expression (bv 64)
+| (addr.arg i) := expression.addr_arg i
 
 instance prim_is_expr (rtp:type) : HasCoe (prim rtp) (expression rtp) := ⟨expression.primitive⟩
 
@@ -617,17 +617,15 @@ def bit_and           (x y : expression bit)                         : expressio
 def bit_xor           (x y : expression bit)                         : expression bit    := prim.bit_xor x y
 def bv_nat (w:Nat) (x : Nat) : expression (bv w) := prim.bv_nat w x
 
-def read_addr {tp:type} : addr tp → expression tp
+def read_addr (tp:type) : addr → expression tp
 | (addr.arg idx) := expression.read_arg idx tp
 
 def of_reg {tp:type} : reg tp → expression tp
 | (reg.concrete r) := expression.get_reg r
 | (reg.arg a) := expression.read_arg a tp
 
-instance addr_is_expression (tp:type) : HasCoe (addr tp) (expression tp) :=
-⟨ expression.read_addr ⟩
-
-
+instance addr_is_expression : HasCoe addr (expression (bv 64)) :=
+⟨ expression.of_addr ⟩
 
 instance type_is_sort     : HasCoeToSort type := ⟨Type, expression⟩
 instance all_reg_is_expression : has_coe1 reg expression := ⟨fun _ => expression.of_reg⟩
@@ -691,8 +689,8 @@ inductive lhs : type → Type
 
 namespace lhs
 
-def of_addr {tp:type} : addr tp → lhs tp
-| (addr.arg idx) := lhs.write_arg idx tp
+-- def of_addr {tp:type} : addr tp → lhs tp
+-- | (addr.arg idx) := lhs.write_arg idx tp
 
 def of_reg {tp:type} : reg tp → lhs tp
 | (reg.concrete r) := lhs.set_reg r
@@ -824,7 +822,7 @@ def action.set_undef_cond {tp:type} (l:lhs tp) (c: expression bit) : action :=
 
 inductive binding
 | reg  : type → binding
-| addr : type → binding
+| addr : binding
 | imm  : type → binding
 | lhs  : type → binding
 | expression : type → binding
@@ -873,8 +871,8 @@ instance reg_is_bound_var (tp:type) : is_bound_var (reg tp) :=
 , mk_arg := fun i => reg.arg i
 }
 
-instance addr_is_bound_var (tp:type) : is_bound_var (addr tp) :=
-{ to_binding := binding.addr tp
+instance addr_is_bound_var : is_bound_var addr :=
+{ to_binding := binding.addr
 , mk_arg := fun i => addr.arg i
 }
 
