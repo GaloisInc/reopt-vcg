@@ -98,8 +98,17 @@ def generate_instructions_semantics_file(chunk_size=200, prefix=''):
   add_semantics('memoryInstructions')
 
   require_paths.sort(key=os.path.basename)
+  def get_opcode_variant(i):
+    print(f'get_opcode_variant({i}) = ', os.path.basename(require_paths[i]).partition('_')[0])
+    return os.path.basename(require_paths[i]).partition('_')[0]
 
-  for i in range(0, len(require_paths), chunk_size):
+  index = 0
+  chunk_id = 0
+  while index < len(require_paths):
+    next_index = index + chunk_size
+    while next_index < len(require_paths) and get_opcode_variant(next_index - 1) == get_opcode_variant(next_index):
+      next_index = next_index + 1
+
     with open(instructions_semantics_file_path, mode='w') as instructions_semantics_file:
       print(
 '''require "x86-configuration.k"
@@ -107,10 +116,10 @@ def generate_instructions_semantics_file(chunk_size=200, prefix=''):
 module X86-INSTRUCTIONS-SEMANTICS
   import X86-CONFIGURATION
 ''',
-       file=instructions_semantics_file
+        file=instructions_semantics_file
       )
 
-      for require_path in require_paths[i:i + chunk_size]:
+      for require_path in require_paths[index:next_index]:
         print(f'select {require_path}')
         with open(require_path, 'r') as file_:
           for line in file_:
@@ -142,9 +151,9 @@ module X86-INSTRUCTIONS-SEMANTICS
     )
 
     if prefix:
-      target_kompiled_dir = f'x86-semantics-{prefix}_{i}'
+      target_kompiled_dir = f'x86-semantics-{prefix}_{chunk_id}'
     else:
-      target_kompiled_dir = f'x86-semantics-{i}'
+      target_kompiled_dir = f'x86-semantics-{chunk_id}'
     target_kompiled_dir_path = os.path.join(
       os.path.join(lean_dir_path, target_kompiled_dir),
       'x86-semantics-kompiled',
@@ -155,6 +164,9 @@ module X86-INSTRUCTIONS-SEMANTICS
       os.path.join(semantics_dir_path, 'x86-semantics-kompiled'),
       target_kompiled_dir_path,
     )
+
+    index = next_index
+    chunk_id = chunk_id + 1
 
 generate_instructions_semantics_file()
 

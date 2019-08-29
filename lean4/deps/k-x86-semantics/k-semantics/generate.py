@@ -48,7 +48,7 @@ def generate_lean(suffix):
   with open(output_file_path, 'w') as output_file:
     subprocess.check_call(
       [ f'{kprove_path}',
-        '-v',
+        #'-v',
         '--smt',
         'none',
         '-d',
@@ -59,8 +59,8 @@ def generate_lean(suffix):
       cwd=lean_dir_path,
     )
 
-def generate_lean_all(chunk_size=200, start=0, stop=2800):
-  for suffix in range(start, stop, chunk_size):
+def generate_lean_all(start=0, stop=14):
+  for suffix in range(start, stop):
     generate_lean(suffix)
 
 generate_lean_all()
