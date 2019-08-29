@@ -32,6 +32,22 @@ skip_opcode_prefixes = [
   'xaddb',
   'xchgb',
   'xchgw',
+
+  # conditions
+  'lods', # string operation
+  'movs', # string operation
+  'stos', # string operation
+  'cmps', # string operation
+  'scas', # string operation
+  'shld', # double precision shift
+  'shrd', # double precision shift
+  'cmpxchgq', # convSubRegsToRegs
+  'cmpxchgw', # convSubRegsToRegs
+  'xaddl', # convSubRegsToRegs
+  'xaddq', # convSubRegsToRegs
+  'xaddw', # convSubRegsToRegs
+  'xchgl', # convSubRegsToRegs
+  'xchgq', # convSubRegsToRegs
 ]
 
 submodules_dir_path = os.path.join(
@@ -78,12 +94,18 @@ kompile_path = os.path.join(
 
 lean_dir_path = os.path.dirname(os.path.realpath(__file__))
 
+def partition_imm(s):
+  (imm_prefix, imm_sep, imm_suffix) = s.partition('_imm')
+  if imm_sep:
+    return (imm_prefix, int(imm_suffix[:-len('.k')]))
+  return (None, None)
+
 def generate_instructions_semantics_file(chunk_size=200, prefix=''):
   require_paths = []
 
   def add_semantics(instructions_dirname):
     instructions_dir_path = os.path.join(semantics_dir_path, instructions_dirname)
-    for k_filename in os.listdir(instructions_dir_path):
+    for k_filename in sorted(os.listdir(instructions_dir_path)):
       if any(k_filename.startswith(opcode_prefix) for opcode_prefix in skip_opcode_prefixes):
         continue
 
@@ -91,15 +113,26 @@ def generate_instructions_semantics_file(chunk_size=200, prefix=''):
         continue
 
       if k_filename.startswith(prefix):
-        require_paths.append(os.path.join(instructions_dir_path, k_filename))
+        k_file_path = os.path.join(instructions_dir_path, k_filename)
+
+        if require_paths:
+          (prev_imm_prefix, prev_imm_bitwidth) = partition_imm(require_paths[-1])
+          (imm_prefix, imm_bitwidth) = partition_imm(k_file_path)
+          if prev_imm_prefix == imm_prefix and prev_imm_bitwidth is not None and imm_bitwidth is not None:
+            if prev_imm_bitwidth < imm_bitwidth:
+              require_paths[-1] = k_file_path
+            else:
+              pass
+            continue
+
+        require_paths.append(k_file_path)
 
   add_semantics('registerInstructions')
-  add_semantics('immediateInstructions')
   add_semantics('memoryInstructions')
+  add_semantics('immediateInstructions')
 
   require_paths.sort(key=os.path.basename)
   def get_opcode_variant(i):
-    print(f'get_opcode_variant({i}) = ', os.path.basename(require_paths[i]).partition('_')[0])
     return os.path.basename(require_paths[i]).partition('_')[0]
 
   index = 0
