@@ -1,9 +1,9 @@
 def vtestps1 : instruction :=
   definst "vtestps" $ do
-    pattern fun (v_2444 : reg (bv 128)) (v_2445 : reg (bv 128)) => do
-      v_3478 <- getRegister v_2445;
+    pattern fun (v_2446 : reg (bv 128)) (v_2447 : reg (bv 128)) => do
+      v_3478 <- getRegister v_2447;
       v_3479 <- eval (extract v_3478 96 97);
-      v_3483 <- getRegister v_2444;
+      v_3483 <- getRegister v_2446;
       v_3484 <- eval (extract v_3483 96 97);
       v_3487 <- eval (extract v_3478 64 65);
       v_3491 <- eval (extract v_3483 64 65);
@@ -46,8 +46,8 @@ def vtestps1 : instruction :=
       setRegister cf (mux (bit_and (bit_and (bit_and (bit_and (bit_and (bit_and (bit_and (eq (bv_and (bv_xor v_3535 (mi (bitwidthMInt v_3535) -1)) v_3540) (expression.bv_nat 1 0)) (eq (bv_and (bv_xor v_3543 (mi (bitwidthMInt v_3543) -1)) v_3547) (expression.bv_nat 1 0))) (eq (bv_and (bv_xor v_3551 (mi (bitwidthMInt v_3551) -1)) v_3555) (expression.bv_nat 1 0))) (eq (bv_and (bv_xor v_3559 (mi (bitwidthMInt v_3559) -1)) v_3563) (expression.bv_nat 1 0))) (eq (bv_and (bv_xor v_3567 (mi (bitwidthMInt v_3567) -1)) v_3571) (expression.bv_nat 1 0))) (eq (bv_and (bv_xor v_3575 (mi (bitwidthMInt v_3575) -1)) v_3579) (expression.bv_nat 1 0))) (eq (bv_and (bv_xor v_3583 (mi (bitwidthMInt v_3583) -1)) v_3587) (expression.bv_nat 1 0))) (eq (bv_and (bv_xor v_3591 (mi (bitwidthMInt v_3591) -1)) v_3595) (expression.bv_nat 1 0))) (expression.bv_nat 1 1) (expression.bv_nat 1 0));
       pure ()
     pat_end;
-    pattern fun (v_2440 : Mem) (v_2441 : reg (bv 128)) => do
-      v_6744 <- getRegister v_2441;
+    pattern fun (v_2440 : Mem) (v_2442 : reg (bv 128)) => do
+      v_6744 <- getRegister v_2442;
       v_6745 <- eval (extract v_6744 96 97);
       v_6749 <- evaluateAddress v_2440;
       v_6750 <- load v_6749 16;

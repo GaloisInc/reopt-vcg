@@ -1,17 +1,17 @@
 def cmovnaeq1 : instruction :=
   definst "cmovnaeq" $ do
-    pattern fun (v_2726 : reg (bv 64)) (v_2727 : reg (bv 64)) => do
-      v_4471 <- getRegister cf;
-      v_4473 <- getRegister v_2726;
-      v_4474 <- getRegister v_2727;
-      setRegister (lhs.of_reg v_2727) (mux (eq v_4471 (expression.bv_nat 1 1)) v_4473 v_4474);
+    pattern fun (v_2737 : reg (bv 64)) (v_2738 : reg (bv 64)) => do
+      v_4484 <- getRegister cf;
+      v_4486 <- getRegister v_2737;
+      v_4487 <- getRegister v_2738;
+      setRegister (lhs.of_reg v_2738) (mux (eq v_4484 (expression.bv_nat 1 1)) v_4486 v_4487);
       pure ()
     pat_end;
-    pattern fun (v_2721 : Mem) (v_2722 : reg (bv 64)) => do
-      v_8116 <- getRegister cf;
-      v_8118 <- evaluateAddress v_2721;
-      v_8119 <- load v_8118 8;
-      v_8120 <- getRegister v_2722;
-      setRegister (lhs.of_reg v_2722) (mux (eq v_8116 (expression.bv_nat 1 1)) v_8119 v_8120);
+    pattern fun (v_2733 : Mem) (v_2734 : reg (bv 64)) => do
+      v_8089 <- getRegister cf;
+      v_8091 <- evaluateAddress v_2733;
+      v_8092 <- load v_8091 8;
+      v_8093 <- getRegister v_2734;
+      setRegister (lhs.of_reg v_2734) (mux (eq v_8089 (expression.bv_nat 1 1)) v_8092 v_8093);
       pure ()
     pat_end

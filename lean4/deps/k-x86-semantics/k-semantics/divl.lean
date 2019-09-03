@@ -1,12 +1,12 @@
 def divl1 : instruction :=
   definst "divl" $ do
-    pattern fun (v_2717 : reg (bv 32)) => do
-      v_4509 <- getRegister rdx;
-      v_4511 <- getRegister rax;
-      v_4513 <- eval (concat (extract v_4509 32 64) (extract v_4511 32 64));
-      v_4514 <- getRegister v_2717;
-      setRegister edx (_(_,_)_MINT-WRAPPER-SYNTAX div_remainder_int32 v_4513 v_4514);
-      setRegister eax (_(_,_)_MINT-WRAPPER-SYNTAX div_quotient_int32 v_4513 v_4514);
+    pattern fun (v_2729 : reg (bv 32)) => do
+      v_4529 <- getRegister rdx;
+      v_4531 <- getRegister rax;
+      v_4533 <- eval (concat (extract v_4529 32 64) (extract v_4531 32 64));
+      v_4534 <- getRegister v_2729;
+      setRegister edx (_(_,_)_MINT-WRAPPER-SYNTAX div_remainder_int32 v_4533 v_4534);
+      setRegister eax (_(_,_)_MINT-WRAPPER-SYNTAX div_quotient_int32 v_4533 v_4534);
       setRegister of undef;
       setRegister zf undef;
       setRegister pf undef;
@@ -15,14 +15,14 @@ def divl1 : instruction :=
       setRegister cf undef;
       pure ()
     pat_end;
-    pattern fun (v_2714 : Mem) => do
-      v_8257 <- getRegister rdx;
-      v_8259 <- getRegister rax;
-      v_8261 <- eval (concat (extract v_8257 32 64) (extract v_8259 32 64));
-      v_8262 <- evaluateAddress v_2714;
-      v_8263 <- load v_8262 4;
-      setRegister edx (_(_,_)_MINT-WRAPPER-SYNTAX div_remainder_int32 v_8261 v_8263);
-      setRegister eax (_(_,_)_MINT-WRAPPER-SYNTAX div_quotient_int32 v_8261 v_8263);
+    pattern fun (v_2725 : Mem) => do
+      v_8565 <- getRegister rdx;
+      v_8567 <- getRegister rax;
+      v_8569 <- eval (concat (extract v_8565 32 64) (extract v_8567 32 64));
+      v_8570 <- evaluateAddress v_2725;
+      v_8571 <- load v_8570 4;
+      setRegister edx (_(_,_)_MINT-WRAPPER-SYNTAX div_remainder_int32 v_8569 v_8571);
+      setRegister eax (_(_,_)_MINT-WRAPPER-SYNTAX div_quotient_int32 v_8569 v_8571);
       setRegister of undef;
       setRegister zf undef;
       setRegister pf undef;

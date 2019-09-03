@@ -1,15 +1,15 @@
 def pmulld1 : instruction :=
   definst "pmulld" $ do
-    pattern fun (v_2810 : reg (bv 128)) (v_2811 : reg (bv 128)) => do
-      v_5938 <- getRegister v_2811;
-      v_5942 <- getRegister v_2810;
-      setRegister (lhs.of_reg v_2811) (concat (extract (mul (mi 64 (svalueMInt (extract v_5938 0 32))) (mi 64 (svalueMInt (extract v_5942 0 32)))) 32 64) (concat (extract (mul (mi 64 (svalueMInt (extract v_5938 32 64))) (mi 64 (svalueMInt (extract v_5942 32 64)))) 32 64) (concat (extract (mul (mi 64 (svalueMInt (extract v_5938 64 96))) (mi 64 (svalueMInt (extract v_5942 64 96)))) 32 64) (extract (mul (mi 64 (svalueMInt (extract v_5938 96 128))) (mi 64 (svalueMInt (extract v_5942 96 128)))) 32 64))));
+    pattern fun (v_2824 : reg (bv 128)) (v_2825 : reg (bv 128)) => do
+      v_5813 <- getRegister v_2825;
+      v_5816 <- getRegister v_2824;
+      setRegister (lhs.of_reg v_2825) (concat (extract (mul (leanSignExtend (extract v_5813 0 32) 64) (leanSignExtend (extract v_5816 0 32) 64)) 32 64) (concat (extract (mul (leanSignExtend (extract v_5813 32 64) 64) (leanSignExtend (extract v_5816 32 64) 64)) 32 64) (concat (extract (mul (leanSignExtend (extract v_5813 64 96) 64) (leanSignExtend (extract v_5816 64 96) 64)) 32 64) (extract (mul (leanSignExtend (extract v_5813 96 128) 64) (leanSignExtend (extract v_5816 96 128) 64)) 32 64))));
       pure ()
     pat_end;
-    pattern fun (v_2805 : Mem) (v_2806 : reg (bv 128)) => do
-      v_13189 <- getRegister v_2806;
-      v_13193 <- evaluateAddress v_2805;
-      v_13194 <- load v_13193 16;
-      setRegister (lhs.of_reg v_2806) (concat (extract (mul (mi 64 (svalueMInt (extract v_13189 0 32))) (mi 64 (svalueMInt (extract v_13194 0 32)))) 32 64) (concat (extract (mul (mi 64 (svalueMInt (extract v_13189 32 64))) (mi 64 (svalueMInt (extract v_13194 32 64)))) 32 64) (concat (extract (mul (mi 64 (svalueMInt (extract v_13189 64 96))) (mi 64 (svalueMInt (extract v_13194 64 96)))) 32 64) (extract (mul (mi 64 (svalueMInt (extract v_13189 96 128))) (mi 64 (svalueMInt (extract v_13194 96 128)))) 32 64))));
+    pattern fun (v_2820 : Mem) (v_2821 : reg (bv 128)) => do
+      v_12738 <- getRegister v_2821;
+      v_12741 <- evaluateAddress v_2820;
+      v_12742 <- load v_12741 16;
+      setRegister (lhs.of_reg v_2821) (concat (extract (mul (leanSignExtend (extract v_12738 0 32) 64) (leanSignExtend (extract v_12742 0 32) 64)) 32 64) (concat (extract (mul (leanSignExtend (extract v_12738 32 64) 64) (leanSignExtend (extract v_12742 32 64) 64)) 32 64) (concat (extract (mul (leanSignExtend (extract v_12738 64 96) 64) (leanSignExtend (extract v_12742 64 96) 64)) 32 64) (extract (mul (leanSignExtend (extract v_12738 96 128) 64) (leanSignExtend (extract v_12742 96 128) 64)) 32 64))));
       pure ()
     pat_end

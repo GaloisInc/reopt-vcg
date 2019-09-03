@@ -1,81 +1,81 @@
 def orw1 : instruction :=
   definst "orw" $ do
-    pattern fun (v_3018 : imm int) ax => do
-      v_4968 <- getRegister rax;
-      v_4970 <- eval (handleImmediateWithSignExtend v_3018 16 16);
-      v_4974 <- eval (bv_or (extract v_4968 48 64) v_4970);
-      setRegister rax (concat (extract v_4968 0 48) v_4974);
+    pattern fun (v_3030 : imm int) ax => do
+      v_5055 <- getRegister rax;
+      v_5057 <- eval (handleImmediateWithSignExtend v_3030 16 16);
+      v_5061 <- eval (bv_or (extract v_5055 48 64) v_5057);
+      setRegister rax (concat (extract v_5055 0 48) v_5061);
       setRegister of (expression.bv_nat 1 0);
-      setRegister pf (mux (eq (notBool_ (eq (notBool_ (eq (notBool_ (eq (notBool_ (eq (notBool_ (eq (notBool_ (eq (eq (bv_or (extract v_4968 63 64) (extract v_4970 15 16)) (expression.bv_nat 1 1)) (eq (bv_or (extract v_4968 62 63) (extract v_4970 14 15)) (expression.bv_nat 1 1)))) (eq (bv_or (extract v_4968 61 62) (extract v_4970 13 14)) (expression.bv_nat 1 1)))) (eq (bv_or (extract v_4968 60 61) (extract v_4970 12 13)) (expression.bv_nat 1 1)))) (eq (bv_or (extract v_4968 59 60) (extract v_4970 11 12)) (expression.bv_nat 1 1)))) (eq (bv_or (extract v_4968 58 59) (extract v_4970 10 11)) (expression.bv_nat 1 1)))) (eq (bv_or (extract v_4968 57 58) (extract v_4970 9 10)) (expression.bv_nat 1 1)))) (eq (bv_or (extract v_4968 56 57) (extract v_4970 8 9)) (expression.bv_nat 1 1))) (expression.bv_nat 1 1) (expression.bv_nat 1 0));
-      setRegister zf (zeroFlag v_4974);
+      setRegister pf (mux (eq (notBool_ (eq (notBool_ (eq (notBool_ (eq (notBool_ (eq (notBool_ (eq (notBool_ (eq (eq (bv_or (extract v_5055 63 64) (extract v_5057 15 16)) (expression.bv_nat 1 1)) (eq (bv_or (extract v_5055 62 63) (extract v_5057 14 15)) (expression.bv_nat 1 1)))) (eq (bv_or (extract v_5055 61 62) (extract v_5057 13 14)) (expression.bv_nat 1 1)))) (eq (bv_or (extract v_5055 60 61) (extract v_5057 12 13)) (expression.bv_nat 1 1)))) (eq (bv_or (extract v_5055 59 60) (extract v_5057 11 12)) (expression.bv_nat 1 1)))) (eq (bv_or (extract v_5055 58 59) (extract v_5057 10 11)) (expression.bv_nat 1 1)))) (eq (bv_or (extract v_5055 57 58) (extract v_5057 9 10)) (expression.bv_nat 1 1)))) (eq (bv_or (extract v_5055 56 57) (extract v_5057 8 9)) (expression.bv_nat 1 1))) (expression.bv_nat 1 1) (expression.bv_nat 1 0));
+      setRegister zf (zeroFlag v_5061);
       setRegister af undef;
-      setRegister sf (bv_or (extract v_4968 48 49) (extract v_4970 0 1));
+      setRegister sf (bv_or (extract v_5055 48 49) (extract v_5057 0 1));
       setRegister cf (expression.bv_nat 1 0);
       pure ()
     pat_end;
-    pattern fun (v_3030 : imm int) (v_3031 : reg (bv 16)) => do
-      v_5039 <- getRegister v_3031;
-      v_5041 <- eval (bv_or v_5039 (handleImmediateWithSignExtend v_3030 16 16));
-      setRegister (lhs.of_reg v_3031) v_5041;
+    pattern fun (v_3043 : imm int) (v_3042 : reg (bv 16)) => do
+      v_5126 <- getRegister v_3042;
+      v_5128 <- eval (bv_or v_5126 (handleImmediateWithSignExtend v_3043 16 16));
+      setRegister (lhs.of_reg v_3042) v_5128;
       setRegister of (expression.bv_nat 1 0);
-      setRegister pf (parityFlag (extract v_5041 8 16));
-      setRegister zf (zeroFlag v_5041);
+      setRegister pf (parityFlag (extract v_5128 8 16));
+      setRegister zf (zeroFlag v_5128);
       setRegister af undef;
-      setRegister sf (extract v_5041 0 1);
+      setRegister sf (extract v_5128 0 1);
       setRegister cf (expression.bv_nat 1 0);
       pure ()
     pat_end;
-    pattern fun (v_3039 : reg (bv 16)) (v_3040 : reg (bv 16)) => do
-      v_5057 <- getRegister v_3040;
-      v_5058 <- getRegister v_3039;
-      v_5059 <- eval (bv_or v_5057 v_5058);
-      setRegister (lhs.of_reg v_3040) v_5059;
+    pattern fun (v_3051 : reg (bv 16)) (v_3052 : reg (bv 16)) => do
+      v_5144 <- getRegister v_3052;
+      v_5145 <- getRegister v_3051;
+      v_5146 <- eval (bv_or v_5144 v_5145);
+      setRegister (lhs.of_reg v_3052) v_5146;
       setRegister of (expression.bv_nat 1 0);
-      setRegister pf (parityFlag (extract v_5059 8 16));
-      setRegister zf (zeroFlag v_5059);
+      setRegister pf (parityFlag (extract v_5146 8 16));
+      setRegister zf (zeroFlag v_5146);
       setRegister af undef;
-      setRegister sf (extract v_5059 0 1);
+      setRegister sf (extract v_5146 0 1);
       setRegister cf (expression.bv_nat 1 0);
       pure ()
     pat_end;
-    pattern fun (v_3034 : Mem) (v_3035 : reg (bv 16)) => do
-      v_9177 <- getRegister v_3035;
-      v_9178 <- evaluateAddress v_3034;
-      v_9179 <- load v_9178 2;
-      v_9180 <- eval (bv_or v_9177 v_9179);
-      setRegister (lhs.of_reg v_3035) v_9180;
+    pattern fun (v_3047 : Mem) (v_3048 : reg (bv 16)) => do
+      v_9252 <- getRegister v_3048;
+      v_9253 <- evaluateAddress v_3047;
+      v_9254 <- load v_9253 2;
+      v_9255 <- eval (bv_or v_9252 v_9254);
+      setRegister (lhs.of_reg v_3048) v_9255;
       setRegister of (expression.bv_nat 1 0);
-      setRegister pf (parityFlag (extract v_9180 8 16));
+      setRegister pf (parityFlag (extract v_9255 8 16));
+      setRegister zf (zeroFlag v_9255);
       setRegister af undef;
-      setRegister zf (zeroFlag v_9180);
-      setRegister sf (extract v_9180 0 1);
+      setRegister sf (extract v_9255 0 1);
       setRegister cf (expression.bv_nat 1 0);
       pure ()
     pat_end;
-    pattern fun (v_3022 : imm int) (v_3021 : Mem) => do
-      v_11313 <- evaluateAddress v_3021;
-      v_11314 <- load v_11313 2;
-      v_11316 <- eval (bv_or v_11314 (handleImmediateWithSignExtend v_3022 16 16));
-      store v_11313 v_11316 2;
+    pattern fun (v_3035 : imm int) (v_3034 : Mem) => do
+      v_11264 <- evaluateAddress v_3034;
+      v_11265 <- load v_11264 2;
+      v_11267 <- eval (bv_or v_11265 (handleImmediateWithSignExtend v_3035 16 16));
+      store v_11264 v_11267 2;
       setRegister of (expression.bv_nat 1 0);
-      setRegister pf (parityFlag (extract v_11316 8 16));
+      setRegister pf (parityFlag (extract v_11267 8 16));
       setRegister af undef;
-      setRegister zf (zeroFlag v_11316);
-      setRegister sf (extract v_11316 0 1);
+      setRegister zf (zeroFlag v_11267);
+      setRegister sf (extract v_11267 0 1);
       setRegister cf (expression.bv_nat 1 0);
       pure ()
     pat_end;
-    pattern fun (v_3026 : reg (bv 16)) (v_3025 : Mem) => do
-      v_11328 <- evaluateAddress v_3025;
-      v_11329 <- load v_11328 2;
-      v_11330 <- getRegister v_3026;
-      v_11331 <- eval (bv_or v_11329 v_11330);
-      store v_11328 v_11331 2;
+    pattern fun (v_3039 : reg (bv 16)) (v_3038 : Mem) => do
+      v_11279 <- evaluateAddress v_3038;
+      v_11280 <- load v_11279 2;
+      v_11281 <- getRegister v_3039;
+      v_11282 <- eval (bv_or v_11280 v_11281);
+      store v_11279 v_11282 2;
       setRegister of (expression.bv_nat 1 0);
-      setRegister pf (parityFlag (extract v_11331 8 16));
+      setRegister pf (parityFlag (extract v_11282 8 16));
       setRegister af undef;
-      setRegister zf (zeroFlag v_11331);
-      setRegister sf (extract v_11331 0 1);
+      setRegister zf (zeroFlag v_11282);
+      setRegister sf (extract v_11282 0 1);
       setRegister cf (expression.bv_nat 1 0);
       pure ()
     pat_end

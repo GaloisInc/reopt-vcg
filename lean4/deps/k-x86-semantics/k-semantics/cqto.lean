@@ -1,7 +1,7 @@
 def cqto1 : instruction :=
   definst "cqto" $ do
     pattern fun => do
-      v_4062 <- getRegister rax;
-      setRegister rdx (extract (mi 128 (svalueMInt v_4062)) 0 64);
+      v_4049 <- getRegister rax;
+      setRegister rdx (extract (leanSignExtend v_4049 128) 0 64);
       pure ()
     pat_end

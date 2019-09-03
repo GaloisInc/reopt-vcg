@@ -1,15 +1,15 @@
 def andnpd1 : instruction :=
   definst "andnpd" $ do
-    pattern fun (v_2794 : reg (bv 128)) (v_2795 : reg (bv 128)) => do
-      v_5404 <- getRegister v_2795;
-      v_5408 <- getRegister v_2794;
-      setRegister (lhs.of_reg v_2795) (bv_and (bv_xor v_5404 (mi (bitwidthMInt v_5404) -1)) v_5408);
+    pattern fun (v_2807 : reg (bv 128)) (v_2808 : reg (bv 128)) => do
+      v_5577 <- getRegister v_2808;
+      v_5579 <- getRegister v_2807;
+      setRegister (lhs.of_reg v_2808) (bv_and (bv_xor v_5577 (expression.bv_nat 128 340282366920938463463374607431768211455)) v_5579);
       pure ()
     pat_end;
-    pattern fun (v_2789 : Mem) (v_2790 : reg (bv 128)) => do
-      v_9360 <- getRegister v_2790;
-      v_9364 <- evaluateAddress v_2789;
-      v_9365 <- load v_9364 16;
-      setRegister (lhs.of_reg v_2790) (bv_and (bv_xor v_9360 (mi (bitwidthMInt v_9360) -1)) v_9365);
+    pattern fun (v_2802 : Mem) (v_2803 : reg (bv 128)) => do
+      v_9664 <- getRegister v_2803;
+      v_9666 <- evaluateAddress v_2802;
+      v_9667 <- load v_9666 16;
+      setRegister (lhs.of_reg v_2803) (bv_and (bv_xor v_9664 (expression.bv_nat 128 340282366920938463463374607431768211455)) v_9667);
       pure ()
     pat_end

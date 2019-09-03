@@ -1,18 +1,18 @@
 def maxsd1 : instruction :=
   definst "maxsd" $ do
-    pattern fun (v_3069 : reg (bv 128)) (v_3070 : reg (bv 128)) => do
-      v_5777 <- getRegister v_3070;
-      v_5779 <- eval (extract v_5777 64 128);
-      v_5780 <- getRegister v_3069;
-      v_5781 <- eval (extract v_5780 64 128);
-      setRegister (lhs.of_reg v_3070) (concat (extract v_5777 0 64) (mux (eq (_(_,_)_MINT-WRAPPER-SYNTAX maxcmp_double v_5779 v_5781) (expression.bv_nat 1 1)) v_5779 v_5781));
+    pattern fun (v_3082 : reg (bv 128)) (v_3083 : reg (bv 128)) => do
+      v_6074 <- getRegister v_3083;
+      v_6076 <- eval (extract v_6074 64 128);
+      v_6077 <- getRegister v_3082;
+      v_6078 <- eval (extract v_6077 64 128);
+      setRegister (lhs.of_reg v_3083) (concat (extract v_6074 0 64) (mux (eq (_(_,_)_MINT-WRAPPER-SYNTAX maxcmp_double v_6076 v_6078) (expression.bv_nat 1 1)) v_6076 v_6078));
       pure ()
     pat_end;
-    pattern fun (v_3065 : Mem) (v_3066 : reg (bv 128)) => do
-      v_9224 <- getRegister v_3066;
-      v_9226 <- eval (extract v_9224 64 128);
-      v_9227 <- evaluateAddress v_3065;
-      v_9228 <- load v_9227 8;
-      setRegister (lhs.of_reg v_3066) (concat (extract v_9224 0 64) (mux (eq (_(_,_)_MINT-WRAPPER-SYNTAX maxcmp_double v_9226 v_9228) (expression.bv_nat 1 1)) v_9226 v_9228));
+    pattern fun (v_3076 : Mem) (v_3078 : reg (bv 128)) => do
+      v_9814 <- getRegister v_3078;
+      v_9816 <- eval (extract v_9814 64 128);
+      v_9817 <- evaluateAddress v_3076;
+      v_9818 <- load v_9817 8;
+      setRegister (lhs.of_reg v_3078) (concat (extract v_9814 0 64) (mux (eq (_(_,_)_MINT-WRAPPER-SYNTAX maxcmp_double v_9816 v_9818) (expression.bv_nat 1 1)) v_9816 v_9818));
       pure ()
     pat_end

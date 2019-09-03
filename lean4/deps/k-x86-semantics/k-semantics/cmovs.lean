@@ -1,26 +1,26 @@
 def cmovs1 : instruction :=
   definst "cmovs" $ do
-    pattern fun (v_3223 : Mem) (v_3222 : reg (bv 32)) => do
-      v_9147 <- getRegister sf;
-      v_9149 <- evaluateAddress v_3223;
-      v_9150 <- load v_9149 4;
-      v_9151 <- getRegister v_3222;
-      setRegister (lhs.of_reg v_3222) (mux (eq v_9147 (expression.bv_nat 1 1)) v_9150 v_9151);
+    pattern fun (v_3234 : Mem) (v_3235 : reg (bv 32)) => do
+      v_9088 <- getRegister sf;
+      v_9090 <- evaluateAddress v_3234;
+      v_9091 <- load v_9090 4;
+      v_9092 <- getRegister v_3235;
+      setRegister (lhs.of_reg v_3235) (mux (eq v_9088 (expression.bv_nat 1 1)) v_9091 v_9092);
       pure ()
     pat_end;
-    pattern fun (v_3239 : Mem) (v_3240 : reg (bv 64)) => do
-      v_9154 <- getRegister sf;
-      v_9156 <- evaluateAddress v_3239;
-      v_9157 <- load v_9156 8;
-      v_9158 <- getRegister v_3240;
-      setRegister (lhs.of_reg v_3240) (mux (eq v_9154 (expression.bv_nat 1 1)) v_9157 v_9158);
+    pattern fun (v_3251 : Mem) (v_3252 : reg (bv 64)) => do
+      v_9095 <- getRegister sf;
+      v_9097 <- evaluateAddress v_3251;
+      v_9098 <- load v_9097 8;
+      v_9099 <- getRegister v_3252;
+      setRegister (lhs.of_reg v_3252) (mux (eq v_9095 (expression.bv_nat 1 1)) v_9098 v_9099);
       pure ()
     pat_end;
-    pattern fun (v_3257 : Mem) (v_3256 : reg (bv 16)) => do
-      v_9161 <- getRegister sf;
-      v_9163 <- evaluateAddress v_3257;
-      v_9164 <- load v_9163 2;
-      v_9165 <- getRegister v_3256;
-      setRegister (lhs.of_reg v_3256) (mux (eq v_9161 (expression.bv_nat 1 1)) v_9164 v_9165);
+    pattern fun (v_3268 : Mem) (v_3270 : reg (bv 16)) => do
+      v_9102 <- getRegister sf;
+      v_9104 <- evaluateAddress v_3268;
+      v_9105 <- load v_9104 2;
+      v_9106 <- getRegister v_3270;
+      setRegister (lhs.of_reg v_3270) (mux (eq v_9102 (expression.bv_nat 1 1)) v_9105 v_9106);
       pure ()
     pat_end

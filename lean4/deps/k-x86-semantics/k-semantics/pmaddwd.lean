@@ -1,15 +1,15 @@
 def pmaddwd1 : instruction :=
   definst "pmaddwd" $ do
-    pattern fun (v_2539 : reg (bv 128)) (v_2540 : reg (bv 128)) => do
-      v_4698 <- getRegister v_2539;
-      v_4702 <- getRegister v_2540;
-      setRegister (lhs.of_reg v_2540) (concat (add (mul (mi 32 (svalueMInt (extract v_4698 16 32))) (mi 32 (svalueMInt (extract v_4702 16 32)))) (mul (mi 32 (svalueMInt (extract v_4698 0 16))) (mi 32 (svalueMInt (extract v_4702 0 16))))) (concat (add (mul (mi 32 (svalueMInt (extract v_4698 48 64))) (mi 32 (svalueMInt (extract v_4702 48 64)))) (mul (mi 32 (svalueMInt (extract v_4698 32 48))) (mi 32 (svalueMInt (extract v_4702 32 48))))) (concat (add (mul (mi 32 (svalueMInt (extract v_4698 80 96))) (mi 32 (svalueMInt (extract v_4702 80 96)))) (mul (mi 32 (svalueMInt (extract v_4698 64 80))) (mi 32 (svalueMInt (extract v_4702 64 80))))) (add (mul (mi 32 (svalueMInt (extract v_4698 112 128))) (mi 32 (svalueMInt (extract v_4702 112 128)))) (mul (mi 32 (svalueMInt (extract v_4698 96 112))) (mi 32 (svalueMInt (extract v_4702 96 112))))))));
+    pattern fun (v_2553 : reg (bv 128)) (v_2554 : reg (bv 128)) => do
+      v_4647 <- getRegister v_2553;
+      v_4650 <- getRegister v_2554;
+      setRegister (lhs.of_reg v_2554) (concat (add (mul (leanSignExtend (extract v_4647 16 32) 32) (leanSignExtend (extract v_4650 16 32) 32)) (mul (leanSignExtend (extract v_4647 0 16) 32) (leanSignExtend (extract v_4650 0 16) 32))) (concat (add (mul (leanSignExtend (extract v_4647 48 64) 32) (leanSignExtend (extract v_4650 48 64) 32)) (mul (leanSignExtend (extract v_4647 32 48) 32) (leanSignExtend (extract v_4650 32 48) 32))) (concat (add (mul (leanSignExtend (extract v_4647 80 96) 32) (leanSignExtend (extract v_4650 80 96) 32)) (mul (leanSignExtend (extract v_4647 64 80) 32) (leanSignExtend (extract v_4650 64 80) 32))) (add (mul (leanSignExtend (extract v_4647 112 128) 32) (leanSignExtend (extract v_4650 112 128) 32)) (mul (leanSignExtend (extract v_4647 96 112) 32) (leanSignExtend (extract v_4650 96 112) 32))))));
       pure ()
     pat_end;
-    pattern fun (v_2534 : Mem) (v_2535 : reg (bv 128)) => do
-      v_12104 <- evaluateAddress v_2534;
-      v_12105 <- load v_12104 16;
-      v_12109 <- getRegister v_2535;
-      setRegister (lhs.of_reg v_2535) (concat (add (mul (mi 32 (svalueMInt (extract v_12105 16 32))) (mi 32 (svalueMInt (extract v_12109 16 32)))) (mul (mi 32 (svalueMInt (extract v_12105 0 16))) (mi 32 (svalueMInt (extract v_12109 0 16))))) (concat (add (mul (mi 32 (svalueMInt (extract v_12105 48 64))) (mi 32 (svalueMInt (extract v_12109 48 64)))) (mul (mi 32 (svalueMInt (extract v_12105 32 48))) (mi 32 (svalueMInt (extract v_12109 32 48))))) (concat (add (mul (mi 32 (svalueMInt (extract v_12105 80 96))) (mi 32 (svalueMInt (extract v_12109 80 96)))) (mul (mi 32 (svalueMInt (extract v_12105 64 80))) (mi 32 (svalueMInt (extract v_12109 64 80))))) (add (mul (mi 32 (svalueMInt (extract v_12105 112 128))) (mi 32 (svalueMInt (extract v_12109 112 128)))) (mul (mi 32 (svalueMInt (extract v_12105 96 112))) (mi 32 (svalueMInt (extract v_12109 96 112))))))));
+    pattern fun (v_2549 : Mem) (v_2550 : reg (bv 128)) => do
+      v_11727 <- evaluateAddress v_2549;
+      v_11728 <- load v_11727 16;
+      v_11731 <- getRegister v_2550;
+      setRegister (lhs.of_reg v_2550) (concat (add (mul (leanSignExtend (extract v_11728 16 32) 32) (leanSignExtend (extract v_11731 16 32) 32)) (mul (leanSignExtend (extract v_11728 0 16) 32) (leanSignExtend (extract v_11731 0 16) 32))) (concat (add (mul (leanSignExtend (extract v_11728 48 64) 32) (leanSignExtend (extract v_11731 48 64) 32)) (mul (leanSignExtend (extract v_11728 32 48) 32) (leanSignExtend (extract v_11731 32 48) 32))) (concat (add (mul (leanSignExtend (extract v_11728 80 96) 32) (leanSignExtend (extract v_11731 80 96) 32)) (mul (leanSignExtend (extract v_11728 64 80) 32) (leanSignExtend (extract v_11731 64 80) 32))) (add (mul (leanSignExtend (extract v_11728 112 128) 32) (leanSignExtend (extract v_11731 112 128) 32)) (mul (leanSignExtend (extract v_11728 96 112) 32) (leanSignExtend (extract v_11731 96 112) 32))))));
       pure ()
     pat_end

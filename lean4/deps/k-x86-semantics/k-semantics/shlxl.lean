@@ -1,15 +1,15 @@
 def shlxl1 : instruction :=
   definst "shlxl" $ do
-    pattern fun (v_2830 : reg (bv 32)) (v_2831 : reg (bv 32)) (v_2832 : reg (bv 32)) => do
-      v_5452 <- getRegister v_2831;
-      v_5453 <- getRegister v_2830;
-      setRegister (lhs.of_reg v_2832) (extract (shl v_5452 (uvalueMInt (bv_and v_5453 (expression.bv_nat 32 31)))) 0 (bitwidthMInt v_5452));
+    pattern fun (v_2843 : reg (bv 32)) (v_2844 : reg (bv 32)) (v_2845 : reg (bv 32)) => do
+      v_5450 <- getRegister v_2844;
+      v_5451 <- getRegister v_2843;
+      setRegister (lhs.of_reg v_2845) (extract (shl v_5450 (uvalueMInt (bv_and v_5451 (expression.bv_nat 32 31)))) 0 32);
       pure ()
     pat_end;
-    pattern fun (v_2820 : reg (bv 32)) (v_2819 : Mem) (v_2821 : reg (bv 32)) => do
-      v_10078 <- evaluateAddress v_2819;
-      v_10079 <- load v_10078 4;
-      v_10080 <- getRegister v_2820;
-      setRegister (lhs.of_reg v_2821) (extract (shl v_10079 (uvalueMInt (bv_and v_10080 (expression.bv_nat 32 31)))) 0 (bitwidthMInt v_10079));
+    pattern fun (v_2833 : reg (bv 32)) (v_2832 : Mem) (v_2834 : reg (bv 32)) => do
+      v_10102 <- evaluateAddress v_2832;
+      v_10103 <- load v_10102 4;
+      v_10104 <- getRegister v_2833;
+      setRegister (lhs.of_reg v_2834) (extract (shl v_10103 (uvalueMInt (bv_and v_10104 (expression.bv_nat 32 31)))) 0 32);
       pure ()
     pat_end

@@ -1,15 +1,15 @@
 def andnps1 : instruction :=
   definst "andnps" $ do
-    pattern fun (v_2803 : reg (bv 128)) (v_2804 : reg (bv 128)) => do
-      v_5415 <- getRegister v_2804;
-      v_5419 <- getRegister v_2803;
-      setRegister (lhs.of_reg v_2804) (bv_and (bv_xor v_5415 (mi (bitwidthMInt v_5415) -1)) v_5419);
+    pattern fun (v_2816 : reg (bv 128)) (v_2817 : reg (bv 128)) => do
+      v_5586 <- getRegister v_2817;
+      v_5588 <- getRegister v_2816;
+      setRegister (lhs.of_reg v_2817) (bv_and (bv_xor v_5586 (expression.bv_nat 128 340282366920938463463374607431768211455)) v_5588);
       pure ()
     pat_end;
-    pattern fun (v_2798 : Mem) (v_2799 : reg (bv 128)) => do
-      v_9368 <- getRegister v_2799;
-      v_9372 <- evaluateAddress v_2798;
-      v_9373 <- load v_9372 16;
-      setRegister (lhs.of_reg v_2799) (bv_and (bv_xor v_9368 (mi (bitwidthMInt v_9368) -1)) v_9373);
+    pattern fun (v_2811 : Mem) (v_2812 : reg (bv 128)) => do
+      v_9670 <- getRegister v_2812;
+      v_9672 <- evaluateAddress v_2811;
+      v_9673 <- load v_9672 16;
+      setRegister (lhs.of_reg v_2812) (bv_and (bv_xor v_9670 (expression.bv_nat 128 340282366920938463463374607431768211455)) v_9673);
       pure ()
     pat_end

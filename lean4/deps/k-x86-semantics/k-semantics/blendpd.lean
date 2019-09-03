@@ -1,17 +1,17 @@
 def blendpd1 : instruction :=
   definst "blendpd" $ do
-    pattern fun (v_2914 : imm int) (v_2917 : reg (bv 128)) (v_2918 : reg (bv 128)) => do
-      v_5783 <- eval (handleImmediateWithSignExtend v_2914 8 8);
-      v_5786 <- getRegister v_2918;
-      v_5788 <- getRegister v_2917;
-      setRegister (lhs.of_reg v_2918) (concat (mux (eq (extract v_5783 6 7) (expression.bv_nat 1 0)) (extract v_5786 0 64) (extract v_5788 0 64)) (mux (eq (extract v_5783 7 8) (expression.bv_nat 1 0)) (extract v_5786 64 128) (extract v_5788 64 128)));
+    pattern fun (v_2928 : imm int) (v_2930 : reg (bv 128)) (v_2931 : reg (bv 128)) => do
+      v_5942 <- eval (handleImmediateWithSignExtend v_2928 8 8);
+      v_5945 <- getRegister v_2931;
+      v_5947 <- getRegister v_2930;
+      setRegister (lhs.of_reg v_2931) (concat (mux (eq (extract v_5942 6 7) (expression.bv_nat 1 0)) (extract v_5945 0 64) (extract v_5947 0 64)) (mux (eq (extract v_5942 7 8) (expression.bv_nat 1 0)) (extract v_5945 64 128) (extract v_5947 64 128)));
       pure ()
     pat_end;
-    pattern fun (v_2909 : imm int) (v_2911 : Mem) (v_2912 : reg (bv 128)) => do
-      v_9499 <- eval (handleImmediateWithSignExtend v_2909 8 8);
-      v_9502 <- getRegister v_2912;
-      v_9504 <- evaluateAddress v_2911;
-      v_9505 <- load v_9504 16;
-      setRegister (lhs.of_reg v_2912) (concat (mux (eq (extract v_9499 6 7) (expression.bv_nat 1 0)) (extract v_9502 0 64) (extract v_9505 0 64)) (mux (eq (extract v_9499 7 8) (expression.bv_nat 1 0)) (extract v_9502 64 128) (extract v_9505 64 128)));
+    pattern fun (v_2924 : imm int) (v_2923 : Mem) (v_2925 : reg (bv 128)) => do
+      v_9791 <- eval (handleImmediateWithSignExtend v_2924 8 8);
+      v_9794 <- getRegister v_2925;
+      v_9796 <- evaluateAddress v_2923;
+      v_9797 <- load v_9796 16;
+      setRegister (lhs.of_reg v_2925) (concat (mux (eq (extract v_9791 6 7) (expression.bv_nat 1 0)) (extract v_9794 0 64) (extract v_9797 0 64)) (mux (eq (extract v_9791 7 8) (expression.bv_nat 1 0)) (extract v_9794 64 128) (extract v_9797 64 128)));
       pure ()
     pat_end

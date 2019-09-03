@@ -1,13 +1,13 @@
 def pmovsxbd1 : instruction :=
   definst "pmovsxbd" $ do
-    pattern fun (v_2666 : reg (bv 128)) (v_2667 : reg (bv 128)) => do
-      v_5468 <- getRegister v_2666;
-      setRegister (lhs.of_reg v_2667) (concat (mi 32 (svalueMInt (extract v_5468 96 104))) (concat (mi 32 (svalueMInt (extract v_5468 104 112))) (concat (mi 32 (svalueMInt (extract v_5468 112 120))) (mi 32 (svalueMInt (extract v_5468 120 128))))));
+    pattern fun (v_2680 : reg (bv 128)) (v_2681 : reg (bv 128)) => do
+      v_5401 <- getRegister v_2680;
+      setRegister (lhs.of_reg v_2681) (concat (leanSignExtend (extract v_5401 96 104) 32) (concat (leanSignExtend (extract v_5401 104 112) 32) (concat (leanSignExtend (extract v_5401 112 120) 32) (leanSignExtend (extract v_5401 120 128) 32))));
       pure ()
     pat_end;
-    pattern fun (v_2661 : Mem) (v_2662 : reg (bv 128)) => do
-      v_12767 <- evaluateAddress v_2661;
-      v_12768 <- load v_12767 4;
-      setRegister (lhs.of_reg v_2662) (concat (mi 32 (svalueMInt (extract v_12768 0 8))) (concat (mi 32 (svalueMInt (extract v_12768 8 16))) (concat (mi 32 (svalueMInt (extract v_12768 16 24))) (mi 32 (svalueMInt (extract v_12768 24 32))))));
+    pattern fun (v_2676 : Mem) (v_2677 : reg (bv 128)) => do
+      v_12374 <- evaluateAddress v_2676;
+      v_12375 <- load v_12374 4;
+      setRegister (lhs.of_reg v_2677) (concat (leanSignExtend (extract v_12375 0 8) 32) (concat (leanSignExtend (extract v_12375 8 16) 32) (concat (leanSignExtend (extract v_12375 16 24) 32) (leanSignExtend (extract v_12375 24 32) 32))));
       pure ()
     pat_end

@@ -1,24 +1,24 @@
 def vcvttss2si1 : instruction :=
   definst "vcvttss2si" $ do
-    pattern fun (v_3329 : reg (bv 128)) (v_3326 : reg (bv 32)) => do
-      v_6410 <- getRegister v_3329;
-      setRegister (lhs.of_reg v_3326) (_(_)_MINT-WRAPPER-SYNTAX cvt_single_to_int32_truncate (extract v_6410 96 128));
+    pattern fun (v_3342 : reg (bv 128)) (v_3338 : reg (bv 32)) => do
+      v_7097 <- getRegister v_3342;
+      setRegister (lhs.of_reg v_3338) (_(_)_MINT-WRAPPER-SYNTAX cvt_single_to_int32_truncate (extract v_7097 96 128));
       pure ()
     pat_end;
-    pattern fun (v_3338 : reg (bv 128)) (v_3335 : reg (bv 64)) => do
-      v_6418 <- getRegister v_3338;
-      setRegister (lhs.of_reg v_3335) (_(_)_MINT-WRAPPER-SYNTAX cvt_single_to_int64_truncate (extract v_6418 96 128));
+    pattern fun (v_3351 : reg (bv 128)) (v_3347 : reg (bv 64)) => do
+      v_7105 <- getRegister v_3351;
+      setRegister (lhs.of_reg v_3347) (_(_)_MINT-WRAPPER-SYNTAX cvt_single_to_int64_truncate (extract v_7105 96 128));
       pure ()
     pat_end;
-    pattern fun (v_3321 : Mem) (v_3322 : reg (bv 32)) => do
-      v_10591 <- evaluateAddress v_3321;
-      v_10592 <- load v_10591 4;
-      setRegister (lhs.of_reg v_3322) (_(_)_MINT-WRAPPER-SYNTAX cvt_single_to_int32_truncate v_10592);
+    pattern fun (v_3335 : Mem) (v_3334 : reg (bv 32)) => do
+      v_12325 <- evaluateAddress v_3335;
+      v_12326 <- load v_12325 4;
+      setRegister (lhs.of_reg v_3334) (_(_)_MINT-WRAPPER-SYNTAX cvt_single_to_int32_truncate v_12326);
       pure ()
     pat_end;
-    pattern fun (v_3330 : Mem) (v_3331 : reg (bv 64)) => do
-      v_10595 <- evaluateAddress v_3330;
-      v_10596 <- load v_10595 4;
-      setRegister (lhs.of_reg v_3331) (_(_)_MINT-WRAPPER-SYNTAX cvt_single_to_int64_truncate v_10596);
+    pattern fun (v_3343 : Mem) (v_3344 : reg (bv 64)) => do
+      v_12329 <- evaluateAddress v_3343;
+      v_12330 <- load v_12329 4;
+      setRegister (lhs.of_reg v_3344) (_(_)_MINT-WRAPPER-SYNTAX cvt_single_to_int64_truncate v_12330);
       pure ()
     pat_end

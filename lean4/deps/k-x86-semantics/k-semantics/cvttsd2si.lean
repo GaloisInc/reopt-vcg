@@ -1,24 +1,24 @@
 def cvttsd2si1 : instruction :=
   definst "cvttsd2si" $ do
-    pattern fun (v_2633 : reg (bv 128)) (v_2634 : reg (bv 32)) => do
-      v_4314 <- getRegister v_2633;
-      setRegister (lhs.of_reg v_2634) (_(_)_MINT-WRAPPER-SYNTAX cvt_double_to_int32_truncate (extract v_4314 64 128));
+    pattern fun (v_2647 : reg (bv 128)) (v_2645 : reg (bv 32)) => do
+      v_4336 <- getRegister v_2647;
+      setRegister (lhs.of_reg v_2645) (_(_)_MINT-WRAPPER-SYNTAX cvt_double_to_int32_truncate (extract v_4336 64 128));
       pure ()
     pat_end;
-    pattern fun (v_2643 : reg (bv 128)) (v_2642 : reg (bv 64)) => do
-      v_4322 <- getRegister v_2643;
-      setRegister (lhs.of_reg v_2642) (_(_)_MINT-WRAPPER-SYNTAX cvt_double_to_int64_truncate (extract v_4322 64 128));
+    pattern fun (v_2656 : reg (bv 128)) (v_2654 : reg (bv 64)) => do
+      v_4344 <- getRegister v_2656;
+      setRegister (lhs.of_reg v_2654) (_(_)_MINT-WRAPPER-SYNTAX cvt_double_to_int64_truncate (extract v_4344 64 128));
       pure ()
     pat_end;
-    pattern fun (v_2629 : Mem) (v_2630 : reg (bv 32)) => do
-      v_8221 <- evaluateAddress v_2629;
-      v_8222 <- load v_8221 8;
-      setRegister (lhs.of_reg v_2630) (_(_)_MINT-WRAPPER-SYNTAX cvt_double_to_int32_truncate v_8222);
+    pattern fun (v_2640 : Mem) (v_2641 : reg (bv 32)) => do
+      v_8529 <- evaluateAddress v_2640;
+      v_8530 <- load v_8529 8;
+      setRegister (lhs.of_reg v_2641) (_(_)_MINT-WRAPPER-SYNTAX cvt_double_to_int32_truncate v_8530);
       pure ()
     pat_end;
-    pattern fun (v_2638 : Mem) (v_2639 : reg (bv 64)) => do
-      v_8225 <- evaluateAddress v_2638;
-      v_8226 <- load v_8225 8;
-      setRegister (lhs.of_reg v_2639) (_(_)_MINT-WRAPPER-SYNTAX cvt_double_to_int64_truncate v_8226);
+    pattern fun (v_2649 : Mem) (v_2650 : reg (bv 64)) => do
+      v_8533 <- evaluateAddress v_2649;
+      v_8534 <- load v_8533 8;
+      setRegister (lhs.of_reg v_2650) (_(_)_MINT-WRAPPER-SYNTAX cvt_double_to_int64_truncate v_8534);
       pure ()
     pat_end

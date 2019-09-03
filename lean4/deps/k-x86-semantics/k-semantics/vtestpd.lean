@@ -1,9 +1,9 @@
 def vtestpd1 : instruction :=
   definst "vtestpd" $ do
-    pattern fun (v_2426 : reg (bv 128)) (v_2427 : reg (bv 128)) => do
-      v_3388 <- getRegister v_2427;
+    pattern fun (v_2428 : reg (bv 128)) (v_2429 : reg (bv 128)) => do
+      v_3388 <- getRegister v_2429;
       v_3389 <- eval (extract v_3388 64 65);
-      v_3393 <- getRegister v_2426;
+      v_3393 <- getRegister v_2428;
       v_3394 <- eval (extract v_3393 64 65);
       v_3397 <- eval (extract v_3388 0 1);
       v_3401 <- eval (extract v_3393 0 1);
@@ -34,8 +34,8 @@ def vtestpd1 : instruction :=
       setRegister cf (mux (bit_and (bit_and (bit_and (eq (bv_and (bv_xor v_3423 (mi (bitwidthMInt v_3423) -1)) v_3428) (expression.bv_nat 1 0)) (eq (bv_and (bv_xor v_3431 (mi (bitwidthMInt v_3431) -1)) v_3435) (expression.bv_nat 1 0))) (eq (bv_and (bv_xor v_3439 (mi (bitwidthMInt v_3439) -1)) v_3443) (expression.bv_nat 1 0))) (eq (bv_and (bv_xor v_3447 (mi (bitwidthMInt v_3447) -1)) v_3451) (expression.bv_nat 1 0))) (expression.bv_nat 1 1) (expression.bv_nat 1 0));
       pure ()
     pat_end;
-    pattern fun (v_2422 : Mem) (v_2423 : reg (bv 128)) => do
-      v_6660 <- getRegister v_2423;
+    pattern fun (v_2422 : Mem) (v_2424 : reg (bv 128)) => do
+      v_6660 <- getRegister v_2424;
       v_6661 <- eval (extract v_6660 64 65);
       v_6665 <- evaluateAddress v_2422;
       v_6666 <- load v_6665 16;

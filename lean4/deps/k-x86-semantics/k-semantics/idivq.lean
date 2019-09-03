@@ -1,12 +1,12 @@
 def idivq1 : instruction :=
   definst "idivq" $ do
-    pattern fun (v_2867 : reg (bv 64)) => do
-      v_4950 <- getRegister rdx;
-      v_4951 <- getRegister rax;
-      v_4952 <- eval (concat v_4950 v_4951);
-      v_4953 <- getRegister v_2867;
-      setRegister rdx (_(_,_)_MINT-WRAPPER-SYNTAX idiv_remainder_int64 v_4952 v_4953);
-      setRegister rax (_(_,_)_MINT-WRAPPER-SYNTAX idiv_quotient_int64 v_4952 v_4953);
+    pattern fun (v_2879 : reg (bv 64)) => do
+      v_5280 <- getRegister rdx;
+      v_5281 <- getRegister rax;
+      v_5282 <- eval (concat v_5280 v_5281);
+      v_5283 <- getRegister v_2879;
+      setRegister rdx (_(_,_)_MINT-WRAPPER-SYNTAX idiv_remainder_int64 v_5282 v_5283);
+      setRegister rax (_(_,_)_MINT-WRAPPER-SYNTAX idiv_quotient_int64 v_5282 v_5283);
       setRegister of undef;
       setRegister zf undef;
       setRegister pf undef;
@@ -15,14 +15,14 @@ def idivq1 : instruction :=
       setRegister cf undef;
       pure ()
     pat_end;
-    pattern fun (v_2864 : Mem) => do
-      v_8612 <- getRegister rdx;
-      v_8613 <- getRegister rax;
-      v_8614 <- eval (concat v_8612 v_8613);
-      v_8615 <- evaluateAddress v_2864;
-      v_8616 <- load v_8615 8;
-      setRegister rdx (_(_,_)_MINT-WRAPPER-SYNTAX idiv_remainder_int64 v_8614 v_8616);
-      setRegister rax (_(_,_)_MINT-WRAPPER-SYNTAX idiv_quotient_int64 v_8614 v_8616);
+    pattern fun (v_2875 : Mem) => do
+      v_9232 <- getRegister rdx;
+      v_9233 <- getRegister rax;
+      v_9234 <- eval (concat v_9232 v_9233);
+      v_9235 <- evaluateAddress v_2875;
+      v_9236 <- load v_9235 8;
+      setRegister rdx (_(_,_)_MINT-WRAPPER-SYNTAX idiv_remainder_int64 v_9234 v_9236);
+      setRegister rax (_(_,_)_MINT-WRAPPER-SYNTAX idiv_quotient_int64 v_9234 v_9236);
       setRegister of undef;
       setRegister zf undef;
       setRegister pf undef;

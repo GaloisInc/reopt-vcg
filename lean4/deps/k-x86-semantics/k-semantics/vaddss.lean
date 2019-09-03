@@ -1,15 +1,18 @@
 def vaddss1 : instruction :=
   definst "vaddss" $ do
-    pattern fun (v_2625 : reg (bv 128)) (v_2626 : reg (bv 128)) (v_2627 : reg (bv 128)) => do
-      v_4983 <- getRegister v_2626;
-      v_4987 <- getRegister v_2625;
-      setRegister (lhs.of_reg v_2627) (concat (extract v_4983 0 96) (Float2MInt (_+Float__FLOAT (MInt2Float (extract v_4983 96 128) 24 8) (MInt2Float (extract v_4987 96 128) 24 8)) 32));
+    pattern fun (v_2638 : reg (bv 128)) (v_2639 : reg (bv 128)) (v_2640 : reg (bv 128)) => do
+      v_5222 <- getRegister v_2639;
+      v_5224 <- eval (extract v_5222 96 128);
+      v_5232 <- getRegister v_2638;
+      v_5233 <- eval (extract v_5232 96 128);
+      setRegister (lhs.of_reg v_2640) (concat (extract v_5222 0 96) (Float2MInt (_+Float__FLOAT (MIntToFloatImpl 24 8 (uvalueMInt (extract v_5224 0 1)) (uvalueMInt (extract v_5224 1 9)) (uvalueMInt (extract v_5224 9 32))) (MIntToFloatImpl 24 8 (uvalueMInt (extract v_5233 0 1)) (uvalueMInt (extract v_5233 1 9)) (uvalueMInt (extract v_5233 9 32)))) 32));
       pure ()
     pat_end;
-    pattern fun (v_2617 : Mem) (v_2620 : reg (bv 128)) (v_2621 : reg (bv 128)) => do
-      v_9431 <- getRegister v_2620;
-      v_9435 <- evaluateAddress v_2617;
-      v_9436 <- load v_9435 4;
-      setRegister (lhs.of_reg v_2621) (concat (extract v_9431 0 96) (Float2MInt (_+Float__FLOAT (MInt2Float (extract v_9431 96 128) 24 8) (MInt2Float v_9436 24 8)) 32));
+    pattern fun (v_2630 : Mem) (v_2633 : reg (bv 128)) (v_2634 : reg (bv 128)) => do
+      v_10753 <- getRegister v_2633;
+      v_10755 <- eval (extract v_10753 96 128);
+      v_10763 <- evaluateAddress v_2630;
+      v_10764 <- load v_10763 4;
+      setRegister (lhs.of_reg v_2634) (concat (extract v_10753 0 96) (Float2MInt (_+Float__FLOAT (MIntToFloatImpl 24 8 (uvalueMInt (extract v_10755 0 1)) (uvalueMInt (extract v_10755 1 9)) (uvalueMInt (extract v_10755 9 32))) (MIntToFloatImpl 24 8 (uvalueMInt (extract v_10764 0 1)) (uvalueMInt (extract v_10764 1 9)) (uvalueMInt (extract v_10764 9 32)))) 32));
       pure ()
     pat_end

@@ -1,23 +1,19 @@
 def vpinsrw1 : instruction :=
   definst "vpinsrw" $ do
-    pattern fun (v_3328 : imm int) (v_3334 : reg (bv 32)) (v_3332 : reg (bv 128)) (v_3333 : reg (bv 128)) => do
-      v_10076 <- getRegister v_3332;
-      v_10079 <- eval (concat (expression.bv_nat 125 0) (extract (handleImmediateWithSignExtend v_3328 8 8) 5 8));
-      v_10083 <- eval (uvalueMInt (extract (shl v_10079 4) 0 (bitwidthMInt v_10079)));
-      v_10085 <- eval (extract (shl (expression.bv_nat 128 65535) v_10083) 0 128);
-      v_10090 <- getRegister v_3334;
-      v_10091 <- eval (concat (expression.bv_nat 96 0) v_10090);
-      setRegister (lhs.of_reg v_3333) (bv_or (bv_and v_10076 (bv_xor v_10085 (mi (bitwidthMInt v_10085) -1))) (bv_and (extract (shl v_10091 v_10083) 0 (bitwidthMInt v_10091)) v_10085));
+    pattern fun (v_3345 : imm int) (v_3347 : reg (bv 32)) (v_3341 : reg (bv 128)) (v_3342 : reg (bv 128)) => do
+      v_9817 <- getRegister v_3341;
+      v_9823 <- eval (uvalueMInt (extract (shl (concat (expression.bv_nat 125 0) (extract (handleImmediateWithSignExtend v_3345 8 8) 5 8)) 4) 0 128));
+      v_9825 <- eval (extract (shl (expression.bv_nat 128 65535) v_9823) 0 128);
+      v_9828 <- getRegister v_3347;
+      setRegister (lhs.of_reg v_3342) (bv_or (bv_and v_9817 (bv_xor v_9825 (expression.bv_nat 128 340282366920938463463374607431768211455))) (bv_and (extract (shl (concat (expression.bv_nat 96 0) v_9828) v_9823) 0 128) v_9825));
       pure ()
     pat_end;
-    pattern fun (v_3322 : imm int) (v_3325 : Mem) (v_3326 : reg (bv 128)) (v_3327 : reg (bv 128)) => do
-      v_19037 <- getRegister v_3326;
-      v_19040 <- eval (concat (expression.bv_nat 125 0) (extract (handleImmediateWithSignExtend v_3322 8 8) 5 8));
-      v_19044 <- eval (uvalueMInt (extract (shl v_19040 4) 0 (bitwidthMInt v_19040)));
-      v_19046 <- eval (extract (shl (expression.bv_nat 128 65535) v_19044) 0 128);
-      v_19051 <- evaluateAddress v_3325;
-      v_19052 <- load v_19051 2;
-      v_19053 <- eval (concat (expression.bv_nat 112 0) v_19052);
-      setRegister (lhs.of_reg v_3327) (bv_or (bv_and v_19037 (bv_xor v_19046 (mi (bitwidthMInt v_19046) -1))) (bv_and (extract (shl v_19053 v_19044) 0 (bitwidthMInt v_19053)) v_19046));
+    pattern fun (v_3340 : imm int) (v_3339 : Mem) (v_3335 : reg (bv 128)) (v_3336 : reg (bv 128)) => do
+      v_18412 <- getRegister v_3335;
+      v_18418 <- eval (uvalueMInt (extract (shl (concat (expression.bv_nat 125 0) (extract (handleImmediateWithSignExtend v_3340 8 8) 5 8)) 4) 0 128));
+      v_18420 <- eval (extract (shl (expression.bv_nat 128 65535) v_18418) 0 128);
+      v_18423 <- evaluateAddress v_3339;
+      v_18424 <- load v_18423 2;
+      setRegister (lhs.of_reg v_3336) (bv_or (bv_and v_18412 (bv_xor v_18420 (expression.bv_nat 128 340282366920938463463374607431768211455))) (bv_and (extract (shl (concat (expression.bv_nat 112 0) v_18424) v_18418) 0 128) v_18420));
       pure ()
     pat_end

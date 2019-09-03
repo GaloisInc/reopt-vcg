@@ -1,29 +1,29 @@
 def blsrq1 : instruction :=
   definst "blsrq" $ do
-    pattern fun (v_3000 : reg (bv 64)) (v_3001 : reg (bv 64)) => do
-      v_5990 <- getRegister v_3000;
-      v_5993 <- eval (sub v_5990 (expression.bv_nat 64 1));
-      v_5997 <- eval (bv_and v_5993 v_5990);
-      setRegister (lhs.of_reg v_3001) v_5997;
+    pattern fun (v_3013 : reg (bv 64)) (v_3014 : reg (bv 64)) => do
+      v_6145 <- getRegister v_3013;
+      v_6148 <- eval (sub v_6145 (expression.bv_nat 64 1));
+      v_6152 <- eval (bv_and v_6148 v_6145);
+      setRegister (lhs.of_reg v_3014) v_6152;
       setRegister of (expression.bv_nat 1 0);
       setRegister pf undef;
-      setRegister zf (zeroFlag v_5997);
+      setRegister zf (zeroFlag v_6152);
       setRegister af undef;
-      setRegister sf (bv_and (extract v_5993 0 1) (extract v_5990 0 1));
-      setRegister cf (mux (eq v_5990 (expression.bv_nat 64 0)) (expression.bv_nat 1 1) (expression.bv_nat 1 0));
+      setRegister sf (bv_and (extract v_6148 0 1) (extract v_6145 0 1));
+      setRegister cf (mux (eq v_6145 (expression.bv_nat 64 0)) (expression.bv_nat 1 1) (expression.bv_nat 1 0));
       pure ()
     pat_end;
-    pattern fun (v_2995 : Mem) (v_2996 : reg (bv 64)) => do
-      v_9678 <- evaluateAddress v_2995;
-      v_9679 <- load v_9678 8;
-      v_9682 <- eval (sub v_9679 (expression.bv_nat 64 1));
-      v_9686 <- eval (bv_and v_9682 v_9679);
-      setRegister (lhs.of_reg v_2996) v_9686;
+    pattern fun (v_3008 : Mem) (v_3009 : reg (bv 64)) => do
+      v_9966 <- evaluateAddress v_3008;
+      v_9967 <- load v_9966 8;
+      v_9970 <- eval (sub v_9967 (expression.bv_nat 64 1));
+      v_9974 <- eval (bv_and v_9970 v_9967);
+      setRegister (lhs.of_reg v_3009) v_9974;
       setRegister of (expression.bv_nat 1 0);
       setRegister pf undef;
-      setRegister zf (zeroFlag v_9686);
       setRegister af undef;
-      setRegister sf (bv_and (extract v_9682 0 1) (extract v_9679 0 1));
-      setRegister cf (mux (eq v_9679 (expression.bv_nat 64 0)) (expression.bv_nat 1 1) (expression.bv_nat 1 0));
+      setRegister zf (zeroFlag v_9974);
+      setRegister sf (bv_and (extract v_9970 0 1) (extract v_9967 0 1));
+      setRegister cf (mux (eq v_9967 (expression.bv_nat 64 0)) (expression.bv_nat 1 1) (expression.bv_nat 1 0));
       pure ()
     pat_end

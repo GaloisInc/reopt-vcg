@@ -1,76 +1,76 @@
 def vpmaxsd1 : instruction :=
   definst "vpmaxsd" $ do
-    pattern fun (v_3449 : reg (bv 128)) (v_3450 : reg (bv 128)) (v_3451 : reg (bv 128)) => do
-      v_11169 <- getRegister v_3450;
-      v_11170 <- eval (extract v_11169 0 32);
-      v_11171 <- getRegister v_3449;
-      v_11172 <- eval (extract v_11171 0 32);
-      v_11175 <- eval (extract v_11169 32 64);
-      v_11176 <- eval (extract v_11171 32 64);
-      v_11179 <- eval (extract v_11169 64 96);
-      v_11180 <- eval (extract v_11171 64 96);
-      v_11183 <- eval (extract v_11169 96 128);
-      v_11184 <- eval (extract v_11171 96 128);
-      setRegister (lhs.of_reg v_3451) (concat (mux (sgt v_11170 v_11172) v_11170 v_11172) (concat (mux (sgt v_11175 v_11176) v_11175 v_11176) (concat (mux (sgt v_11179 v_11180) v_11179 v_11180) (mux (sgt v_11183 v_11184) v_11183 v_11184))));
+    pattern fun (v_3459 : reg (bv 128)) (v_3460 : reg (bv 128)) (v_3461 : reg (bv 128)) => do
+      v_10810 <- getRegister v_3460;
+      v_10811 <- eval (extract v_10810 0 32);
+      v_10812 <- getRegister v_3459;
+      v_10813 <- eval (extract v_10812 0 32);
+      v_10816 <- eval (extract v_10810 32 64);
+      v_10817 <- eval (extract v_10812 32 64);
+      v_10820 <- eval (extract v_10810 64 96);
+      v_10821 <- eval (extract v_10812 64 96);
+      v_10824 <- eval (extract v_10810 96 128);
+      v_10825 <- eval (extract v_10812 96 128);
+      setRegister (lhs.of_reg v_3461) (concat (mux (sgt v_10811 v_10813) v_10811 v_10813) (concat (mux (sgt v_10816 v_10817) v_10816 v_10817) (concat (mux (sgt v_10820 v_10821) v_10820 v_10821) (mux (sgt v_10824 v_10825) v_10824 v_10825))));
       pure ()
     pat_end;
-    pattern fun (v_3460 : reg (bv 256)) (v_3461 : reg (bv 256)) (v_3462 : reg (bv 256)) => do
-      v_11196 <- getRegister v_3461;
-      v_11197 <- eval (extract v_11196 0 32);
-      v_11198 <- getRegister v_3460;
-      v_11199 <- eval (extract v_11198 0 32);
-      v_11202 <- eval (extract v_11196 32 64);
-      v_11203 <- eval (extract v_11198 32 64);
-      v_11206 <- eval (extract v_11196 64 96);
-      v_11207 <- eval (extract v_11198 64 96);
-      v_11210 <- eval (extract v_11196 96 128);
-      v_11211 <- eval (extract v_11198 96 128);
-      v_11214 <- eval (extract v_11196 128 160);
-      v_11215 <- eval (extract v_11198 128 160);
-      v_11218 <- eval (extract v_11196 160 192);
-      v_11219 <- eval (extract v_11198 160 192);
-      v_11222 <- eval (extract v_11196 192 224);
-      v_11223 <- eval (extract v_11198 192 224);
-      v_11226 <- eval (extract v_11196 224 256);
-      v_11227 <- eval (extract v_11198 224 256);
-      setRegister (lhs.of_reg v_3462) (concat (mux (sgt v_11197 v_11199) v_11197 v_11199) (concat (mux (sgt v_11202 v_11203) v_11202 v_11203) (concat (mux (sgt v_11206 v_11207) v_11206 v_11207) (concat (mux (sgt v_11210 v_11211) v_11210 v_11211) (concat (mux (sgt v_11214 v_11215) v_11214 v_11215) (concat (mux (sgt v_11218 v_11219) v_11218 v_11219) (concat (mux (sgt v_11222 v_11223) v_11222 v_11223) (mux (sgt v_11226 v_11227) v_11226 v_11227))))))));
+    pattern fun (v_3473 : reg (bv 256)) (v_3474 : reg (bv 256)) (v_3475 : reg (bv 256)) => do
+      v_10837 <- getRegister v_3474;
+      v_10838 <- eval (extract v_10837 0 32);
+      v_10839 <- getRegister v_3473;
+      v_10840 <- eval (extract v_10839 0 32);
+      v_10843 <- eval (extract v_10837 32 64);
+      v_10844 <- eval (extract v_10839 32 64);
+      v_10847 <- eval (extract v_10837 64 96);
+      v_10848 <- eval (extract v_10839 64 96);
+      v_10851 <- eval (extract v_10837 96 128);
+      v_10852 <- eval (extract v_10839 96 128);
+      v_10855 <- eval (extract v_10837 128 160);
+      v_10856 <- eval (extract v_10839 128 160);
+      v_10859 <- eval (extract v_10837 160 192);
+      v_10860 <- eval (extract v_10839 160 192);
+      v_10863 <- eval (extract v_10837 192 224);
+      v_10864 <- eval (extract v_10839 192 224);
+      v_10867 <- eval (extract v_10837 224 256);
+      v_10868 <- eval (extract v_10839 224 256);
+      setRegister (lhs.of_reg v_3475) (concat (mux (sgt v_10838 v_10840) v_10838 v_10840) (concat (mux (sgt v_10843 v_10844) v_10843 v_10844) (concat (mux (sgt v_10847 v_10848) v_10847 v_10848) (concat (mux (sgt v_10851 v_10852) v_10851 v_10852) (concat (mux (sgt v_10855 v_10856) v_10855 v_10856) (concat (mux (sgt v_10859 v_10860) v_10859 v_10860) (concat (mux (sgt v_10863 v_10864) v_10863 v_10864) (mux (sgt v_10867 v_10868) v_10867 v_10868))))))));
       pure ()
     pat_end;
-    pattern fun (v_3443 : Mem) (v_3444 : reg (bv 128)) (v_3445 : reg (bv 128)) => do
-      v_20168 <- getRegister v_3444;
-      v_20169 <- eval (extract v_20168 0 32);
-      v_20170 <- evaluateAddress v_3443;
-      v_20171 <- load v_20170 16;
-      v_20172 <- eval (extract v_20171 0 32);
-      v_20175 <- eval (extract v_20168 32 64);
-      v_20176 <- eval (extract v_20171 32 64);
-      v_20179 <- eval (extract v_20168 64 96);
-      v_20180 <- eval (extract v_20171 64 96);
-      v_20183 <- eval (extract v_20168 96 128);
-      v_20184 <- eval (extract v_20171 96 128);
-      setRegister (lhs.of_reg v_3445) (concat (mux (sgt v_20169 v_20172) v_20169 v_20172) (concat (mux (sgt v_20175 v_20176) v_20175 v_20176) (concat (mux (sgt v_20179 v_20180) v_20179 v_20180) (mux (sgt v_20183 v_20184) v_20183 v_20184))));
+    pattern fun (v_3458 : Mem) (v_3454 : reg (bv 128)) (v_3455 : reg (bv 128)) => do
+      v_19443 <- getRegister v_3454;
+      v_19444 <- eval (extract v_19443 0 32);
+      v_19445 <- evaluateAddress v_3458;
+      v_19446 <- load v_19445 16;
+      v_19447 <- eval (extract v_19446 0 32);
+      v_19450 <- eval (extract v_19443 32 64);
+      v_19451 <- eval (extract v_19446 32 64);
+      v_19454 <- eval (extract v_19443 64 96);
+      v_19455 <- eval (extract v_19446 64 96);
+      v_19458 <- eval (extract v_19443 96 128);
+      v_19459 <- eval (extract v_19446 96 128);
+      setRegister (lhs.of_reg v_3455) (concat (mux (sgt v_19444 v_19447) v_19444 v_19447) (concat (mux (sgt v_19450 v_19451) v_19450 v_19451) (concat (mux (sgt v_19454 v_19455) v_19454 v_19455) (mux (sgt v_19458 v_19459) v_19458 v_19459))));
       pure ()
     pat_end;
-    pattern fun (v_3454 : Mem) (v_3455 : reg (bv 256)) (v_3456 : reg (bv 256)) => do
-      v_20191 <- getRegister v_3455;
-      v_20192 <- eval (extract v_20191 0 32);
-      v_20193 <- evaluateAddress v_3454;
-      v_20194 <- load v_20193 32;
-      v_20195 <- eval (extract v_20194 0 32);
-      v_20198 <- eval (extract v_20191 32 64);
-      v_20199 <- eval (extract v_20194 32 64);
-      v_20202 <- eval (extract v_20191 64 96);
-      v_20203 <- eval (extract v_20194 64 96);
-      v_20206 <- eval (extract v_20191 96 128);
-      v_20207 <- eval (extract v_20194 96 128);
-      v_20210 <- eval (extract v_20191 128 160);
-      v_20211 <- eval (extract v_20194 128 160);
-      v_20214 <- eval (extract v_20191 160 192);
-      v_20215 <- eval (extract v_20194 160 192);
-      v_20218 <- eval (extract v_20191 192 224);
-      v_20219 <- eval (extract v_20194 192 224);
-      v_20222 <- eval (extract v_20191 224 256);
-      v_20223 <- eval (extract v_20194 224 256);
-      setRegister (lhs.of_reg v_3456) (concat (mux (sgt v_20192 v_20195) v_20192 v_20195) (concat (mux (sgt v_20198 v_20199) v_20198 v_20199) (concat (mux (sgt v_20202 v_20203) v_20202 v_20203) (concat (mux (sgt v_20206 v_20207) v_20206 v_20207) (concat (mux (sgt v_20210 v_20211) v_20210 v_20211) (concat (mux (sgt v_20214 v_20215) v_20214 v_20215) (concat (mux (sgt v_20218 v_20219) v_20218 v_20219) (mux (sgt v_20222 v_20223) v_20222 v_20223))))))));
+    pattern fun (v_3467 : Mem) (v_3468 : reg (bv 256)) (v_3469 : reg (bv 256)) => do
+      v_19466 <- getRegister v_3468;
+      v_19467 <- eval (extract v_19466 0 32);
+      v_19468 <- evaluateAddress v_3467;
+      v_19469 <- load v_19468 32;
+      v_19470 <- eval (extract v_19469 0 32);
+      v_19473 <- eval (extract v_19466 32 64);
+      v_19474 <- eval (extract v_19469 32 64);
+      v_19477 <- eval (extract v_19466 64 96);
+      v_19478 <- eval (extract v_19469 64 96);
+      v_19481 <- eval (extract v_19466 96 128);
+      v_19482 <- eval (extract v_19469 96 128);
+      v_19485 <- eval (extract v_19466 128 160);
+      v_19486 <- eval (extract v_19469 128 160);
+      v_19489 <- eval (extract v_19466 160 192);
+      v_19490 <- eval (extract v_19469 160 192);
+      v_19493 <- eval (extract v_19466 192 224);
+      v_19494 <- eval (extract v_19469 192 224);
+      v_19497 <- eval (extract v_19466 224 256);
+      v_19498 <- eval (extract v_19469 224 256);
+      setRegister (lhs.of_reg v_3469) (concat (mux (sgt v_19467 v_19470) v_19467 v_19470) (concat (mux (sgt v_19473 v_19474) v_19473 v_19474) (concat (mux (sgt v_19477 v_19478) v_19477 v_19478) (concat (mux (sgt v_19481 v_19482) v_19481 v_19482) (concat (mux (sgt v_19485 v_19486) v_19485 v_19486) (concat (mux (sgt v_19489 v_19490) v_19489 v_19490) (concat (mux (sgt v_19493 v_19494) v_19493 v_19494) (mux (sgt v_19497 v_19498) v_19497 v_19498))))))));
       pure ()
     pat_end

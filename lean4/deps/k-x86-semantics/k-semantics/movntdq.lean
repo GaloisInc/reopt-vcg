@@ -1,8 +1,8 @@
 def movntdq1 : instruction :=
   definst "movntdq" $ do
-    pattern fun (v_2534 : reg (bv 128)) (v_2533 : Mem) => do
-      v_8614 <- evaluateAddress v_2533;
-      v_8615 <- getRegister v_2534;
-      store v_8614 v_8615 16;
+    pattern fun (v_2547 : reg (bv 128)) (v_2546 : Mem) => do
+      v_8594 <- evaluateAddress v_2546;
+      v_8595 <- getRegister v_2547;
+      store v_8594 v_8595 16;
       pure ()
     pat_end

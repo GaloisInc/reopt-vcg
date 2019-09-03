@@ -1,28 +1,28 @@
 def shlx1 : instruction :=
   definst "shlx" $ do
-    pattern fun (v_2824 : reg (bv 32)) (v_2825 : reg (bv 32)) (v_2826 : reg (bv 32)) => do
-      v_7816 <- getRegister v_2825;
-      v_7817 <- getRegister v_2824;
-      setRegister (lhs.of_reg v_2826) (extract (shl v_7816 (uvalueMInt (bv_and v_7817 (expression.bv_nat 32 31)))) 0 (bitwidthMInt v_7816));
+    pattern fun (v_2837 : reg (bv 32)) (v_2838 : reg (bv 32)) (v_2839 : reg (bv 32)) => do
+      v_7842 <- getRegister v_2838;
+      v_7843 <- getRegister v_2837;
+      setRegister (lhs.of_reg v_2839) (extract (shl v_7842 (uvalueMInt (bv_and v_7843 (expression.bv_nat 32 31)))) 0 32);
       pure ()
     pat_end;
-    pattern fun (v_2845 : reg (bv 64)) (v_2846 : reg (bv 64)) (v_2847 : reg (bv 64)) => do
-      v_7835 <- getRegister v_2846;
-      v_7836 <- getRegister v_2845;
-      setRegister (lhs.of_reg v_2847) (extract (shl v_7835 (uvalueMInt (bv_and v_7836 (expression.bv_nat 64 63)))) 0 (bitwidthMInt v_7835));
+    pattern fun (v_2858 : reg (bv 64)) (v_2859 : reg (bv 64)) (v_2860 : reg (bv 64)) => do
+      v_7860 <- getRegister v_2859;
+      v_7861 <- getRegister v_2858;
+      setRegister (lhs.of_reg v_2860) (extract (shl v_7860 (uvalueMInt (bv_and v_7861 (expression.bv_nat 64 63)))) 0 64);
       pure ()
     pat_end;
-    pattern fun (v_2815 : reg (bv 32)) (v_2814 : Mem) (v_2816 : reg (bv 32)) => do
-      v_11781 <- evaluateAddress v_2814;
-      v_11782 <- load v_11781 4;
-      v_11783 <- getRegister v_2815;
-      setRegister (lhs.of_reg v_2816) (extract (shl v_11782 (uvalueMInt (bv_and v_11783 (expression.bv_nat 32 31)))) 0 (bitwidthMInt v_11782));
+    pattern fun (v_2827 : reg (bv 32)) (v_2829 : Mem) (v_2828 : reg (bv 32)) => do
+      v_11855 <- evaluateAddress v_2829;
+      v_11856 <- load v_11855 4;
+      v_11857 <- getRegister v_2827;
+      setRegister (lhs.of_reg v_2828) (extract (shl v_11856 (uvalueMInt (bv_and v_11857 (expression.bv_nat 32 31)))) 0 32);
       pure ()
     pat_end;
-    pattern fun (v_2836 : reg (bv 64)) (v_2835 : Mem) (v_2837 : reg (bv 64)) => do
-      v_11790 <- evaluateAddress v_2835;
-      v_11791 <- load v_11790 8;
-      v_11792 <- getRegister v_2836;
-      setRegister (lhs.of_reg v_2837) (extract (shl v_11791 (uvalueMInt (bv_and v_11792 (expression.bv_nat 64 63)))) 0 (bitwidthMInt v_11791));
+    pattern fun (v_2848 : reg (bv 64)) (v_2850 : Mem) (v_2849 : reg (bv 64)) => do
+      v_11863 <- evaluateAddress v_2850;
+      v_11864 <- load v_11863 8;
+      v_11865 <- getRegister v_2848;
+      setRegister (lhs.of_reg v_2849) (extract (shl v_11864 (uvalueMInt (bv_and v_11865 (expression.bv_nat 64 63)))) 0 64);
       pure ()
     pat_end
