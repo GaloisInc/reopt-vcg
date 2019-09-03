@@ -1,0 +1,124 @@
+def vpacksswb1 : instruction :=
+  definst "vpacksswb" $ do
+    pattern fun (v_3256 : reg (bv 128)) (v_3257 : reg (bv 128)) (v_3258 : reg (bv 128)) => do
+      v_6202 <- getRegister v_3256;
+      v_6203 <- eval (extract v_6202 0 16);
+      v_6209 <- eval (extract v_6202 16 32);
+      v_6215 <- eval (extract v_6202 32 48);
+      v_6221 <- eval (extract v_6202 48 64);
+      v_6227 <- eval (extract v_6202 64 80);
+      v_6233 <- eval (extract v_6202 80 96);
+      v_6239 <- eval (extract v_6202 96 112);
+      v_6245 <- eval (extract v_6202 112 128);
+      v_6251 <- getRegister v_3257;
+      v_6252 <- eval (extract v_6251 0 16);
+      v_6258 <- eval (extract v_6251 16 32);
+      v_6264 <- eval (extract v_6251 32 48);
+      v_6270 <- eval (extract v_6251 48 64);
+      v_6276 <- eval (extract v_6251 64 80);
+      v_6282 <- eval (extract v_6251 80 96);
+      v_6288 <- eval (extract v_6251 96 112);
+      v_6294 <- eval (extract v_6251 112 128);
+      setRegister (lhs.of_reg v_3258) (concat (mux (sgt v_6203 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6203 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6202 8 16))) (concat (mux (sgt v_6209 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6209 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6202 24 32))) (concat (mux (sgt v_6215 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6215 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6202 40 48))) (concat (mux (sgt v_6221 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6221 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6202 56 64))) (concat (mux (sgt v_6227 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6227 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6202 72 80))) (concat (mux (sgt v_6233 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6233 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6202 88 96))) (concat (mux (sgt v_6239 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6239 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6202 104 112))) (concat (mux (sgt v_6245 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6245 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6202 120 128))) (concat (mux (sgt v_6252 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6252 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6251 8 16))) (concat (mux (sgt v_6258 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6258 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6251 24 32))) (concat (mux (sgt v_6264 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6264 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6251 40 48))) (concat (mux (sgt v_6270 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6270 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6251 56 64))) (concat (mux (sgt v_6276 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6276 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6251 72 80))) (concat (mux (sgt v_6282 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6282 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6251 88 96))) (concat (mux (sgt v_6288 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6288 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6251 104 112))) (mux (sgt v_6294 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6294 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6251 120 128))))))))))))))))));
+      pure ()
+    pat_end;
+    pattern fun (v_3267 : reg (bv 256)) (v_3268 : reg (bv 256)) (v_3269 : reg (bv 256)) => do
+      v_6321 <- getRegister v_3267;
+      v_6322 <- eval (extract v_6321 0 16);
+      v_6328 <- eval (extract v_6321 16 32);
+      v_6334 <- eval (extract v_6321 32 48);
+      v_6340 <- eval (extract v_6321 48 64);
+      v_6346 <- eval (extract v_6321 64 80);
+      v_6352 <- eval (extract v_6321 80 96);
+      v_6358 <- eval (extract v_6321 96 112);
+      v_6364 <- eval (extract v_6321 112 128);
+      v_6370 <- getRegister v_3268;
+      v_6371 <- eval (extract v_6370 0 16);
+      v_6377 <- eval (extract v_6370 16 32);
+      v_6383 <- eval (extract v_6370 32 48);
+      v_6389 <- eval (extract v_6370 48 64);
+      v_6395 <- eval (extract v_6370 64 80);
+      v_6401 <- eval (extract v_6370 80 96);
+      v_6407 <- eval (extract v_6370 96 112);
+      v_6413 <- eval (extract v_6370 112 128);
+      v_6419 <- eval (extract v_6321 128 144);
+      v_6425 <- eval (extract v_6321 144 160);
+      v_6431 <- eval (extract v_6321 160 176);
+      v_6437 <- eval (extract v_6321 176 192);
+      v_6443 <- eval (extract v_6321 192 208);
+      v_6449 <- eval (extract v_6321 208 224);
+      v_6455 <- eval (extract v_6321 224 240);
+      v_6461 <- eval (extract v_6321 240 256);
+      v_6467 <- eval (extract v_6370 128 144);
+      v_6473 <- eval (extract v_6370 144 160);
+      v_6479 <- eval (extract v_6370 160 176);
+      v_6485 <- eval (extract v_6370 176 192);
+      v_6491 <- eval (extract v_6370 192 208);
+      v_6497 <- eval (extract v_6370 208 224);
+      v_6503 <- eval (extract v_6370 224 240);
+      v_6509 <- eval (extract v_6370 240 256);
+      setRegister (lhs.of_reg v_3269) (concat (mux (sgt v_6322 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6322 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6321 8 16))) (concat (mux (sgt v_6328 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6328 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6321 24 32))) (concat (mux (sgt v_6334 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6334 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6321 40 48))) (concat (mux (sgt v_6340 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6340 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6321 56 64))) (concat (mux (sgt v_6346 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6346 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6321 72 80))) (concat (mux (sgt v_6352 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6352 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6321 88 96))) (concat (mux (sgt v_6358 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6358 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6321 104 112))) (concat (mux (sgt v_6364 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6364 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6321 120 128))) (concat (mux (sgt v_6371 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6371 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6370 8 16))) (concat (mux (sgt v_6377 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6377 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6370 24 32))) (concat (mux (sgt v_6383 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6383 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6370 40 48))) (concat (mux (sgt v_6389 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6389 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6370 56 64))) (concat (mux (sgt v_6395 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6395 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6370 72 80))) (concat (mux (sgt v_6401 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6401 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6370 88 96))) (concat (mux (sgt v_6407 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6407 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6370 104 112))) (concat (mux (sgt v_6413 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6413 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6370 120 128))) (concat (mux (sgt v_6419 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6419 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6321 136 144))) (concat (mux (sgt v_6425 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6425 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6321 152 160))) (concat (mux (sgt v_6431 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6431 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6321 168 176))) (concat (mux (sgt v_6437 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6437 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6321 184 192))) (concat (mux (sgt v_6443 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6443 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6321 200 208))) (concat (mux (sgt v_6449 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6449 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6321 216 224))) (concat (mux (sgt v_6455 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6455 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6321 232 240))) (concat (mux (sgt v_6461 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6461 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6321 248 256))) (concat (mux (sgt v_6467 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6467 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6370 136 144))) (concat (mux (sgt v_6473 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6473 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6370 152 160))) (concat (mux (sgt v_6479 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6479 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6370 168 176))) (concat (mux (sgt v_6485 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6485 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6370 184 192))) (concat (mux (sgt v_6491 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6491 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6370 200 208))) (concat (mux (sgt v_6497 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6497 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6370 216 224))) (concat (mux (sgt v_6503 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6503 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6370 232 240))) (mux (sgt v_6509 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_6509 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_6370 248 256))))))))))))))))))))))))))))))))));
+      pure ()
+    pat_end;
+    pattern fun (v_3250 : Mem) (v_3251 : reg (bv 128)) (v_3252 : reg (bv 128)) => do
+      v_11458 <- evaluateAddress v_3250;
+      v_11459 <- load v_11458 16;
+      v_11460 <- eval (extract v_11459 0 16);
+      v_11466 <- eval (extract v_11459 16 32);
+      v_11472 <- eval (extract v_11459 32 48);
+      v_11478 <- eval (extract v_11459 48 64);
+      v_11484 <- eval (extract v_11459 64 80);
+      v_11490 <- eval (extract v_11459 80 96);
+      v_11496 <- eval (extract v_11459 96 112);
+      v_11502 <- eval (extract v_11459 112 128);
+      v_11508 <- getRegister v_3251;
+      v_11509 <- eval (extract v_11508 0 16);
+      v_11515 <- eval (extract v_11508 16 32);
+      v_11521 <- eval (extract v_11508 32 48);
+      v_11527 <- eval (extract v_11508 48 64);
+      v_11533 <- eval (extract v_11508 64 80);
+      v_11539 <- eval (extract v_11508 80 96);
+      v_11545 <- eval (extract v_11508 96 112);
+      v_11551 <- eval (extract v_11508 112 128);
+      setRegister (lhs.of_reg v_3252) (concat (mux (sgt v_11460 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11460 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11459 8 16))) (concat (mux (sgt v_11466 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11466 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11459 24 32))) (concat (mux (sgt v_11472 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11472 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11459 40 48))) (concat (mux (sgt v_11478 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11478 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11459 56 64))) (concat (mux (sgt v_11484 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11484 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11459 72 80))) (concat (mux (sgt v_11490 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11490 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11459 88 96))) (concat (mux (sgt v_11496 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11496 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11459 104 112))) (concat (mux (sgt v_11502 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11502 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11459 120 128))) (concat (mux (sgt v_11509 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11509 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11508 8 16))) (concat (mux (sgt v_11515 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11515 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11508 24 32))) (concat (mux (sgt v_11521 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11521 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11508 40 48))) (concat (mux (sgt v_11527 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11527 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11508 56 64))) (concat (mux (sgt v_11533 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11533 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11508 72 80))) (concat (mux (sgt v_11539 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11539 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11508 88 96))) (concat (mux (sgt v_11545 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11545 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11508 104 112))) (mux (sgt v_11551 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11551 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11508 120 128))))))))))))))))));
+      pure ()
+    pat_end;
+    pattern fun (v_3261 : Mem) (v_3262 : reg (bv 256)) (v_3263 : reg (bv 256)) => do
+      v_11573 <- evaluateAddress v_3261;
+      v_11574 <- load v_11573 32;
+      v_11575 <- eval (extract v_11574 0 16);
+      v_11581 <- eval (extract v_11574 16 32);
+      v_11587 <- eval (extract v_11574 32 48);
+      v_11593 <- eval (extract v_11574 48 64);
+      v_11599 <- eval (extract v_11574 64 80);
+      v_11605 <- eval (extract v_11574 80 96);
+      v_11611 <- eval (extract v_11574 96 112);
+      v_11617 <- eval (extract v_11574 112 128);
+      v_11623 <- getRegister v_3262;
+      v_11624 <- eval (extract v_11623 0 16);
+      v_11630 <- eval (extract v_11623 16 32);
+      v_11636 <- eval (extract v_11623 32 48);
+      v_11642 <- eval (extract v_11623 48 64);
+      v_11648 <- eval (extract v_11623 64 80);
+      v_11654 <- eval (extract v_11623 80 96);
+      v_11660 <- eval (extract v_11623 96 112);
+      v_11666 <- eval (extract v_11623 112 128);
+      v_11672 <- eval (extract v_11574 128 144);
+      v_11678 <- eval (extract v_11574 144 160);
+      v_11684 <- eval (extract v_11574 160 176);
+      v_11690 <- eval (extract v_11574 176 192);
+      v_11696 <- eval (extract v_11574 192 208);
+      v_11702 <- eval (extract v_11574 208 224);
+      v_11708 <- eval (extract v_11574 224 240);
+      v_11714 <- eval (extract v_11574 240 256);
+      v_11720 <- eval (extract v_11623 128 144);
+      v_11726 <- eval (extract v_11623 144 160);
+      v_11732 <- eval (extract v_11623 160 176);
+      v_11738 <- eval (extract v_11623 176 192);
+      v_11744 <- eval (extract v_11623 192 208);
+      v_11750 <- eval (extract v_11623 208 224);
+      v_11756 <- eval (extract v_11623 224 240);
+      v_11762 <- eval (extract v_11623 240 256);
+      setRegister (lhs.of_reg v_3263) (concat (mux (sgt v_11575 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11575 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11574 8 16))) (concat (mux (sgt v_11581 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11581 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11574 24 32))) (concat (mux (sgt v_11587 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11587 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11574 40 48))) (concat (mux (sgt v_11593 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11593 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11574 56 64))) (concat (mux (sgt v_11599 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11599 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11574 72 80))) (concat (mux (sgt v_11605 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11605 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11574 88 96))) (concat (mux (sgt v_11611 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11611 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11574 104 112))) (concat (mux (sgt v_11617 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11617 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11574 120 128))) (concat (mux (sgt v_11624 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11624 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11623 8 16))) (concat (mux (sgt v_11630 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11630 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11623 24 32))) (concat (mux (sgt v_11636 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11636 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11623 40 48))) (concat (mux (sgt v_11642 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11642 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11623 56 64))) (concat (mux (sgt v_11648 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11648 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11623 72 80))) (concat (mux (sgt v_11654 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11654 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11623 88 96))) (concat (mux (sgt v_11660 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11660 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11623 104 112))) (concat (mux (sgt v_11666 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11666 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11623 120 128))) (concat (mux (sgt v_11672 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11672 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11574 136 144))) (concat (mux (sgt v_11678 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11678 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11574 152 160))) (concat (mux (sgt v_11684 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11684 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11574 168 176))) (concat (mux (sgt v_11690 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11690 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11574 184 192))) (concat (mux (sgt v_11696 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11696 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11574 200 208))) (concat (mux (sgt v_11702 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11702 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11574 216 224))) (concat (mux (sgt v_11708 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11708 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11574 232 240))) (concat (mux (sgt v_11714 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11714 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11574 248 256))) (concat (mux (sgt v_11720 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11720 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11623 136 144))) (concat (mux (sgt v_11726 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11726 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11623 152 160))) (concat (mux (sgt v_11732 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11732 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11623 168 176))) (concat (mux (sgt v_11738 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11738 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11623 184 192))) (concat (mux (sgt v_11744 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11744 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11623 200 208))) (concat (mux (sgt v_11750 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11750 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11623 216 224))) (concat (mux (sgt v_11756 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11756 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11623 232 240))) (mux (sgt v_11762 (expression.bv_nat 16 127)) (expression.bv_nat 8 127) (mux (slt v_11762 (expression.bv_nat 16 65408)) (expression.bv_nat 8 128) (extract v_11623 248 256))))))))))))))))))))))))))))))))));
+      pure ()
+    pat_end

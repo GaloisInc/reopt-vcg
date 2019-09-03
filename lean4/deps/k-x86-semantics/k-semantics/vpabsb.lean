@@ -1,0 +1,120 @@
+def vpabsb1 : instruction :=
+  definst "vpabsb" $ do
+    pattern fun (v_3179 : reg (bv 128)) (v_3180 : reg (bv 128)) => do
+      v_5317 <- getRegister v_3179;
+      v_5318 <- eval (extract v_5317 0 8);
+      v_5325 <- eval (extract v_5317 8 16);
+      v_5332 <- eval (extract v_5317 16 24);
+      v_5339 <- eval (extract v_5317 24 32);
+      v_5346 <- eval (extract v_5317 32 40);
+      v_5353 <- eval (extract v_5317 40 48);
+      v_5360 <- eval (extract v_5317 48 56);
+      v_5367 <- eval (extract v_5317 56 64);
+      v_5374 <- eval (extract v_5317 64 72);
+      v_5381 <- eval (extract v_5317 72 80);
+      v_5388 <- eval (extract v_5317 80 88);
+      v_5395 <- eval (extract v_5317 88 96);
+      v_5402 <- eval (extract v_5317 96 104);
+      v_5409 <- eval (extract v_5317 104 112);
+      v_5416 <- eval (extract v_5317 112 120);
+      v_5423 <- eval (extract v_5317 120 128);
+      setRegister (lhs.of_reg v_3180) (concat (mux (ugt v_5318 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5318 (mi (bitwidthMInt v_5318) -1))) v_5318) (concat (mux (ugt v_5325 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5325 (mi (bitwidthMInt v_5325) -1))) v_5325) (concat (mux (ugt v_5332 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5332 (mi (bitwidthMInt v_5332) -1))) v_5332) (concat (mux (ugt v_5339 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5339 (mi (bitwidthMInt v_5339) -1))) v_5339) (concat (mux (ugt v_5346 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5346 (mi (bitwidthMInt v_5346) -1))) v_5346) (concat (mux (ugt v_5353 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5353 (mi (bitwidthMInt v_5353) -1))) v_5353) (concat (mux (ugt v_5360 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5360 (mi (bitwidthMInt v_5360) -1))) v_5360) (concat (mux (ugt v_5367 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5367 (mi (bitwidthMInt v_5367) -1))) v_5367) (concat (mux (ugt v_5374 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5374 (mi (bitwidthMInt v_5374) -1))) v_5374) (concat (mux (ugt v_5381 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5381 (mi (bitwidthMInt v_5381) -1))) v_5381) (concat (mux (ugt v_5388 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5388 (mi (bitwidthMInt v_5388) -1))) v_5388) (concat (mux (ugt v_5395 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5395 (mi (bitwidthMInt v_5395) -1))) v_5395) (concat (mux (ugt v_5402 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5402 (mi (bitwidthMInt v_5402) -1))) v_5402) (concat (mux (ugt v_5409 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5409 (mi (bitwidthMInt v_5409) -1))) v_5409) (concat (mux (ugt v_5416 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5416 (mi (bitwidthMInt v_5416) -1))) v_5416) (mux (ugt v_5423 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5423 (mi (bitwidthMInt v_5423) -1))) v_5423))))))))))))))));
+      pure ()
+    pat_end;
+    pattern fun (v_3188 : reg (bv 256)) (v_3189 : reg (bv 256)) => do
+      v_5450 <- getRegister v_3188;
+      v_5451 <- eval (extract v_5450 0 8);
+      v_5458 <- eval (extract v_5450 8 16);
+      v_5465 <- eval (extract v_5450 16 24);
+      v_5472 <- eval (extract v_5450 24 32);
+      v_5479 <- eval (extract v_5450 32 40);
+      v_5486 <- eval (extract v_5450 40 48);
+      v_5493 <- eval (extract v_5450 48 56);
+      v_5500 <- eval (extract v_5450 56 64);
+      v_5507 <- eval (extract v_5450 64 72);
+      v_5514 <- eval (extract v_5450 72 80);
+      v_5521 <- eval (extract v_5450 80 88);
+      v_5528 <- eval (extract v_5450 88 96);
+      v_5535 <- eval (extract v_5450 96 104);
+      v_5542 <- eval (extract v_5450 104 112);
+      v_5549 <- eval (extract v_5450 112 120);
+      v_5556 <- eval (extract v_5450 120 128);
+      v_5563 <- eval (extract v_5450 128 136);
+      v_5570 <- eval (extract v_5450 136 144);
+      v_5577 <- eval (extract v_5450 144 152);
+      v_5584 <- eval (extract v_5450 152 160);
+      v_5591 <- eval (extract v_5450 160 168);
+      v_5598 <- eval (extract v_5450 168 176);
+      v_5605 <- eval (extract v_5450 176 184);
+      v_5612 <- eval (extract v_5450 184 192);
+      v_5619 <- eval (extract v_5450 192 200);
+      v_5626 <- eval (extract v_5450 200 208);
+      v_5633 <- eval (extract v_5450 208 216);
+      v_5640 <- eval (extract v_5450 216 224);
+      v_5647 <- eval (extract v_5450 224 232);
+      v_5654 <- eval (extract v_5450 232 240);
+      v_5661 <- eval (extract v_5450 240 248);
+      v_5668 <- eval (extract v_5450 248 256);
+      setRegister (lhs.of_reg v_3189) (concat (mux (ugt v_5451 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5451 (mi (bitwidthMInt v_5451) -1))) v_5451) (concat (mux (ugt v_5458 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5458 (mi (bitwidthMInt v_5458) -1))) v_5458) (concat (mux (ugt v_5465 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5465 (mi (bitwidthMInt v_5465) -1))) v_5465) (concat (mux (ugt v_5472 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5472 (mi (bitwidthMInt v_5472) -1))) v_5472) (concat (mux (ugt v_5479 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5479 (mi (bitwidthMInt v_5479) -1))) v_5479) (concat (mux (ugt v_5486 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5486 (mi (bitwidthMInt v_5486) -1))) v_5486) (concat (mux (ugt v_5493 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5493 (mi (bitwidthMInt v_5493) -1))) v_5493) (concat (mux (ugt v_5500 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5500 (mi (bitwidthMInt v_5500) -1))) v_5500) (concat (mux (ugt v_5507 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5507 (mi (bitwidthMInt v_5507) -1))) v_5507) (concat (mux (ugt v_5514 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5514 (mi (bitwidthMInt v_5514) -1))) v_5514) (concat (mux (ugt v_5521 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5521 (mi (bitwidthMInt v_5521) -1))) v_5521) (concat (mux (ugt v_5528 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5528 (mi (bitwidthMInt v_5528) -1))) v_5528) (concat (mux (ugt v_5535 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5535 (mi (bitwidthMInt v_5535) -1))) v_5535) (concat (mux (ugt v_5542 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5542 (mi (bitwidthMInt v_5542) -1))) v_5542) (concat (mux (ugt v_5549 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5549 (mi (bitwidthMInt v_5549) -1))) v_5549) (concat (mux (ugt v_5556 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5556 (mi (bitwidthMInt v_5556) -1))) v_5556) (concat (mux (ugt v_5563 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5563 (mi (bitwidthMInt v_5563) -1))) v_5563) (concat (mux (ugt v_5570 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5570 (mi (bitwidthMInt v_5570) -1))) v_5570) (concat (mux (ugt v_5577 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5577 (mi (bitwidthMInt v_5577) -1))) v_5577) (concat (mux (ugt v_5584 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5584 (mi (bitwidthMInt v_5584) -1))) v_5584) (concat (mux (ugt v_5591 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5591 (mi (bitwidthMInt v_5591) -1))) v_5591) (concat (mux (ugt v_5598 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5598 (mi (bitwidthMInt v_5598) -1))) v_5598) (concat (mux (ugt v_5605 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5605 (mi (bitwidthMInt v_5605) -1))) v_5605) (concat (mux (ugt v_5612 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5612 (mi (bitwidthMInt v_5612) -1))) v_5612) (concat (mux (ugt v_5619 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5619 (mi (bitwidthMInt v_5619) -1))) v_5619) (concat (mux (ugt v_5626 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5626 (mi (bitwidthMInt v_5626) -1))) v_5626) (concat (mux (ugt v_5633 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5633 (mi (bitwidthMInt v_5633) -1))) v_5633) (concat (mux (ugt v_5640 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5640 (mi (bitwidthMInt v_5640) -1))) v_5640) (concat (mux (ugt v_5647 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5647 (mi (bitwidthMInt v_5647) -1))) v_5647) (concat (mux (ugt v_5654 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5654 (mi (bitwidthMInt v_5654) -1))) v_5654) (concat (mux (ugt v_5661 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5661 (mi (bitwidthMInt v_5661) -1))) v_5661) (mux (ugt v_5668 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_5668 (mi (bitwidthMInt v_5668) -1))) v_5668))))))))))))))))))))))))))))))));
+      pure ()
+    pat_end;
+    pattern fun (v_3174 : Mem) (v_3175 : reg (bv 128)) => do
+      v_10600 <- evaluateAddress v_3174;
+      v_10601 <- load v_10600 16;
+      v_10602 <- eval (extract v_10601 0 8);
+      v_10609 <- eval (extract v_10601 8 16);
+      v_10616 <- eval (extract v_10601 16 24);
+      v_10623 <- eval (extract v_10601 24 32);
+      v_10630 <- eval (extract v_10601 32 40);
+      v_10637 <- eval (extract v_10601 40 48);
+      v_10644 <- eval (extract v_10601 48 56);
+      v_10651 <- eval (extract v_10601 56 64);
+      v_10658 <- eval (extract v_10601 64 72);
+      v_10665 <- eval (extract v_10601 72 80);
+      v_10672 <- eval (extract v_10601 80 88);
+      v_10679 <- eval (extract v_10601 88 96);
+      v_10686 <- eval (extract v_10601 96 104);
+      v_10693 <- eval (extract v_10601 104 112);
+      v_10700 <- eval (extract v_10601 112 120);
+      v_10707 <- eval (extract v_10601 120 128);
+      setRegister (lhs.of_reg v_3175) (concat (mux (ugt v_10602 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10602 (mi (bitwidthMInt v_10602) -1))) v_10602) (concat (mux (ugt v_10609 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10609 (mi (bitwidthMInt v_10609) -1))) v_10609) (concat (mux (ugt v_10616 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10616 (mi (bitwidthMInt v_10616) -1))) v_10616) (concat (mux (ugt v_10623 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10623 (mi (bitwidthMInt v_10623) -1))) v_10623) (concat (mux (ugt v_10630 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10630 (mi (bitwidthMInt v_10630) -1))) v_10630) (concat (mux (ugt v_10637 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10637 (mi (bitwidthMInt v_10637) -1))) v_10637) (concat (mux (ugt v_10644 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10644 (mi (bitwidthMInt v_10644) -1))) v_10644) (concat (mux (ugt v_10651 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10651 (mi (bitwidthMInt v_10651) -1))) v_10651) (concat (mux (ugt v_10658 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10658 (mi (bitwidthMInt v_10658) -1))) v_10658) (concat (mux (ugt v_10665 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10665 (mi (bitwidthMInt v_10665) -1))) v_10665) (concat (mux (ugt v_10672 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10672 (mi (bitwidthMInt v_10672) -1))) v_10672) (concat (mux (ugt v_10679 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10679 (mi (bitwidthMInt v_10679) -1))) v_10679) (concat (mux (ugt v_10686 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10686 (mi (bitwidthMInt v_10686) -1))) v_10686) (concat (mux (ugt v_10693 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10693 (mi (bitwidthMInt v_10693) -1))) v_10693) (concat (mux (ugt v_10700 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10700 (mi (bitwidthMInt v_10700) -1))) v_10700) (mux (ugt v_10707 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10707 (mi (bitwidthMInt v_10707) -1))) v_10707))))))))))))))));
+      pure ()
+    pat_end;
+    pattern fun (v_3183 : Mem) (v_3184 : reg (bv 256)) => do
+      v_10730 <- evaluateAddress v_3183;
+      v_10731 <- load v_10730 32;
+      v_10732 <- eval (extract v_10731 0 8);
+      v_10739 <- eval (extract v_10731 8 16);
+      v_10746 <- eval (extract v_10731 16 24);
+      v_10753 <- eval (extract v_10731 24 32);
+      v_10760 <- eval (extract v_10731 32 40);
+      v_10767 <- eval (extract v_10731 40 48);
+      v_10774 <- eval (extract v_10731 48 56);
+      v_10781 <- eval (extract v_10731 56 64);
+      v_10788 <- eval (extract v_10731 64 72);
+      v_10795 <- eval (extract v_10731 72 80);
+      v_10802 <- eval (extract v_10731 80 88);
+      v_10809 <- eval (extract v_10731 88 96);
+      v_10816 <- eval (extract v_10731 96 104);
+      v_10823 <- eval (extract v_10731 104 112);
+      v_10830 <- eval (extract v_10731 112 120);
+      v_10837 <- eval (extract v_10731 120 128);
+      v_10844 <- eval (extract v_10731 128 136);
+      v_10851 <- eval (extract v_10731 136 144);
+      v_10858 <- eval (extract v_10731 144 152);
+      v_10865 <- eval (extract v_10731 152 160);
+      v_10872 <- eval (extract v_10731 160 168);
+      v_10879 <- eval (extract v_10731 168 176);
+      v_10886 <- eval (extract v_10731 176 184);
+      v_10893 <- eval (extract v_10731 184 192);
+      v_10900 <- eval (extract v_10731 192 200);
+      v_10907 <- eval (extract v_10731 200 208);
+      v_10914 <- eval (extract v_10731 208 216);
+      v_10921 <- eval (extract v_10731 216 224);
+      v_10928 <- eval (extract v_10731 224 232);
+      v_10935 <- eval (extract v_10731 232 240);
+      v_10942 <- eval (extract v_10731 240 248);
+      v_10949 <- eval (extract v_10731 248 256);
+      setRegister (lhs.of_reg v_3184) (concat (mux (ugt v_10732 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10732 (mi (bitwidthMInt v_10732) -1))) v_10732) (concat (mux (ugt v_10739 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10739 (mi (bitwidthMInt v_10739) -1))) v_10739) (concat (mux (ugt v_10746 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10746 (mi (bitwidthMInt v_10746) -1))) v_10746) (concat (mux (ugt v_10753 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10753 (mi (bitwidthMInt v_10753) -1))) v_10753) (concat (mux (ugt v_10760 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10760 (mi (bitwidthMInt v_10760) -1))) v_10760) (concat (mux (ugt v_10767 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10767 (mi (bitwidthMInt v_10767) -1))) v_10767) (concat (mux (ugt v_10774 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10774 (mi (bitwidthMInt v_10774) -1))) v_10774) (concat (mux (ugt v_10781 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10781 (mi (bitwidthMInt v_10781) -1))) v_10781) (concat (mux (ugt v_10788 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10788 (mi (bitwidthMInt v_10788) -1))) v_10788) (concat (mux (ugt v_10795 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10795 (mi (bitwidthMInt v_10795) -1))) v_10795) (concat (mux (ugt v_10802 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10802 (mi (bitwidthMInt v_10802) -1))) v_10802) (concat (mux (ugt v_10809 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10809 (mi (bitwidthMInt v_10809) -1))) v_10809) (concat (mux (ugt v_10816 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10816 (mi (bitwidthMInt v_10816) -1))) v_10816) (concat (mux (ugt v_10823 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10823 (mi (bitwidthMInt v_10823) -1))) v_10823) (concat (mux (ugt v_10830 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10830 (mi (bitwidthMInt v_10830) -1))) v_10830) (concat (mux (ugt v_10837 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10837 (mi (bitwidthMInt v_10837) -1))) v_10837) (concat (mux (ugt v_10844 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10844 (mi (bitwidthMInt v_10844) -1))) v_10844) (concat (mux (ugt v_10851 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10851 (mi (bitwidthMInt v_10851) -1))) v_10851) (concat (mux (ugt v_10858 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10858 (mi (bitwidthMInt v_10858) -1))) v_10858) (concat (mux (ugt v_10865 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10865 (mi (bitwidthMInt v_10865) -1))) v_10865) (concat (mux (ugt v_10872 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10872 (mi (bitwidthMInt v_10872) -1))) v_10872) (concat (mux (ugt v_10879 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10879 (mi (bitwidthMInt v_10879) -1))) v_10879) (concat (mux (ugt v_10886 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10886 (mi (bitwidthMInt v_10886) -1))) v_10886) (concat (mux (ugt v_10893 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10893 (mi (bitwidthMInt v_10893) -1))) v_10893) (concat (mux (ugt v_10900 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10900 (mi (bitwidthMInt v_10900) -1))) v_10900) (concat (mux (ugt v_10907 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10907 (mi (bitwidthMInt v_10907) -1))) v_10907) (concat (mux (ugt v_10914 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10914 (mi (bitwidthMInt v_10914) -1))) v_10914) (concat (mux (ugt v_10921 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10921 (mi (bitwidthMInt v_10921) -1))) v_10921) (concat (mux (ugt v_10928 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10928 (mi (bitwidthMInt v_10928) -1))) v_10928) (concat (mux (ugt v_10935 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10935 (mi (bitwidthMInt v_10935) -1))) v_10935) (concat (mux (ugt v_10942 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10942 (mi (bitwidthMInt v_10942) -1))) v_10942) (mux (ugt v_10949 (expression.bv_nat 8 127)) (add (expression.bv_nat 8 1) (bv_xor v_10949 (mi (bitwidthMInt v_10949) -1))) v_10949))))))))))))))))))))))))))))))));
+      pure ()
+    pat_end

@@ -1,0 +1,15 @@
+def pmulhrsw1 : instruction :=
+  definst "pmulhrsw" $ do
+    pattern fun (v_2783 : reg (bv 128)) (v_2784 : reg (bv 128)) => do
+      v_5704 <- getRegister v_2784;
+      v_5708 <- getRegister v_2783;
+      setRegister (lhs.of_reg v_2784) (concat (extract (add (lshr (mul (mi 32 (svalueMInt (extract v_5704 0 16))) (mi 32 (svalueMInt (extract v_5708 0 16)))) 14) (expression.bv_nat 32 1)) 15 31) (concat (extract (add (lshr (mul (mi 32 (svalueMInt (extract v_5704 16 32))) (mi 32 (svalueMInt (extract v_5708 16 32)))) 14) (expression.bv_nat 32 1)) 15 31) (concat (extract (add (lshr (mul (mi 32 (svalueMInt (extract v_5704 32 48))) (mi 32 (svalueMInt (extract v_5708 32 48)))) 14) (expression.bv_nat 32 1)) 15 31) (concat (extract (add (lshr (mul (mi 32 (svalueMInt (extract v_5704 48 64))) (mi 32 (svalueMInt (extract v_5708 48 64)))) 14) (expression.bv_nat 32 1)) 15 31) (concat (extract (add (lshr (mul (mi 32 (svalueMInt (extract v_5704 64 80))) (mi 32 (svalueMInt (extract v_5708 64 80)))) 14) (expression.bv_nat 32 1)) 15 31) (concat (extract (add (lshr (mul (mi 32 (svalueMInt (extract v_5704 80 96))) (mi 32 (svalueMInt (extract v_5708 80 96)))) 14) (expression.bv_nat 32 1)) 15 31) (concat (extract (add (lshr (mul (mi 32 (svalueMInt (extract v_5704 96 112))) (mi 32 (svalueMInt (extract v_5708 96 112)))) 14) (expression.bv_nat 32 1)) 15 31) (extract (add (lshr (mul (mi 32 (svalueMInt (extract v_5704 112 128))) (mi 32 (svalueMInt (extract v_5708 112 128)))) 14) (expression.bv_nat 32 1)) 15 31))))))));
+      pure ()
+    pat_end;
+    pattern fun (v_2778 : Mem) (v_2779 : reg (bv 128)) => do
+      v_12964 <- getRegister v_2779;
+      v_12968 <- evaluateAddress v_2778;
+      v_12969 <- load v_12968 16;
+      setRegister (lhs.of_reg v_2779) (concat (extract (add (lshr (mul (mi 32 (svalueMInt (extract v_12964 0 16))) (mi 32 (svalueMInt (extract v_12969 0 16)))) 14) (expression.bv_nat 32 1)) 15 31) (concat (extract (add (lshr (mul (mi 32 (svalueMInt (extract v_12964 16 32))) (mi 32 (svalueMInt (extract v_12969 16 32)))) 14) (expression.bv_nat 32 1)) 15 31) (concat (extract (add (lshr (mul (mi 32 (svalueMInt (extract v_12964 32 48))) (mi 32 (svalueMInt (extract v_12969 32 48)))) 14) (expression.bv_nat 32 1)) 15 31) (concat (extract (add (lshr (mul (mi 32 (svalueMInt (extract v_12964 48 64))) (mi 32 (svalueMInt (extract v_12969 48 64)))) 14) (expression.bv_nat 32 1)) 15 31) (concat (extract (add (lshr (mul (mi 32 (svalueMInt (extract v_12964 64 80))) (mi 32 (svalueMInt (extract v_12969 64 80)))) 14) (expression.bv_nat 32 1)) 15 31) (concat (extract (add (lshr (mul (mi 32 (svalueMInt (extract v_12964 80 96))) (mi 32 (svalueMInt (extract v_12969 80 96)))) 14) (expression.bv_nat 32 1)) 15 31) (concat (extract (add (lshr (mul (mi 32 (svalueMInt (extract v_12964 96 112))) (mi 32 (svalueMInt (extract v_12969 96 112)))) 14) (expression.bv_nat 32 1)) 15 31) (extract (add (lshr (mul (mi 32 (svalueMInt (extract v_12964 112 128))) (mi 32 (svalueMInt (extract v_12969 112 128)))) 14) (expression.bv_nat 32 1)) 15 31))))))));
+      pure ()
+    pat_end
