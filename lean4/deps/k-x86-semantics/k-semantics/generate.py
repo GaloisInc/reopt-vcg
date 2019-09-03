@@ -40,24 +40,17 @@ def generate_lean(suffix):
     f'x86-semantics-{suffix}',
   )
 
-  output_file_path = os.path.join(
-    lean_dir_path,
-    f'out-{suffix}.txt',
+  subprocess.check_call(
+    [ f'{kprove_path}',
+      '-v',
+      '--smt',
+      'none',
+      '-d',
+      kompiled_semantics_dir_path,
+      'instruction-template-spec.k',
+    ],
+    cwd=lean_dir_path,
   )
-
-  with open(output_file_path, 'w') as output_file:
-    subprocess.check_call(
-      [ f'{kprove_path}',
-        #'-v',
-        '--smt',
-        'none',
-        '-d',
-        kompiled_semantics_dir_path,
-        'instruction-template-spec.k',
-      ],
-      stderr=output_file,
-      cwd=lean_dir_path,
-    )
 
 def generate_lean_all(start=0, stop=14):
   for suffix in range(start, stop):

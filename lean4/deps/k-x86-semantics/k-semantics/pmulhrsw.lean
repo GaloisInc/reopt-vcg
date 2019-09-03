@@ -1,0 +1,15 @@
+def pmulhrsw1 : instruction :=
+  definst "pmulhrsw" $ do
+    pattern fun (v_2797 : reg (bv 128)) (v_2798 : reg (bv 128)) => do
+      v_5611 <- getRegister v_2798;
+      v_5614 <- getRegister v_2797;
+      setRegister (lhs.of_reg v_2798) (concat (extract (add (lshr (mul (leanSignExtend (extract v_5611 0 16) 32) (leanSignExtend (extract v_5614 0 16) 32)) 14) (expression.bv_nat 32 1)) 15 31) (concat (extract (add (lshr (mul (leanSignExtend (extract v_5611 16 32) 32) (leanSignExtend (extract v_5614 16 32) 32)) 14) (expression.bv_nat 32 1)) 15 31) (concat (extract (add (lshr (mul (leanSignExtend (extract v_5611 32 48) 32) (leanSignExtend (extract v_5614 32 48) 32)) 14) (expression.bv_nat 32 1)) 15 31) (concat (extract (add (lshr (mul (leanSignExtend (extract v_5611 48 64) 32) (leanSignExtend (extract v_5614 48 64) 32)) 14) (expression.bv_nat 32 1)) 15 31) (concat (extract (add (lshr (mul (leanSignExtend (extract v_5611 64 80) 32) (leanSignExtend (extract v_5614 64 80) 32)) 14) (expression.bv_nat 32 1)) 15 31) (concat (extract (add (lshr (mul (leanSignExtend (extract v_5611 80 96) 32) (leanSignExtend (extract v_5614 80 96) 32)) 14) (expression.bv_nat 32 1)) 15 31) (concat (extract (add (lshr (mul (leanSignExtend (extract v_5611 96 112) 32) (leanSignExtend (extract v_5614 96 112) 32)) 14) (expression.bv_nat 32 1)) 15 31) (extract (add (lshr (mul (leanSignExtend (extract v_5611 112 128) 32) (leanSignExtend (extract v_5614 112 128) 32)) 14) (expression.bv_nat 32 1)) 15 31))))))));
+      pure ()
+    pat_end;
+    pattern fun (v_2793 : Mem) (v_2794 : reg (bv 128)) => do
+      v_12545 <- getRegister v_2794;
+      v_12548 <- evaluateAddress v_2793;
+      v_12549 <- load v_12548 16;
+      setRegister (lhs.of_reg v_2794) (concat (extract (add (lshr (mul (leanSignExtend (extract v_12545 0 16) 32) (leanSignExtend (extract v_12549 0 16) 32)) 14) (expression.bv_nat 32 1)) 15 31) (concat (extract (add (lshr (mul (leanSignExtend (extract v_12545 16 32) 32) (leanSignExtend (extract v_12549 16 32) 32)) 14) (expression.bv_nat 32 1)) 15 31) (concat (extract (add (lshr (mul (leanSignExtend (extract v_12545 32 48) 32) (leanSignExtend (extract v_12549 32 48) 32)) 14) (expression.bv_nat 32 1)) 15 31) (concat (extract (add (lshr (mul (leanSignExtend (extract v_12545 48 64) 32) (leanSignExtend (extract v_12549 48 64) 32)) 14) (expression.bv_nat 32 1)) 15 31) (concat (extract (add (lshr (mul (leanSignExtend (extract v_12545 64 80) 32) (leanSignExtend (extract v_12549 64 80) 32)) 14) (expression.bv_nat 32 1)) 15 31) (concat (extract (add (lshr (mul (leanSignExtend (extract v_12545 80 96) 32) (leanSignExtend (extract v_12549 80 96) 32)) 14) (expression.bv_nat 32 1)) 15 31) (concat (extract (add (lshr (mul (leanSignExtend (extract v_12545 96 112) 32) (leanSignExtend (extract v_12549 96 112) 32)) 14) (expression.bv_nat 32 1)) 15 31) (extract (add (lshr (mul (leanSignExtend (extract v_12545 112 128) 32) (leanSignExtend (extract v_12549 112 128) 32)) 14) (expression.bv_nat 32 1)) 15 31))))))));
+      pure ()
+    pat_end

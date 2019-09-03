@@ -1,0 +1,124 @@
+def vpmaxsw1 : instruction :=
+  definst "vpmaxsw" $ do
+    pattern fun (v_3481 : reg (bv 128)) (v_3482 : reg (bv 128)) (v_3483 : reg (bv 128)) => do
+      v_10884 <- getRegister v_3482;
+      v_10885 <- eval (extract v_10884 0 16);
+      v_10886 <- getRegister v_3481;
+      v_10887 <- eval (extract v_10886 0 16);
+      v_10890 <- eval (extract v_10884 16 32);
+      v_10891 <- eval (extract v_10886 16 32);
+      v_10894 <- eval (extract v_10884 32 48);
+      v_10895 <- eval (extract v_10886 32 48);
+      v_10898 <- eval (extract v_10884 48 64);
+      v_10899 <- eval (extract v_10886 48 64);
+      v_10902 <- eval (extract v_10884 64 80);
+      v_10903 <- eval (extract v_10886 64 80);
+      v_10906 <- eval (extract v_10884 80 96);
+      v_10907 <- eval (extract v_10886 80 96);
+      v_10910 <- eval (extract v_10884 96 112);
+      v_10911 <- eval (extract v_10886 96 112);
+      v_10914 <- eval (extract v_10884 112 128);
+      v_10915 <- eval (extract v_10886 112 128);
+      setRegister (lhs.of_reg v_3483) (concat (mux (sgt v_10885 v_10887) v_10885 v_10887) (concat (mux (sgt v_10890 v_10891) v_10890 v_10891) (concat (mux (sgt v_10894 v_10895) v_10894 v_10895) (concat (mux (sgt v_10898 v_10899) v_10898 v_10899) (concat (mux (sgt v_10902 v_10903) v_10902 v_10903) (concat (mux (sgt v_10906 v_10907) v_10906 v_10907) (concat (mux (sgt v_10910 v_10911) v_10910 v_10911) (mux (sgt v_10914 v_10915) v_10914 v_10915))))))));
+      pure ()
+    pat_end;
+    pattern fun (v_3495 : reg (bv 256)) (v_3496 : reg (bv 256)) (v_3497 : reg (bv 256)) => do
+      v_10931 <- getRegister v_3496;
+      v_10932 <- eval (extract v_10931 0 16);
+      v_10933 <- getRegister v_3495;
+      v_10934 <- eval (extract v_10933 0 16);
+      v_10937 <- eval (extract v_10931 16 32);
+      v_10938 <- eval (extract v_10933 16 32);
+      v_10941 <- eval (extract v_10931 32 48);
+      v_10942 <- eval (extract v_10933 32 48);
+      v_10945 <- eval (extract v_10931 48 64);
+      v_10946 <- eval (extract v_10933 48 64);
+      v_10949 <- eval (extract v_10931 64 80);
+      v_10950 <- eval (extract v_10933 64 80);
+      v_10953 <- eval (extract v_10931 80 96);
+      v_10954 <- eval (extract v_10933 80 96);
+      v_10957 <- eval (extract v_10931 96 112);
+      v_10958 <- eval (extract v_10933 96 112);
+      v_10961 <- eval (extract v_10931 112 128);
+      v_10962 <- eval (extract v_10933 112 128);
+      v_10965 <- eval (extract v_10931 128 144);
+      v_10966 <- eval (extract v_10933 128 144);
+      v_10969 <- eval (extract v_10931 144 160);
+      v_10970 <- eval (extract v_10933 144 160);
+      v_10973 <- eval (extract v_10931 160 176);
+      v_10974 <- eval (extract v_10933 160 176);
+      v_10977 <- eval (extract v_10931 176 192);
+      v_10978 <- eval (extract v_10933 176 192);
+      v_10981 <- eval (extract v_10931 192 208);
+      v_10982 <- eval (extract v_10933 192 208);
+      v_10985 <- eval (extract v_10931 208 224);
+      v_10986 <- eval (extract v_10933 208 224);
+      v_10989 <- eval (extract v_10931 224 240);
+      v_10990 <- eval (extract v_10933 224 240);
+      v_10993 <- eval (extract v_10931 240 256);
+      v_10994 <- eval (extract v_10933 240 256);
+      setRegister (lhs.of_reg v_3497) (concat (mux (sgt v_10932 v_10934) v_10932 v_10934) (concat (mux (sgt v_10937 v_10938) v_10937 v_10938) (concat (mux (sgt v_10941 v_10942) v_10941 v_10942) (concat (mux (sgt v_10945 v_10946) v_10945 v_10946) (concat (mux (sgt v_10949 v_10950) v_10949 v_10950) (concat (mux (sgt v_10953 v_10954) v_10953 v_10954) (concat (mux (sgt v_10957 v_10958) v_10957 v_10958) (concat (mux (sgt v_10961 v_10962) v_10961 v_10962) (concat (mux (sgt v_10965 v_10966) v_10965 v_10966) (concat (mux (sgt v_10969 v_10970) v_10969 v_10970) (concat (mux (sgt v_10973 v_10974) v_10973 v_10974) (concat (mux (sgt v_10977 v_10978) v_10977 v_10978) (concat (mux (sgt v_10981 v_10982) v_10981 v_10982) (concat (mux (sgt v_10985 v_10986) v_10985 v_10986) (concat (mux (sgt v_10989 v_10990) v_10989 v_10990) (mux (sgt v_10993 v_10994) v_10993 v_10994))))))))))))))));
+      pure ()
+    pat_end;
+    pattern fun (v_3480 : Mem) (v_3476 : reg (bv 128)) (v_3477 : reg (bv 128)) => do
+      v_19509 <- getRegister v_3476;
+      v_19510 <- eval (extract v_19509 0 16);
+      v_19511 <- evaluateAddress v_3480;
+      v_19512 <- load v_19511 16;
+      v_19513 <- eval (extract v_19512 0 16);
+      v_19516 <- eval (extract v_19509 16 32);
+      v_19517 <- eval (extract v_19512 16 32);
+      v_19520 <- eval (extract v_19509 32 48);
+      v_19521 <- eval (extract v_19512 32 48);
+      v_19524 <- eval (extract v_19509 48 64);
+      v_19525 <- eval (extract v_19512 48 64);
+      v_19528 <- eval (extract v_19509 64 80);
+      v_19529 <- eval (extract v_19512 64 80);
+      v_19532 <- eval (extract v_19509 80 96);
+      v_19533 <- eval (extract v_19512 80 96);
+      v_19536 <- eval (extract v_19509 96 112);
+      v_19537 <- eval (extract v_19512 96 112);
+      v_19540 <- eval (extract v_19509 112 128);
+      v_19541 <- eval (extract v_19512 112 128);
+      setRegister (lhs.of_reg v_3477) (concat (mux (sgt v_19510 v_19513) v_19510 v_19513) (concat (mux (sgt v_19516 v_19517) v_19516 v_19517) (concat (mux (sgt v_19520 v_19521) v_19520 v_19521) (concat (mux (sgt v_19524 v_19525) v_19524 v_19525) (concat (mux (sgt v_19528 v_19529) v_19528 v_19529) (concat (mux (sgt v_19532 v_19533) v_19532 v_19533) (concat (mux (sgt v_19536 v_19537) v_19536 v_19537) (mux (sgt v_19540 v_19541) v_19540 v_19541))))))));
+      pure ()
+    pat_end;
+    pattern fun (v_3489 : Mem) (v_3490 : reg (bv 256)) (v_3491 : reg (bv 256)) => do
+      v_19552 <- getRegister v_3490;
+      v_19553 <- eval (extract v_19552 0 16);
+      v_19554 <- evaluateAddress v_3489;
+      v_19555 <- load v_19554 32;
+      v_19556 <- eval (extract v_19555 0 16);
+      v_19559 <- eval (extract v_19552 16 32);
+      v_19560 <- eval (extract v_19555 16 32);
+      v_19563 <- eval (extract v_19552 32 48);
+      v_19564 <- eval (extract v_19555 32 48);
+      v_19567 <- eval (extract v_19552 48 64);
+      v_19568 <- eval (extract v_19555 48 64);
+      v_19571 <- eval (extract v_19552 64 80);
+      v_19572 <- eval (extract v_19555 64 80);
+      v_19575 <- eval (extract v_19552 80 96);
+      v_19576 <- eval (extract v_19555 80 96);
+      v_19579 <- eval (extract v_19552 96 112);
+      v_19580 <- eval (extract v_19555 96 112);
+      v_19583 <- eval (extract v_19552 112 128);
+      v_19584 <- eval (extract v_19555 112 128);
+      v_19587 <- eval (extract v_19552 128 144);
+      v_19588 <- eval (extract v_19555 128 144);
+      v_19591 <- eval (extract v_19552 144 160);
+      v_19592 <- eval (extract v_19555 144 160);
+      v_19595 <- eval (extract v_19552 160 176);
+      v_19596 <- eval (extract v_19555 160 176);
+      v_19599 <- eval (extract v_19552 176 192);
+      v_19600 <- eval (extract v_19555 176 192);
+      v_19603 <- eval (extract v_19552 192 208);
+      v_19604 <- eval (extract v_19555 192 208);
+      v_19607 <- eval (extract v_19552 208 224);
+      v_19608 <- eval (extract v_19555 208 224);
+      v_19611 <- eval (extract v_19552 224 240);
+      v_19612 <- eval (extract v_19555 224 240);
+      v_19615 <- eval (extract v_19552 240 256);
+      v_19616 <- eval (extract v_19555 240 256);
+      setRegister (lhs.of_reg v_3491) (concat (mux (sgt v_19553 v_19556) v_19553 v_19556) (concat (mux (sgt v_19559 v_19560) v_19559 v_19560) (concat (mux (sgt v_19563 v_19564) v_19563 v_19564) (concat (mux (sgt v_19567 v_19568) v_19567 v_19568) (concat (mux (sgt v_19571 v_19572) v_19571 v_19572) (concat (mux (sgt v_19575 v_19576) v_19575 v_19576) (concat (mux (sgt v_19579 v_19580) v_19579 v_19580) (concat (mux (sgt v_19583 v_19584) v_19583 v_19584) (concat (mux (sgt v_19587 v_19588) v_19587 v_19588) (concat (mux (sgt v_19591 v_19592) v_19591 v_19592) (concat (mux (sgt v_19595 v_19596) v_19595 v_19596) (concat (mux (sgt v_19599 v_19600) v_19599 v_19600) (concat (mux (sgt v_19603 v_19604) v_19603 v_19604) (concat (mux (sgt v_19607 v_19608) v_19607 v_19608) (concat (mux (sgt v_19611 v_19612) v_19611 v_19612) (mux (sgt v_19615 v_19616) v_19615 v_19616))))))))))))))));
+      pure ()
+    pat_end
