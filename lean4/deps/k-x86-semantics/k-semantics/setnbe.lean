@@ -1,15 +1,15 @@
 def setnbe1 : instruction :=
   definst "setnbe" $ do
-    pattern fun (v_2539 : reg (bv 8)) => do
-      v_4055 <- getRegister cf;
-      v_4058 <- getRegister zf;
-      setRegister (lhs.of_reg v_2539) (mux (bit_and (notBool_ (eq v_4055 (expression.bv_nat 1 1))) (notBool_ (eq v_4058 (expression.bv_nat 1 1)))) (expression.bv_nat 8 1) (expression.bv_nat 8 0));
+    pattern fun (v_2594 : reg (bv 8)) => do
+      v_4115 <- getRegister cf;
+      v_4118 <- getRegister zf;
+      setRegister (lhs.of_reg v_2594) (mux (bit_and (notBool_ (eq v_4115 (expression.bv_nat 1 1))) (notBool_ (eq v_4118 (expression.bv_nat 1 1)))) (expression.bv_nat 8 1) (expression.bv_nat 8 0));
       pure ()
     pat_end;
-    pattern fun (v_2535 : Mem) => do
-      v_9526 <- evaluateAddress v_2535;
-      v_9527 <- getRegister cf;
-      v_9530 <- getRegister zf;
-      store v_9526 (mux (bit_and (notBool_ (eq v_9527 (expression.bv_nat 1 1))) (notBool_ (eq v_9530 (expression.bv_nat 1 1)))) (expression.bv_nat 8 1) (expression.bv_nat 8 0)) 1;
+    pattern fun (v_2586 : Mem) => do
+      v_8549 <- evaluateAddress v_2586;
+      v_8550 <- getRegister cf;
+      v_8553 <- getRegister zf;
+      store v_8549 (mux (bit_and (notBool_ (eq v_8550 (expression.bv_nat 1 1))) (notBool_ (eq v_8553 (expression.bv_nat 1 1)))) (expression.bv_nat 8 1) (expression.bv_nat 8 0)) 1;
       pure ()
     pat_end

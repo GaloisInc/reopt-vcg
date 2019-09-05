@@ -1,15 +1,15 @@
 def andps1 : instruction :=
   definst "andps" $ do
-    pattern fun (v_2845 : reg (bv 128)) (v_2846 : reg (bv 128)) => do
-      v_5624 <- getRegister v_2846;
-      v_5625 <- getRegister v_2845;
-      setRegister (lhs.of_reg v_2846) (bv_and v_5624 v_5625);
+    pattern fun (v_2896 : reg (bv 128)) (v_2897 : reg (bv 128)) => do
+      v_5424 <- getRegister v_2897;
+      v_5425 <- getRegister v_2896;
+      setRegister (lhs.of_reg v_2897) (bv_and v_5424 v_5425);
       pure ()
     pat_end;
-    pattern fun (v_2840 : Mem) (v_2841 : reg (bv 128)) => do
-      v_9698 <- getRegister v_2841;
-      v_9699 <- evaluateAddress v_2840;
-      v_9700 <- load v_9699 16;
-      setRegister (lhs.of_reg v_2841) (bv_and v_9698 v_9700);
+    pattern fun (v_2891 : Mem) (v_2892 : reg (bv 128)) => do
+      v_9201 <- getRegister v_2892;
+      v_9202 <- evaluateAddress v_2891;
+      v_9203 <- load v_9202 16;
+      setRegister (lhs.of_reg v_2892) (bv_and v_9201 v_9203);
       pure ()
     pat_end

@@ -1,15 +1,15 @@
 def orpd1 : instruction :=
   definst "orpd" $ do
-    pattern fun (v_2990 : reg (bv 128)) (v_2991 : reg (bv 128)) => do
-      v_4899 <- getRegister v_2991;
-      v_4900 <- getRegister v_2990;
-      setRegister (lhs.of_reg v_2991) (bv_or v_4899 v_4900);
+    pattern fun (v_3041 : reg (bv 128)) (v_3042 : reg (bv 128)) => do
+      v_4815 <- getRegister v_3042;
+      v_4816 <- getRegister v_3041;
+      setRegister (lhs.of_reg v_3042) (bv_or v_4815 v_4816);
       pure ()
     pat_end;
-    pattern fun (v_2986 : Mem) (v_2987 : reg (bv 128)) => do
-      v_9223 <- getRegister v_2987;
-      v_9224 <- evaluateAddress v_2986;
-      v_9225 <- load v_9224 16;
-      setRegister (lhs.of_reg v_2987) (bv_or v_9223 v_9225);
+    pattern fun (v_3036 : Mem) (v_3037 : reg (bv 128)) => do
+      v_8987 <- getRegister v_3037;
+      v_8988 <- evaluateAddress v_3036;
+      v_8989 <- load v_8988 16;
+      setRegister (lhs.of_reg v_3037) (bv_or v_8987 v_8989);
       pure ()
     pat_end

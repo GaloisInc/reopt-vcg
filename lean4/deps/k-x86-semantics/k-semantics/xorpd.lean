@@ -1,15 +1,15 @@
 def xorpd1 : instruction :=
   definst "xorpd" $ do
-    pattern fun (v_2797 : reg (bv 128)) (v_2798 : reg (bv 128)) => do
-      v_5038 <- getRegister v_2798;
-      v_5039 <- getRegister v_2797;
-      setRegister (lhs.of_reg v_2798) (bv_xor v_5038 v_5039);
+    pattern fun (v_3417 : reg (bv 128)) (v_3418 : reg (bv 128)) => do
+      v_8027 <- getRegister v_3418;
+      v_8028 <- getRegister v_3417;
+      setRegister (lhs.of_reg v_3418) (bv_xor v_8027 v_8028);
       pure ()
     pat_end;
-    pattern fun (v_2791 : Mem) (v_2793 : reg (bv 128)) => do
-      v_7246 <- getRegister v_2793;
-      v_7247 <- evaluateAddress v_2791;
-      v_7248 <- load v_7247 16;
-      setRegister (lhs.of_reg v_2793) (bv_xor v_7246 v_7248);
+    pattern fun (v_3412 : Mem) (v_3413 : reg (bv 128)) => do
+      v_13562 <- getRegister v_3413;
+      v_13563 <- evaluateAddress v_3412;
+      v_13564 <- load v_13563 16;
+      setRegister (lhs.of_reg v_3413) (bv_xor v_13562 v_13564);
       pure ()
     pat_end

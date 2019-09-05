@@ -1,29 +1,27 @@
 def blsrl1 : instruction :=
   definst "blsrl" $ do
-    pattern fun (v_3004 : reg (bv 32)) (v_3005 : reg (bv 32)) => do
-      v_6125 <- getRegister v_3004;
-      v_6128 <- eval (sub v_6125 (expression.bv_nat 32 1));
-      v_6132 <- eval (bv_and v_6128 v_6125);
-      setRegister (lhs.of_reg v_3005) v_6132;
-      setRegister of (expression.bv_nat 1 0);
-      setRegister pf undef;
-      setRegister zf (zeroFlag v_6132);
+    pattern fun (v_3054 : reg (bv 32)) (v_3055 : reg (bv 32)) => do
+      v_5892 <- getRegister v_3054;
+      v_5894 <- eval (bv_and (sub v_5892 (expression.bv_nat 32 1)) v_5892);
+      setRegister (lhs.of_reg v_3055) v_5894;
       setRegister af undef;
-      setRegister sf (bv_and (extract v_6128 0 1) (extract v_6125 0 1));
-      setRegister cf (mux (eq v_6125 (expression.bv_nat 32 0)) (expression.bv_nat 1 1) (expression.bv_nat 1 0));
+      setRegister cf (eq v_5892 (expression.bv_nat 32 0));
+      setRegister of bit_zero;
+      setRegister pf undef;
+      setRegister sf (isBitSet v_5894 0);
+      setRegister zf (zeroFlag v_5894);
       pure ()
     pat_end;
-    pattern fun (v_2999 : Mem) (v_3000 : reg (bv 32)) => do
-      v_9949 <- evaluateAddress v_2999;
-      v_9950 <- load v_9949 4;
-      v_9953 <- eval (sub v_9950 (expression.bv_nat 32 1));
-      v_9957 <- eval (bv_and v_9953 v_9950);
-      setRegister (lhs.of_reg v_3000) v_9957;
-      setRegister of (expression.bv_nat 1 0);
-      setRegister pf undef;
-      setRegister zf (zeroFlag v_9957);
+    pattern fun (v_3051 : Mem) (v_3050 : reg (bv 32)) => do
+      v_9422 <- evaluateAddress v_3051;
+      v_9423 <- load v_9422 4;
+      v_9425 <- eval (bv_and (sub v_9423 (expression.bv_nat 32 1)) v_9423);
+      setRegister (lhs.of_reg v_3050) v_9425;
       setRegister af undef;
-      setRegister sf (bv_and (extract v_9953 0 1) (extract v_9950 0 1));
-      setRegister cf (mux (eq v_9950 (expression.bv_nat 32 0)) (expression.bv_nat 1 1) (expression.bv_nat 1 0));
+      setRegister cf (eq v_9423 (expression.bv_nat 32 0));
+      setRegister of bit_zero;
+      setRegister pf undef;
+      setRegister sf (isBitSet v_9425 0);
+      setRegister zf (zeroFlag v_9425);
       pure ()
     pat_end

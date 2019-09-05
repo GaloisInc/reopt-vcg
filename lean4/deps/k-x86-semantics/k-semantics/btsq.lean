@@ -1,53 +1,53 @@
 def btsq1 : instruction :=
   definst "btsq" $ do
-    pattern fun (v_3195 : imm int) (v_3197 : reg (bv 64)) => do
-      v_6563 <- getRegister v_3197;
-      v_6568 <- eval (uvalueMInt (mi 64 (svalueMInt (bv_and (handleImmediateWithSignExtend v_3195 8 8) (expression.bv_nat 8 63)))));
-      setRegister (lhs.of_reg v_3197) (bv_or v_6563 (extract (shl (expression.bv_nat 64 1) v_6568) 0 64));
+    pattern fun (v_3245 : imm int) (v_3248 : reg (bv 64)) => do
+      v_6279 <- getRegister v_3248;
+      v_6282 <- eval (sext (bv_and (handleImmediateWithSignExtend v_3245 8 8) (expression.bv_nat 8 63)) 64);
+      setRegister (lhs.of_reg v_3248) (bv_or v_6279 (extract (shl (expression.bv_nat 64 1) v_6282) 0 64));
+      setRegister af undef;
+      setRegister cf (isBitSet (lshr v_6279 v_6282) 63);
       setRegister of undef;
       setRegister pf undef;
-      setRegister af undef;
       setRegister sf undef;
-      setRegister cf (extract (lshr v_6563 v_6568) 63 64);
       pure ()
     pat_end;
-    pattern fun (v_3201 : reg (bv 64)) (v_3202 : reg (bv 64)) => do
-      v_6580 <- getRegister v_3202;
-      v_6581 <- getRegister v_3201;
-      v_6585 <- eval (uvalueMInt (mi 64 (svalueMInt (bv_and v_6581 (expression.bv_nat 64 63)))));
-      setRegister (lhs.of_reg v_3202) (bv_or v_6580 (extract (shl (expression.bv_nat 64 1) v_6585) 0 64));
+    pattern fun (v_3252 : reg (bv 64)) (v_3253 : reg (bv 64)) => do
+      v_6294 <- getRegister v_3253;
+      v_6295 <- getRegister v_3252;
+      v_6296 <- eval (bv_and v_6295 (expression.bv_nat 64 63));
+      setRegister (lhs.of_reg v_3253) (bv_or v_6294 (extract (shl (expression.bv_nat 64 1) v_6296) 0 64));
+      setRegister af undef;
+      setRegister cf (isBitSet (lshr v_6294 v_6296) 63);
       setRegister of undef;
       setRegister pf undef;
-      setRegister af undef;
       setRegister sf undef;
-      setRegister cf (extract (lshr v_6580 v_6585) 63 64);
       pure ()
     pat_end;
-    pattern fun (v_3188 : imm int) (v_3187 : Mem) => do
-      v_11638 <- evaluateAddress v_3187;
-      v_11639 <- eval (handleImmediateWithSignExtend v_3188 8 8);
-      v_11643 <- eval (add v_11638 (concat (expression.bv_nat 59 0) (bv_and (extract v_11639 0 5) (expression.bv_nat 5 7))));
-      v_11644 <- load v_11643 1;
-      v_11648 <- eval (uvalueMInt (concat (expression.bv_nat 5 0) (bv_and (extract v_11639 5 8) (expression.bv_nat 3 7))));
-      store v_11643 (bv_or v_11644 (extract (shl (expression.bv_nat 8 1) v_11648) 0 8)) 1;
+    pattern fun (v_3237 : imm int) (v_3239 : Mem) => do
+      v_11030 <- evaluateAddress v_3239;
+      v_11031 <- eval (handleImmediateWithSignExtend v_3237 8 8);
+      v_11035 <- eval (add v_11030 (concat (expression.bv_nat 59 0) (bv_and (extract v_11031 0 5) (expression.bv_nat 5 7))));
+      v_11036 <- load v_11035 1;
+      v_11039 <- eval (concat (expression.bv_nat 5 0) (bv_and (extract v_11031 5 8) (expression.bv_nat 3 7)));
+      store v_11035 (bv_or v_11036 (extract (shl (expression.bv_nat 8 1) v_11039) 0 8)) 1;
+      setRegister af undef;
+      setRegister cf (isBitSet (lshr v_11036 v_11039) 7);
       setRegister of undef;
       setRegister pf undef;
-      setRegister af undef;
       setRegister sf undef;
-      setRegister cf (extract (lshr v_11644 v_11648) 7 8);
       pure ()
     pat_end;
-    pattern fun (v_3192 : reg (bv 64)) (v_3191 : Mem) => do
-      v_11660 <- evaluateAddress v_3191;
-      v_11661 <- getRegister v_3192;
-      v_11664 <- eval (add v_11660 (concat (expression.bv_nat 3 0) (extract v_11661 0 61)));
-      v_11665 <- load v_11664 1;
-      v_11668 <- eval (uvalueMInt (concat (expression.bv_nat 5 0) (extract v_11661 61 64)));
-      store v_11664 (bv_or v_11665 (extract (shl (expression.bv_nat 8 1) v_11668) 0 8)) 1;
+    pattern fun (v_3243 : reg (bv 64)) (v_3242 : Mem) => do
+      v_11051 <- evaluateAddress v_3242;
+      v_11052 <- getRegister v_3243;
+      v_11055 <- eval (add v_11051 (concat (expression.bv_nat 3 0) (extract v_11052 0 61)));
+      v_11056 <- load v_11055 1;
+      v_11058 <- eval (concat (expression.bv_nat 5 0) (extract v_11052 61 64));
+      store v_11055 (bv_or v_11056 (extract (shl (expression.bv_nat 8 1) v_11058) 0 8)) 1;
+      setRegister af undef;
+      setRegister cf (isBitSet (lshr v_11056 v_11058) 7);
       setRegister of undef;
       setRegister pf undef;
-      setRegister af undef;
       setRegister sf undef;
-      setRegister cf (extract (lshr v_11665 v_11668) 7 8);
       pure ()
     pat_end

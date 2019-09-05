@@ -1,16 +1,15 @@
 def rcpss1 : instruction :=
   definst "rcpss" $ do
-    pattern fun (v_2451 : reg (bv 128)) (v_2452 : reg (bv 128)) => do
-      v_4254 <- getRegister v_2452;
-      v_4256 <- getRegister v_2451;
-      v_4257 <- eval (extract v_4256 96 128);
-      setRegister (lhs.of_reg v_2452) (concat (extract v_4254 0 96) (Float2MInt (_/Float__FLOAT 1e+00 (MIntToFloatImpl 24 8 (uvalueMInt (extract v_4257 0 1)) (uvalueMInt (extract v_4257 1 9)) (uvalueMInt (extract v_4257 9 32)))) 32));
+    pattern fun (v_2504 : reg (bv 128)) (v_2505 : reg (bv 128)) => do
+      v_4243 <- getRegister v_2505;
+      v_4245 <- getRegister v_2504;
+      setRegister (lhs.of_reg v_2505) (concat (extract v_4243 0 96) (Float2MInt (_/Float__FLOAT 1e+00 (MInt2Float (extract v_4245 96 128) 24 8)) 32));
       pure ()
     pat_end;
-    pattern fun (v_2446 : Mem) (v_2447 : reg (bv 128)) => do
-      v_12757 <- getRegister v_2447;
-      v_12759 <- evaluateAddress v_2446;
-      v_12760 <- load v_12759 4;
-      setRegister (lhs.of_reg v_2447) (concat (extract v_12757 0 96) (Float2MInt (_/Float__FLOAT 1e+00 (MIntToFloatImpl 24 8 (uvalueMInt (extract v_12760 0 1)) (uvalueMInt (extract v_12760 1 9)) (uvalueMInt (extract v_12760 9 32)))) 32));
+    pattern fun (v_2499 : Mem) (v_2500 : reg (bv 128)) => do
+      v_11172 <- getRegister v_2500;
+      v_11174 <- evaluateAddress v_2499;
+      v_11175 <- load v_11174 4;
+      setRegister (lhs.of_reg v_2500) (concat (extract v_11172 0 96) (Float2MInt (_/Float__FLOAT 1e+00 (MInt2Float v_11175 24 8)) 32));
       pure ()
     pat_end

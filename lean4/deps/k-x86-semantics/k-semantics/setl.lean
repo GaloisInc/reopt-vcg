@@ -1,15 +1,15 @@
 def setl1 : instruction :=
   definst "setl" $ do
-    pattern fun (v_2484 : reg (bv 8)) => do
-      v_3970 <- getRegister sf;
-      v_3972 <- getRegister of;
-      setRegister (lhs.of_reg v_2484) (mux (notBool_ (eq (eq v_3970 (expression.bv_nat 1 1)) (eq v_3972 (expression.bv_nat 1 1)))) (expression.bv_nat 8 1) (expression.bv_nat 8 0));
+    pattern fun (v_2539 : reg (bv 8)) => do
+      v_4029 <- getRegister sf;
+      v_4031 <- getRegister of;
+      setRegister (lhs.of_reg v_2539) (mux (notBool_ (eq (eq v_4029 (expression.bv_nat 1 1)) (eq v_4031 (expression.bv_nat 1 1)))) (expression.bv_nat 8 1) (expression.bv_nat 8 0));
       pure ()
     pat_end;
-    pattern fun (v_2480 : Mem) => do
-      v_9486 <- evaluateAddress v_2480;
-      v_9487 <- getRegister sf;
-      v_9489 <- getRegister of;
-      store v_9486 (mux (notBool_ (eq (eq v_9487 (expression.bv_nat 1 1)) (eq v_9489 (expression.bv_nat 1 1)))) (expression.bv_nat 8 1) (expression.bv_nat 8 0)) 1;
+    pattern fun (v_2531 : Mem) => do
+      v_8509 <- evaluateAddress v_2531;
+      v_8510 <- getRegister sf;
+      v_8512 <- getRegister of;
+      store v_8509 (mux (notBool_ (eq (eq v_8510 (expression.bv_nat 1 1)) (eq v_8512 (expression.bv_nat 1 1)))) (expression.bv_nat 8 1) (expression.bv_nat 8 0)) 1;
       pure ()
     pat_end

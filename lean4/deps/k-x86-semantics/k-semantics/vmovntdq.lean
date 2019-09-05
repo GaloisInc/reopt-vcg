@@ -1,14 +1,14 @@
 def vmovntdq1 : instruction :=
   definst "vmovntdq" $ do
-    pattern fun (v_2911 : reg (bv 256)) (v_2910 : Mem) => do
-      v_9912 <- evaluateAddress v_2910;
-      v_9913 <- getRegister v_2911;
-      store v_9912 v_9913 32;
+    pattern fun (v_2962 : reg (bv 256)) (v_2961 : Mem) => do
+      v_9357 <- evaluateAddress v_2961;
+      v_9358 <- getRegister v_2962;
+      store v_9357 v_9358 32;
       pure ()
     pat_end;
-    pattern fun (v_2907 : reg (bv 128)) (v_2906 : Mem) => do
-      v_13633 <- evaluateAddress v_2906;
-      v_13634 <- getRegister v_2907;
-      store v_13633 v_13634 16;
+    pattern fun (v_2958 : reg (bv 128)) (v_2957 : Mem) => do
+      v_12436 <- evaluateAddress v_2957;
+      v_12437 <- getRegister v_2958;
+      store v_12436 v_12437 16;
       pure ()
     pat_end

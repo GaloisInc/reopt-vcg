@@ -1,6 +1,6 @@
 def std1 : instruction :=
   definst "std" $ do
     pattern fun => do
-      setRegister df (expression.bv_nat 1 1);
+      setRegister df bit_one;
       pure ()
     pat_end

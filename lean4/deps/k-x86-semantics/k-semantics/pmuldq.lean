@@ -1,15 +1,15 @@
 def pmuldq1 : instruction :=
   definst "pmuldq" $ do
-    pattern fun (v_2788 : reg (bv 128)) (v_2789 : reg (bv 128)) => do
-      v_5593 <- getRegister v_2789;
-      v_5596 <- getRegister v_2788;
-      setRegister (lhs.of_reg v_2789) (concat (mul (leanSignExtend (extract v_5593 32 64) 64) (leanSignExtend (extract v_5596 32 64) 64)) (mul (leanSignExtend (extract v_5593 96 128) 64) (leanSignExtend (extract v_5596 96 128) 64)));
+    pattern fun (v_2837 : reg (bv 128)) (v_2838 : reg (bv 128)) => do
+      v_5624 <- getRegister v_2838;
+      v_5627 <- getRegister v_2837;
+      setRegister (lhs.of_reg v_2838) (concat (mul (sext (extract v_5624 32 64) 64) (sext (extract v_5627 32 64) 64)) (mul (sext (extract v_5624 96 128) 64) (sext (extract v_5627 96 128) 64)));
       pure ()
     pat_end;
-    pattern fun (v_2784 : Mem) (v_2785 : reg (bv 128)) => do
-      v_12530 <- getRegister v_2785;
-      v_12533 <- evaluateAddress v_2784;
-      v_12534 <- load v_12533 16;
-      setRegister (lhs.of_reg v_2785) (concat (mul (leanSignExtend (extract v_12530 32 64) 64) (leanSignExtend (extract v_12534 32 64) 64)) (mul (leanSignExtend (extract v_12530 96 128) 64) (leanSignExtend (extract v_12534 96 128) 64)));
+    pattern fun (v_2834 : Mem) (v_2833 : reg (bv 128)) => do
+      v_12388 <- getRegister v_2833;
+      v_12391 <- evaluateAddress v_2834;
+      v_12392 <- load v_12391 16;
+      setRegister (lhs.of_reg v_2833) (concat (mul (sext (extract v_12388 32 64) 64) (sext (extract v_12392 32 64) 64)) (mul (sext (extract v_12388 96 128) 64) (sext (extract v_12392 96 128) 64)));
       pure ()
     pat_end

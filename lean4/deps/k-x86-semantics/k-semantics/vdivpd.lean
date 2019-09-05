@@ -1,52 +1,28 @@
 def vdivpd1 : instruction :=
   definst "vdivpd" $ do
-    pattern fun (v_3360 : reg (bv 128)) (v_3361 : reg (bv 128)) (v_3362 : reg (bv 128)) => do
-      v_7114 <- getRegister v_3361;
-      v_7115 <- eval (extract v_7114 0 64);
-      v_7123 <- getRegister v_3360;
-      v_7124 <- eval (extract v_7123 0 64);
-      v_7134 <- eval (extract v_7114 64 128);
-      v_7142 <- eval (extract v_7123 64 128);
-      setRegister (lhs.of_reg v_3362) (concat (Float2MInt (_/Float__FLOAT (MIntToFloatImpl 53 11 (uvalueMInt (extract v_7115 0 1)) (uvalueMInt (extract v_7115 1 12)) (uvalueMInt (extract v_7115 12 64))) (MIntToFloatImpl 53 11 (uvalueMInt (extract v_7124 0 1)) (uvalueMInt (extract v_7124 1 12)) (uvalueMInt (extract v_7124 12 64)))) 64) (Float2MInt (_/Float__FLOAT (MIntToFloatImpl 53 11 (uvalueMInt (extract v_7134 0 1)) (uvalueMInt (extract v_7134 1 12)) (uvalueMInt (extract v_7134 12 64))) (MIntToFloatImpl 53 11 (uvalueMInt (extract v_7142 0 1)) (uvalueMInt (extract v_7142 1 12)) (uvalueMInt (extract v_7142 12 64)))) 64));
+    pattern fun (v_3411 : reg (bv 128)) (v_3412 : reg (bv 128)) (v_3413 : reg (bv 128)) => do
+      v_6349 <- getRegister v_3412;
+      v_6352 <- getRegister v_3411;
+      setRegister (lhs.of_reg v_3413) (concat (Float2MInt (_/Float__FLOAT (MInt2Float (extract v_6349 0 64) 53 11) (MInt2Float (extract v_6352 0 64) 53 11)) 64) (Float2MInt (_/Float__FLOAT (MInt2Float (extract v_6349 64 128) 53 11) (MInt2Float (extract v_6352 64 128) 53 11)) 64));
       pure ()
     pat_end;
-    pattern fun (v_3368 : reg (bv 256)) (v_3369 : reg (bv 256)) (v_3370 : reg (bv 256)) => do
-      v_7159 <- getRegister v_3369;
-      v_7160 <- eval (extract v_7159 0 64);
-      v_7168 <- getRegister v_3368;
-      v_7169 <- eval (extract v_7168 0 64);
-      v_7179 <- eval (extract v_7159 64 128);
-      v_7187 <- eval (extract v_7168 64 128);
-      v_7197 <- eval (extract v_7159 128 192);
-      v_7205 <- eval (extract v_7168 128 192);
-      v_7215 <- eval (extract v_7159 192 256);
-      v_7223 <- eval (extract v_7168 192 256);
-      setRegister (lhs.of_reg v_3370) (concat (Float2MInt (_/Float__FLOAT (MIntToFloatImpl 53 11 (uvalueMInt (extract v_7160 0 1)) (uvalueMInt (extract v_7160 1 12)) (uvalueMInt (extract v_7160 12 64))) (MIntToFloatImpl 53 11 (uvalueMInt (extract v_7169 0 1)) (uvalueMInt (extract v_7169 1 12)) (uvalueMInt (extract v_7169 12 64)))) 64) (concat (Float2MInt (_/Float__FLOAT (MIntToFloatImpl 53 11 (uvalueMInt (extract v_7179 0 1)) (uvalueMInt (extract v_7179 1 12)) (uvalueMInt (extract v_7179 12 64))) (MIntToFloatImpl 53 11 (uvalueMInt (extract v_7187 0 1)) (uvalueMInt (extract v_7187 1 12)) (uvalueMInt (extract v_7187 12 64)))) 64) (concat (Float2MInt (_/Float__FLOAT (MIntToFloatImpl 53 11 (uvalueMInt (extract v_7197 0 1)) (uvalueMInt (extract v_7197 1 12)) (uvalueMInt (extract v_7197 12 64))) (MIntToFloatImpl 53 11 (uvalueMInt (extract v_7205 0 1)) (uvalueMInt (extract v_7205 1 12)) (uvalueMInt (extract v_7205 12 64)))) 64) (Float2MInt (_/Float__FLOAT (MIntToFloatImpl 53 11 (uvalueMInt (extract v_7215 0 1)) (uvalueMInt (extract v_7215 1 12)) (uvalueMInt (extract v_7215 12 64))) (MIntToFloatImpl 53 11 (uvalueMInt (extract v_7223 0 1)) (uvalueMInt (extract v_7223 1 12)) (uvalueMInt (extract v_7223 12 64)))) 64))));
+    pattern fun (v_3421 : reg (bv 256)) (v_3422 : reg (bv 256)) (v_3423 : reg (bv 256)) => do
+      v_6370 <- getRegister v_3422;
+      v_6373 <- getRegister v_3421;
+      setRegister (lhs.of_reg v_3423) (concat (Float2MInt (_/Float__FLOAT (MInt2Float (extract v_6370 0 64) 53 11) (MInt2Float (extract v_6373 0 64) 53 11)) 64) (concat (Float2MInt (_/Float__FLOAT (MInt2Float (extract v_6370 64 128) 53 11) (MInt2Float (extract v_6373 64 128) 53 11)) 64) (concat (Float2MInt (_/Float__FLOAT (MInt2Float (extract v_6370 128 192) 53 11) (MInt2Float (extract v_6373 128 192) 53 11)) 64) (Float2MInt (_/Float__FLOAT (MInt2Float (extract v_6370 192 256) 53 11) (MInt2Float (extract v_6373 192 256) 53 11)) 64))));
       pure ()
     pat_end;
-    pattern fun (v_3352 : Mem) (v_3355 : reg (bv 128)) (v_3356 : reg (bv 128)) => do
-      v_12333 <- getRegister v_3355;
-      v_12334 <- eval (extract v_12333 0 64);
-      v_12342 <- evaluateAddress v_3352;
-      v_12343 <- load v_12342 16;
-      v_12344 <- eval (extract v_12343 0 64);
-      v_12354 <- eval (extract v_12333 64 128);
-      v_12362 <- eval (extract v_12343 64 128);
-      setRegister (lhs.of_reg v_3356) (concat (Float2MInt (_/Float__FLOAT (MIntToFloatImpl 53 11 (uvalueMInt (extract v_12334 0 1)) (uvalueMInt (extract v_12334 1 12)) (uvalueMInt (extract v_12334 12 64))) (MIntToFloatImpl 53 11 (uvalueMInt (extract v_12344 0 1)) (uvalueMInt (extract v_12344 1 12)) (uvalueMInt (extract v_12344 12 64)))) 64) (Float2MInt (_/Float__FLOAT (MIntToFloatImpl 53 11 (uvalueMInt (extract v_12354 0 1)) (uvalueMInt (extract v_12354 1 12)) (uvalueMInt (extract v_12354 12 64))) (MIntToFloatImpl 53 11 (uvalueMInt (extract v_12362 0 1)) (uvalueMInt (extract v_12362 1 12)) (uvalueMInt (extract v_12362 12 64)))) 64));
+    pattern fun (v_3405 : Mem) (v_3406 : reg (bv 128)) (v_3407 : reg (bv 128)) => do
+      v_10361 <- getRegister v_3406;
+      v_10364 <- evaluateAddress v_3405;
+      v_10365 <- load v_10364 16;
+      setRegister (lhs.of_reg v_3407) (concat (Float2MInt (_/Float__FLOAT (MInt2Float (extract v_10361 0 64) 53 11) (MInt2Float (extract v_10365 0 64) 53 11)) 64) (Float2MInt (_/Float__FLOAT (MInt2Float (extract v_10361 64 128) 53 11) (MInt2Float (extract v_10365 64 128) 53 11)) 64));
       pure ()
     pat_end;
-    pattern fun (v_3363 : Mem) (v_3364 : reg (bv 256)) (v_3365 : reg (bv 256)) => do
-      v_12374 <- getRegister v_3364;
-      v_12375 <- eval (extract v_12374 0 64);
-      v_12383 <- evaluateAddress v_3363;
-      v_12384 <- load v_12383 32;
-      v_12385 <- eval (extract v_12384 0 64);
-      v_12395 <- eval (extract v_12374 64 128);
-      v_12403 <- eval (extract v_12384 64 128);
-      v_12413 <- eval (extract v_12374 128 192);
-      v_12421 <- eval (extract v_12384 128 192);
-      v_12431 <- eval (extract v_12374 192 256);
-      v_12439 <- eval (extract v_12384 192 256);
-      setRegister (lhs.of_reg v_3365) (concat (Float2MInt (_/Float__FLOAT (MIntToFloatImpl 53 11 (uvalueMInt (extract v_12375 0 1)) (uvalueMInt (extract v_12375 1 12)) (uvalueMInt (extract v_12375 12 64))) (MIntToFloatImpl 53 11 (uvalueMInt (extract v_12385 0 1)) (uvalueMInt (extract v_12385 1 12)) (uvalueMInt (extract v_12385 12 64)))) 64) (concat (Float2MInt (_/Float__FLOAT (MIntToFloatImpl 53 11 (uvalueMInt (extract v_12395 0 1)) (uvalueMInt (extract v_12395 1 12)) (uvalueMInt (extract v_12395 12 64))) (MIntToFloatImpl 53 11 (uvalueMInt (extract v_12403 0 1)) (uvalueMInt (extract v_12403 1 12)) (uvalueMInt (extract v_12403 12 64)))) 64) (concat (Float2MInt (_/Float__FLOAT (MIntToFloatImpl 53 11 (uvalueMInt (extract v_12413 0 1)) (uvalueMInt (extract v_12413 1 12)) (uvalueMInt (extract v_12413 12 64))) (MIntToFloatImpl 53 11 (uvalueMInt (extract v_12421 0 1)) (uvalueMInt (extract v_12421 1 12)) (uvalueMInt (extract v_12421 12 64)))) 64) (Float2MInt (_/Float__FLOAT (MIntToFloatImpl 53 11 (uvalueMInt (extract v_12431 0 1)) (uvalueMInt (extract v_12431 1 12)) (uvalueMInt (extract v_12431 12 64))) (MIntToFloatImpl 53 11 (uvalueMInt (extract v_12439 0 1)) (uvalueMInt (extract v_12439 1 12)) (uvalueMInt (extract v_12439 12 64)))) 64))));
+    pattern fun (v_3416 : Mem) (v_3417 : reg (bv 256)) (v_3418 : reg (bv 256)) => do
+      v_10378 <- getRegister v_3417;
+      v_10381 <- evaluateAddress v_3416;
+      v_10382 <- load v_10381 32;
+      setRegister (lhs.of_reg v_3418) (concat (Float2MInt (_/Float__FLOAT (MInt2Float (extract v_10378 0 64) 53 11) (MInt2Float (extract v_10382 0 64) 53 11)) 64) (concat (Float2MInt (_/Float__FLOAT (MInt2Float (extract v_10378 64 128) 53 11) (MInt2Float (extract v_10382 64 128) 53 11)) 64) (concat (Float2MInt (_/Float__FLOAT (MInt2Float (extract v_10378 128 192) 53 11) (MInt2Float (extract v_10382 128 192) 53 11)) 64) (Float2MInt (_/Float__FLOAT (MInt2Float (extract v_10378 192 256) 53 11) (MInt2Float (extract v_10382 192 256) 53 11)) 64))));
       pure ()
     pat_end

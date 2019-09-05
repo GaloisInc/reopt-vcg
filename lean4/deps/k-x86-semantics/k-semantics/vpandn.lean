@@ -1,28 +1,28 @@
 def vpandn1 : instruction :=
   definst "vpandn" $ do
-    pattern fun (v_2554 : reg (bv 128)) (v_2555 : reg (bv 128)) (v_2556 : reg (bv 128)) => do
-      v_5750 <- getRegister v_2555;
-      v_5752 <- getRegister v_2554;
-      setRegister (lhs.of_reg v_2556) (bv_and (bv_xor v_5750 (expression.bv_nat 128 340282366920938463463374607431768211455)) v_5752);
+    pattern fun (v_2608 : reg (bv 128)) (v_2609 : reg (bv 128)) (v_2610 : reg (bv 128)) => do
+      v_5727 <- getRegister v_2609;
+      v_5729 <- getRegister v_2608;
+      setRegister (lhs.of_reg v_2610) (bv_and (bv_xor v_5727 (expression.bv_nat 128 340282366920938463463374607431768211455)) v_5729);
       pure ()
     pat_end;
-    pattern fun (v_2568 : reg (bv 256)) (v_2569 : reg (bv 256)) (v_2570 : reg (bv 256)) => do
-      v_5760 <- getRegister v_2569;
-      v_5762 <- getRegister v_2568;
-      setRegister (lhs.of_reg v_2570) (bv_and (bv_xor v_5760 (expression.bv_nat 256 115792089237316195423570985008687907853269984665640564039457584007913129639935)) v_5762);
+    pattern fun (v_2618 : reg (bv 256)) (v_2619 : reg (bv 256)) (v_2620 : reg (bv 256)) => do
+      v_5737 <- getRegister v_2619;
+      v_5739 <- getRegister v_2618;
+      setRegister (lhs.of_reg v_2620) (bv_and (bv_xor v_5737 (expression.bv_nat 256 115792089237316195423570985008687907853269984665640564039457584007913129639935)) v_5739);
       pure ()
     pat_end;
-    pattern fun (v_2553 : Mem) (v_2549 : reg (bv 128)) (v_2550 : reg (bv 128)) => do
-      v_14700 <- getRegister v_2549;
-      v_14702 <- evaluateAddress v_2553;
-      v_14703 <- load v_14702 16;
-      setRegister (lhs.of_reg v_2550) (bv_and (bv_xor v_14700 (expression.bv_nat 128 340282366920938463463374607431768211455)) v_14703);
+    pattern fun (v_2602 : Mem) (v_2603 : reg (bv 128)) (v_2604 : reg (bv 128)) => do
+      v_14429 <- getRegister v_2603;
+      v_14431 <- evaluateAddress v_2602;
+      v_14432 <- load v_14431 16;
+      setRegister (lhs.of_reg v_2604) (bv_and (bv_xor v_14429 (expression.bv_nat 128 340282366920938463463374607431768211455)) v_14432);
       pure ()
     pat_end;
-    pattern fun (v_2562 : Mem) (v_2563 : reg (bv 256)) (v_2564 : reg (bv 256)) => do
-      v_14706 <- getRegister v_2563;
-      v_14708 <- evaluateAddress v_2562;
-      v_14709 <- load v_14708 32;
-      setRegister (lhs.of_reg v_2564) (bv_and (bv_xor v_14706 (expression.bv_nat 256 115792089237316195423570985008687907853269984665640564039457584007913129639935)) v_14709);
+    pattern fun (v_2613 : Mem) (v_2614 : reg (bv 256)) (v_2615 : reg (bv 256)) => do
+      v_14435 <- getRegister v_2614;
+      v_14437 <- evaluateAddress v_2613;
+      v_14438 <- load v_14437 32;
+      setRegister (lhs.of_reg v_2615) (bv_and (bv_xor v_14435 (expression.bv_nat 256 115792089237316195423570985008687907853269984665640564039457584007913129639935)) v_14438);
       pure ()
     pat_end

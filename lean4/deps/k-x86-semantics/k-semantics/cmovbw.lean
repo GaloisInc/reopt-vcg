@@ -1,17 +1,17 @@
 def cmovbw1 : instruction :=
   definst "cmovbw" $ do
-    pattern fun (v_2511 : reg (bv 16)) (v_2512 : reg (bv 16)) => do
-      v_4191 <- getRegister cf;
-      v_4193 <- getRegister v_2511;
-      v_4194 <- getRegister v_2512;
-      setRegister (lhs.of_reg v_2512) (mux (eq v_4191 (expression.bv_nat 1 1)) v_4193 v_4194);
+    pattern fun (v_2561 : reg (bv 16)) (v_2562 : reg (bv 16)) => do
+      v_4242 <- getRegister cf;
+      v_4244 <- getRegister v_2561;
+      v_4245 <- getRegister v_2562;
+      setRegister (lhs.of_reg v_2562) (mux (eq v_4242 (expression.bv_nat 1 1)) v_4244 v_4245);
       pure ()
     pat_end;
-    pattern fun (v_2505 : Mem) (v_2507 : reg (bv 16)) => do
-      v_7880 <- getRegister cf;
-      v_7882 <- evaluateAddress v_2505;
-      v_7883 <- load v_7882 2;
-      v_7884 <- getRegister v_2507;
-      setRegister (lhs.of_reg v_2507) (mux (eq v_7880 (expression.bv_nat 1 1)) v_7883 v_7884);
+    pattern fun (v_2556 : Mem) (v_2557 : reg (bv 16)) => do
+      v_7893 <- getRegister cf;
+      v_7895 <- evaluateAddress v_2556;
+      v_7896 <- load v_7895 2;
+      v_7897 <- getRegister v_2557;
+      setRegister (lhs.of_reg v_2557) (mux (eq v_7893 (expression.bv_nat 1 1)) v_7896 v_7897);
       pure ()
     pat_end

@@ -1,17 +1,15 @@
 def vpsrldq1 : instruction :=
   definst "vpsrldq" $ do
-    pattern fun (v_3327 : imm int) (v_3329 : reg (bv 128)) (v_3330 : reg (bv 128)) => do
-      v_8853 <- getRegister v_3329;
-      v_8854 <- eval (handleImmediateWithSignExtend v_3327 8 8);
-      v_8857 <- eval (mux (ugt v_8854 (expression.bv_nat 8 15)) (expression.bv_nat 128 16) (concat (expression.bv_nat 120 0) v_8854));
-      setRegister (lhs.of_reg v_3330) (lshr v_8853 (uvalueMInt (extract (shl v_8857 3) 0 (bitwidthMInt v_8857))));
+    pattern fun (v_3378 : imm int) (v_3382 : reg (bv 128)) (v_3383 : reg (bv 128)) => do
+      v_8678 <- getRegister v_3382;
+      v_8679 <- eval (handleImmediateWithSignExtend v_3378 8 8);
+      setRegister (lhs.of_reg v_3383) (lshr v_8678 (extract (shl (mux (ugt v_8679 (expression.bv_nat 8 15)) (expression.bv_nat 128 16) (concat (expression.bv_nat 120 0) v_8679)) (expression.bv_nat 128 3)) 0 128));
       pure ()
     pat_end;
-    pattern fun (v_3333 : imm int) (v_3336 : reg (bv 256)) (v_3337 : reg (bv 256)) => do
-      v_8864 <- getRegister v_3336;
-      v_8866 <- eval (handleImmediateWithSignExtend v_3333 8 8);
-      v_8869 <- eval (mux (ugt v_8866 (expression.bv_nat 8 15)) (expression.bv_nat 128 16) (concat (expression.bv_nat 120 0) v_8866));
-      v_8873 <- eval (uvalueMInt (extract (shl v_8869 3) 0 (bitwidthMInt v_8869)));
-      setRegister (lhs.of_reg v_3337) (concat (lshr (extract v_8864 0 128) v_8873) (lshr (extract v_8864 128 256) v_8873));
+    pattern fun (v_3384 : imm int) (v_3388 : reg (bv 256)) (v_3389 : reg (bv 256)) => do
+      v_8687 <- getRegister v_3388;
+      v_8689 <- eval (handleImmediateWithSignExtend v_3384 8 8);
+      v_8694 <- eval (extract (shl (mux (ugt v_8689 (expression.bv_nat 8 15)) (expression.bv_nat 128 16) (concat (expression.bv_nat 120 0) v_8689)) (expression.bv_nat 128 3)) 0 128);
+      setRegister (lhs.of_reg v_3389) (concat (lshr (extract v_8687 0 128) v_8694) (lshr (extract v_8687 128 256) v_8694));
       pure ()
     pat_end

@@ -1,19 +1,19 @@
 def cmovgel1 : instruction :=
   definst "cmovgel" $ do
-    pattern fun (v_2580 : reg (bv 32)) (v_2581 : reg (bv 32)) => do
-      v_4266 <- getRegister sf;
-      v_4268 <- getRegister of;
-      v_4271 <- getRegister v_2580;
-      v_4272 <- getRegister v_2581;
-      setRegister (lhs.of_reg v_2581) (mux (eq (eq v_4266 (expression.bv_nat 1 1)) (eq v_4268 (expression.bv_nat 1 1))) v_4271 v_4272);
+    pattern fun (v_2634 : reg (bv 32)) (v_2635 : reg (bv 32)) => do
+      v_4317 <- getRegister sf;
+      v_4319 <- getRegister of;
+      v_4322 <- getRegister v_2634;
+      v_4323 <- getRegister v_2635;
+      setRegister (lhs.of_reg v_2635) (mux (eq (eq v_4317 (expression.bv_nat 1 1)) (eq v_4319 (expression.bv_nat 1 1))) v_4322 v_4323);
       pure ()
     pat_end;
-    pattern fun (v_2572 : Mem) (v_2573 : reg (bv 32)) => do
-      v_7930 <- getRegister sf;
-      v_7932 <- getRegister of;
-      v_7935 <- evaluateAddress v_2572;
-      v_7936 <- load v_7935 4;
-      v_7937 <- getRegister v_2573;
-      setRegister (lhs.of_reg v_2573) (mux (eq (eq v_7930 (expression.bv_nat 1 1)) (eq v_7932 (expression.bv_nat 1 1))) v_7936 v_7937);
+    pattern fun (v_2623 : Mem) (v_2626 : reg (bv 32)) => do
+      v_7943 <- getRegister sf;
+      v_7945 <- getRegister of;
+      v_7948 <- evaluateAddress v_2623;
+      v_7949 <- load v_7948 4;
+      v_7950 <- getRegister v_2626;
+      setRegister (lhs.of_reg v_2626) (mux (eq (eq v_7943 (expression.bv_nat 1 1)) (eq v_7945 (expression.bv_nat 1 1))) v_7949 v_7950);
       pure ()
     pat_end

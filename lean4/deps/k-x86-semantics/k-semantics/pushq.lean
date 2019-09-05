@@ -1,18 +1,18 @@
 def pushq1 : instruction :=
   definst "pushq" $ do
-    pattern fun (v_3245 : imm int) => do
-      v_10143 <- getRegister rsp;
-      v_10144 <- eval (sub v_10143 (expression.bv_nat 64 8));
-      store v_10144 (handleImmediateWithSignExtend v_3245 32 64) 8;
-      setRegister rsp v_10144;
+    pattern fun (v_3294 : imm int) => do
+      v_10020 <- getRegister rsp;
+      v_10021 <- eval (sub v_10020 (expression.bv_nat 64 8));
+      store v_10021 (handleImmediateWithSignExtend v_3294 32 64) 8;
+      setRegister rsp v_10021;
       pure ()
     pat_end;
-    pattern fun (v_3248 : Mem) => do
-      v_15487 <- getRegister rsp;
-      v_15488 <- eval (sub v_15487 (expression.bv_nat 64 8));
-      v_15489 <- evaluateAddress v_3248;
-      v_15490 <- load v_15489 8;
-      store v_15488 (mi 64 (svalueMInt v_15490)) 8;
-      setRegister rsp v_15488;
+    pattern fun (v_3297 : Mem) => do
+      v_15284 <- getRegister rsp;
+      v_15285 <- eval (sub v_15284 (expression.bv_nat 64 8));
+      v_15286 <- evaluateAddress v_3297;
+      v_15287 <- load v_15286 8;
+      store v_15285 v_15287 8;
+      setRegister rsp v_15285;
       pure ()
     pat_end

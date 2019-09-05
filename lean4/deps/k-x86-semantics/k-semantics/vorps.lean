@@ -1,16 +1,16 @@
 def vorps1 : instruction :=
   definst "vorps" $ do
-    pattern fun (v_3165 : Mem) (v_3166 : reg (bv 128)) (v_3167 : reg (bv 128)) => do
-      v_11635 <- getRegister v_3166;
-      v_11636 <- evaluateAddress v_3165;
-      v_11637 <- load v_11636 16;
-      setRegister (lhs.of_reg v_3167) (bv_or v_11635 v_11637);
+    pattern fun (v_3216 : Mem) (v_3217 : reg (bv 128)) (v_3218 : reg (bv 128)) => do
+      v_10456 <- getRegister v_3217;
+      v_10457 <- evaluateAddress v_3216;
+      v_10458 <- load v_10457 16;
+      setRegister (lhs.of_reg v_3218) (bv_or v_10456 v_10458);
       pure ()
     pat_end;
-    pattern fun (v_3176 : Mem) (v_3177 : reg (bv 256)) (v_3178 : reg (bv 256)) => do
-      v_11640 <- getRegister v_3177;
-      v_11641 <- evaluateAddress v_3176;
-      v_11642 <- load v_11641 32;
-      setRegister (lhs.of_reg v_3178) (bv_or v_11640 v_11642);
+    pattern fun (v_3227 : Mem) (v_3228 : reg (bv 256)) (v_3229 : reg (bv 256)) => do
+      v_10461 <- getRegister v_3228;
+      v_10462 <- evaluateAddress v_3227;
+      v_10463 <- load v_10462 32;
+      setRegister (lhs.of_reg v_3229) (bv_or v_10461 v_10463);
       pure ()
     pat_end

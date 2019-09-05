@@ -1,46 +1,46 @@
 def vpsrlw1 : instruction :=
   definst "vpsrlw" $ do
-    pattern fun (v_3417 : imm int) (v_3419 : reg (bv 128)) (v_3420 : reg (bv 128)) => do
-      v_9067 <- eval (handleImmediateWithSignExtend v_3417 8 8);
-      v_9070 <- getRegister v_3419;
-      v_9073 <- eval (uvalueMInt (concat (expression.bv_nat 8 0) v_9067));
-      setRegister (lhs.of_reg v_3420) (mux (ugt (concat (expression.bv_nat 56 0) v_9067) (expression.bv_nat 64 15)) (expression.bv_nat 128 0) (concat (lshr (extract v_9070 0 16) v_9073) (concat (lshr (extract v_9070 16 32) v_9073) (concat (lshr (extract v_9070 32 48) v_9073) (concat (lshr (extract v_9070 48 64) v_9073) (concat (lshr (extract v_9070 64 80) v_9073) (concat (lshr (extract v_9070 80 96) v_9073) (concat (lshr (extract v_9070 96 112) v_9073) (lshr (extract v_9070 112 128) v_9073)))))))));
+    pattern fun (v_3468 : imm int) (v_3472 : reg (bv 128)) (v_3473 : reg (bv 128)) => do
+      v_8866 <- eval (handleImmediateWithSignExtend v_3468 8 8);
+      v_8869 <- getRegister v_3472;
+      v_8871 <- eval (concat (expression.bv_nat 8 0) v_8866);
+      setRegister (lhs.of_reg v_3473) (mux (ugt (concat (expression.bv_nat 56 0) v_8866) (expression.bv_nat 64 15)) (expression.bv_nat 128 0) (concat (lshr (extract v_8869 0 16) v_8871) (concat (lshr (extract v_8869 16 32) v_8871) (concat (lshr (extract v_8869 32 48) v_8871) (concat (lshr (extract v_8869 48 64) v_8871) (concat (lshr (extract v_8869 64 80) v_8871) (concat (lshr (extract v_8869 80 96) v_8871) (concat (lshr (extract v_8869 96 112) v_8871) (lshr (extract v_8869 112 128) v_8871)))))))));
       pure ()
     pat_end;
-    pattern fun (v_3429 : reg (bv 128)) (v_3430 : reg (bv 128)) (v_3431 : reg (bv 128)) => do
-      v_9103 <- getRegister v_3429;
-      v_9106 <- getRegister v_3430;
-      v_9109 <- eval (uvalueMInt (extract v_9103 112 128));
-      setRegister (lhs.of_reg v_3431) (mux (ugt (extract v_9103 64 128) (expression.bv_nat 64 15)) (expression.bv_nat 128 0) (concat (lshr (extract v_9106 0 16) v_9109) (concat (lshr (extract v_9106 16 32) v_9109) (concat (lshr (extract v_9106 32 48) v_9109) (concat (lshr (extract v_9106 48 64) v_9109) (concat (lshr (extract v_9106 64 80) v_9109) (concat (lshr (extract v_9106 80 96) v_9109) (concat (lshr (extract v_9106 96 112) v_9109) (lshr (extract v_9106 112 128) v_9109)))))))));
+    pattern fun (v_3482 : reg (bv 128)) (v_3483 : reg (bv 128)) (v_3484 : reg (bv 128)) => do
+      v_8901 <- getRegister v_3482;
+      v_8904 <- getRegister v_3483;
+      v_8906 <- eval (extract v_8901 112 128);
+      setRegister (lhs.of_reg v_3484) (mux (ugt (extract v_8901 64 128) (expression.bv_nat 64 15)) (expression.bv_nat 128 0) (concat (lshr (extract v_8904 0 16) v_8906) (concat (lshr (extract v_8904 16 32) v_8906) (concat (lshr (extract v_8904 32 48) v_8906) (concat (lshr (extract v_8904 48 64) v_8906) (concat (lshr (extract v_8904 64 80) v_8906) (concat (lshr (extract v_8904 80 96) v_8906) (concat (lshr (extract v_8904 96 112) v_8906) (lshr (extract v_8904 112 128) v_8906)))))))));
       pure ()
     pat_end;
-    pattern fun (v_3434 : imm int) (v_3437 : reg (bv 256)) (v_3438 : reg (bv 256)) => do
-      v_9134 <- eval (handleImmediateWithSignExtend v_3434 8 8);
-      v_9137 <- getRegister v_3437;
-      v_9140 <- eval (uvalueMInt (concat (expression.bv_nat 8 0) v_9134));
-      setRegister (lhs.of_reg v_3438) (mux (ugt (concat (expression.bv_nat 56 0) v_9134) (expression.bv_nat 64 15)) (expression.bv_nat 256 0) (concat (lshr (extract v_9137 0 16) v_9140) (concat (lshr (extract v_9137 16 32) v_9140) (concat (lshr (extract v_9137 32 48) v_9140) (concat (lshr (extract v_9137 48 64) v_9140) (concat (lshr (extract v_9137 64 80) v_9140) (concat (lshr (extract v_9137 80 96) v_9140) (concat (lshr (extract v_9137 96 112) v_9140) (concat (lshr (extract v_9137 112 128) v_9140) (concat (lshr (extract v_9137 128 144) v_9140) (concat (lshr (extract v_9137 144 160) v_9140) (concat (lshr (extract v_9137 160 176) v_9140) (concat (lshr (extract v_9137 176 192) v_9140) (concat (lshr (extract v_9137 192 208) v_9140) (concat (lshr (extract v_9137 208 224) v_9140) (concat (lshr (extract v_9137 224 240) v_9140) (lshr (extract v_9137 240 256) v_9140)))))))))))))))));
+    pattern fun (v_3485 : imm int) (v_3489 : reg (bv 256)) (v_3490 : reg (bv 256)) => do
+      v_8931 <- eval (handleImmediateWithSignExtend v_3485 8 8);
+      v_8934 <- getRegister v_3489;
+      v_8936 <- eval (concat (expression.bv_nat 8 0) v_8931);
+      setRegister (lhs.of_reg v_3490) (mux (ugt (concat (expression.bv_nat 56 0) v_8931) (expression.bv_nat 64 15)) (expression.bv_nat 256 0) (concat (lshr (extract v_8934 0 16) v_8936) (concat (lshr (extract v_8934 16 32) v_8936) (concat (lshr (extract v_8934 32 48) v_8936) (concat (lshr (extract v_8934 48 64) v_8936) (concat (lshr (extract v_8934 64 80) v_8936) (concat (lshr (extract v_8934 80 96) v_8936) (concat (lshr (extract v_8934 96 112) v_8936) (concat (lshr (extract v_8934 112 128) v_8936) (concat (lshr (extract v_8934 128 144) v_8936) (concat (lshr (extract v_8934 144 160) v_8936) (concat (lshr (extract v_8934 160 176) v_8936) (concat (lshr (extract v_8934 176 192) v_8936) (concat (lshr (extract v_8934 192 208) v_8936) (concat (lshr (extract v_8934 208 224) v_8936) (concat (lshr (extract v_8934 224 240) v_8936) (lshr (extract v_8934 240 256) v_8936)))))))))))))))));
       pure ()
     pat_end;
-    pattern fun (v_3446 : reg (bv 128)) (v_3448 : reg (bv 256)) (v_3449 : reg (bv 256)) => do
-      v_9194 <- getRegister v_3446;
-      v_9197 <- getRegister v_3448;
-      v_9200 <- eval (uvalueMInt (extract v_9194 112 128));
-      setRegister (lhs.of_reg v_3449) (mux (ugt (extract v_9194 64 128) (expression.bv_nat 64 15)) (expression.bv_nat 256 0) (concat (lshr (extract v_9197 0 16) v_9200) (concat (lshr (extract v_9197 16 32) v_9200) (concat (lshr (extract v_9197 32 48) v_9200) (concat (lshr (extract v_9197 48 64) v_9200) (concat (lshr (extract v_9197 64 80) v_9200) (concat (lshr (extract v_9197 80 96) v_9200) (concat (lshr (extract v_9197 96 112) v_9200) (concat (lshr (extract v_9197 112 128) v_9200) (concat (lshr (extract v_9197 128 144) v_9200) (concat (lshr (extract v_9197 144 160) v_9200) (concat (lshr (extract v_9197 160 176) v_9200) (concat (lshr (extract v_9197 176 192) v_9200) (concat (lshr (extract v_9197 192 208) v_9200) (concat (lshr (extract v_9197 208 224) v_9200) (concat (lshr (extract v_9197 224 240) v_9200) (lshr (extract v_9197 240 256) v_9200)))))))))))))))));
+    pattern fun (v_3501 : reg (bv 128)) (v_3499 : reg (bv 256)) (v_3500 : reg (bv 256)) => do
+      v_8990 <- getRegister v_3501;
+      v_8993 <- getRegister v_3499;
+      v_8995 <- eval (extract v_8990 112 128);
+      setRegister (lhs.of_reg v_3500) (mux (ugt (extract v_8990 64 128) (expression.bv_nat 64 15)) (expression.bv_nat 256 0) (concat (lshr (extract v_8993 0 16) v_8995) (concat (lshr (extract v_8993 16 32) v_8995) (concat (lshr (extract v_8993 32 48) v_8995) (concat (lshr (extract v_8993 48 64) v_8995) (concat (lshr (extract v_8993 64 80) v_8995) (concat (lshr (extract v_8993 80 96) v_8995) (concat (lshr (extract v_8993 96 112) v_8995) (concat (lshr (extract v_8993 112 128) v_8995) (concat (lshr (extract v_8993 128 144) v_8995) (concat (lshr (extract v_8993 144 160) v_8995) (concat (lshr (extract v_8993 160 176) v_8995) (concat (lshr (extract v_8993 176 192) v_8995) (concat (lshr (extract v_8993 192 208) v_8995) (concat (lshr (extract v_8993 208 224) v_8995) (concat (lshr (extract v_8993 224 240) v_8995) (lshr (extract v_8993 240 256) v_8995)))))))))))))))));
       pure ()
     pat_end;
-    pattern fun (v_3423 : Mem) (v_3424 : reg (bv 128)) (v_3425 : reg (bv 128)) => do
-      v_14955 <- evaluateAddress v_3423;
-      v_14956 <- load v_14955 16;
-      v_14959 <- getRegister v_3424;
-      v_14962 <- eval (uvalueMInt (extract v_14956 112 128));
-      setRegister (lhs.of_reg v_3425) (mux (ugt (extract v_14956 64 128) (expression.bv_nat 64 15)) (expression.bv_nat 128 0) (concat (lshr (extract v_14959 0 16) v_14962) (concat (lshr (extract v_14959 16 32) v_14962) (concat (lshr (extract v_14959 32 48) v_14962) (concat (lshr (extract v_14959 48 64) v_14962) (concat (lshr (extract v_14959 64 80) v_14962) (concat (lshr (extract v_14959 80 96) v_14962) (concat (lshr (extract v_14959 96 112) v_14962) (lshr (extract v_14959 112 128) v_14962)))))))));
+    pattern fun (v_3476 : Mem) (v_3477 : reg (bv 128)) (v_3478 : reg (bv 128)) => do
+      v_14592 <- evaluateAddress v_3476;
+      v_14593 <- load v_14592 16;
+      v_14596 <- getRegister v_3477;
+      v_14598 <- eval (extract v_14593 112 128);
+      setRegister (lhs.of_reg v_3478) (mux (ugt (extract v_14593 64 128) (expression.bv_nat 64 15)) (expression.bv_nat 128 0) (concat (lshr (extract v_14596 0 16) v_14598) (concat (lshr (extract v_14596 16 32) v_14598) (concat (lshr (extract v_14596 32 48) v_14598) (concat (lshr (extract v_14596 48 64) v_14598) (concat (lshr (extract v_14596 64 80) v_14598) (concat (lshr (extract v_14596 80 96) v_14598) (concat (lshr (extract v_14596 96 112) v_14598) (lshr (extract v_14596 112 128) v_14598)))))))));
       pure ()
     pat_end;
-    pattern fun (v_3440 : Mem) (v_3442 : reg (bv 256)) (v_3443 : reg (bv 256)) => do
-      v_14987 <- evaluateAddress v_3440;
-      v_14988 <- load v_14987 16;
-      v_14991 <- getRegister v_3442;
-      v_14994 <- eval (uvalueMInt (extract v_14988 112 128));
-      setRegister (lhs.of_reg v_3443) (mux (ugt (extract v_14988 64 128) (expression.bv_nat 64 15)) (expression.bv_nat 256 0) (concat (lshr (extract v_14991 0 16) v_14994) (concat (lshr (extract v_14991 16 32) v_14994) (concat (lshr (extract v_14991 32 48) v_14994) (concat (lshr (extract v_14991 48 64) v_14994) (concat (lshr (extract v_14991 64 80) v_14994) (concat (lshr (extract v_14991 80 96) v_14994) (concat (lshr (extract v_14991 96 112) v_14994) (concat (lshr (extract v_14991 112 128) v_14994) (concat (lshr (extract v_14991 128 144) v_14994) (concat (lshr (extract v_14991 144 160) v_14994) (concat (lshr (extract v_14991 160 176) v_14994) (concat (lshr (extract v_14991 176 192) v_14994) (concat (lshr (extract v_14991 192 208) v_14994) (concat (lshr (extract v_14991 208 224) v_14994) (concat (lshr (extract v_14991 224 240) v_14994) (lshr (extract v_14991 240 256) v_14994)))))))))))))))));
+    pattern fun (v_3493 : Mem) (v_3494 : reg (bv 256)) (v_3495 : reg (bv 256)) => do
+      v_14623 <- evaluateAddress v_3493;
+      v_14624 <- load v_14623 16;
+      v_14627 <- getRegister v_3494;
+      v_14629 <- eval (extract v_14624 112 128);
+      setRegister (lhs.of_reg v_3495) (mux (ugt (extract v_14624 64 128) (expression.bv_nat 64 15)) (expression.bv_nat 256 0) (concat (lshr (extract v_14627 0 16) v_14629) (concat (lshr (extract v_14627 16 32) v_14629) (concat (lshr (extract v_14627 32 48) v_14629) (concat (lshr (extract v_14627 48 64) v_14629) (concat (lshr (extract v_14627 64 80) v_14629) (concat (lshr (extract v_14627 80 96) v_14629) (concat (lshr (extract v_14627 96 112) v_14629) (concat (lshr (extract v_14627 112 128) v_14629) (concat (lshr (extract v_14627 128 144) v_14629) (concat (lshr (extract v_14627 144 160) v_14629) (concat (lshr (extract v_14627 160 176) v_14629) (concat (lshr (extract v_14627 176 192) v_14629) (concat (lshr (extract v_14627 192 208) v_14629) (concat (lshr (extract v_14627 208 224) v_14629) (concat (lshr (extract v_14627 224 240) v_14629) (lshr (extract v_14627 240 256) v_14629)))))))))))))))));
       pure ()
     pat_end

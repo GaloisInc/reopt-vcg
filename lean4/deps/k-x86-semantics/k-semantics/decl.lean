@@ -1,25 +1,25 @@
 def decl1 : instruction :=
   definst "decl" $ do
-    pattern fun (v_2697 : reg (bv 32)) => do
-      v_4424 <- getRegister v_2697;
-      v_4425 <- eval (sub v_4424 (expression.bv_nat 32 1));
-      setRegister (lhs.of_reg v_2697) v_4425;
-      setRegister of (mux (bit_and (eq (extract v_4424 0 1) (expression.bv_nat 1 1)) (eq (extract v_4424 1 32) (expression.bv_nat 31 0))) (expression.bv_nat 1 1) (expression.bv_nat 1 0));
-      setRegister pf (parityFlag (extract v_4425 24 32));
-      setRegister af (mux (eq (extract v_4424 28 32) (expression.bv_nat 4 0)) (expression.bv_nat 1 1) (expression.bv_nat 1 0));
-      setRegister zf (zeroFlag v_4425);
-      setRegister sf (extract v_4425 0 1);
+    pattern fun (v_2750 : reg (bv 32)) => do
+      v_4406 <- getRegister v_2750;
+      v_4407 <- eval (sub v_4406 (expression.bv_nat 32 1));
+      setRegister (lhs.of_reg v_2750) v_4407;
+      setRegister af (eq (extract v_4406 28 32) (expression.bv_nat 4 0));
+      setRegister of (bit_and (isBitSet v_4406 0) (eq (extract v_4406 1 32) (expression.bv_nat 31 0)));
+      setRegister pf (parityFlag (extract v_4407 24 32));
+      setRegister sf (isBitSet v_4407 0);
+      setRegister zf (zeroFlag v_4407);
       pure ()
     pat_end;
-    pattern fun (v_2693 : Mem) => do
-      v_10031 <- evaluateAddress v_2693;
-      v_10032 <- load v_10031 4;
-      v_10033 <- eval (sub v_10032 (expression.bv_nat 32 1));
-      store v_10031 v_10033 4;
-      setRegister of (mux (bit_and (eq (extract v_10032 0 1) (expression.bv_nat 1 1)) (eq (extract v_10032 1 32) (expression.bv_nat 31 0))) (expression.bv_nat 1 1) (expression.bv_nat 1 0));
-      setRegister pf (parityFlag (extract v_10033 24 32));
-      setRegister af (mux (eq (extract v_10032 28 32) (expression.bv_nat 4 0)) (expression.bv_nat 1 1) (expression.bv_nat 1 0));
-      setRegister zf (zeroFlag v_10033);
-      setRegister sf (extract v_10033 0 1);
+    pattern fun (v_2746 : Mem) => do
+      v_9076 <- evaluateAddress v_2746;
+      v_9077 <- load v_9076 4;
+      v_9078 <- eval (sub v_9077 (expression.bv_nat 32 1));
+      store v_9076 v_9078 4;
+      setRegister af (eq (extract v_9077 28 32) (expression.bv_nat 4 0));
+      setRegister of (bit_and (isBitSet v_9077 0) (eq (extract v_9077 1 32) (expression.bv_nat 31 0)));
+      setRegister pf (parityFlag (extract v_9078 24 32));
+      setRegister sf (isBitSet v_9078 0);
+      setRegister zf (zeroFlag v_9078);
       pure ()
     pat_end

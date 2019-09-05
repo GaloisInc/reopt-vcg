@@ -1,6 +1,6 @@
 def stc1 : instruction :=
   definst "stc" $ do
     pattern fun => do
-      setRegister cf (expression.bv_nat 1 1);
+      setRegister cf bit_one;
       pure ()
     pat_end

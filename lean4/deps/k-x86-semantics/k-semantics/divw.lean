@@ -1,33 +1,33 @@
 def divw1 : instruction :=
   definst "divw" $ do
-    pattern fun (v_2780 : reg (bv 16)) => do
-      v_4745 <- getRegister rax;
-      v_4747 <- getRegister rdx;
-      v_4750 <- eval (concat (extract v_4747 48 64) (extract v_4745 48 64));
-      v_4751 <- getRegister v_2780;
-      setRegister rdx (concat (extract v_4747 0 48) (_(_,_)_MINT-WRAPPER-SYNTAX div_remainder_int16 v_4750 v_4751));
-      setRegister rax (concat (extract v_4745 0 48) (_(_,_)_MINT-WRAPPER-SYNTAX div_quotient_int16 v_4750 v_4751));
-      setRegister of undef;
-      setRegister zf undef;
-      setRegister pf undef;
+    pattern fun (v_2832 : reg (bv 16)) => do
+      v_4622 <- getRegister rax;
+      v_4624 <- getRegister rdx;
+      v_4627 <- eval (concat (extract v_4624 48 64) (extract v_4622 48 64));
+      v_4628 <- getRegister v_2832;
+      setRegister rdx (concat (extract v_4624 0 48) (_(_,_)_MINT-WRAPPER-SYNTAX div_remainder_int16 v_4627 v_4628));
+      setRegister rax (concat (extract v_4622 0 48) (_(_,_)_MINT-WRAPPER-SYNTAX div_quotient_int16 v_4627 v_4628));
       setRegister af undef;
-      setRegister sf undef;
       setRegister cf undef;
+      setRegister of undef;
+      setRegister pf undef;
+      setRegister sf undef;
+      setRegister zf undef;
       pure ()
     pat_end;
-    pattern fun (v_2775 : Mem) => do
-      v_8763 <- getRegister rax;
-      v_8765 <- getRegister rdx;
-      v_8768 <- eval (concat (extract v_8765 48 64) (extract v_8763 48 64));
-      v_8769 <- evaluateAddress v_2775;
-      v_8770 <- load v_8769 2;
-      setRegister rdx (concat (extract v_8765 0 48) (_(_,_)_MINT-WRAPPER-SYNTAX div_remainder_int16 v_8768 v_8770));
-      setRegister rax (concat (extract v_8763 0 48) (_(_,_)_MINT-WRAPPER-SYNTAX div_quotient_int16 v_8768 v_8770));
-      setRegister of undef;
-      setRegister zf undef;
-      setRegister pf undef;
+    pattern fun (v_2828 : Mem) => do
+      v_8137 <- getRegister rax;
+      v_8139 <- getRegister rdx;
+      v_8142 <- eval (concat (extract v_8139 48 64) (extract v_8137 48 64));
+      v_8143 <- evaluateAddress v_2828;
+      v_8144 <- load v_8143 2;
+      setRegister rdx (concat (extract v_8139 0 48) (_(_,_)_MINT-WRAPPER-SYNTAX div_remainder_int16 v_8142 v_8144));
+      setRegister rax (concat (extract v_8137 0 48) (_(_,_)_MINT-WRAPPER-SYNTAX div_quotient_int16 v_8142 v_8144));
       setRegister af undef;
-      setRegister sf undef;
       setRegister cf undef;
+      setRegister of undef;
+      setRegister pf undef;
+      setRegister sf undef;
+      setRegister zf undef;
       pure ()
     pat_end

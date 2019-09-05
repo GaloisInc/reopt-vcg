@@ -1,25 +1,25 @@
 def popcntw1 : instruction :=
   definst "popcntw" $ do
-    pattern fun (v_2870 : reg (bv 16)) (v_2871 : reg (bv 16)) => do
-      v_6331 <- getRegister v_2870;
-      setRegister (lhs.of_reg v_2871) (add (concat (expression.bv_nat 8 0) (add (concat (expression.bv_nat 4 0) (add (concat (expression.bv_nat 2 0) (add (concat (expression.bv_nat 1 0) (extract v_6331 0 1)) (concat (expression.bv_nat 1 0) (extract v_6331 1 2)))) (concat (expression.bv_nat 2 0) (add (concat (expression.bv_nat 1 0) (extract v_6331 2 3)) (concat (expression.bv_nat 1 0) (extract v_6331 3 4)))))) (concat (expression.bv_nat 4 0) (add (concat (expression.bv_nat 2 0) (add (concat (expression.bv_nat 1 0) (extract v_6331 4 5)) (concat (expression.bv_nat 1 0) (extract v_6331 5 6)))) (concat (expression.bv_nat 2 0) (add (concat (expression.bv_nat 1 0) (extract v_6331 6 7)) (concat (expression.bv_nat 1 0) (extract v_6331 7 8)))))))) (concat (expression.bv_nat 8 0) (add (concat (expression.bv_nat 4 0) (add (concat (expression.bv_nat 2 0) (add (concat (expression.bv_nat 1 0) (extract v_6331 8 9)) (concat (expression.bv_nat 1 0) (extract v_6331 9 10)))) (concat (expression.bv_nat 2 0) (add (concat (expression.bv_nat 1 0) (extract v_6331 10 11)) (concat (expression.bv_nat 1 0) (extract v_6331 11 12)))))) (concat (expression.bv_nat 4 0) (add (concat (expression.bv_nat 2 0) (add (concat (expression.bv_nat 1 0) (extract v_6331 12 13)) (concat (expression.bv_nat 1 0) (extract v_6331 13 14)))) (concat (expression.bv_nat 2 0) (add (concat (expression.bv_nat 1 0) (extract v_6331 14 15)) (concat (expression.bv_nat 1 0) (extract v_6331 15 16)))))))));
-      setRegister of (expression.bv_nat 1 0);
-      setRegister pf (expression.bv_nat 1 0);
-      setRegister zf (zeroFlag v_6331);
-      setRegister af (expression.bv_nat 1 0);
-      setRegister sf (expression.bv_nat 1 0);
-      setRegister cf (expression.bv_nat 1 0);
+    pattern fun (v_2919 : reg (bv 16)) (v_2920 : reg (bv 16)) => do
+      v_6362 <- getRegister v_2919;
+      setRegister (lhs.of_reg v_2920) (add (concat (expression.bv_nat 8 0) (add (concat (expression.bv_nat 4 0) (add (concat (expression.bv_nat 2 0) (add (concat (expression.bv_nat 1 0) (extract v_6362 0 1)) (concat (expression.bv_nat 1 0) (extract v_6362 1 2)))) (concat (expression.bv_nat 2 0) (add (concat (expression.bv_nat 1 0) (extract v_6362 2 3)) (concat (expression.bv_nat 1 0) (extract v_6362 3 4)))))) (concat (expression.bv_nat 4 0) (add (concat (expression.bv_nat 2 0) (add (concat (expression.bv_nat 1 0) (extract v_6362 4 5)) (concat (expression.bv_nat 1 0) (extract v_6362 5 6)))) (concat (expression.bv_nat 2 0) (add (concat (expression.bv_nat 1 0) (extract v_6362 6 7)) (concat (expression.bv_nat 1 0) (extract v_6362 7 8)))))))) (concat (expression.bv_nat 8 0) (add (concat (expression.bv_nat 4 0) (add (concat (expression.bv_nat 2 0) (add (concat (expression.bv_nat 1 0) (extract v_6362 8 9)) (concat (expression.bv_nat 1 0) (extract v_6362 9 10)))) (concat (expression.bv_nat 2 0) (add (concat (expression.bv_nat 1 0) (extract v_6362 10 11)) (concat (expression.bv_nat 1 0) (extract v_6362 11 12)))))) (concat (expression.bv_nat 4 0) (add (concat (expression.bv_nat 2 0) (add (concat (expression.bv_nat 1 0) (extract v_6362 12 13)) (concat (expression.bv_nat 1 0) (extract v_6362 13 14)))) (concat (expression.bv_nat 2 0) (add (concat (expression.bv_nat 1 0) (extract v_6362 14 15)) (concat (expression.bv_nat 1 0) (extract v_6362 15 16)))))))));
+      setRegister af bit_zero;
+      setRegister cf bit_zero;
+      setRegister of bit_zero;
+      setRegister pf bit_zero;
+      setRegister sf bit_zero;
+      setRegister zf (zeroFlag v_6362);
       pure ()
     pat_end;
-    pattern fun (v_2865 : Mem) (v_2866 : reg (bv 16)) => do
-      v_13241 <- evaluateAddress v_2865;
-      v_13242 <- load v_13241 2;
-      setRegister (lhs.of_reg v_2866) (add (concat (expression.bv_nat 8 0) (add (concat (expression.bv_nat 4 0) (add (concat (expression.bv_nat 2 0) (add (concat (expression.bv_nat 1 0) (extract v_13242 0 1)) (concat (expression.bv_nat 1 0) (extract v_13242 1 2)))) (concat (expression.bv_nat 2 0) (add (concat (expression.bv_nat 1 0) (extract v_13242 2 3)) (concat (expression.bv_nat 1 0) (extract v_13242 3 4)))))) (concat (expression.bv_nat 4 0) (add (concat (expression.bv_nat 2 0) (add (concat (expression.bv_nat 1 0) (extract v_13242 4 5)) (concat (expression.bv_nat 1 0) (extract v_13242 5 6)))) (concat (expression.bv_nat 2 0) (add (concat (expression.bv_nat 1 0) (extract v_13242 6 7)) (concat (expression.bv_nat 1 0) (extract v_13242 7 8)))))))) (concat (expression.bv_nat 8 0) (add (concat (expression.bv_nat 4 0) (add (concat (expression.bv_nat 2 0) (add (concat (expression.bv_nat 1 0) (extract v_13242 8 9)) (concat (expression.bv_nat 1 0) (extract v_13242 9 10)))) (concat (expression.bv_nat 2 0) (add (concat (expression.bv_nat 1 0) (extract v_13242 10 11)) (concat (expression.bv_nat 1 0) (extract v_13242 11 12)))))) (concat (expression.bv_nat 4 0) (add (concat (expression.bv_nat 2 0) (add (concat (expression.bv_nat 1 0) (extract v_13242 12 13)) (concat (expression.bv_nat 1 0) (extract v_13242 13 14)))) (concat (expression.bv_nat 2 0) (add (concat (expression.bv_nat 1 0) (extract v_13242 14 15)) (concat (expression.bv_nat 1 0) (extract v_13242 15 16)))))))));
-      setRegister of (expression.bv_nat 1 0);
-      setRegister pf (expression.bv_nat 1 0);
-      setRegister af (expression.bv_nat 1 0);
-      setRegister zf (zeroFlag v_13242);
-      setRegister sf (expression.bv_nat 1 0);
-      setRegister cf (expression.bv_nat 1 0);
+    pattern fun (v_2914 : Mem) (v_2915 : reg (bv 16)) => do
+      v_13099 <- evaluateAddress v_2914;
+      v_13100 <- load v_13099 2;
+      setRegister (lhs.of_reg v_2915) (add (concat (expression.bv_nat 8 0) (add (concat (expression.bv_nat 4 0) (add (concat (expression.bv_nat 2 0) (add (concat (expression.bv_nat 1 0) (extract v_13100 0 1)) (concat (expression.bv_nat 1 0) (extract v_13100 1 2)))) (concat (expression.bv_nat 2 0) (add (concat (expression.bv_nat 1 0) (extract v_13100 2 3)) (concat (expression.bv_nat 1 0) (extract v_13100 3 4)))))) (concat (expression.bv_nat 4 0) (add (concat (expression.bv_nat 2 0) (add (concat (expression.bv_nat 1 0) (extract v_13100 4 5)) (concat (expression.bv_nat 1 0) (extract v_13100 5 6)))) (concat (expression.bv_nat 2 0) (add (concat (expression.bv_nat 1 0) (extract v_13100 6 7)) (concat (expression.bv_nat 1 0) (extract v_13100 7 8)))))))) (concat (expression.bv_nat 8 0) (add (concat (expression.bv_nat 4 0) (add (concat (expression.bv_nat 2 0) (add (concat (expression.bv_nat 1 0) (extract v_13100 8 9)) (concat (expression.bv_nat 1 0) (extract v_13100 9 10)))) (concat (expression.bv_nat 2 0) (add (concat (expression.bv_nat 1 0) (extract v_13100 10 11)) (concat (expression.bv_nat 1 0) (extract v_13100 11 12)))))) (concat (expression.bv_nat 4 0) (add (concat (expression.bv_nat 2 0) (add (concat (expression.bv_nat 1 0) (extract v_13100 12 13)) (concat (expression.bv_nat 1 0) (extract v_13100 13 14)))) (concat (expression.bv_nat 2 0) (add (concat (expression.bv_nat 1 0) (extract v_13100 14 15)) (concat (expression.bv_nat 1 0) (extract v_13100 15 16)))))))));
+      setRegister af bit_zero;
+      setRegister cf bit_zero;
+      setRegister of bit_zero;
+      setRegister pf bit_zero;
+      setRegister sf bit_zero;
+      setRegister zf (zeroFlag v_13100);
       pure ()
     pat_end

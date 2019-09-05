@@ -1,32 +1,32 @@
 def vshufpd1 : instruction :=
   definst "vshufpd" $ do
-    pattern fun (v_2917 : imm int) (v_2918 : reg (bv 128)) (v_2919 : reg (bv 128)) (v_2920 : reg (bv 128)) => do
-      v_6880 <- eval (handleImmediateWithSignExtend v_2917 8 8);
-      v_6883 <- getRegister v_2918;
-      v_6889 <- getRegister v_2919;
-      setRegister (lhs.of_reg v_2920) (concat (mux (eq (extract v_6880 6 7) (expression.bv_nat 1 1)) (extract v_6883 0 64) (extract v_6883 64 128)) (mux (eq (extract v_6880 7 8) (expression.bv_nat 1 1)) (extract v_6889 0 64) (extract v_6889 64 128)));
+    pattern fun (v_2974 : imm int) (v_2971 : reg (bv 128)) (v_2972 : reg (bv 128)) (v_2973 : reg (bv 128)) => do
+      v_6851 <- eval (handleImmediateWithSignExtend v_2974 8 8);
+      v_6853 <- getRegister v_2971;
+      v_6858 <- getRegister v_2972;
+      setRegister (lhs.of_reg v_2973) (concat (mux (isBitSet v_6851 6) (extract v_6853 0 64) (extract v_6853 64 128)) (mux (isBitSet v_6851 7) (extract v_6858 0 64) (extract v_6858 64 128)));
       pure ()
     pat_end;
-    pattern fun (v_2930 : imm int) (v_2931 : reg (bv 256)) (v_2932 : reg (bv 256)) (v_2933 : reg (bv 256)) => do
-      v_6901 <- eval (handleImmediateWithSignExtend v_2930 8 8);
-      v_6904 <- getRegister v_2931;
-      v_6910 <- getRegister v_2932;
-      setRegister (lhs.of_reg v_2933) (concat (mux (eq (extract v_6901 4 5) (expression.bv_nat 1 1)) (extract v_6904 0 64) (extract v_6904 64 128)) (concat (mux (eq (extract v_6901 5 6) (expression.bv_nat 1 1)) (extract v_6910 0 64) (extract v_6910 64 128)) (concat (mux (eq (extract v_6901 6 7) (expression.bv_nat 1 1)) (extract v_6904 128 192) (extract v_6904 192 256)) (mux (eq (extract v_6901 7 8) (expression.bv_nat 1 1)) (extract v_6910 128 192) (extract v_6910 192 256)))));
+    pattern fun (v_2987 : imm int) (v_2984 : reg (bv 256)) (v_2985 : reg (bv 256)) (v_2986 : reg (bv 256)) => do
+      v_6870 <- eval (handleImmediateWithSignExtend v_2987 8 8);
+      v_6872 <- getRegister v_2984;
+      v_6877 <- getRegister v_2985;
+      setRegister (lhs.of_reg v_2986) (concat (mux (isBitSet v_6870 4) (extract v_6872 0 64) (extract v_6872 64 128)) (concat (mux (isBitSet v_6870 5) (extract v_6877 0 64) (extract v_6877 64 128)) (concat (mux (isBitSet v_6870 6) (extract v_6872 128 192) (extract v_6872 192 256)) (mux (isBitSet v_6870 7) (extract v_6877 128 192) (extract v_6877 192 256)))));
       pure ()
     pat_end;
-    pattern fun (v_2911 : imm int) (v_2912 : Mem) (v_2913 : reg (bv 128)) (v_2914 : reg (bv 128)) => do
-      v_13220 <- eval (handleImmediateWithSignExtend v_2911 8 8);
-      v_13223 <- evaluateAddress v_2912;
-      v_13224 <- load v_13223 16;
-      v_13230 <- getRegister v_2913;
-      setRegister (lhs.of_reg v_2914) (concat (mux (eq (extract v_13220 6 7) (expression.bv_nat 1 1)) (extract v_13224 0 64) (extract v_13224 64 128)) (mux (eq (extract v_13220 7 8) (expression.bv_nat 1 1)) (extract v_13230 0 64) (extract v_13230 64 128)));
+    pattern fun (v_2967 : imm int) (v_2964 : Mem) (v_2965 : reg (bv 128)) (v_2966 : reg (bv 128)) => do
+      v_12818 <- eval (handleImmediateWithSignExtend v_2967 8 8);
+      v_12820 <- evaluateAddress v_2964;
+      v_12821 <- load v_12820 16;
+      v_12826 <- getRegister v_2965;
+      setRegister (lhs.of_reg v_2966) (concat (mux (isBitSet v_12818 6) (extract v_12821 0 64) (extract v_12821 64 128)) (mux (isBitSet v_12818 7) (extract v_12826 0 64) (extract v_12826 64 128)));
       pure ()
     pat_end;
-    pattern fun (v_2924 : imm int) (v_2925 : Mem) (v_2926 : reg (bv 256)) (v_2927 : reg (bv 256)) => do
-      v_13236 <- eval (handleImmediateWithSignExtend v_2924 8 8);
-      v_13239 <- evaluateAddress v_2925;
-      v_13240 <- load v_13239 32;
-      v_13246 <- getRegister v_2926;
-      setRegister (lhs.of_reg v_2927) (concat (mux (eq (extract v_13236 4 5) (expression.bv_nat 1 1)) (extract v_13240 0 64) (extract v_13240 64 128)) (concat (mux (eq (extract v_13236 5 6) (expression.bv_nat 1 1)) (extract v_13246 0 64) (extract v_13246 64 128)) (concat (mux (eq (extract v_13236 6 7) (expression.bv_nat 1 1)) (extract v_13240 128 192) (extract v_13240 192 256)) (mux (eq (extract v_13236 7 8) (expression.bv_nat 1 1)) (extract v_13246 128 192) (extract v_13246 192 256)))));
+    pattern fun (v_2980 : imm int) (v_2977 : Mem) (v_2978 : reg (bv 256)) (v_2979 : reg (bv 256)) => do
+      v_12832 <- eval (handleImmediateWithSignExtend v_2980 8 8);
+      v_12834 <- evaluateAddress v_2977;
+      v_12835 <- load v_12834 32;
+      v_12840 <- getRegister v_2978;
+      setRegister (lhs.of_reg v_2979) (concat (mux (isBitSet v_12832 4) (extract v_12835 0 64) (extract v_12835 64 128)) (concat (mux (isBitSet v_12832 5) (extract v_12840 0 64) (extract v_12840 64 128)) (concat (mux (isBitSet v_12832 6) (extract v_12835 128 192) (extract v_12835 192 256)) (mux (isBitSet v_12832 7) (extract v_12840 128 192) (extract v_12840 192 256)))));
       pure ()
     pat_end
