@@ -189,8 +189,8 @@ inductive operand_type
   | other : operand_type
 
 def operand_type_to_String : operand_type -> String
-  | (operand_type.mem n) := "(mem " ++ repr n ++ ")"
-  | (operand_type.other) := "other"
+  | (operand_type.mem n) => "(mem " ++ repr n ++ ")"
+  | (operand_type.other) => "other"
 
 instance operand_type_has_repr : HasRepr operand_type := ⟨operand_type_to_String⟩
 
@@ -202,11 +202,11 @@ inductive operand_value
   | memloc : Option register -> Option register -> Nat -> Option register -> Nat -> operand_value
 
 def operand_value_to_String : operand_value -> String
-  | (operand_value.register r) := repr r
-  | (operand_value.segment s r)    := "(" ++ repr s ++ ":" ++ repr r ++ ")"
-  | (operand_value.immediate n v)  := repr v ++ "[" ++ repr n ++ "]"
-  | (operand_value.rel_immediate off n v) := "(" ++ repr v ++ " + " ++ repr off ++ ")[" ++ repr n ++ "]"
-  | (operand_value.memloc seg b s i d)  := "(" ++ repr seg ++ ":" ++ repr b ++ " + " ++ repr s ++ "*" ++ repr i ++ " + " ++ repr d ++ ")"
+  | (operand_value.register r) => repr r
+  | (operand_value.segment s r)    => "(" ++ repr s ++ ":" ++ repr r ++ ")"
+  | (operand_value.immediate n v)  => repr v ++ "[" ++ repr n ++ "]"
+  | (operand_value.rel_immediate off n v) => "(" ++ repr v ++ " + " ++ repr off ++ ")[" ++ repr n ++ "]"
+  | (operand_value.memloc seg b s i d)  => "(" ++ repr seg ++ ":" ++ repr b ++ " + " ++ repr s ++ "*" ++ repr i ++ " + " ++ repr d ++ ")"
 
 instance operand_value_has_repr : HasRepr operand_value := ⟨operand_value_to_String⟩
 
@@ -278,49 +278,49 @@ def operand_memtyp (tp : String) : operand_type :=
   | none     => operand_type.other
 
 -- Exported (to CPP) functions
-@[export decodex86.exported.mk_reg]
+@[export decodex86_exported_mk_reg]
 def mk_reg (top : String) (reg : String) (width : Nat) (offset : Nat) : register :=
     register.mk top reg width offset
 
-@[export decodex86.exported.mk_some_reg]
+@[export decodex86_exported_mk_some_reg]
 def mk_some_reg (r : register) : Option register := Option.some r
 
-@[export decodex86.exported.mk_none_reg]
+@[export decodex86_exported_mk_none_reg]
 def mk_none_reg : Option register := Option.none
 
-@[export decodex86.exported.mk_operand_register]
+@[export decodex86_exported_mk_operand_register]
 def mk_operand_register (tp : String) (r : register) : operand :=
     operand.mk (operand_memtyp tp) (operand_value.register r)
 
-@[export decodex86.exported.mk_operand_segment]
+@[export decodex86_exported_mk_operand_segment]
 def mk_operand_segment (tp : String) (seg : Option register) (r : register) : operand :=
     operand.mk (operand_memtyp tp) (operand_value.segment seg r)
 
-@[export decodex86.exported.mk_operand_immediate]
+@[export decodex86_exported_mk_operand_immediate]
 def mk_operand_immediate (tp : String) (n : Nat) (v : Nat) : operand :=
     operand.mk (operand_memtyp tp) (operand_value.immediate n v)
 
-@[export decodex86.exported.mk_operand_rel_immediate]
+@[export decodex86_exported_mk_operand_rel_immediate]
 def mk_operand_rel_immediate (tp : String) (off : Nat) (n : Nat) (v : Nat) : operand :=
     operand.mk (operand_memtyp tp) (operand_value.rel_immediate off n v)
 
-@[export decodex86.exported.mk_operand_memloc]
+@[export decodex86_exported_mk_operand_memloc]
 def mk_operand_memloc (tp : String) (seg : Option register) (b : Option register) (s : Nat) (i : Option register) (d : Nat) :=
     operand.mk (operand_memtyp tp) (operand_value.memloc seg b s i d)
 
-@[export decodex86.exported.mk_instruction_0]
+@[export decodex86_exported_mk_instruction_0]
 def mk_instruction_0 (n : Nat) (m : String) : instruction :=
   instruction.mk n m []
 
-@[export decodex86.exported.mk_instruction_1]
+@[export decodex86_exported_mk_instruction_1]
 def mk_instruction_1 (n : Nat) (m : String) (o1 : operand) : instruction :=
   instruction.mk n m [o1]
 
-@[export decodex86.exported.mk_instruction_2]
+@[export decodex86_exported_mk_instruction_2]
 def mk_instruction_2 (n : Nat) (m : String) (o1 : operand) (o2 : operand) : instruction :=
   instruction.mk n m [o1, o2]
 
-@[export decodex86.exported.mk_instruction_3]
+@[export decodex86_exported_mk_instruction_3]
 def mk_instruction_3 (n : Nat) (m : String) (o1 : operand) (o2 : operand) (o3 : operand) : instruction :=
   instruction.mk n m [o1, o2, o3]
 
@@ -328,16 +328,16 @@ def mk_instruction_3 (n : Nat) (m : String) (o1 : operand) (o2 : operand) (o3 : 
 @[reducible]
 def decode_result := Sum Nat instruction
 
-@[export decodex86.exported.mk_decode_success]
+@[export decodex86_exported_mk_decode_success]
 def mk_decode_success (i : instruction) : decode_result := Sum.inr i
 
-@[export decodex86.exported.mk_decode_failure]
+@[export decodex86_exported_mk_decode_failure]
 def mk_decode_failure (nbytes : Nat) : decode_result := Sum.inl nbytes
 
 namespace prim
 
 -- Imported (FFI) functions
-@[extern 2 cpp "vadd::decode"]
+@[extern "vadd_decode"]
 def decode ( b : @& ByteArray ) (offset : @& Nat) : decode_result := default _
 
 end prim

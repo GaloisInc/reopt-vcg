@@ -31,7 +31,7 @@ abbreviation ℕ := nat_expr
 
 infix `.=`:20 := set
 
---notation d `.=` a `|` s :20 := set_aligned d s a
+--notation d `.=` a `|` s :20 => set_aligned d s a
 
 ------------------------------------------------------------------------
 -- bitvector functions
@@ -779,13 +779,13 @@ def condition_codes : List (List String × expression bit)  :=
 -- Conditional jumps
 
 def mk_jcc_instruction : String × expression bit → instruction
- | (name, cc) := definst ("j" ++ name) $ do
+ | (name, cc) => definst ("j" ++ name) $ do
  pattern fun (addr : bv 64) => do
    record_event (event.branch cc addr)
  pat_end
 
 def mk_jcc_instruction_aliases : List String × expression bit → List instruction
- | (names, cc) := List.map (fun n => mk_jcc_instruction (n, cc)) names
+ | (names, cc) => List.map (fun n => mk_jcc_instruction (n, cc)) names
 
 -- Conditional jump instructions, some of these have multiple names. They only vary
 -- in the condition checked so we use helper functions to associate mnemonics with
@@ -800,13 +800,13 @@ def jcc_instructions : List instruction :=
 -- Conditional sets
 
 def mk_setcc_instruction : String × expression bit → instruction
- | (name, cc) := definst ("set" ++ name) $ do
+ | (name, cc) => definst ("set" ++ name) $ do
  pattern fun (dest : lhs (bv 8)) => do
    dest .= mux cc 0 1
  pat_end
 
 def mk_setcc_instruction_aliases : List String × expression bit → List instruction
- | (names, cc) := List.map (fun n => mk_setcc_instruction (n, cc)) names
+ | (names, cc) => List.map (fun n => mk_setcc_instruction (n, cc)) names
 
 -- Conditional jump instructions, some of these have multiple names. They only vary
 -- in the condition checked so we use helper functions to associate mnemonics with
@@ -884,7 +884,7 @@ def cbw : instruction :=
 def cdq : instruction :=
  definst "cdq" $ do
    pattern do
-     let quadword := sext ⇑eax 64 in do
+     let quadword := sext ⇑eax 64; do
      edx .= quadword[[63..32]]
    pat_end
 
@@ -921,7 +921,7 @@ def cld : instruction :=
 def cqo : instruction :=
  definst "cqo" $ do
    pattern do
-     let octword := sext ⇑rax 128 in do
+     let octword := sext ⇑rax 128; do
      rdx .= octword[[127..64]]
    pat_end
 
@@ -931,7 +931,7 @@ def cqo : instruction :=
 def cwd : instruction :=
  definst "cwd" $ do
    pattern do
-     let doubleword := sext ⇑ax 32 in do
+     let doubleword := sext ⇑ax 32; do
      dx .= doubleword[[31..16]]
    pat_end
 

@@ -24,20 +24,20 @@ def arg_index := Nat
 
 -- protected
 -- def decEq : Π(e e':foo), Decidable (e = e')
---   | (base n1)     (base n2)     := 
+--   | (base n1)     (base n2)     => 
 --     if h : n1 = n2 
 --     then isTrue (h ▸ rfl)
 --     else isFalse (λh', foo.noConfusion h' h)
---   | (three e1 n1 e1' e1'') (three e2 n2 e2' e2'') := 
+--   | (three e1 n1 e1' e1'') (three e2 n2 e2' e2'') => 
 --   if h : n1 = n2 then
 --     (match decEq e1 e2, decEq e1' e2', decEq e1'' e2''  with
---     | (isTrue h1), (isTrue h2), (isTrue h3) := isTrue (h1 ▸ h ▸ h2 ▸ h3 ▸ rfl)
---     | (isFalse h1), _          , _ := isFalse (fun h => foo.noConfusion h $ fun h1' hh' h2' h3' => absurd h1' h1 )
---     | (isTrue h1), (isFalse h2), _ := isFalse (fun h => foo.noConfusion h $ fun h1' hh' h2' h3' => absurd h2' h2 )
---     | (isTrue h1), (isTrue h2), (isFalse h3) := isFalse (fun h => foo.noConfusion h $ fun h1' hh' h2' h3' => absurd h3' h3))
+--     | (isTrue h1), (isTrue h2), (isTrue h3) => isTrue (h1 ▸ h ▸ h2 ▸ h3 ▸ rfl)
+--     | (isFalse h1), _          , _ => isFalse (fun h => foo.noConfusion h $ fun h1' hh' h2' h3' => absurd h1' h1 )
+--     | (isTrue h1), (isFalse h2), _ => isFalse (fun h => foo.noConfusion h $ fun h1' hh' h2' h3' => absurd h2' h2 )
+--     | (isTrue h1), (isTrue h2), (isFalse h3) => isFalse (fun h => foo.noConfusion h $ fun h1' hh' h2' h3' => absurd h3' h3))
 --   else isFalse (fun h' => foo.noConfusion h' $ fun h1' hh' h2' h3' => absurd hh' h)
---   | (base _) (three _ _ _ _) := isFalse (fun h => foo.noConfusion h)
---   | (three _ _ _ _) (base _) := isFalse (fun h => foo.noConfusion h)
+--   | (base _) (three _ _ _ _) => isFalse (fun h => foo.noConfusion h)
+--   | (three _ _ _ _) (base _) => isFalse (fun h => foo.noConfusion h)
 
 -- #check foo.decEq
 
@@ -62,20 +62,20 @@ protected def zero : nat_expr := lit 0
 protected def one : nat_expr := lit 1
 
 protected def do_add : nat_expr → nat_expr → nat_expr
-| (lit x) (lit y) := lit (x+y)
-| x y := add x y
+| (lit x), (lit y) => lit (x+y)
+| x, y => add x y
 
 protected def do_sub : nat_expr → nat_expr → nat_expr
-| (lit x) (lit y) := lit (x-y)
-| x y := sub x y
+| (lit x), (lit y) => lit (x-y)
+| x, y => sub x y
 
 protected def do_mul : nat_expr → nat_expr → nat_expr
-| (lit x) (lit y) := lit (x*y)
-| x y := mul x y
+| (lit x), (lit y) => lit (x*y)
+| x, y => mul x y
 
 protected def do_div : nat_expr → nat_expr → nat_expr
-| (lit x) (lit y) := lit (x/y)
-| x y := div x y
+| (lit x), (lit y) => lit (x/y)
+| x, y => div x y
 
 instance : HasZero nat_expr := ⟨nat_expr.zero⟩
 instance : HasOne nat_expr := ⟨nat_expr.one⟩
@@ -86,82 +86,76 @@ instance : HasDiv nat_expr := ⟨nat_expr.do_div⟩
 
 instance nat_coe_nat_expr : HasCoe Nat nat_expr := ⟨fun x => lit x⟩
 
-protected
-def decEq : ∀(e e':nat_expr), Decidable (e = e')
-  | (lit n1)     (lit n2)     := 
-    if h : n1 = n2 
-    then isTrue (h ▸ rfl)
-    else isFalse (fun h' => nat_expr.noConfusion h' h)
-  | (var i1)     (var i2)     := 
-    if h : i1 = i2 
-    then isTrue (h ▸ rfl)
-    else isFalse (fun h' => nat_expr.noConfusion h' h)
-  | (add e1 e1') (add e2 e2') := 
-    (match decEq e1 e2, decEq e1' e2' with
-    | (isTrue h1), (isTrue h2) => isTrue (h1 ▸ h2 ▸ rfl)
-    | (isFalse h1), _          => isFalse (fun h => nat_expr.noConfusion h $ fun hp h' => absurd hp h1)
-    | (isTrue h1), (isFalse h2) => isFalse (fun h => nat_expr.noConfusion h $ fun hp h' => absurd h' h2))
-  | (sub e1 e1') (sub e2 e2') := -- FIXME: cut and paste
-    (match decEq e1 e2, decEq e1' e2' with
-    | (isTrue h1), (isTrue h2) => isTrue (h1 ▸ h2 ▸ rfl)
-    | (isFalse h1), _          => isFalse (fun h => nat_expr.noConfusion h $ fun hp h' => absurd hp h1)
-    | (isTrue h1), (isFalse h2) => isFalse (fun h => nat_expr.noConfusion h $ fun hp h' => absurd h' h2))
-  | (mul e1 e1') (mul e2 e2') := -- FIXME: cut and paste
-    (match decEq e1 e2, decEq e1' e2' with
-    | (isTrue h1), (isTrue h2) => isTrue (h1 ▸ h2 ▸ rfl)
-    | (isFalse h1), _          => isFalse (fun h => nat_expr.noConfusion h $ fun hp h' => absurd hp h1)
-    | (isTrue h1), (isFalse h2) => isFalse (fun h => nat_expr.noConfusion h $ fun hp h' => absurd h' h2))
-  | (div e1 e1') (div e2 e2') := -- FIXME: cut and paste
-    (match decEq e1 e2, decEq e1' e2' with
-    | (isTrue h1), (isTrue h2) => isTrue (h1 ▸ h2 ▸ rfl)
-    | (isFalse h1), _          => isFalse (fun h => nat_expr.noConfusion h $ fun hp h' => absurd hp h1)
-    | (isTrue h1), (isFalse h2) => isFalse (fun h => nat_expr.noConfusion h $ fun hp h' => absurd h' h2))
-  | (lit _) (var _)   := isFalse (fun h => nat_expr.noConfusion h)
-  | (lit _) (add _ _) := isFalse (fun h => nat_expr.noConfusion h)
-  | (lit _) (sub _ _) := isFalse (fun h => nat_expr.noConfusion h)
-  | (lit _) (mul _ _) := isFalse (fun h => nat_expr.noConfusion h)
-  | (lit _) (div _ _) := isFalse (fun h => nat_expr.noConfusion h)
-
-  | (var _) (lit _)   := isFalse (fun h => nat_expr.noConfusion h)
-  | (var _) (add _ _) := isFalse (fun h => nat_expr.noConfusion h)
-  | (var _) (sub _ _) := isFalse (fun h => nat_expr.noConfusion h)
-  | (var _) (mul _ _) := isFalse (fun h => nat_expr.noConfusion h)
-  | (var _) (div _ _) := isFalse (fun h => nat_expr.noConfusion h)
-
-  | (add _ _) (lit _)   := isFalse (fun h => nat_expr.noConfusion h)
-  | (add _ _) (var _) := isFalse (fun h => nat_expr.noConfusion h)
-  | (add _ _) (sub _ _) := isFalse (fun h => nat_expr.noConfusion h)
-  | (add _ _) (mul _ _) := isFalse (fun h => nat_expr.noConfusion h)
-  | (add _ _) (div _ _) := isFalse (fun h => nat_expr.noConfusion h)
-
-  | (sub _ _) (lit _)   := isFalse (fun h => nat_expr.noConfusion h)
-  | (sub _ _) (var _) := isFalse (fun h => nat_expr.noConfusion h)
-  | (sub _ _) (add _ _) := isFalse (fun h => nat_expr.noConfusion h)
-  | (sub _ _) (mul _ _) := isFalse (fun h => nat_expr.noConfusion h)
-  | (sub _ _) (div _ _) := isFalse (fun h => nat_expr.noConfusion h)
-
-  | (mul _ _) (lit _)   := isFalse (fun h => nat_expr.noConfusion h)
-  | (mul _ _) (var _) := isFalse (fun h => nat_expr.noConfusion h)
-  | (mul _ _) (add _ _) := isFalse (fun h => nat_expr.noConfusion h)
-  | (mul _ _) (sub _ _) := isFalse (fun h => nat_expr.noConfusion h)
-  | (mul _ _) (div _ _) := isFalse (fun h => nat_expr.noConfusion h)
-
-  | (div _ _) (lit _)   := isFalse (fun h => nat_expr.noConfusion h)
-  | (div _ _) (var _) := isFalse (fun h => nat_expr.noConfusion h)
-  | (div _ _) (add _ _) := isFalse (fun h => nat_expr.noConfusion h)
-  | (div _ _) (sub _ _) := isFalse (fun h => nat_expr.noConfusion h)
-  | (div _ _) (mul _ _) := isFalse (fun h => nat_expr.noConfusion h)
+protected def hasDecEq : ∀(e e' : nat_expr), Decidable (e = e')
+| (lit c1), (lit c1') => 
+ (match decEq c1 c1' with 
+  | (isTrue h1) => isTrue (h1 ▸ rfl)
+  | (isFalse nh) => isFalse (fun h => nat_expr.noConfusion h $ fun h1' => absurd h1' nh))
+| (var c1), (var c1') => 
+ (match decEq c1 c1' with 
+  | (isTrue h1) => isTrue (h1 ▸ rfl)
+  | (isFalse nh) => isFalse (fun h => nat_expr.noConfusion h $ fun h1' => absurd h1' nh))
+| (add c1 c2), (add c1' c2') => 
+ (match hasDecEq c1 c1', hasDecEq c2 c2' with 
+  | (isTrue h1), (isTrue h2) => isTrue (h1 ▸ h2 ▸ rfl)
+  | (isFalse nh), _ => isFalse (fun h => nat_expr.noConfusion h $ fun h1' h2' => absurd h1' nh)
+  | (isTrue _), (isFalse nh) => isFalse (fun h => nat_expr.noConfusion h $ fun h1' h2' => absurd h2' nh))
+| (sub c1 c2), (sub c1' c2') => 
+ (match hasDecEq c1 c1', hasDecEq c2 c2' with 
+  | (isTrue h1), (isTrue h2) => isTrue (h1 ▸ h2 ▸ rfl)
+  | (isFalse nh), _ => isFalse (fun h => nat_expr.noConfusion h $ fun h1' h2' => absurd h1' nh)
+  | (isTrue _), (isFalse nh) => isFalse (fun h => nat_expr.noConfusion h $ fun h1' h2' => absurd h2' nh))
+| (mul c1 c2), (mul c1' c2') => 
+ (match hasDecEq c1 c1', hasDecEq c2 c2' with 
+  | (isTrue h1), (isTrue h2) => isTrue (h1 ▸ h2 ▸ rfl)
+  | (isFalse nh), _ => isFalse (fun h => nat_expr.noConfusion h $ fun h1' h2' => absurd h1' nh)
+  | (isTrue _), (isFalse nh) => isFalse (fun h => nat_expr.noConfusion h $ fun h1' h2' => absurd h2' nh))
+| (div c1 c2), (div c1' c2') => 
+ (match hasDecEq c1 c1', hasDecEq c2 c2' with 
+  | (isTrue h1), (isTrue h2) => isTrue (h1 ▸ h2 ▸ rfl)
+  | (isFalse nh), _ => isFalse (fun h => nat_expr.noConfusion h $ fun h1' h2' => absurd h1' nh)
+  | (isTrue _), (isFalse nh) => isFalse (fun h => nat_expr.noConfusion h $ fun h1' h2' => absurd h2' nh))
+| (lit _), (var _) => isFalse (fun h => nat_expr.noConfusion h)
+| (lit _), (add _ _) => isFalse (fun h => nat_expr.noConfusion h)
+| (lit _), (sub _ _) => isFalse (fun h => nat_expr.noConfusion h)
+| (lit _), (mul _ _) => isFalse (fun h => nat_expr.noConfusion h)
+| (lit _), (div _ _) => isFalse (fun h => nat_expr.noConfusion h)
+| (var _), (lit _) => isFalse (fun h => nat_expr.noConfusion h)
+| (var _), (add _ _) => isFalse (fun h => nat_expr.noConfusion h)
+| (var _), (sub _ _) => isFalse (fun h => nat_expr.noConfusion h)
+| (var _), (mul _ _) => isFalse (fun h => nat_expr.noConfusion h)
+| (var _), (div _ _) => isFalse (fun h => nat_expr.noConfusion h)
+| (add _ _), (lit _) => isFalse (fun h => nat_expr.noConfusion h)
+| (add _ _), (var _) => isFalse (fun h => nat_expr.noConfusion h)
+| (add _ _), (sub _ _) => isFalse (fun h => nat_expr.noConfusion h)
+| (add _ _), (mul _ _) => isFalse (fun h => nat_expr.noConfusion h)
+| (add _ _), (div _ _) => isFalse (fun h => nat_expr.noConfusion h)
+| (sub _ _), (lit _) => isFalse (fun h => nat_expr.noConfusion h)
+| (sub _ _), (var _) => isFalse (fun h => nat_expr.noConfusion h)
+| (sub _ _), (add _ _) => isFalse (fun h => nat_expr.noConfusion h)
+| (sub _ _), (mul _ _) => isFalse (fun h => nat_expr.noConfusion h)
+| (sub _ _), (div _ _) => isFalse (fun h => nat_expr.noConfusion h)
+| (mul _ _), (lit _) => isFalse (fun h => nat_expr.noConfusion h)
+| (mul _ _), (var _) => isFalse (fun h => nat_expr.noConfusion h)
+| (mul _ _), (add _ _) => isFalse (fun h => nat_expr.noConfusion h)
+| (mul _ _), (sub _ _) => isFalse (fun h => nat_expr.noConfusion h)
+| (mul _ _), (div _ _) => isFalse (fun h => nat_expr.noConfusion h)
+| (div _ _), (lit _) => isFalse (fun h => nat_expr.noConfusion h)
+| (div _ _), (var _) => isFalse (fun h => nat_expr.noConfusion h)
+| (div _ _), (add _ _) => isFalse (fun h => nat_expr.noConfusion h)
+| (div _ _), (sub _ _) => isFalse (fun h => nat_expr.noConfusion h)
+| (div _ _), (mul _ _) => isFalse (fun h => nat_expr.noConfusion h)
   
 instance decidable_eq_nat_expr : DecidableEq nat_expr := -- by tactic.mk_dec_eq_instance
-  { decEq := nat_expr.decEq }
+  { decEq := nat_expr.hasDecEq }
 
 def pp : nat_expr -> String
-| (lit n) := repr n
-| (var i) := "(var " ++ repr i ++ ")"
-| (add e e') := "(add " ++ e.pp ++ " " ++ e'.pp ++ ")"
-| (sub e e') := "(sub " ++ e.pp ++ " " ++ e'.pp ++ ")"
-| (mul e e') := "(mul " ++ e.pp ++ " " ++ e'.pp ++ ")"
-| (div e e') := "(div " ++ e.pp ++ " " ++ e'.pp ++ ")"
+| (lit n) => repr n
+| (var i) => "(var " ++ repr i ++ ")"
+| (add e e') => "(add " ++ e.pp ++ " " ++ e'.pp ++ ")"
+| (sub e e') => "(sub " ++ e.pp ++ " " ++ e'.pp ++ ")"
+| (mul e e') => "(mul " ++ e.pp ++ " " ++ e'.pp ++ ")"
+| (div e e') => "(div " ++ e.pp ++ " " ++ e'.pp ++ ")"
 
 end nat_expr
 ------------------------------------------------------------------------
@@ -173,7 +167,7 @@ inductive one_of (l:List Nat) : Type
 namespace one_of
 
 def to_nat_expr {l:List Nat} : one_of l → nat_expr
-| (one_of.var i) := nat_expr.var i
+| (one_of.var i) => nat_expr.var i
 
 instance (l:List Nat) : HasCoe (one_of l) nat_expr :=
 ⟨ one_of.to_nat_expr ⟩
@@ -200,87 +194,87 @@ inductive type
 namespace type
 
 -- c.f. scripts/mk_dec_eq.hs
--- *MkDecEq> writeFile "typeDecEq" (mkDecEq "type" ctors "hasDecEq")
+-- *MkDecEq> writeFile "typeDecEq" (mkDecEq "type" ctors_type "hasDecEq")
 protected def hasDecEq : ∀(e e' : type), Decidable (e = e')
-| (bv c1) (bv c1') := 
+| (bv c1), (bv c1') => 
  (match decEq c1 c1' with 
   | (isTrue h1) => isTrue (h1 ▸ rfl)
   | (isFalse nh) => isFalse (fun h => type.noConfusion h $ fun h1' => absurd h1' nh))
-| bit bit := isTrue rfl
-| float float := isTrue rfl
-| double double := isTrue rfl
-| x86_80 x86_80 := isTrue rfl
-| (vec c1 c2) (vec c1' c2') := 
+| bit, bit => isTrue rfl
+| float, float => isTrue rfl
+| double, double => isTrue rfl
+| x86_80, x86_80 => isTrue rfl
+| (vec c1 c2), (vec c1' c2') => 
  (match decEq c1 c1', hasDecEq c2 c2' with 
   | (isTrue h1), (isTrue h2) => isTrue (h1 ▸ h2 ▸ rfl)
   | (isFalse nh), _ => isFalse (fun h => type.noConfusion h $ fun h1' h2' => absurd h1' nh)
   | (isTrue _), (isFalse nh) => isFalse (fun h => type.noConfusion h $ fun h1' h2' => absurd h2' nh))
-| (pair c1 c2) (pair c1' c2') := 
+| (pair c1 c2), (pair c1' c2') => 
  (match hasDecEq c1 c1', hasDecEq c2 c2' with 
   | (isTrue h1), (isTrue h2) => isTrue (h1 ▸ h2 ▸ rfl)
   | (isFalse nh), _ => isFalse (fun h => type.noConfusion h $ fun h1' h2' => absurd h1' nh)
   | (isTrue _), (isFalse nh) => isFalse (fun h => type.noConfusion h $ fun h1' h2' => absurd h2' nh))
-| (fn c1 c2) (fn c1' c2') := 
+| (fn c1 c2), (fn c1' c2') => 
  (match hasDecEq c1 c1', hasDecEq c2 c2' with 
   | (isTrue h1), (isTrue h2) => isTrue (h1 ▸ h2 ▸ rfl)
   | (isFalse nh), _ => isFalse (fun h => type.noConfusion h $ fun h1' h2' => absurd h1' nh)
   | (isTrue _), (isFalse nh) => isFalse (fun h => type.noConfusion h $ fun h1' h2' => absurd h2' nh))
-| (bv _) bit := isFalse (fun h => type.noConfusion h)
-| (bv _) float := isFalse (fun h => type.noConfusion h)
-| (bv _) double := isFalse (fun h => type.noConfusion h)
-| (bv _) x86_80 := isFalse (fun h => type.noConfusion h)
-| (bv _) (vec _ _) := isFalse (fun h => type.noConfusion h)
-| (bv _) (pair _ _) := isFalse (fun h => type.noConfusion h)
-| (bv _) (fn _ _) := isFalse (fun h => type.noConfusion h)
-| bit (bv _) := isFalse (fun h => type.noConfusion h)
-| bit float := isFalse (fun h => type.noConfusion h)
-| bit double := isFalse (fun h => type.noConfusion h)
-| bit x86_80 := isFalse (fun h => type.noConfusion h)
-| bit (vec _ _) := isFalse (fun h => type.noConfusion h)
-| bit (pair _ _) := isFalse (fun h => type.noConfusion h)
-| bit (fn _ _) := isFalse (fun h => type.noConfusion h)
-| float (bv _) := isFalse (fun h => type.noConfusion h)
-| float bit := isFalse (fun h => type.noConfusion h)
-| float double := isFalse (fun h => type.noConfusion h)
-| float x86_80 := isFalse (fun h => type.noConfusion h)
-| float (vec _ _) := isFalse (fun h => type.noConfusion h)
-| float (pair _ _) := isFalse (fun h => type.noConfusion h)
-| float (fn _ _) := isFalse (fun h => type.noConfusion h)
-| double (bv _) := isFalse (fun h => type.noConfusion h)
-| double bit := isFalse (fun h => type.noConfusion h)
-| double float := isFalse (fun h => type.noConfusion h)
-| double x86_80 := isFalse (fun h => type.noConfusion h)
-| double (vec _ _) := isFalse (fun h => type.noConfusion h)
-| double (pair _ _) := isFalse (fun h => type.noConfusion h)
-| double (fn _ _) := isFalse (fun h => type.noConfusion h)
-| x86_80 (bv _) := isFalse (fun h => type.noConfusion h)
-| x86_80 bit := isFalse (fun h => type.noConfusion h)
-| x86_80 float := isFalse (fun h => type.noConfusion h)
-| x86_80 double := isFalse (fun h => type.noConfusion h)
-| x86_80 (vec _ _) := isFalse (fun h => type.noConfusion h)
-| x86_80 (pair _ _) := isFalse (fun h => type.noConfusion h)
-| x86_80 (fn _ _) := isFalse (fun h => type.noConfusion h)
-| (vec _ _) (bv _) := isFalse (fun h => type.noConfusion h)
-| (vec _ _) bit := isFalse (fun h => type.noConfusion h)
-| (vec _ _) float := isFalse (fun h => type.noConfusion h)
-| (vec _ _) double := isFalse (fun h => type.noConfusion h)
-| (vec _ _) x86_80 := isFalse (fun h => type.noConfusion h)
-| (vec _ _) (pair _ _) := isFalse (fun h => type.noConfusion h)
-| (vec _ _) (fn _ _) := isFalse (fun h => type.noConfusion h)
-| (pair _ _) (bv _) := isFalse (fun h => type.noConfusion h)
-| (pair _ _) bit := isFalse (fun h => type.noConfusion h)
-| (pair _ _) float := isFalse (fun h => type.noConfusion h)
-| (pair _ _) double := isFalse (fun h => type.noConfusion h)
-| (pair _ _) x86_80 := isFalse (fun h => type.noConfusion h)
-| (pair _ _) (vec _ _) := isFalse (fun h => type.noConfusion h)
-| (pair _ _) (fn _ _) := isFalse (fun h => type.noConfusion h)
-| (fn _ _) (bv _) := isFalse (fun h => type.noConfusion h)
-| (fn _ _) bit := isFalse (fun h => type.noConfusion h)
-| (fn _ _) float := isFalse (fun h => type.noConfusion h)
-| (fn _ _) double := isFalse (fun h => type.noConfusion h)
-| (fn _ _) x86_80 := isFalse (fun h => type.noConfusion h)
-| (fn _ _) (vec _ _) := isFalse (fun h => type.noConfusion h)
-| (fn _ _) (pair _ _) := isFalse (fun h => type.noConfusion h)
+| (bv _), bit => isFalse (fun h => type.noConfusion h)
+| (bv _), float => isFalse (fun h => type.noConfusion h)
+| (bv _), double => isFalse (fun h => type.noConfusion h)
+| (bv _), x86_80 => isFalse (fun h => type.noConfusion h)
+| (bv _), (vec _ _) => isFalse (fun h => type.noConfusion h)
+| (bv _), (pair _ _) => isFalse (fun h => type.noConfusion h)
+| (bv _), (fn _ _) => isFalse (fun h => type.noConfusion h)
+| bit, (bv _) => isFalse (fun h => type.noConfusion h)
+| bit, float => isFalse (fun h => type.noConfusion h)
+| bit, double => isFalse (fun h => type.noConfusion h)
+| bit, x86_80 => isFalse (fun h => type.noConfusion h)
+| bit, (vec _ _) => isFalse (fun h => type.noConfusion h)
+| bit, (pair _ _) => isFalse (fun h => type.noConfusion h)
+| bit, (fn _ _) => isFalse (fun h => type.noConfusion h)
+| float, (bv _) => isFalse (fun h => type.noConfusion h)
+| float, bit => isFalse (fun h => type.noConfusion h)
+| float, double => isFalse (fun h => type.noConfusion h)
+| float, x86_80 => isFalse (fun h => type.noConfusion h)
+| float, (vec _ _) => isFalse (fun h => type.noConfusion h)
+| float, (pair _ _) => isFalse (fun h => type.noConfusion h)
+| float, (fn _ _) => isFalse (fun h => type.noConfusion h)
+| double, (bv _) => isFalse (fun h => type.noConfusion h)
+| double, bit => isFalse (fun h => type.noConfusion h)
+| double, float => isFalse (fun h => type.noConfusion h)
+| double, x86_80 => isFalse (fun h => type.noConfusion h)
+| double, (vec _ _) => isFalse (fun h => type.noConfusion h)
+| double, (pair _ _) => isFalse (fun h => type.noConfusion h)
+| double, (fn _ _) => isFalse (fun h => type.noConfusion h)
+| x86_80, (bv _) => isFalse (fun h => type.noConfusion h)
+| x86_80, bit => isFalse (fun h => type.noConfusion h)
+| x86_80, float => isFalse (fun h => type.noConfusion h)
+| x86_80, double => isFalse (fun h => type.noConfusion h)
+| x86_80, (vec _ _) => isFalse (fun h => type.noConfusion h)
+| x86_80, (pair _ _) => isFalse (fun h => type.noConfusion h)
+| x86_80, (fn _ _) => isFalse (fun h => type.noConfusion h)
+| (vec _ _), (bv _) => isFalse (fun h => type.noConfusion h)
+| (vec _ _), bit => isFalse (fun h => type.noConfusion h)
+| (vec _ _), float => isFalse (fun h => type.noConfusion h)
+| (vec _ _), double => isFalse (fun h => type.noConfusion h)
+| (vec _ _), x86_80 => isFalse (fun h => type.noConfusion h)
+| (vec _ _), (pair _ _) => isFalse (fun h => type.noConfusion h)
+| (vec _ _), (fn _ _) => isFalse (fun h => type.noConfusion h)
+| (pair _ _), (bv _) => isFalse (fun h => type.noConfusion h)
+| (pair _ _), bit => isFalse (fun h => type.noConfusion h)
+| (pair _ _), float => isFalse (fun h => type.noConfusion h)
+| (pair _ _), double => isFalse (fun h => type.noConfusion h)
+| (pair _ _), x86_80 => isFalse (fun h => type.noConfusion h)
+| (pair _ _), (vec _ _) => isFalse (fun h => type.noConfusion h)
+| (pair _ _), (fn _ _) => isFalse (fun h => type.noConfusion h)
+| (fn _ _), (bv _) => isFalse (fun h => type.noConfusion h)
+| (fn _ _), bit => isFalse (fun h => type.noConfusion h)
+| (fn _ _), float => isFalse (fun h => type.noConfusion h)
+| (fn _ _), double => isFalse (fun h => type.noConfusion h)
+| (fn _ _), x86_80 => isFalse (fun h => type.noConfusion h)
+| (fn _ _), (vec _ _) => isFalse (fun h => type.noConfusion h)
+| (fn _ _), (pair _ _) => isFalse (fun h => type.noConfusion h)
 
 instance decidable_eq_type : DecidableEq type := -- by tactic.mk_dec_eq_instance
   { decEq := type.hasDecEq }
@@ -313,19 +307,19 @@ namespace gpreg_type
 
 @[reducible]
 def width' : gpreg_type → Nat
-| reg8l  := 8
-| reg8h  := 8
-| reg16 := 16
-| reg32 := 32
-| reg64 := 64
+| reg8l  => 8
+| reg8h  => 8
+| reg16 => 16
+| reg32 => 32
+| reg64 => 64
 
 @[reducible]
 def width : gpreg_type → nat_expr
-| reg8l  := 8
-| reg8h  := 8
-| reg16 := 16
-| reg32 := 32
-| reg64 := 64
+| reg8l  => 8
+| reg8h  => 8
+| reg16 => 16
+| reg32 => 32
+| reg64 => 64
 
 end gpreg_type
 
@@ -394,7 +388,7 @@ namespace concrete_reg
 
 protected
 def repr : ∀{tp:type}, concrete_reg tp → String
-| ._ (gpreg idx tp) := "$" ++
+| ._, (gpreg idx tp) => "$" ++
   (match tp with
   | gpreg_type.reg8l => List.get idx.val reg.r8l_names
   | gpreg_type.reg8h => List.get idx.val reg.r8h_names
@@ -402,7 +396,7 @@ def repr : ∀{tp:type}, concrete_reg tp → String
   | gpreg_type.reg32 => List.get idx.val reg.r32_names
   | gpreg_type.reg64 => List.get idx.val reg.r64_names)
  
-| ._ (flagreg idx) := "$" ++
+| ._, (flagreg idx) => "$" ++
    (match List.getOpt idx.val reg.flag_names with
    | (Option.some nm) => nm
    | Option.none      => "RESERVED_" ++ idx.val.repr)
@@ -414,8 +408,8 @@ namespace reg
 
 protected
 def repr : ∀{tp:type}, reg tp -> String
-| _ (concrete r) := r.repr
-| _ (arg idx)    := "arg" ++ idx.repr
+| _, (concrete r) => r.repr
+| _, (arg idx)    => "arg" ++ idx.repr
 
 end reg
 
@@ -429,7 +423,7 @@ inductive addr (tp:type) : Type
 namespace addr
 
 protected def repr {tp:type} : addr tp → String
-| (arg idx) := idx.repr
+| (arg idx) => idx.repr
 
 end addr
 
@@ -649,51 +643,51 @@ end prim
 --namespace prim
 --
 -- def pp : ∀{tp:type}, prim tp → String
--- | ._ (add i) := "add " ++ i.pp
--- | ._ (adc i) := "adc " ++ i.pp
--- | ._ (mul i) := "mul " ++ i.pp
--- | ._ (quot i) := "quot " ++ i.pp
--- | ._ (rem i) := "rem " ++ i.pp
--- | ._ (squot i) := "squot " ++ i.pp
--- | ._ (srem i) := "srem " ++ i.pp
--- | ._ (slice w u l) := "slice " ++ w.pp ++ " " ++ u.pp ++ " " ++ l.pp
--- | ._ (sext i o) := "sext " ++ i.pp ++ " " ++ o.pp
--- | ._ (uext i o) := "uext " ++ i.pp ++ " " ++ o.pp
--- | ._ (trunc i o) := "trunc " ++ i.pp ++ " " ++ o.pp
--- | ._ (bsf i) := "bsf " ++ i.pp
--- | ._ (bsr i) := "bsr " ++ i.pp
--- | ._ (bswap i) := "bswap " ++ i.pp
--- | ._ bit_zero := sexp.app "bit" ["0"]
--- | ._ bit_one  := sexp.app "bit" ["1"]
--- | ._ (eq tp) := "eq " ++ tp.pp
--- | ._ (neq tp) := "neq " ++ tp.pp
--- | ._ (neg tp) := "neg " ++ tp.pp
--- | ._ x87_fadd := "x87_fadd"
--- | ._ float_to_x86_80 := "float_to_x86_80"
--- | ._ double_to_x86_80 := "double_to_X86_80"
--- | ._ (bv_to_x86_80 w) := "sext " ++ w.pp
--- | ._ (bv_nat w n) := sexp.app "bv_nat" [w.pp, n.pp]
--- | ._ (sub i) := "sub " ++ i.pp
--- | ._ (ssbb_overflows i) := "ssbb_overflows " ++ i.pp
--- | ._ (usbb_overflows i) := "usbb_overflows " ++ i.pp
--- | ._ (uadc_overflows i) := "uadc_overflows " ++ i.pp
--- | ._ (sadc_overflows i) := "sadc_overflows " ++ i.pp
--- | ._ (and i) := "and " ++ i.pp
--- | ._ (or  i) := "or "  ++ i.pp
--- | ._ (xor i) := "xor " ++ i.pp
--- | ._ (shl i) := "shl " ++ i.pp
--- | ._ (shr i) := "shr " ++ i.pp
--- | ._ (sar i) := "sar " ++ i.pp
--- | ._ (bv_bit i) := "bv_bit " ++ i.pp
--- | ._ (complement i) := "complement " ++ i.pp
--- | ._ (cat i) := "cat " ++ i.pp
--- | ._ (msb i) := "msb " ++ i.pp
--- | ._ (even_parity i) := "even_parity " ++ i.pp
--- | ._ bit_or  := "bit_or"
--- | ._ bit_and := "bit_and"
--- | ._ bit_xor := "bit_xor"
--- | ._ (ule i) := "ule " ++ i.pp
--- | ._ (ult i) := "ult " ++ i.pp
+-- | ._ (add i) => "add " ++ i.pp
+-- | ._ (adc i) => "adc " ++ i.pp
+-- | ._ (mul i) => "mul " ++ i.pp
+-- | ._ (quot i) => "quot " ++ i.pp
+-- | ._ (rem i) => "rem " ++ i.pp
+-- | ._ (squot i) => "squot " ++ i.pp
+-- | ._ (srem i) => "srem " ++ i.pp
+-- | ._ (slice w u l) => "slice " ++ w.pp ++ " " ++ u.pp ++ " " ++ l.pp
+-- | ._ (sext i o) => "sext " ++ i.pp ++ " " ++ o.pp
+-- | ._ (uext i o) => "uext " ++ i.pp ++ " " ++ o.pp
+-- | ._ (trunc i o) => "trunc " ++ i.pp ++ " " ++ o.pp
+-- | ._ (bsf i) => "bsf " ++ i.pp
+-- | ._ (bsr i) => "bsr " ++ i.pp
+-- | ._ (bswap i) => "bswap " ++ i.pp
+-- | ._ bit_zero => sexp.app "bit" ["0"]
+-- | ._ bit_one  => sexp.app "bit" ["1"]
+-- | ._ (eq tp) => "eq " ++ tp.pp
+-- | ._ (neq tp) => "neq " ++ tp.pp
+-- | ._ (neg tp) => "neg " ++ tp.pp
+-- | ._ x87_fadd => "x87_fadd"
+-- | ._ float_to_x86_80 => "float_to_x86_80"
+-- | ._ double_to_x86_80 => "double_to_X86_80"
+-- | ._ (bv_to_x86_80 w) => "sext " ++ w.pp
+-- | ._ (bv_nat w n) => sexp.app "bv_nat" [w.pp, n.pp]
+-- | ._ (sub i) => "sub " ++ i.pp
+-- | ._ (ssbb_overflows i) => "ssbb_overflows " ++ i.pp
+-- | ._ (usbb_overflows i) => "usbb_overflows " ++ i.pp
+-- | ._ (uadc_overflows i) => "uadc_overflows " ++ i.pp
+-- | ._ (sadc_overflows i) => "sadc_overflows " ++ i.pp
+-- | ._ (and i) => "and " ++ i.pp
+-- | ._ (or  i) => "or "  ++ i.pp
+-- | ._ (xor i) => "xor " ++ i.pp
+-- | ._ (shl i) => "shl " ++ i.pp
+-- | ._ (shr i) => "shr " ++ i.pp
+-- | ._ (sar i) => "sar " ++ i.pp
+-- | ._ (bv_bit i) => "bv_bit " ++ i.pp
+-- | ._ (complement i) => "complement " ++ i.pp
+-- | ._ (cat i) => "cat " ++ i.pp
+-- | ._ (msb i) => "msb " ++ i.pp
+-- | ._ (even_parity i) => "even_parity " ++ i.pp
+-- | ._ bit_or  => "bit_or"
+-- | ._ bit_and => "bit_and"
+-- | ._ bit_xor => "bit_xor"
+-- | ._ (ule i) => "ule " ++ i.pp
+-- | ._ (ult i) => "ult " ++ i.pp
 --
 -- end prim
 
@@ -702,7 +696,7 @@ namespace expression
 -- local notation Nat := nat_expr
 
 def of_addr : ∀{tp:type}, addr tp → expression (bv 64)
-| tp (@addr.arg _ i) := expression.addr_arg i
+| tp, (@addr.arg _ i) => expression.addr_arg i
 
 instance prim_is_expr (rtp:type) : HasCoe (prim rtp) (expression rtp) := ⟨expression.primitive⟩
 
@@ -712,15 +706,15 @@ instance (a:type) (f:type) : HasCoeToFun (expression (type.fn a f)) :=
 }
 
 def add : ∀{w:nat_expr}, expression (bv w) → expression (bv w) → expression (bv w)
---| ._ (primitive (prim.bv_nat ._ n)) (primitive (prim.bv_nat w m)) := prim.bv_nat w (n + m)
-| i x y := prim.add i x y
+--| ._ (primitive (prim.bv_nat ._ n)) (primitive (prim.bv_nat w m)) => prim.bv_nat w (n + m)
+| i, x, y => prim.add i x y
 
 def sub : ∀{w:nat_expr}, expression (bv w) → expression (bv w) → expression (bv w)
---| ._ (primitive (prim.bv_nat ._ n)) (primitive (prim.bv_nat w m)) := prim.bv_nat w (n - m)
-| i x y := prim.sub i x y
+--| ._ (primitive (prim.bv_nat ._ n)) (primitive (prim.bv_nat w m)) => prim.bv_nat w (n - m)
+| i, x, y => prim.sub i x y
 
 def neg : ∀{w:nat_expr}, expression (bv w) → expression (bv w)
-  | _ x := app (primitive (prim.neg _)) x
+  | _, x => app (primitive (prim.neg _)) x
 
 instance (w:nat_expr) : HasZero (expression (bv w)) := ⟨prim.bv_nat w 0⟩
 instance (w:nat_expr) : HasOne  (expression (bv w)) := ⟨prim.bv_nat w 1⟩
@@ -736,11 +730,11 @@ def bit_xor           (x y : expression bit)                         : expressio
 def bv_nat (w:nat_expr) (x : nat_expr) : expression (bv w) := prim.bv_nat w x
 
 def read_addr {tp:type} : addr tp → expression tp
-| (addr.arg idx) := expression.read_arg idx tp
+| (addr.arg idx) => expression.read_arg idx tp
 
 def of_reg {tp:type} : reg tp → expression tp
-| (reg.concrete r) := expression.get_reg r
-| (reg.arg a) := expression.read_arg a tp
+| (reg.concrete r) => expression.get_reg r
+| (reg.arg a) => expression.read_arg a tp
 
 instance addr_is_expression (tp:type) : HasCoe (addr tp) (expression tp) :=
 ⟨ expression.read_addr ⟩
@@ -754,7 +748,7 @@ end expression
 
 protected
 def expression.imm : ∀{tp:type}, imm tp → expression tp
-| ._ (@imm.arg i tp) := expression.imm_arg i tp
+| ._, (@imm.arg i tp) => expression.imm_arg i tp
 
 instance expression.imm_is_expression (tp:type) : HasCoe (imm tp) (expression tp) := ⟨expression.imm⟩
 
@@ -810,21 +804,21 @@ inductive lhs : type → Type
 namespace lhs
 
 def of_addr {tp:type} : addr tp → lhs tp
-| (addr.arg idx) := lhs.write_arg idx tp
+| (addr.arg idx) => lhs.write_arg idx tp
 
 def of_reg {tp:type} : reg tp → lhs tp
-| (reg.concrete r) := lhs.set_reg r
-| (reg.arg idx) := lhs.write_arg idx tp
+| (reg.concrete r) => lhs.set_reg r
+| (reg.arg idx) => lhs.write_arg idx tp
 
 end lhs
 
 
 namespace expression
 def of_lhs : ∀{tp:type}, lhs tp → expression tp
-| ._ (lhs.set_reg r) := expression.get_reg r
-| ._ (lhs.write_addr a tp) := expression.read tp a
-| ._ (lhs.write_arg idx tp) := expression.read_arg idx tp
-| ._ (lhs.streg idx) := expression.streg idx
+| ._, (lhs.set_reg r) => expression.get_reg r
+| ._, (lhs.write_addr a tp) => expression.read tp a
+| ._, (lhs.write_arg idx tp) => expression.read_arg idx tp
+| ._, (lhs.streg idx) => expression.streg idx
 
 instance all_lhs_is_expression : has_coe1 lhs expression := ⟨fun _ => expression.of_lhs⟩
 

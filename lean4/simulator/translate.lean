@@ -28,8 +28,8 @@ universe u
 
 protected
 def indexOfAux {α : Type u} [DecidableEq α] (v : α) : Nat -> List α -> Nat
-  | n [] := n
-  | n (x :: xs) := if x = v then n else indexOfAux (n + 1) xs
+  | n, [] => n
+  | n, (x :: xs) => if x = v then n else indexOfAux (n + 1) xs
 
 def indexOf {α : Type u} [DecidableEq α] (xs : List α) (v : α) : Nat := List.indexOfAux v 0 xs
 
@@ -41,18 +41,17 @@ namespace x86
 def some_gpr := Sigma (fun (tp : gpreg_type) => concrete_reg (bv tp.width))
 
 def register_to_reg (r : decodex86.register) : Option some_gpr :=
-  let idx := reg.r64_names.indexOf r.top in
+  let idx := reg.r64_names.indexOf r.top;
   if H : idx = reg.r64_names.length 
   then none
-  else let prf : idx < 16 := I_am_really_sorry _ in
-       let idx' := @Fin.mk 16 idx prf -- (begin
+  else let prf : idx < 16 := I_am_really_sorry _;
+       let idx' := @Fin.mk 16 idx prf; -- (begin
            -- destruct (lt_or_eq_of_le (index_of_lt reg.r64_names r.top)); intros Hle,
            -- exact Hle,
            -- contradiction
            -- end)
-       in let mk : ∀(tp : gpreg_type), Option some_gpr
-                 := fun (tp : gpreg_type) => some ⟨tp, concrete_reg.gpreg idx' tp⟩
-       in
+       let mk : ∀(tp : gpreg_type), Option some_gpr
+                 := fun (tp : gpreg_type) => some ⟨tp, concrete_reg.gpreg idx' tp⟩;  
        match (r.width, r.offset) with 
          | (8, 0)  => mk gpreg_type.reg8l
          | (8, 8)  => mk gpreg_type.reg8h
@@ -109,21 +108,21 @@ def operand_to_arg_lval {m} [Monad m] [MonadExcept String m]
     (nenv : nat_env) (s : machine_state) 
     (tp : type) (otp : decodex86.operand_type) : decodex86.operand_value -> m arg_lval
   -- FIXME: check width?
-  | (operand_value.register r) := do sgpr <- guard_some "operand_to_arg_lhs register" (register_to_reg r) pure;
+  | (operand_value.register r) => do sgpr <- guard_some "operand_to_arg_lhs register" (register_to_reg r) pure;
                                      assert_types nenv (bv sgpr.fst.width) tp;
                                      pure (arg_lval.reg sgpr.snd)
   -- FIXME: check width?
-  | (operand_value.segment opt_r r) := do
+  | (operand_value.segment opt_r r) => do
     throw_if (Option.isSome opt_r) "got a segment reg";
     -- FIXME: clag
     sgpr <- guard_some "operand_to_arg_value_lhs register" (register_to_reg r) pure;
     assert_types nenv (bv sgpr.fst.width) tp;
     pure (arg_lval.reg sgpr.snd)
-  | (operand_value.immediate nbytes val) := throw "operand_to_arg_lval: got an immdiate"
+  | (operand_value.immediate nbytes val) => throw "operand_to_arg_lval: got an immdiate"
   -- FIXME: we use ip out of the state, we could use the value encoded in the decoded instruction 
-  | (operand_value.rel_immediate next_addr nbytes val) := throw "operand_to_arg_lval: got an immdeiate"
+  | (operand_value.rel_immediate next_addr nbytes val) => throw "operand_to_arg_lval: got an immdeiate"
   -- base + scale * idx + disp
-  | (operand_value.memloc opt_seg opt_base scale opt_idx disp) := do
+  | (operand_value.memloc opt_seg opt_base scale opt_idx disp) => do
     n <- match otp with | (operand_type.mem n) => pure n | other => throw "memloc not of mem type";
     assert_types nenv (bv n) tp;
     throw_if (Option.isSome opt_seg) "got a segment reg";
@@ -162,28 +161,28 @@ def operand_to_arg_value_expr {m} [Monad m] [MonadExcept String m]
 
 def first_comb.{u,v,w} {ε : Type u} {m : Type v → Type w}
   [MonadExcept ε m] {α : Type v} (e : ε) (f : ε -> ε -> ε) : List (m α) -> m α
-  | []        := throw e
-  | [x]       := x
-  | (x :: xs) := catch x $ fun e1 => catch (first_comb xs) $ fun e2 => throw (f e1 e2)
+  | []        => throw e
+  | [x]       => x
+  | (x :: xs) => catch x $ fun e1 => catch (first_comb xs) $ fun e2 => throw (f e1 e2)
 
 -- Inside the list Monad here
 def possible_nat_envs : List binding -> List nat_env
-  | []                        := [ [] ]
-  | (binding.one_of ns :: xs) := do n <- ns; e <- possible_nat_envs xs; pure (some n :: e)
-  | (_ :: xs)                 := do e <- possible_nat_envs xs; pure (none :: e)
+  | []                        => [ [] ]
+  | (binding.one_of ns :: xs) => do n <- ns; e <- possible_nat_envs xs; pure (some n :: e)
+  | (_ :: xs)                 => do e <- possible_nat_envs xs; pure (none :: e)
 
 /-
-def test_pattern := match mov.patterns with | [x] := x | _ := sorry end
+def test_pattern := match mov.patterns with | [x] := x | _ => sorry end
 
 #eval possible_nat_envs test_pattern.context.bindings.reverse
 -/
 
 def make_environment_helper (nenv : nat_env) (s : machine_state) 
   : List binding -> List decodex86.operand -> nat_env -> Except String (environment nenv) 
-  | [] [] _              := pure []
-  | (binding.one_of _ :: rest) ops (some n :: ns) := do e <- make_environment_helper rest ops ns;
+  | [], [], _              => pure []
+  | (binding.one_of _ :: rest), ops, (some n :: ns) => do e <- make_environment_helper rest ops ns;
                                                         pure (arg_value.natv nenv n :: e)
-  | (binding.reg tp   :: rest) (op :: ops) (_ :: ns) :=
+  | (binding.reg tp   :: rest), (op :: ops), (_ :: ns) =>
     annotate' "reg" $ do
       av  <- operand_to_arg_value_lhs nenv s tp op;
       -- Mainly to check things are of the right form
@@ -191,7 +190,7 @@ def make_environment_helper (nenv : nat_env) (s : machine_state)
       e   <- make_environment_helper rest ops ns;
       pure (av :: e)
 
-  | (binding.addr tp   :: rest) (op :: ops) (_ :: ns) :=
+  | (binding.addr tp   :: rest), (op :: ops), (_ :: ns) =>
     annotate' "addr" $ do
       av  <- operand_to_arg_value_lhs nenv s tp op;
       -- Mainly to check things are of the right form
@@ -199,25 +198,25 @@ def make_environment_helper (nenv : nat_env) (s : machine_state)
       e   <- make_environment_helper rest ops ns;
       pure (av :: e)
 
-  | (binding.imm tp   :: rest) (op :: ops) (_ :: ns) :=
+  | (binding.imm tp   :: rest), (op :: ops), (_ :: ns) =>
     annotate' "imm" $ do
       -- FIXME: check that it is, in fact, an immediate
       av  <- operand_to_arg_value_expr nenv s tp op;
       e   <- make_environment_helper rest ops ns;
       pure (av :: e)
 
-  | (binding.lhs tp   :: rest) (op :: ops) (_ :: ns) :=
+  | (binding.lhs tp   :: rest), (op :: ops), (_ :: ns) =>
     annotate' "lhs" $ do
       av  <- operand_to_arg_value_lhs nenv s tp op;
       e   <- make_environment_helper rest ops ns;
       pure (av :: e)
       
-  | (binding.expression tp :: rest) (op :: ops) (_ :: ns) := 
+  | (binding.expression tp :: rest), (op :: ops), (_ :: ns) => 
     annotate' "expression" $ do 
       av  <- operand_to_arg_value_expr nenv s tp op;
       e   <- make_environment_helper rest ops ns;
       pure (av :: e)
-  | _ _ _ := throw "binding/operand mismatch"
+  | _, _, _ => throw "binding/operand mismatch"
 
 /-
 inductive binding
@@ -241,14 +240,14 @@ def instantiate_pattern (s : machine_state) (inst : instruction) (i : decodex86.
 
 -- def eval_simple_instruction (s : instruction) (i : decodex86.instruction) : evaluator environment :=
 --   match s.patterns with
---   | [p] := do match_context p.context.bindings.reverse i.operands;
+--   | [p] => do match_context p.context.bindings.reverse i.operands;
 --               s <- get;
 --               pure s.environment
---   | _   := throw "not a simple instruction"
+--   | _   => throw "not a simple instruction"
 --   end
 
 def instruction_family (inst : decodex86.instruction) : String :=
-  let (pfx, rest) := List.span Char.isUpper inst.mnemonic.toList in
+  let (pfx, rest) := List.span Char.isUpper inst.mnemonic.toList;
   (List.map Char.toLower pfx).asString
 
 def instruction_map : RBMap String instruction (fun x y => decide (x < y)) :=
@@ -263,8 +262,8 @@ def eval_instruction { ost : Type } (s : system_state ost) (sys : system_m ost U
 /- testing -/
 -- def get_sexp : String -> sexp := fun st => 
 --     match sexp.from_string st with
---       | (sum.inr s) := s
---       | _           := sexp.list []
+--       | (sum.inr s) => s
+--       | _           => sexp.list []
 --     end
 
 -- def string_to_instruction (s : String) : Option decodex86.instruction :=
@@ -272,33 +271,33 @@ def eval_instruction { ost : Type } (s : system_state ost) (sys : system_m ost U
   
 -- def go (s : String) : String := 
 --   match string_to_instruction s with 
---   | none     := "No parse"
---   | (some i) := repr i.operands
+--   | none     => "No parse"
+--   | (some i) => repr i.operands
 --   end
 
 -- namespace except
 
 -- def to_sum {a} {b} : except a b -> sum a b 
---   | (except.error e) := sum.inl e
---   | (except.ok v)    := sum.inr v
+--   | (except.error e) => sum.inl e
+--   | (except.ok v)    => sum.inr v
 
 -- end except
 
 -- def go2 (s : String) (si : instruction) : String := 
 --   match string_to_instruction s with 
---   | none     := "No parse"
---   | (some i) := match ((eval_simple_instruction si i).run evaluator_state.empty) with
---                 | (except.error e)   := "error: " ++ e
---                 | (except.ok (e, _)) := has_repr.repr e
+--   | none     => "No parse"
+--   | (some i) => match ((eval_simple_instruction si i).run evaluator_state.empty) with
+--                 | (except.error e)   => "error: " ++ e
+--                 | (except.ok (e, _)) => has_repr.repr e
 --                 end
 --   end
 
 -- def run_get_rax (s : String) : String :=
 --   match string_to_instruction s with 
---   | none     := "No parse"
---   | (some i) := match (eval_instruction machine_state.empty i) with
---                 | (except.error e) := "error: " ++ e
---                 | (except.ok    s) := s.print_regs -- has_repr.repr (s.get_gpreg 0)
+--   | none     => "No parse"
+--   | (some i) => match (eval_instruction machine_state.empty i) with
+--                 | (except.error e) => "error: " ++ e
+--                 | (except.ok    s) => s.print_regs -- has_repr.repr (s.get_gpreg 0)
 --                 end
 --   end
 

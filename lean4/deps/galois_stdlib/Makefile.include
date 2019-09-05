@@ -4,3 +4,4 @@ LOCAL_LLVM := src/galois/data/bitvec/basic.lean src/galois/data/bitvec/default.l
 LOCAL_CXX  := src/galois/init/io_runtime.cpp
 LEANFILES += $(patsubst %,${HERE}%,${LOCAL_LLVM})
 EXTRACXXFILES += $(patsubst %,${HERE}%,${LOCAL_CXX})
+LEAN_PATH := ${LEAN_PATH}:${HERE}src/

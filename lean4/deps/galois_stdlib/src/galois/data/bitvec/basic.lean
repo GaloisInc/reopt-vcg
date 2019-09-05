@@ -42,16 +42,16 @@ instance (w:Nat) : HasRepr (bitvec w) := ⟨fun v => repr (v.to_nat)⟩
 section to_hex
 
 protected def to_hex_with_leading_zeros : List Char → Nat → Nat → String
-| prev 0 _ := prev.asString
-| prev (Nat.succ w) x :=
-  let c := (Nat.land x 0xf).digitChar in
+| prev, 0, _ => prev.asString
+| prev, (Nat.succ w), x =>
+  let c := (Nat.land x 0xf).digitChar;
   to_hex_with_leading_zeros (c::prev) w (Nat.shiftr x 4)
 
 protected def to_hex' : List Char → Nat → Nat → String
-| prev 0 _ := prev.asString
-| prev w 0 := prev.asString
-| prev (Nat.succ w) x :=
-  let c := (Nat.land x 0xf).digitChar in
+| prev, 0, _ => prev.asString
+| prev, w, 0 => prev.asString
+| prev, (Nat.succ w), x =>
+  let c := (Nat.land x 0xf).digitChar;
   to_hex' (c::prev) w (Nat.shiftr x 4)
 
 --- Print word as hex
@@ -97,15 +97,15 @@ section one
   -- 1 is really just 0. This turns out to simplify things.
   protected
   def one : ∀(n:Nat), bitvec n
-  | 0        := 0
-  | (Nat.succ _) := ⟨1, one_le_pow_2 (Nat.zero_lt_succ _)⟩
+  | 0        => 0
+  | (Nat.succ _) => ⟨1, one_le_pow_2 (Nat.zero_lt_succ _)⟩
 
   instance {n:Nat} : HasOne (bitvec n)  := ⟨bitvec.one n⟩
 
 end one
 
 protected def cong {a b : Nat} (h : a = b) : bitvec a → bitvec b
-| ⟨x, p⟩ := ⟨x, h ▸ p⟩
+| ⟨x, p⟩ => ⟨x, h ▸ p⟩
 
 -- lemma cong_val {n m : Nat} {H : n = m} (x : bitvec n)
 -- : (bitvec.cong H x).to_Nat = x.to_Nat :=
@@ -115,7 +115,7 @@ protected def cong {a b : Nat} (h : a = b) : bitvec a → bitvec b
 
 -- protected
 -- lemma intro {n:Nat} : Π(x y : bitvec n), x.to_Nat = y.to_Nat → x = y
--- | ⟨x, h1⟩ ⟨.(_), h2⟩ rfl := rfl
+-- | ⟨x, h1⟩ ⟨.(_), h2⟩ rfl => rfl
 
 -- FIXME: more efficient implementation of of_Nat
 -- protected def of_nat (n : Nat) (x:Nat) : bitvec n := ⟨ x % (Nat.shiftl 1 n), power_hack _ _⟩
@@ -154,8 +154,8 @@ section conversion
 
   --- Convert an int to two's complement bitvector.
   protected def of_int : ∀(n : Nat), Int → bitvec n
-  | n (Int.ofNat x) := bitvec.of_nat n x
-  | n (Int.negSucc x) := bitvec.of_nat n (Nat.ldiff (2^n-1) x)
+  | n, (Int.ofNat x) => bitvec.of_nat n x
+  | n, (Int.negSucc x) => bitvec.of_nat n (Nat.ldiff (2^n-1) x)
 
 end conversion
 
@@ -264,8 +264,8 @@ section listlike
 
   protected
   def bsf' : ∀(n:Nat), Nat → Nat → Option Nat
-    | 0        idx _ := none
-    | (succ m) idx x :=
+    | 0,        idx, _ => none
+    | (succ m), idx, x =>
       if Nat.test_bit x idx then
         some idx
       else
@@ -273,12 +273,12 @@ section listlike
 
   --- index of least-significant bit that is 1.
   def bsf : ∀{n:Nat}, bitvec n → Option Nat
-    | n x := bitvec.bsf' n 0 x.to_nat
+    | n, x => bitvec.bsf' n 0 x.to_nat
 
   protected
   def bsr' : Nat → Nat → Option Nat
-    | x zero := none
-    | x (succ idx) :=
+    | x, zero => none
+    | x, (succ idx) =>
       if Nat.test_bit x idx then
         some idx
       else
@@ -286,7 +286,7 @@ section listlike
 
   --- index of the most-significant bit that is 1.
   def bsr : ∀{n:Nat}, bitvec n → Option Nat
-    | n x := bitvec.bsr' x.to_nat n
+    | n, x => bitvec.bsr' x.to_nat n
 
   -- example : bsf (bitvec.of_nat 3 0) = none := of_as_true trivial
   -- example : bsr (bitvec.of_nat 3 0) = none := of_as_true trivial
@@ -299,8 +299,8 @@ section listlike
 
   protected
   def foldl' {α : Sort _} (f : α -> Bool → α) (x : Nat) (init : α) : Nat → α
-    | zero       := init
-    | (succ idx) := f (foldl' idx) (x.test_bit idx)
+    | zero       => init
+    | (succ idx) => f (foldl' idx) (x.test_bit idx)
     
   -- foldl follows nth's behaviour, so 
   -- foldl f i b = f (f (f i b!0) b!1) b!2 etc.
@@ -309,8 +309,8 @@ section listlike
 
   protected
   def foldr' {α : Sort _} (f : Bool → α → α) (x : Nat) (init : α) (n : Nat) : Nat → α
-    | zero       := init
-    | (succ idx) := f  (x.test_bit (n - succ idx)) (foldr' idx)
+    | zero       => init
+    | (succ idx) => f  (x.test_bit (n - succ idx)) (foldr' idx)
     
   -- foldr follows nth's behaviour, so 
   -- foldr f i b = f b!0 (f b!1 ... (f b!(n-1) i))
@@ -390,8 +390,8 @@ def concat_list {m:Nat}(input: List (bitvec m)) (n:Nat) : bitvec n :=
 --
 -- The head of the List has the most-significant bits.
 def split_to_list (x:Nat) (w:Nat) : Nat → List (bitvec w)
-| Nat.zero := []
-| (Nat.succ n) := bitvec.of_nat w (Nat.shiftr x (n*w)) :: split_to_list n
+| Nat.zero => []
+| (Nat.succ n) => bitvec.of_nat w (Nat.shiftr x (n*w)) :: split_to_list n
 
 -- theorem length_split_to_list (x:Nat) (w : Nat) (m:Nat) : List.length (split_to_list x w m) = m :=
 -- begin
@@ -417,7 +417,7 @@ def get_bits {n} (x:bitvec n) (i m : Nat) (p:i+m ≤ n) : bitvec m :=
 
 --- Set bits at given index.
 def set_bits {n} (x:bitvec n) (i:Nat) {m} (y:bitvec m) (p:i+m ≤ n) : bitvec n :=
-  let mask := bitvec.of_nat n (Nat.shiftl ((2^m)-1) i) in
+  let mask := bitvec.of_nat n (Nat.shiftl ((2^m)-1) i);
   or (diff x mask) (bitvec.of_nat n (Nat.shiftl y.to_nat i))
 
 --#eval ((set_bits (0x01234567 : bitvec 32) 8 (0x5432 : bitvec 16) (of_as_true trivial) = 0x01543267) : Bool)

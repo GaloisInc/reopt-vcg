@@ -10,8 +10,8 @@ import decodex86
 open x86
  
 -- def evaluate_one (s : machine_state) : (Nat × sum unknown_byte instruction) -> except String machine_state
---   | (n, sum.inl err)  := throw "Got an unknown byte"
---   | (n, sum.inr inst) := eval_instruction {s with ip := s.ip + bitvec.of_nat _ n} inst
+--   | (n, sum.inl err)  => throw "Got an unknown byte"
+--   | (n, sum.inr inst) := eval_instruction {s with ip => s.ip + bitvec.of_nat _ n} inst
 
 def get_text_segment (e : elf.ehdr) (phdrs : List (elf.phdr e.elf_class)) : Option (elf.phdr e.elf_class) :=
     phdrs.find (fun p => p.flags.has_X)
@@ -37,12 +37,12 @@ namespace x86_64
 -- For now we just pick a reasonably rsp, initialise s.t. argc == 0
 
 def initialise { ost : Type } (st : system_state ost) : system_state ost :=
-    let rsp_idx : Fin 16 := 4 in -- FIXME
-    let stack_top := bitvec.of_nat 64 (2 ^ 47) in
-    let words     := [ 0 /- argc -/, 0 /- argv term. -/, 0 /- envp term -/, 0, 0 /- auxv term (2 words) -/ ] in
+    let rsp_idx : Fin 16 := 4; -- FIXME
+    let stack_top := bitvec.of_nat 64 (2 ^ 47);
+    let words     := [ 0 /- argc -/, 0 /- argv term. -/, 0 /- envp term -/, 0, 0 /- auxv term (2 words) -/ ];
     let f (acc : (bitvec 64 × machine_state)) (v : Nat) : bitvec 64 × machine_state :=         
-        (acc.fst + bitvec.of_nat _ 8, acc.snd.store_word acc.fst (bitvec.of_nat (8 * 8) v)) in
-    let s'        := List.foldl f (stack_top, st.machine_state) words in
+        (acc.fst + bitvec.of_nat _ 8, acc.snd.store_word acc.fst (bitvec.of_nat (8 * 8) v));
+    let s'        := List.foldl f (stack_top, st.machine_state) words;
     { st with machine_state := machine_state.update_gpreg rsp_idx (fun _ => stack_top) s'.snd }
 
 end x86_64
@@ -62,24 +62,24 @@ def simple_syscall (f : system_state os_state -> machine_word) : system_m os_sta
   modify (fun s => { s with machine_state := s.machine_state.update_gpreg rax_idx (fun _ => f s) })
 
 def sys_getuid : system_m os_state Unit := 
-  let res     := bitvec.of_nat 64 4242
-  in simple_syscall (fun _ => res)
+  let res     := bitvec.of_nat 64 4242;
+  simple_syscall (fun _ => res)
 
 -- FIXME: maybe use the euid of the current (lean) process?  We could
 -- also forward these to the underlying (Linux) kernel
 def sys_geteuid : system_m os_state Unit := 
-  let res     := bitvec.of_nat 64 4242
-  in simple_syscall (fun _ => res)
+  let res     := bitvec.of_nat 64 4242;
+  simple_syscall (fun _ => res)
 
 def sys_getgid : system_m os_state Unit := 
-  let res     := bitvec.of_nat 64 4242
-  in simple_syscall (fun _ => res)
+  let res     := bitvec.of_nat 64 4242;
+  simple_syscall (fun _ => res)
 
 -- FIXME: maybe use the euid of the current (lean) process?  We could
 -- also forward these to the underlying (Linux) kernel
 def sys_getegid : system_m os_state Unit := 
-  let res     := bitvec.of_nat 64 4242
-  in simple_syscall (fun _ => res)
+  let res     := bitvec.of_nat 64 4242;
+  simple_syscall (fun _ => res)
 
 def syscalls : RBMap Nat (system_m os_state Unit) (fun x y => decide (x < y)) := 
   RBMap.fromList [ (0x66, sys_geteuid)
@@ -90,8 +90,8 @@ def syscalls : RBMap Nat (system_m os_state Unit) (fun x y => decide (x < y)) :=
 
 def syscall_handler : system_m os_state Unit := do
   s <- get;
-  let syscall_no := (s.machine_state.get_gpreg rax_idx).to_nat 
-  in match syscalls.find syscall_no with
+  let syscall_no := (s.machine_state.get_gpreg rax_idx).to_nat;
+  match syscalls.find syscall_no with
      | none     => throw ("Unknown syscall: " ++ repr syscall_no)
      | (some m) => m
 
@@ -102,14 +102,14 @@ end linux
 -- def lift_eval {α : Type *} |  evaluator α) : io a
 
 def dump_state (s : system_state linux.x86_64.os_state) : IO Unit := do
-  let line := s.machine_state.ip.pp_hex ++ ": " ++ s.machine_state.print_regs ++ " " ++ s.machine_state.print_set_flags
-  in IO.println line
+  let line := s.machine_state.ip.pp_hex ++ ": " ++ s.machine_state.print_regs ++ " " ++ s.machine_state.print_set_flags;
+  IO.println line
 
 def decode_loop (d : decodex86.decoder) : Nat -> system_state linux.x86_64.os_state -> IO Unit
-  | Nat.zero    _   := throw "Out of fuel"
-  | (Nat.succ n) s  := do
+  | Nat.zero,    _   => throw "Out of fuel"
+  | (Nat.succ n), s  => do
   dump_state s;
-  let inst := decodex86.decode d s.machine_state.ip.to_nat in
+  let inst := decodex86.decode d s.machine_state.ip.to_nat;
   match inst with 
   | (Sum.inl b) => throw ("Unknown byte")
   | (Sum.inr i) => 
@@ -129,14 +129,14 @@ def doit (elffile : String) : IO Unit := do
   IO.println ("Entry is " ++ repr entry ++ " imm:" ++ repr (18446744073709551616 : Nat) 
                           ++ " exp:"    ++ repr (2 ^ 64)
                           ++ " mul:"  ++ repr (9223372036854775808 * 2) );
-  let d := decodex86.mk_decoder text_bytes text_phdr.vaddr.toNat in
+  let d := decodex86.mk_decoder text_bytes text_phdr.vaddr.toNat;
   let init_state := 
       system_state.mk { machine_state.empty with 
                       ip := bitvec.of_nat _ ehdr.entry.toNat
                       , mem := memory.from_init init_mem } 
-                      linux.x86_64.os_state.empty in
-    let init_state_abi := sysv_abi.x86_64.initialise init_state in
-    let fuel : Nat := 100000 in decode_loop d fuel init_state_abi
+                      linux.x86_64.os_state.empty;
+    let init_state_abi := sysv_abi.x86_64.initialise init_state;
+    let fuel : Nat := 100000; decode_loop d fuel init_state_abi
   
 def main (xs : List String) : IO UInt32 :=
   match xs with 

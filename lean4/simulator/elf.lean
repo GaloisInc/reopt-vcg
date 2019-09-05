@@ -12,8 +12,8 @@ import galois.init.io
 import galois.init.nat
 
 def repeat {α : Type} {m : Type → Type} [Applicative m] : Nat → m α → m (List α)
-| 0 m := pure []
-| (Nat.succ n)  m := List.cons <$> m <*> repeat n m
+| 0, m => pure []
+| (Nat.succ n),  m => List.cons <$> m <*> repeat n m
 
 def forM' {m : Type → Type} [Monad m] {α : Type} {β:Type} (l:List α) (f:α → m β) : m Unit :=
   List.mmap f l >>= fun _ => pure ()
@@ -41,8 +41,8 @@ namespace ByteArray
 
 protected
 def toBytesPartialAux (bs : ByteArray) (off : Nat) : Nat -> List UInt8 -> List UInt8
-  | 0            acc := acc
-  | (Nat.succ n) acc := toBytesPartialAux n (bs.get (off + n)  :: acc)
+  | 0,            acc => acc
+  | (Nat.succ n), acc => toBytesPartialAux n (bs.get (off + n)  :: acc)
 
 def toBytesPartial (bs : ByteArray) (off : Nat) (n : Nat) : List UInt8 := 
   ByteArray.toBytesPartialAux bs off n []
@@ -98,16 +98,16 @@ inductive elf_class
 namespace elf_class
 
 protected def repr : elf_class → String
-| ELF32 := "ELF32"
-| ELF64 := "ELF64"
+| ELF32 => "ELF32"
+| ELF64 => "ELF64"
 
 protected def bytes : elf_class → Nat
-| ELF32 := 4
-| ELF64 := 8
+| ELF32 => 4
+| ELF64 => 8
 
 protected def bits : elf_class → Nat
-| ELF32 := 32
-| ELF64 := 64
+| ELF32 => 32
+| ELF64 => 64
 
 end elf_class
 
@@ -118,8 +118,8 @@ inductive elf_data
 namespace elf_data
 
 protected def repr : elf_data → String
-| ELFDATA2LSB := "ELFDATA2LSB"
-| ELFDATA2MSB := "ELFDATA2MSB"
+| ELFDATA2LSB => "ELFDATA2LSB"
+| ELFDATA2MSB => "ELFDATA2MSB"
 
 end elf_data
 
@@ -204,8 +204,8 @@ def read_chars_lsb (w:Nat) : file_reader (List UInt8) := do
   let f (l:List UInt8) : List UInt8 :=
         match i.elf_data with
         | ELFDATA2LSB => l
-        | ELFDATA2MSB => l.reverse
-        in do
+        | ELFDATA2MSB => l.reverse;
+        do
   ReaderT.lift $ f <$> buffer.reader.read_bytes w
 
 def read_u16 : file_reader UInt16 := do
@@ -266,20 +266,20 @@ def word (c:elf_class) :=
 namespace word
 
 def toNat : ∀{c : elf_class}, word c -> Nat
-| ELF32 v := UInt32.toNat v
-| ELF64 v := UInt64.toNat v
+| ELF32, v => UInt32.toNat v
+| ELF64, v => UInt64.toNat v
 
 protected def to_hex_with_leading_zeros : List Char → Nat → Nat → String
-| prev 0 _ := prev.asString
-| prev (Nat.succ w) x :=
-  let c := (Nat.land x 0xf).digitChar in
+| prev, 0, _ => prev.asString
+| prev, (Nat.succ w), x =>
+  let c := (Nat.land x 0xf).digitChar;
   to_hex_with_leading_zeros (c::prev) w (Nat.shiftr x 4)
 
 protected def to_hex' : List Char → Nat → Nat → String
-| prev 0 _ := prev.asString
-| prev w 0 := prev.asString
-| prev (Nat.succ w) x :=
-  let c := (Nat.land x 0xf).digitChar in
+| prev, 0, _ => prev.asString
+| prev, w, 0 => prev.asString
+| prev, (Nat.succ w), x =>
+  let c := (Nat.land x 0xf).digitChar;
   to_hex' (c::prev) w (Nat.shiftr x 4)
 
 -- Print word as decinal
@@ -287,8 +287,8 @@ protected def pp_dec {c:elf_class} (w : word c) : String := repr w.toNat
   
 --- Print word as hex
 protected def pp_hex : ∀{c:elf_class}, word c → String
-| ELF32 v := "0x" ++ word.to_hex' []  8 v.toNat
-| ELF64 v := "0x" ++ word.to_hex' [] 16 v.toNat
+| ELF32, v => "0x" ++ word.to_hex' []  8 v.toNat
+| ELF64, v => "0x" ++ word.to_hex' [] 16 v.toNat
 
 protected def size : elf_class → Nat := elf_class.bytes
 
@@ -300,7 +300,7 @@ protected def size : elf_class → Nat := elf_class.bytes
 --- `bit1_dec d x` is a utility function that denotes `(d+1)*x-1`
 -- It is primarily used
 def bit1_dec : Nat →  Nat → Nat
-| d x := (d+1)*x-1
+| d, x => (d+1)*x-1
 
 -- theorem bit0_sub_1_congr (x:Nat)  : bit0 x - 1 = bit1_dec 1 x :=
 -- begin
@@ -417,7 +417,7 @@ protected def pp {c:elf_class} (x:phdr c)
 end phdr
 
 def read_phdr : ∀(c:elf_class), file_reader (phdr c)
-| ELF32 := do
+| ELF32 => do
   tp ← elf_file_data.read;
   offset ← elf_file_data.read;
   vaddr  ← elf_file_data.read;
@@ -435,7 +435,7 @@ def read_phdr : ∀(c:elf_class), file_reader (phdr c)
        , memsz  := memsz
        , align := align
        }
-| ELF64 := do
+| ELF64 => do
   tp ← elf_file_data.read;
   flags ← elf_file_data.read;
   offset ← elf_file_data.read;
@@ -550,7 +550,7 @@ def read_ehdr_remainder : file_reader ehdr := do
 -- beginning of the file.
 def read_ehdr_from_handle (h:Galois.Fs.handle) : IO ehdr := do
  i ← buffer.reader.from_handle h 16 info.read;
- let ehdr_size := ehdr.size i.elf_class in do
+ let ehdr_size := ehdr.size i.elf_class; do
  file_reader.from_handle i h (ehdr_size - 16) read_ehdr_remainder
 
 -- Pure size of phdr table
@@ -567,7 +567,7 @@ def move_to_target (h:Galois.Fs.handle) (target_off:Nat) : IO Unit :=
 
 def pp_phdrs {c:elf_class} (phdrs:List (phdr c)) : IO Unit := do
   forM' (List.zip (List.range phdrs.length) phdrs) (fun phdr => do
-    let idx := phdr.fst in do
+    let idx := phdr.fst; do
     IO.println $ "Index:            " ++ repr idx;
     IO.println phdr.snd.pp)
 
@@ -585,8 +585,8 @@ def read_one_elfmem (h : Galois.Fs.handle) {c : elf_class} (m : elfmem) (ph : ph
   then do
     _ <- Galois.IO.Prim.handle.lseek h  (Int.ofNat ph.offset.toNat) Galois.Fs.Whence.set;
     fbs <- Galois.IO.Prim.handle.read h (if ph.filesz.toNat < ph.memsz.toNat then ph.filesz.toNat else ph.memsz.toNat);
-    let zeroes : memory.region := ByteArray.mk (Array.mkArray (ph.memsz.toNat - ph.filesz.toNat) 0)
-    in pure $ m.insert ph.vaddr.toNat (ByteArray.append fbs zeroes)
+    let zeroes : memory.region := ByteArray.mk (Array.mkArray (ph.memsz.toNat - ph.filesz.toNat) 0);
+    pure $ m.insert ph.vaddr.toNat (ByteArray.append fbs zeroes)
   else pure m
 
 def read_elfmem {c : elf_class} (h : Galois.Fs.handle) (phdrs : List (phdr c)) : IO elfmem  := do
@@ -599,8 +599,8 @@ program headers.
 def read_info_from_file (path : String) : IO ((Sigma (fun (e : ehdr) => List (phdr e.elf_class)) × elfmem)) := do
   bracket (Galois.IO.Prim.handle.mk path Galois.Fs.Mode.read true) Galois.IO.Prim.handle.close $ fun h => do
   e ← read_ehdr_from_handle h;
-  let i := e.info in do
-  let ehdr_size := ehdr.size i.elf_class in do
+  let i := e.info; do
+  let ehdr_size := ehdr.size i.elf_class; do
   move_to_target h e.phoff.toNat;
   phdrs ← read_phdrs_from_handle e h;
   mem <- read_elfmem h phdrs;

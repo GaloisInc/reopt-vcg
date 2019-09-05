@@ -4,8 +4,18 @@
 # DEPDIR := .d
 # $(shell mkdir -p $(DEPDIR) >/dev/null)
 
+SRCROOT := $(dir $(realpath $(firstword $(MAKEFILE_LIST))))
+LCSRCROOT := $(shell echo ${SRCROOT} | tr A-Z a-z)
+
 BUILDDIR ?= build
 # $(shell mkdir -p $(DEPDIR) >/dev/null)
+
+LEAN ?= lean
+LEANC ?= leanc
+
+LEANDIR := ${dir ${shell which ${LEAN}}}../
+
+LEAN_PATH := ${LEANDIR}/lib/lean/library
 
 # This forces LEANFILES to be strict
 LEANFILES := 
@@ -15,8 +25,6 @@ include deps/galois_stdlib/Makefile.include
 include deps/llvm-tablegen-support/Makefile.include
 include deps/x86_semantics/Makefile.include
 include simulator/Makefile.include
-
-SRCROOT := $(dir $(realpath $(firstword $(MAKEFILE_LIST))))
 
 #LEANFILES are absolute, we need them to be relative to the root dir for the rest to work.
 LEANFILES_REL := ${patsubst ${SRCROOT}%,%,${LEANFILES}}
@@ -33,14 +41,11 @@ TARGET  := $(BUILDDIR)/sim
 # LLVM_CONFIG = ${LLVM_BUILD_ROOT}/bin/llvm-config
 LLVM_CONFIG ?= llvm-config
 
-LEAN ?= lean
-LEANC ?= leanc
+CXXFLAGS += -fPIC -ggdb3
 
-LEANDIR := ${dir ${shell which ${LEAN}}}../
+export LEAN_PATH
 
-CXXFLAGS += -fPIC
-
-MAKEDEPEND = $(LEAN) --deps $< | sed -n 's@${SRCROOT}@@p' | xargs echo "$(BUILDDIR)/$*.cpp $*.olean:" > $@
+MAKEDEPEND = $(LEAN) --deps $< | sed 's@${LCSRCROOT}@@p' | xargs echo "$(BUILDDIR)/$*.cpp $*.olean:" > $@
 
 # depend: ${DEPENDS}
 
