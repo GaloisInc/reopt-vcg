@@ -1,10 +1,10 @@
 def idivb1 : instruction :=
   definst "idivb" $ do
-    pattern fun (v_2917 : reg (bv 8)) => do
-      v_4890 <- getRegister rax;
-      v_4892 <- eval (extract v_4890 48 64);
-      v_4893 <- getRegister v_2917;
-      setRegister rax (concat (concat (extract v_4890 0 48) (_(_,_)_MINT-WRAPPER-SYNTAX idiv_remainder_int8 v_4892 v_4893)) (_(_,_)_MINT-WRAPPER-SYNTAX idiv_quotient_int8 v_4892 v_4893));
+    pattern fun (v_2945 : reg (bv 8)) => do
+      v_4911 <- getRegister rax;
+      v_4913 <- eval (extract v_4911 48 64);
+      v_4914 <- getRegister v_2945;
+      setRegister rax (concat (concat (extract v_4911 0 48) (_(_,_)_MINT-WRAPPER-SYNTAX idiv_remainder_int8 v_4913 v_4914)) (_(_,_)_MINT-WRAPPER-SYNTAX idiv_quotient_int8 v_4913 v_4914));
       setRegister af undef;
       setRegister cf undef;
       setRegister of undef;
@@ -13,12 +13,12 @@ def idivb1 : instruction :=
       setRegister zf undef;
       pure ()
     pat_end;
-    pattern fun (v_2910 : Mem) => do
-      v_8345 <- getRegister rax;
-      v_8347 <- eval (extract v_8345 48 64);
-      v_8348 <- evaluateAddress v_2910;
-      v_8349 <- load v_8348 1;
-      setRegister rax (concat (concat (extract v_8345 0 48) (_(_,_)_MINT-WRAPPER-SYNTAX idiv_remainder_int8 v_8347 v_8349)) (_(_,_)_MINT-WRAPPER-SYNTAX idiv_quotient_int8 v_8347 v_8349));
+    pattern fun (v_2937 : Mem) => do
+      v_8355 <- getRegister rax;
+      v_8357 <- eval (extract v_8355 48 64);
+      v_8358 <- evaluateAddress v_2937;
+      v_8359 <- load v_8358 1;
+      setRegister rax (concat (concat (extract v_8355 0 48) (_(_,_)_MINT-WRAPPER-SYNTAX idiv_remainder_int8 v_8357 v_8359)) (_(_,_)_MINT-WRAPPER-SYNTAX idiv_quotient_int8 v_8357 v_8359));
       setRegister af undef;
       setRegister cf undef;
       setRegister of undef;

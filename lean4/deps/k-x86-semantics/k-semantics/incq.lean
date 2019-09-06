@@ -1,25 +1,25 @@
 def incq1 : instruction :=
   definst "incq" $ do
-    pattern fun (v_3055 : reg (bv 64)) => do
-      v_5264 <- getRegister v_3055;
-      v_5265 <- eval (add v_5264 (expression.bv_nat 64 1));
-      setRegister (lhs.of_reg v_3055) v_5265;
-      setRegister af (eq (extract v_5264 60 64) (expression.bv_nat 4 15));
-      setRegister of (bit_and (notBool_ (isBitSet v_5264 0)) (eq (extract v_5264 1 64) (expression.bv_nat 63 9223372036854775807)));
-      setRegister pf (parityFlag (extract v_5265 56 64));
-      setRegister sf (isBitSet v_5265 0);
-      setRegister zf (zeroFlag v_5265);
+    pattern fun (v_3082 : reg (bv 64)) => do
+      v_5282 <- getRegister v_3082;
+      v_5283 <- eval (add v_5282 (expression.bv_nat 64 1));
+      setRegister (lhs.of_reg v_3082) v_5283;
+      setRegister af (eq (extract v_5282 60 64) (expression.bv_nat 4 15));
+      setRegister of (bit_and (isBitClear v_5282 0) (eq (extract v_5282 1 64) (expression.bv_nat 63 9223372036854775807)));
+      setRegister pf (parityFlag (extract v_5283 56 64));
+      setRegister sf (isBitSet v_5283 0);
+      setRegister zf (zeroFlag v_5283);
       pure ()
     pat_end;
-    pattern fun (v_3052 : Mem) => do
-      v_9183 <- evaluateAddress v_3052;
-      v_9184 <- load v_9183 8;
-      v_9185 <- eval (add v_9184 (expression.bv_nat 64 1));
-      store v_9183 v_9185 8;
-      setRegister af (eq (extract v_9184 60 64) (expression.bv_nat 4 15));
-      setRegister of (bit_and (notBool_ (isBitSet v_9184 0)) (eq (extract v_9184 1 64) (expression.bv_nat 63 9223372036854775807)));
-      setRegister pf (parityFlag (extract v_9185 56 64));
-      setRegister sf (isBitSet v_9185 0);
-      setRegister zf (zeroFlag v_9185);
+    pattern fun (v_3079 : Mem) => do
+      v_9191 <- evaluateAddress v_3079;
+      v_9192 <- load v_9191 8;
+      v_9193 <- eval (add v_9192 (expression.bv_nat 64 1));
+      store v_9191 v_9193 8;
+      setRegister af (eq (extract v_9192 60 64) (expression.bv_nat 4 15));
+      setRegister of (bit_and (isBitClear v_9192 0) (eq (extract v_9192 1 64) (expression.bv_nat 63 9223372036854775807)));
+      setRegister pf (parityFlag (extract v_9193 56 64));
+      setRegister sf (isBitSet v_9193 0);
+      setRegister zf (zeroFlag v_9193);
       pure ()
     pat_end

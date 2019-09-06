@@ -1,15 +1,15 @@
 def roundsd1 : instruction :=
   definst "roundsd" $ do
-    pattern fun (v_2895 : imm int) (v_2897 : reg (bv 128)) (v_2898 : reg (bv 128)) => do
-      v_5529 <- getRegister v_2898;
-      v_5531 <- getRegister v_2897;
-      setRegister (lhs.of_reg v_2898) (concat (extract v_5529 0 64) (_(_,_)_MINT-WRAPPER-SYNTAX cvt_double_to_int64_rm (extract v_5531 64 128) (handleImmediateWithSignExtend v_2895 8 8)));
+    pattern fun (v_2920 : imm int) (v_2923 : reg (bv 128)) (v_2924 : reg (bv 128)) => do
+      v_5237 <- getRegister v_2924;
+      v_5239 <- getRegister v_2923;
+      setRegister (lhs.of_reg v_2924) (concat (extract v_5237 0 64) (_(_,_)_MINT-WRAPPER-SYNTAX cvt_double_to_int64_rm (extract v_5239 64 128) (handleImmediateWithSignExtend v_2920 8 8)));
       pure ()
     pat_end;
-    pattern fun (v_2890 : imm int) (v_2891 : Mem) (v_2892 : reg (bv 128)) => do
-      v_11283 <- getRegister v_2892;
-      v_11285 <- evaluateAddress v_2891;
-      v_11286 <- load v_11285 8;
-      setRegister (lhs.of_reg v_2892) (concat (extract v_11283 0 64) (_(_,_)_MINT-WRAPPER-SYNTAX cvt_double_to_int64_rm v_11286 (handleImmediateWithSignExtend v_2890 8 8)));
+    pattern fun (v_2915 : imm int) (v_2916 : Mem) (v_2919 : reg (bv 128)) => do
+      v_10539 <- getRegister v_2919;
+      v_10541 <- evaluateAddress v_2916;
+      v_10542 <- load v_10541 8;
+      setRegister (lhs.of_reg v_2919) (concat (extract v_10539 0 64) (_(_,_)_MINT-WRAPPER-SYNTAX cvt_double_to_int64_rm v_10542 (handleImmediateWithSignExtend v_2915 8 8)));
       pure ()
     pat_end

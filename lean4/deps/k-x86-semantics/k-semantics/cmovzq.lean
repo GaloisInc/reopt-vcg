@@ -1,17 +1,17 @@
 def cmovzq1 : instruction :=
   definst "cmovzq" $ do
-    pattern fun (v_3350 : reg (bv 64)) (v_3351 : reg (bv 64)) => do
-      v_5246 <- getRegister zf;
-      v_5248 <- getRegister v_3350;
-      v_5249 <- getRegister v_3351;
-      setRegister (lhs.of_reg v_3351) (mux (eq v_5246 (expression.bv_nat 1 1)) v_5248 v_5249);
+    pattern fun (v_3376 : reg (bv 64)) (v_3377 : reg (bv 64)) => do
+      v_5138 <- getRegister zf;
+      v_5139 <- getRegister v_3376;
+      v_5140 <- getRegister v_3377;
+      setRegister (lhs.of_reg v_3377) (mux v_5138 v_5139 v_5140);
       pure ()
     pat_end;
-    pattern fun (v_3345 : Mem) (v_3346 : reg (bv 64)) => do
-      v_8618 <- getRegister zf;
-      v_8620 <- evaluateAddress v_3345;
-      v_8621 <- load v_8620 8;
-      v_8622 <- getRegister v_3346;
-      setRegister (lhs.of_reg v_3346) (mux (eq v_8618 (expression.bv_nat 1 1)) v_8621 v_8622);
+    pattern fun (v_3372 : Mem) (v_3373 : reg (bv 64)) => do
+      v_8336 <- getRegister zf;
+      v_8337 <- evaluateAddress v_3372;
+      v_8338 <- load v_8337 8;
+      v_8339 <- getRegister v_3373;
+      setRegister (lhs.of_reg v_3373) (mux v_8336 v_8338 v_8339);
       pure ()
     pat_end

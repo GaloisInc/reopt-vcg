@@ -1,21 +1,21 @@
 def cmovgl1 : instruction :=
   definst "cmovgl" $ do
-    pattern fun (v_2677 : reg (bv 32)) (v_2678 : reg (bv 32)) => do
-      v_4366 <- getRegister zf;
-      v_4369 <- getRegister sf;
-      v_4371 <- getRegister of;
-      v_4375 <- getRegister v_2677;
-      v_4376 <- getRegister v_2678;
-      setRegister (lhs.of_reg v_2678) (mux (bit_and (notBool_ (eq v_4366 (expression.bv_nat 1 1))) (eq (eq v_4369 (expression.bv_nat 1 1)) (eq v_4371 (expression.bv_nat 1 1)))) v_4375 v_4376);
+    pattern fun (v_2704 : reg (bv 32)) (v_2705 : reg (bv 32)) => do
+      v_4364 <- getRegister zf;
+      v_4366 <- getRegister sf;
+      v_4367 <- getRegister of;
+      v_4370 <- getRegister v_2704;
+      v_4371 <- getRegister v_2705;
+      setRegister (lhs.of_reg v_2705) (mux (bit_and (notBool_ v_4364) (eq v_4366 v_4367)) v_4370 v_4371);
       pure ()
     pat_end;
-    pattern fun (v_2670 : Mem) (v_2673 : reg (bv 32)) => do
-      v_7975 <- getRegister zf;
-      v_7978 <- getRegister sf;
-      v_7980 <- getRegister of;
-      v_7984 <- evaluateAddress v_2670;
-      v_7985 <- load v_7984 4;
-      v_7986 <- getRegister v_2673;
-      setRegister (lhs.of_reg v_2673) (mux (bit_and (notBool_ (eq v_7975 (expression.bv_nat 1 1))) (eq (eq v_7978 (expression.bv_nat 1 1)) (eq v_7980 (expression.bv_nat 1 1)))) v_7985 v_7986);
+    pattern fun (v_2697 : Mem) (v_2700 : reg (bv 32)) => do
+      v_7799 <- getRegister zf;
+      v_7801 <- getRegister sf;
+      v_7802 <- getRegister of;
+      v_7805 <- evaluateAddress v_2697;
+      v_7806 <- load v_7805 4;
+      v_7807 <- getRegister v_2700;
+      setRegister (lhs.of_reg v_2700) (mux (bit_and (notBool_ v_7799) (eq v_7801 v_7802)) v_7806 v_7807);
       pure ()
     pat_end

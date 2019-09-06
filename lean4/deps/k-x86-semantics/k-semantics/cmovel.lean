@@ -1,17 +1,17 @@
 def cmovel1 : instruction :=
   definst "cmovel" $ do
-    pattern fun (v_2599 : reg (bv 32)) (v_2600 : reg (bv 32)) => do
-      v_4282 <- getRegister zf;
-      v_4284 <- getRegister v_2599;
-      v_4285 <- getRegister v_2600;
-      setRegister (lhs.of_reg v_2600) (mux (eq v_4282 (expression.bv_nat 1 1)) v_4284 v_4285);
+    pattern fun (v_2626 : reg (bv 32)) (v_2627 : reg (bv 32)) => do
+      v_4289 <- getRegister zf;
+      v_4290 <- getRegister v_2626;
+      v_4291 <- getRegister v_2627;
+      setRegister (lhs.of_reg v_2627) (mux v_4289 v_4290 v_4291);
       pure ()
     pat_end;
-    pattern fun (v_2592 : Mem) (v_2595 : reg (bv 32)) => do
-      v_7921 <- getRegister zf;
-      v_7923 <- evaluateAddress v_2592;
-      v_7924 <- load v_7923 4;
-      v_7925 <- getRegister v_2595;
-      setRegister (lhs.of_reg v_2595) (mux (eq v_7921 (expression.bv_nat 1 1)) v_7924 v_7925);
+    pattern fun (v_2619 : Mem) (v_2622 : reg (bv 32)) => do
+      v_7754 <- getRegister zf;
+      v_7755 <- evaluateAddress v_2619;
+      v_7756 <- load v_7755 4;
+      v_7757 <- getRegister v_2622;
+      setRegister (lhs.of_reg v_2622) (mux v_7754 v_7756 v_7757);
       pure ()
     pat_end

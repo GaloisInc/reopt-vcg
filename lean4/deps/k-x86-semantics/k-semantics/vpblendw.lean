@@ -1,48 +1,48 @@
 def vpblendw1 : instruction :=
   definst "vpblendw" $ do
-    pattern fun (v_2726 : imm int) (v_2728 : reg (bv 128)) (v_2729 : reg (bv 128)) (v_2730 : reg (bv 128)) => do
-      v_6760 <- eval (handleImmediateWithSignExtend v_2726 8 8);
-      v_6762 <- getRegister v_2729;
-      v_6764 <- getRegister v_2728;
-      setRegister (lhs.of_reg v_2730) (concat (mux (isBitClear v_6760 0) (extract v_6762 0 16) (extract v_6764 0 16)) (concat (mux (isBitClear v_6760 1) (extract v_6762 16 32) (extract v_6764 16 32)) (concat (mux (isBitClear v_6760 2) (extract v_6762 32 48) (extract v_6764 32 48)) (concat (mux (isBitClear v_6760 3) (extract v_6762 48 64) (extract v_6764 48 64)) (concat (mux (isBitClear v_6760 4) (extract v_6762 64 80) (extract v_6764 64 80)) (concat (mux (isBitClear v_6760 5) (extract v_6762 80 96) (extract v_6764 80 96)) (concat (mux (isBitClear v_6760 6) (extract v_6762 96 112) (extract v_6764 96 112)) (mux (isBitClear v_6760 7) (extract v_6762 112 128) (extract v_6764 112 128)))))))));
+    pattern fun (v_2753 : imm int) (v_2754 : reg (bv 128)) (v_2755 : reg (bv 128)) (v_2756 : reg (bv 128)) => do
+      v_6787 <- eval (handleImmediateWithSignExtend v_2753 8 8);
+      v_6789 <- getRegister v_2755;
+      v_6791 <- getRegister v_2754;
+      setRegister (lhs.of_reg v_2756) (concat (mux (isBitClear v_6787 0) (extract v_6789 0 16) (extract v_6791 0 16)) (concat (mux (isBitClear v_6787 1) (extract v_6789 16 32) (extract v_6791 16 32)) (concat (mux (isBitClear v_6787 2) (extract v_6789 32 48) (extract v_6791 32 48)) (concat (mux (isBitClear v_6787 3) (extract v_6789 48 64) (extract v_6791 48 64)) (concat (mux (isBitClear v_6787 4) (extract v_6789 64 80) (extract v_6791 64 80)) (concat (mux (isBitClear v_6787 5) (extract v_6789 80 96) (extract v_6791 80 96)) (concat (mux (isBitClear v_6787 6) (extract v_6789 96 112) (extract v_6791 96 112)) (mux (isBitClear v_6787 7) (extract v_6789 112 128) (extract v_6791 112 128)))))))));
       pure ()
     pat_end;
-    pattern fun (v_2739 : imm int) (v_2740 : reg (bv 256)) (v_2741 : reg (bv 256)) (v_2742 : reg (bv 256)) => do
-      v_6809 <- eval (handleImmediateWithSignExtend v_2739 8 8);
-      v_6810 <- eval (isBitClear v_6809 0);
-      v_6811 <- getRegister v_2741;
-      v_6813 <- getRegister v_2740;
-      v_6816 <- eval (isBitClear v_6809 1);
-      v_6820 <- eval (isBitClear v_6809 2);
-      v_6824 <- eval (isBitClear v_6809 3);
-      v_6828 <- eval (isBitClear v_6809 4);
-      v_6832 <- eval (isBitClear v_6809 5);
-      v_6836 <- eval (isBitClear v_6809 6);
-      v_6840 <- eval (isBitClear v_6809 7);
-      setRegister (lhs.of_reg v_2742) (concat (mux v_6810 (extract v_6811 0 16) (extract v_6813 0 16)) (concat (mux v_6816 (extract v_6811 16 32) (extract v_6813 16 32)) (concat (mux v_6820 (extract v_6811 32 48) (extract v_6813 32 48)) (concat (mux v_6824 (extract v_6811 48 64) (extract v_6813 48 64)) (concat (mux v_6828 (extract v_6811 64 80) (extract v_6813 64 80)) (concat (mux v_6832 (extract v_6811 80 96) (extract v_6813 80 96)) (concat (mux v_6836 (extract v_6811 96 112) (extract v_6813 96 112)) (concat (mux v_6840 (extract v_6811 112 128) (extract v_6813 112 128)) (concat (mux v_6810 (extract v_6811 128 144) (extract v_6813 128 144)) (concat (mux v_6816 (extract v_6811 144 160) (extract v_6813 144 160)) (concat (mux v_6820 (extract v_6811 160 176) (extract v_6813 160 176)) (concat (mux v_6824 (extract v_6811 176 192) (extract v_6813 176 192)) (concat (mux v_6828 (extract v_6811 192 208) (extract v_6813 192 208)) (concat (mux v_6832 (extract v_6811 208 224) (extract v_6813 208 224)) (concat (mux v_6836 (extract v_6811 224 240) (extract v_6813 224 240)) (mux v_6840 (extract v_6811 240 256) (extract v_6813 240 256)))))))))))))))));
+    pattern fun (v_2766 : imm int) (v_2767 : reg (bv 256)) (v_2768 : reg (bv 256)) (v_2769 : reg (bv 256)) => do
+      v_6836 <- eval (handleImmediateWithSignExtend v_2766 8 8);
+      v_6837 <- eval (isBitClear v_6836 0);
+      v_6838 <- getRegister v_2768;
+      v_6840 <- getRegister v_2767;
+      v_6843 <- eval (isBitClear v_6836 1);
+      v_6847 <- eval (isBitClear v_6836 2);
+      v_6851 <- eval (isBitClear v_6836 3);
+      v_6855 <- eval (isBitClear v_6836 4);
+      v_6859 <- eval (isBitClear v_6836 5);
+      v_6863 <- eval (isBitClear v_6836 6);
+      v_6867 <- eval (isBitClear v_6836 7);
+      setRegister (lhs.of_reg v_2769) (concat (mux v_6837 (extract v_6838 0 16) (extract v_6840 0 16)) (concat (mux v_6843 (extract v_6838 16 32) (extract v_6840 16 32)) (concat (mux v_6847 (extract v_6838 32 48) (extract v_6840 32 48)) (concat (mux v_6851 (extract v_6838 48 64) (extract v_6840 48 64)) (concat (mux v_6855 (extract v_6838 64 80) (extract v_6840 64 80)) (concat (mux v_6859 (extract v_6838 80 96) (extract v_6840 80 96)) (concat (mux v_6863 (extract v_6838 96 112) (extract v_6840 96 112)) (concat (mux v_6867 (extract v_6838 112 128) (extract v_6840 112 128)) (concat (mux v_6837 (extract v_6838 128 144) (extract v_6840 128 144)) (concat (mux v_6843 (extract v_6838 144 160) (extract v_6840 144 160)) (concat (mux v_6847 (extract v_6838 160 176) (extract v_6840 160 176)) (concat (mux v_6851 (extract v_6838 176 192) (extract v_6840 176 192)) (concat (mux v_6855 (extract v_6838 192 208) (extract v_6840 192 208)) (concat (mux v_6859 (extract v_6838 208 224) (extract v_6840 208 224)) (concat (mux v_6863 (extract v_6838 224 240) (extract v_6840 224 240)) (mux v_6867 (extract v_6838 240 256) (extract v_6840 240 256)))))))))))))))));
       pure ()
     pat_end;
-    pattern fun (v_2720 : imm int) (v_2721 : Mem) (v_2722 : reg (bv 128)) (v_2723 : reg (bv 128)) => do
-      v_15417 <- eval (handleImmediateWithSignExtend v_2720 8 8);
-      v_15419 <- getRegister v_2722;
-      v_15421 <- evaluateAddress v_2721;
-      v_15422 <- load v_15421 16;
-      setRegister (lhs.of_reg v_2723) (concat (mux (isBitClear v_15417 0) (extract v_15419 0 16) (extract v_15422 0 16)) (concat (mux (isBitClear v_15417 1) (extract v_15419 16 32) (extract v_15422 16 32)) (concat (mux (isBitClear v_15417 2) (extract v_15419 32 48) (extract v_15422 32 48)) (concat (mux (isBitClear v_15417 3) (extract v_15419 48 64) (extract v_15422 48 64)) (concat (mux (isBitClear v_15417 4) (extract v_15419 64 80) (extract v_15422 64 80)) (concat (mux (isBitClear v_15417 5) (extract v_15419 80 96) (extract v_15422 80 96)) (concat (mux (isBitClear v_15417 6) (extract v_15419 96 112) (extract v_15422 96 112)) (mux (isBitClear v_15417 7) (extract v_15419 112 128) (extract v_15422 112 128)))))))));
+    pattern fun (v_2748 : imm int) (v_2747 : Mem) (v_2749 : reg (bv 128)) (v_2750 : reg (bv 128)) => do
+      v_15444 <- eval (handleImmediateWithSignExtend v_2748 8 8);
+      v_15446 <- getRegister v_2749;
+      v_15448 <- evaluateAddress v_2747;
+      v_15449 <- load v_15448 16;
+      setRegister (lhs.of_reg v_2750) (concat (mux (isBitClear v_15444 0) (extract v_15446 0 16) (extract v_15449 0 16)) (concat (mux (isBitClear v_15444 1) (extract v_15446 16 32) (extract v_15449 16 32)) (concat (mux (isBitClear v_15444 2) (extract v_15446 32 48) (extract v_15449 32 48)) (concat (mux (isBitClear v_15444 3) (extract v_15446 48 64) (extract v_15449 48 64)) (concat (mux (isBitClear v_15444 4) (extract v_15446 64 80) (extract v_15449 64 80)) (concat (mux (isBitClear v_15444 5) (extract v_15446 80 96) (extract v_15449 80 96)) (concat (mux (isBitClear v_15444 6) (extract v_15446 96 112) (extract v_15449 96 112)) (mux (isBitClear v_15444 7) (extract v_15446 112 128) (extract v_15449 112 128)))))))));
       pure ()
     pat_end;
-    pattern fun (v_2733 : imm int) (v_2734 : Mem) (v_2735 : reg (bv 256)) (v_2736 : reg (bv 256)) => do
-      v_15461 <- eval (handleImmediateWithSignExtend v_2733 8 8);
-      v_15462 <- eval (isBitClear v_15461 0);
-      v_15463 <- getRegister v_2735;
-      v_15465 <- evaluateAddress v_2734;
-      v_15466 <- load v_15465 32;
-      v_15469 <- eval (isBitClear v_15461 1);
-      v_15473 <- eval (isBitClear v_15461 2);
-      v_15477 <- eval (isBitClear v_15461 3);
-      v_15481 <- eval (isBitClear v_15461 4);
-      v_15485 <- eval (isBitClear v_15461 5);
-      v_15489 <- eval (isBitClear v_15461 6);
-      v_15493 <- eval (isBitClear v_15461 7);
-      setRegister (lhs.of_reg v_2736) (concat (mux v_15462 (extract v_15463 0 16) (extract v_15466 0 16)) (concat (mux v_15469 (extract v_15463 16 32) (extract v_15466 16 32)) (concat (mux v_15473 (extract v_15463 32 48) (extract v_15466 32 48)) (concat (mux v_15477 (extract v_15463 48 64) (extract v_15466 48 64)) (concat (mux v_15481 (extract v_15463 64 80) (extract v_15466 64 80)) (concat (mux v_15485 (extract v_15463 80 96) (extract v_15466 80 96)) (concat (mux v_15489 (extract v_15463 96 112) (extract v_15466 96 112)) (concat (mux v_15493 (extract v_15463 112 128) (extract v_15466 112 128)) (concat (mux v_15462 (extract v_15463 128 144) (extract v_15466 128 144)) (concat (mux v_15469 (extract v_15463 144 160) (extract v_15466 144 160)) (concat (mux v_15473 (extract v_15463 160 176) (extract v_15466 160 176)) (concat (mux v_15477 (extract v_15463 176 192) (extract v_15466 176 192)) (concat (mux v_15481 (extract v_15463 192 208) (extract v_15466 192 208)) (concat (mux v_15485 (extract v_15463 208 224) (extract v_15466 208 224)) (concat (mux v_15489 (extract v_15463 224 240) (extract v_15466 224 240)) (mux v_15493 (extract v_15463 240 256) (extract v_15466 240 256)))))))))))))))));
+    pattern fun (v_2761 : imm int) (v_2760 : Mem) (v_2762 : reg (bv 256)) (v_2763 : reg (bv 256)) => do
+      v_15488 <- eval (handleImmediateWithSignExtend v_2761 8 8);
+      v_15489 <- eval (isBitClear v_15488 0);
+      v_15490 <- getRegister v_2762;
+      v_15492 <- evaluateAddress v_2760;
+      v_15493 <- load v_15492 32;
+      v_15496 <- eval (isBitClear v_15488 1);
+      v_15500 <- eval (isBitClear v_15488 2);
+      v_15504 <- eval (isBitClear v_15488 3);
+      v_15508 <- eval (isBitClear v_15488 4);
+      v_15512 <- eval (isBitClear v_15488 5);
+      v_15516 <- eval (isBitClear v_15488 6);
+      v_15520 <- eval (isBitClear v_15488 7);
+      setRegister (lhs.of_reg v_2763) (concat (mux v_15489 (extract v_15490 0 16) (extract v_15493 0 16)) (concat (mux v_15496 (extract v_15490 16 32) (extract v_15493 16 32)) (concat (mux v_15500 (extract v_15490 32 48) (extract v_15493 32 48)) (concat (mux v_15504 (extract v_15490 48 64) (extract v_15493 48 64)) (concat (mux v_15508 (extract v_15490 64 80) (extract v_15493 64 80)) (concat (mux v_15512 (extract v_15490 80 96) (extract v_15493 80 96)) (concat (mux v_15516 (extract v_15490 96 112) (extract v_15493 96 112)) (concat (mux v_15520 (extract v_15490 112 128) (extract v_15493 112 128)) (concat (mux v_15489 (extract v_15490 128 144) (extract v_15493 128 144)) (concat (mux v_15496 (extract v_15490 144 160) (extract v_15493 144 160)) (concat (mux v_15500 (extract v_15490 160 176) (extract v_15493 160 176)) (concat (mux v_15504 (extract v_15490 176 192) (extract v_15493 176 192)) (concat (mux v_15508 (extract v_15490 192 208) (extract v_15493 192 208)) (concat (mux v_15512 (extract v_15490 208 224) (extract v_15493 208 224)) (concat (mux v_15516 (extract v_15490 224 240) (extract v_15493 224 240)) (mux v_15520 (extract v_15490 240 256) (extract v_15493 240 256)))))))))))))))));
       pure ()
     pat_end

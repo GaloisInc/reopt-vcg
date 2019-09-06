@@ -1,19 +1,19 @@
 def cmovnlw1 : instruction :=
   definst "cmovnlw" $ do
-    pattern fun (v_3041 : reg (bv 16)) (v_3042 : reg (bv 16)) => do
-      v_4908 <- getRegister sf;
-      v_4910 <- getRegister of;
-      v_4913 <- getRegister v_3041;
-      v_4914 <- getRegister v_3042;
-      setRegister (lhs.of_reg v_3042) (mux (eq (eq v_4908 (expression.bv_nat 1 1)) (eq v_4910 (expression.bv_nat 1 1))) v_4913 v_4914);
+    pattern fun (v_3067 : reg (bv 16)) (v_3068 : reg (bv 16)) => do
+      v_4830 <- getRegister sf;
+      v_4831 <- getRegister of;
+      v_4833 <- getRegister v_3067;
+      v_4834 <- getRegister v_3068;
+      setRegister (lhs.of_reg v_3068) (mux (eq v_4830 v_4831) v_4833 v_4834);
       pure ()
     pat_end;
-    pattern fun (v_3036 : Mem) (v_3037 : reg (bv 16)) => do
-      v_8391 <- getRegister sf;
-      v_8393 <- getRegister of;
-      v_8396 <- evaluateAddress v_3036;
-      v_8397 <- load v_8396 2;
-      v_8398 <- getRegister v_3037;
-      setRegister (lhs.of_reg v_3037) (mux (eq (eq v_8391 (expression.bv_nat 1 1)) (eq v_8393 (expression.bv_nat 1 1))) v_8397 v_8398);
+    pattern fun (v_3063 : Mem) (v_3064 : reg (bv 16)) => do
+      v_8139 <- getRegister sf;
+      v_8140 <- getRegister of;
+      v_8142 <- evaluateAddress v_3063;
+      v_8143 <- load v_8142 2;
+      v_8144 <- getRegister v_3064;
+      setRegister (lhs.of_reg v_3064) (mux (eq v_8139 v_8140) v_8143 v_8144);
       pure ()
     pat_end

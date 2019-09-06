@@ -1,15 +1,15 @@
 def vroundsd1 : instruction :=
   definst "vroundsd" $ do
-    pattern fun (v_2919 : imm int) (v_2916 : reg (bv 128)) (v_2917 : reg (bv 128)) (v_2918 : reg (bv 128)) => do
-      v_6726 <- getRegister v_2917;
-      v_6728 <- getRegister v_2916;
-      setRegister (lhs.of_reg v_2918) (concat (extract v_6726 0 64) (_(_,_)_MINT-WRAPPER-SYNTAX cvt_double_to_int64_rm (extract v_6728 64 128) (handleImmediateWithSignExtend v_2919 8 8)));
+    pattern fun (v_2942 : imm int) (v_2944 : reg (bv 128)) (v_2945 : reg (bv 128)) (v_2946 : reg (bv 128)) => do
+      v_6753 <- getRegister v_2945;
+      v_6755 <- getRegister v_2944;
+      setRegister (lhs.of_reg v_2946) (concat (extract v_6753 0 64) (_(_,_)_MINT-WRAPPER-SYNTAX cvt_double_to_int64_rm (extract v_6755 64 128) (handleImmediateWithSignExtend v_2942 8 8)));
       pure ()
     pat_end;
-    pattern fun (v_2912 : imm int) (v_2909 : Mem) (v_2910 : reg (bv 128)) (v_2911 : reg (bv 128)) => do
-      v_12716 <- getRegister v_2910;
-      v_12718 <- evaluateAddress v_2909;
-      v_12719 <- load v_12718 8;
-      setRegister (lhs.of_reg v_2911) (concat (extract v_12716 0 64) (_(_,_)_MINT-WRAPPER-SYNTAX cvt_double_to_int64_rm v_12719 (handleImmediateWithSignExtend v_2912 8 8)));
+    pattern fun (v_2936 : imm int) (v_2937 : Mem) (v_2938 : reg (bv 128)) (v_2939 : reg (bv 128)) => do
+      v_12743 <- getRegister v_2938;
+      v_12745 <- evaluateAddress v_2937;
+      v_12746 <- load v_12745 8;
+      setRegister (lhs.of_reg v_2939) (concat (extract v_12743 0 64) (_(_,_)_MINT-WRAPPER-SYNTAX cvt_double_to_int64_rm v_12746 (handleImmediateWithSignExtend v_2936 8 8)));
       pure ()
     pat_end

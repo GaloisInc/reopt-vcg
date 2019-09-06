@@ -1,17 +1,17 @@
 def cmovnael1 : instruction :=
   definst "cmovnael" $ do
-    pattern fun (v_2782 : reg (bv 32)) (v_2783 : reg (bv 32)) => do
-      v_4525 <- getRegister cf;
-      v_4527 <- getRegister v_2782;
-      v_4528 <- getRegister v_2783;
-      setRegister (lhs.of_reg v_2783) (mux (eq v_4525 (expression.bv_nat 1 1)) v_4527 v_4528);
+    pattern fun (v_2809 : reg (bv 32)) (v_2810 : reg (bv 32)) => do
+      v_4499 <- getRegister cf;
+      v_4500 <- getRegister v_2809;
+      v_4501 <- getRegister v_2810;
+      setRegister (lhs.of_reg v_2810) (mux v_4499 v_4500 v_4501);
       pure ()
     pat_end;
-    pattern fun (v_2775 : Mem) (v_2778 : reg (bv 32)) => do
-      v_8095 <- getRegister cf;
-      v_8097 <- evaluateAddress v_2775;
-      v_8098 <- load v_8097 4;
-      v_8099 <- getRegister v_2778;
-      setRegister (lhs.of_reg v_2778) (mux (eq v_8095 (expression.bv_nat 1 1)) v_8098 v_8099);
+    pattern fun (v_2802 : Mem) (v_2805 : reg (bv 32)) => do
+      v_7895 <- getRegister cf;
+      v_7896 <- evaluateAddress v_2802;
+      v_7897 <- load v_7896 4;
+      v_7898 <- getRegister v_2805;
+      setRegister (lhs.of_reg v_2805) (mux v_7895 v_7897 v_7898);
       pure ()
     pat_end

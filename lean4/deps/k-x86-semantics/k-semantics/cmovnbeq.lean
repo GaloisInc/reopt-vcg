@@ -1,19 +1,19 @@
 def cmovnbeq1 : instruction :=
   definst "cmovnbeq" $ do
-    pattern fun (v_2843 : reg (bv 64)) (v_2844 : reg (bv 64)) => do
-      v_4609 <- getRegister cf;
-      v_4612 <- getRegister zf;
-      v_4616 <- getRegister v_2843;
-      v_4617 <- getRegister v_2844;
-      setRegister (lhs.of_reg v_2844) (mux (bit_and (notBool_ (eq v_4609 (expression.bv_nat 1 1))) (notBool_ (eq v_4612 (expression.bv_nat 1 1)))) v_4616 v_4617);
+    pattern fun (v_2869 : reg (bv 64)) (v_2870 : reg (bv 64)) => do
+      v_4572 <- getRegister cf;
+      v_4574 <- getRegister zf;
+      v_4577 <- getRegister v_2869;
+      v_4578 <- getRegister v_2870;
+      setRegister (lhs.of_reg v_2870) (mux (bit_and (notBool_ v_4572) (notBool_ v_4574)) v_4577 v_4578);
       pure ()
     pat_end;
-    pattern fun (v_2838 : Mem) (v_2839 : reg (bv 64)) => do
-      v_8158 <- getRegister cf;
-      v_8161 <- getRegister zf;
-      v_8165 <- evaluateAddress v_2838;
-      v_8166 <- load v_8165 8;
-      v_8167 <- getRegister v_2839;
-      setRegister (lhs.of_reg v_2839) (mux (bit_and (notBool_ (eq v_8158 (expression.bv_nat 1 1))) (notBool_ (eq v_8161 (expression.bv_nat 1 1)))) v_8166 v_8167);
+    pattern fun (v_2865 : Mem) (v_2866 : reg (bv 64)) => do
+      v_7947 <- getRegister cf;
+      v_7949 <- getRegister zf;
+      v_7952 <- evaluateAddress v_2865;
+      v_7953 <- load v_7952 8;
+      v_7954 <- getRegister v_2866;
+      setRegister (lhs.of_reg v_2866) (mux (bit_and (notBool_ v_7947) (notBool_ v_7949)) v_7953 v_7954);
       pure ()
     pat_end

@@ -1,29 +1,29 @@
 def vperm2i1281 : instruction :=
   definst "vperm2i128" $ do
-    pattern fun (v_3013 : imm int) (v_3014 : reg (bv 256)) (v_3015 : reg (bv 256)) (v_3016 : reg (bv 256)) => do
-      v_8069 <- eval (handleImmediateWithSignExtend v_3013 8 8);
-      v_8071 <- eval (extract v_8069 2 4);
-      v_8073 <- getRegister v_3015;
-      v_8074 <- eval (extract v_8073 128 256);
-      v_8076 <- eval (extract v_8073 0 128);
-      v_8078 <- getRegister v_3014;
-      v_8079 <- eval (extract v_8078 128 256);
-      v_8080 <- eval (extract v_8078 0 128);
-      v_8086 <- eval (extract v_8069 6 8);
-      setRegister (lhs.of_reg v_3016) (concat (mux (isBitSet v_8069 0) (expression.bv_nat 128 0) (mux (eq v_8071 (expression.bv_nat 2 0)) v_8074 (mux (eq v_8071 (expression.bv_nat 2 1)) v_8076 (mux (eq v_8071 (expression.bv_nat 2 2)) v_8079 v_8080)))) (mux (isBitSet v_8069 4) (expression.bv_nat 128 0) (mux (eq v_8086 (expression.bv_nat 2 0)) v_8074 (mux (eq v_8086 (expression.bv_nat 2 1)) v_8076 (mux (eq v_8086 (expression.bv_nat 2 2)) v_8079 v_8080)))));
+    pattern fun (v_3040 : imm int) (v_3041 : reg (bv 256)) (v_3042 : reg (bv 256)) (v_3043 : reg (bv 256)) => do
+      v_8096 <- eval (handleImmediateWithSignExtend v_3040 8 8);
+      v_8098 <- eval (extract v_8096 2 4);
+      v_8100 <- getRegister v_3042;
+      v_8101 <- eval (extract v_8100 128 256);
+      v_8103 <- eval (extract v_8100 0 128);
+      v_8105 <- getRegister v_3041;
+      v_8106 <- eval (extract v_8105 128 256);
+      v_8107 <- eval (extract v_8105 0 128);
+      v_8113 <- eval (extract v_8096 6 8);
+      setRegister (lhs.of_reg v_3043) (concat (mux (isBitSet v_8096 0) (expression.bv_nat 128 0) (mux (eq v_8098 (expression.bv_nat 2 0)) v_8101 (mux (eq v_8098 (expression.bv_nat 2 1)) v_8103 (mux (eq v_8098 (expression.bv_nat 2 2)) v_8106 v_8107)))) (mux (isBitSet v_8096 4) (expression.bv_nat 128 0) (mux (eq v_8113 (expression.bv_nat 2 0)) v_8101 (mux (eq v_8113 (expression.bv_nat 2 1)) v_8103 (mux (eq v_8113 (expression.bv_nat 2 2)) v_8106 v_8107)))));
       pure ()
     pat_end;
-    pattern fun (v_3007 : imm int) (v_3008 : Mem) (v_3009 : reg (bv 256)) (v_3010 : reg (bv 256)) => do
-      v_16615 <- eval (handleImmediateWithSignExtend v_3007 8 8);
-      v_16617 <- eval (extract v_16615 2 4);
-      v_16619 <- getRegister v_3009;
-      v_16620 <- eval (extract v_16619 128 256);
-      v_16622 <- eval (extract v_16619 0 128);
-      v_16624 <- evaluateAddress v_3008;
-      v_16625 <- load v_16624 32;
-      v_16626 <- eval (extract v_16625 128 256);
-      v_16627 <- eval (extract v_16625 0 128);
-      v_16633 <- eval (extract v_16615 6 8);
-      setRegister (lhs.of_reg v_3010) (concat (mux (isBitSet v_16615 0) (expression.bv_nat 128 0) (mux (eq v_16617 (expression.bv_nat 2 0)) v_16620 (mux (eq v_16617 (expression.bv_nat 2 1)) v_16622 (mux (eq v_16617 (expression.bv_nat 2 2)) v_16626 v_16627)))) (mux (isBitSet v_16615 4) (expression.bv_nat 128 0) (mux (eq v_16633 (expression.bv_nat 2 0)) v_16620 (mux (eq v_16633 (expression.bv_nat 2 1)) v_16622 (mux (eq v_16633 (expression.bv_nat 2 2)) v_16626 v_16627)))));
+    pattern fun (v_3035 : imm int) (v_3034 : Mem) (v_3036 : reg (bv 256)) (v_3037 : reg (bv 256)) => do
+      v_16642 <- eval (handleImmediateWithSignExtend v_3035 8 8);
+      v_16644 <- eval (extract v_16642 2 4);
+      v_16646 <- getRegister v_3036;
+      v_16647 <- eval (extract v_16646 128 256);
+      v_16649 <- eval (extract v_16646 0 128);
+      v_16651 <- evaluateAddress v_3034;
+      v_16652 <- load v_16651 32;
+      v_16653 <- eval (extract v_16652 128 256);
+      v_16654 <- eval (extract v_16652 0 128);
+      v_16660 <- eval (extract v_16642 6 8);
+      setRegister (lhs.of_reg v_3037) (concat (mux (isBitSet v_16642 0) (expression.bv_nat 128 0) (mux (eq v_16644 (expression.bv_nat 2 0)) v_16647 (mux (eq v_16644 (expression.bv_nat 2 1)) v_16649 (mux (eq v_16644 (expression.bv_nat 2 2)) v_16653 v_16654)))) (mux (isBitSet v_16642 4) (expression.bv_nat 128 0) (mux (eq v_16660 (expression.bv_nat 2 0)) v_16647 (mux (eq v_16660 (expression.bv_nat 2 1)) v_16649 (mux (eq v_16660 (expression.bv_nat 2 2)) v_16653 v_16654)))));
       pure ()
     pat_end

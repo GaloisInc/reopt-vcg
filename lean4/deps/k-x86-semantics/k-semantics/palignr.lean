@@ -1,15 +1,15 @@
 def palignr1 : instruction :=
   definst "palignr" $ do
-    pattern fun (v_3246 : imm int) (v_3248 : reg (bv 128)) (v_3249 : reg (bv 128)) => do
-      v_6267 <- getRegister v_3249;
-      v_6268 <- getRegister v_3248;
-      setRegister (lhs.of_reg v_3249) (extract (lshr (concat v_6267 v_6268) (extract (shl (concat (expression.bv_nat 248 0) (handleImmediateWithSignExtend v_3246 8 8)) (expression.bv_nat 256 3)) 0 256)) 128 256);
+    pattern fun (v_3272 : imm int) (v_3273 : reg (bv 128)) (v_3274 : reg (bv 128)) => do
+      v_6294 <- getRegister v_3274;
+      v_6295 <- getRegister v_3273;
+      setRegister (lhs.of_reg v_3274) (extract (lshr (concat v_6294 v_6295) (extract (shl (concat (expression.bv_nat 248 0) (handleImmediateWithSignExtend v_3272 8 8)) (expression.bv_nat 256 3)) 0 256)) 128 256);
       pure ()
     pat_end;
-    pattern fun (v_3241 : imm int) (v_3242 : Mem) (v_3243 : reg (bv 128)) => do
-      v_10177 <- getRegister v_3243;
-      v_10178 <- evaluateAddress v_3242;
-      v_10179 <- load v_10178 16;
-      setRegister (lhs.of_reg v_3243) (extract (lshr (concat v_10177 v_10179) (extract (shl (concat (expression.bv_nat 248 0) (handleImmediateWithSignExtend v_3241 8 8)) (expression.bv_nat 256 3)) 0 256)) 128 256);
+    pattern fun (v_3268 : imm int) (v_3267 : Mem) (v_3269 : reg (bv 128)) => do
+      v_10204 <- getRegister v_3269;
+      v_10205 <- evaluateAddress v_3267;
+      v_10206 <- load v_10205 16;
+      setRegister (lhs.of_reg v_3269) (extract (lshr (concat v_10204 v_10206) (extract (shl (concat (expression.bv_nat 248 0) (handleImmediateWithSignExtend v_3268 8 8)) (expression.bv_nat 256 3)) 0 256)) 128 256);
       pure ()
     pat_end

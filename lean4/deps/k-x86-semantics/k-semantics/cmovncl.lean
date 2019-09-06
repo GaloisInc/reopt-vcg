@@ -1,17 +1,17 @@
 def cmovncl1 : instruction :=
   definst "cmovncl" $ do
-    pattern fun (v_2890 : reg (bv 32)) (v_2891 : reg (bv 32)) => do
-      v_4672 <- getRegister cf;
-      v_4675 <- getRegister v_2890;
-      v_4676 <- getRegister v_2891;
-      setRegister (lhs.of_reg v_2891) (mux (notBool_ (eq v_4672 (expression.bv_nat 1 1))) v_4675 v_4676);
+    pattern fun (v_2917 : reg (bv 32)) (v_2918 : reg (bv 32)) => do
+      v_4628 <- getRegister cf;
+      v_4630 <- getRegister v_2917;
+      v_4631 <- getRegister v_2918;
+      setRegister (lhs.of_reg v_2918) (mux (notBool_ v_4628) v_4630 v_4631);
       pure ()
     pat_end;
-    pattern fun (v_2883 : Mem) (v_2886 : reg (bv 32)) => do
-      v_8206 <- getRegister cf;
-      v_8209 <- evaluateAddress v_2883;
-      v_8210 <- load v_8209 4;
-      v_8211 <- getRegister v_2886;
-      setRegister (lhs.of_reg v_2886) (mux (notBool_ (eq v_8206 (expression.bv_nat 1 1))) v_8210 v_8211);
+    pattern fun (v_2910 : Mem) (v_2913 : reg (bv 32)) => do
+      v_7988 <- getRegister cf;
+      v_7990 <- evaluateAddress v_2910;
+      v_7991 <- load v_7990 4;
+      v_7992 <- getRegister v_2913;
+      setRegister (lhs.of_reg v_2913) (mux (notBool_ v_7988) v_7991 v_7992);
       pure ()
     pat_end

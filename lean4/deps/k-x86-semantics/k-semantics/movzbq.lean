@@ -1,13 +1,13 @@
 def movzbq1 : instruction :=
   definst "movzbq" $ do
-    pattern fun (v_2731 : reg (bv 8)) (v_2732 : reg (bv 64)) => do
-      v_4134 <- getRegister v_2731;
-      setRegister (lhs.of_reg v_2732) (concat (expression.bv_nat 56 0) v_4134);
+    pattern fun (v_2758 : reg (bv 8)) (v_2757 : reg (bv 64)) => do
+      v_4161 <- getRegister v_2758;
+      setRegister (lhs.of_reg v_2757) (concat (expression.bv_nat 56 0) v_4161);
       pure ()
     pat_end;
-    pattern fun (v_2727 : Mem) (v_2728 : reg (bv 64)) => do
-      v_8742 <- evaluateAddress v_2727;
-      v_8743 <- load v_8742 1;
-      setRegister (lhs.of_reg v_2728) (concat (expression.bv_nat 56 0) v_8743);
+    pattern fun (v_2753 : Mem) (v_2754 : reg (bv 64)) => do
+      v_8769 <- evaluateAddress v_2753;
+      v_8770 <- load v_8769 1;
+      setRegister (lhs.of_reg v_2754) (concat (expression.bv_nat 56 0) v_8770);
       pure ()
     pat_end

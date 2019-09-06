@@ -1,17 +1,17 @@
 def cmovbl1 : instruction :=
   definst "cmovbl" $ do
-    pattern fun (v_2545 : reg (bv 32)) (v_2546 : reg (bv 32)) => do
-      v_4222 <- getRegister cf;
-      v_4224 <- getRegister v_2545;
-      v_4225 <- getRegister v_2546;
-      setRegister (lhs.of_reg v_2546) (mux (eq v_4222 (expression.bv_nat 1 1)) v_4224 v_4225);
+    pattern fun (v_2572 : reg (bv 32)) (v_2573 : reg (bv 32)) => do
+      v_4235 <- getRegister cf;
+      v_4236 <- getRegister v_2572;
+      v_4237 <- getRegister v_2573;
+      setRegister (lhs.of_reg v_2573) (mux v_4235 v_4236 v_4237);
       pure ()
     pat_end;
-    pattern fun (v_2538 : Mem) (v_2541 : reg (bv 32)) => do
-      v_7879 <- getRegister cf;
-      v_7881 <- evaluateAddress v_2538;
-      v_7882 <- load v_7881 4;
-      v_7883 <- getRegister v_2541;
-      setRegister (lhs.of_reg v_2541) (mux (eq v_7879 (expression.bv_nat 1 1)) v_7882 v_7883);
+    pattern fun (v_2565 : Mem) (v_2568 : reg (bv 32)) => do
+      v_7718 <- getRegister cf;
+      v_7719 <- evaluateAddress v_2565;
+      v_7720 <- load v_7719 4;
+      v_7721 <- getRegister v_2568;
+      setRegister (lhs.of_reg v_2568) (mux v_7718 v_7720 v_7721);
       pure ()
     pat_end

@@ -1,27 +1,27 @@
 def lzcntw1 : instruction :=
   definst "lzcntw" $ do
-    pattern fun (v_3107 : reg (bv 16)) (v_3108 : reg (bv 16)) => do
-      v_5515 <- getRegister v_3107;
-      v_5547 <- eval (mux (isBitSet v_5515 0) (expression.bv_nat 16 0) (mux (isBitSet v_5515 1) (expression.bv_nat 16 1) (mux (isBitSet v_5515 2) (expression.bv_nat 16 2) (mux (isBitSet v_5515 3) (expression.bv_nat 16 3) (mux (isBitSet v_5515 4) (expression.bv_nat 16 4) (mux (isBitSet v_5515 5) (expression.bv_nat 16 5) (mux (isBitSet v_5515 6) (expression.bv_nat 16 6) (mux (isBitSet v_5515 7) (expression.bv_nat 16 7) (mux (isBitSet v_5515 8) (expression.bv_nat 16 8) (mux (isBitSet v_5515 9) (expression.bv_nat 16 9) (mux (isBitSet v_5515 10) (expression.bv_nat 16 10) (mux (isBitSet v_5515 11) (expression.bv_nat 16 11) (mux (isBitSet v_5515 12) (expression.bv_nat 16 12) (mux (isBitSet v_5515 13) (expression.bv_nat 16 13) (mux (isBitSet v_5515 14) (expression.bv_nat 16 14) (mux (isBitSet v_5515 15) (expression.bv_nat 16 15) (expression.bv_nat 16 16)))))))))))))))));
-      setRegister (lhs.of_reg v_3108) v_5547;
+    pattern fun (v_3133 : reg (bv 16)) (v_3134 : reg (bv 16)) => do
+      v_5531 <- getRegister v_3133;
+      v_5563 <- eval (mux (isBitSet v_5531 0) (expression.bv_nat 16 0) (mux (isBitSet v_5531 1) (expression.bv_nat 16 1) (mux (isBitSet v_5531 2) (expression.bv_nat 16 2) (mux (isBitSet v_5531 3) (expression.bv_nat 16 3) (mux (isBitSet v_5531 4) (expression.bv_nat 16 4) (mux (isBitSet v_5531 5) (expression.bv_nat 16 5) (mux (isBitSet v_5531 6) (expression.bv_nat 16 6) (mux (isBitSet v_5531 7) (expression.bv_nat 16 7) (mux (isBitSet v_5531 8) (expression.bv_nat 16 8) (mux (isBitSet v_5531 9) (expression.bv_nat 16 9) (mux (isBitSet v_5531 10) (expression.bv_nat 16 10) (mux (isBitSet v_5531 11) (expression.bv_nat 16 11) (mux (isBitSet v_5531 12) (expression.bv_nat 16 12) (mux (isBitSet v_5531 13) (expression.bv_nat 16 13) (mux (isBitSet v_5531 14) (expression.bv_nat 16 14) (mux (isBitSet v_5531 15) (expression.bv_nat 16 15) (expression.bv_nat 16 16)))))))))))))))));
+      setRegister (lhs.of_reg v_3134) v_5563;
       setRegister af undef;
-      setRegister cf (eq v_5547 (expression.bv_nat 16 16));
+      setRegister cf (eq v_5563 (expression.bv_nat 16 16));
       setRegister of undef;
       setRegister pf undef;
       setRegister sf undef;
-      setRegister zf (zeroFlag v_5547);
+      setRegister zf (zeroFlag v_5563);
       pure ()
     pat_end;
-    pattern fun (v_3102 : Mem) (v_3103 : reg (bv 16)) => do
-      v_8779 <- evaluateAddress v_3102;
-      v_8780 <- load v_8779 2;
-      v_8812 <- eval (mux (isBitSet v_8780 0) (expression.bv_nat 16 0) (mux (isBitSet v_8780 1) (expression.bv_nat 16 1) (mux (isBitSet v_8780 2) (expression.bv_nat 16 2) (mux (isBitSet v_8780 3) (expression.bv_nat 16 3) (mux (isBitSet v_8780 4) (expression.bv_nat 16 4) (mux (isBitSet v_8780 5) (expression.bv_nat 16 5) (mux (isBitSet v_8780 6) (expression.bv_nat 16 6) (mux (isBitSet v_8780 7) (expression.bv_nat 16 7) (mux (isBitSet v_8780 8) (expression.bv_nat 16 8) (mux (isBitSet v_8780 9) (expression.bv_nat 16 9) (mux (isBitSet v_8780 10) (expression.bv_nat 16 10) (mux (isBitSet v_8780 11) (expression.bv_nat 16 11) (mux (isBitSet v_8780 12) (expression.bv_nat 16 12) (mux (isBitSet v_8780 13) (expression.bv_nat 16 13) (mux (isBitSet v_8780 14) (expression.bv_nat 16 14) (mux (isBitSet v_8780 15) (expression.bv_nat 16 15) (expression.bv_nat 16 16)))))))))))))))));
-      setRegister (lhs.of_reg v_3103) v_8812;
+    pattern fun (v_3129 : Mem) (v_3130 : reg (bv 16)) => do
+      v_8789 <- evaluateAddress v_3129;
+      v_8790 <- load v_8789 2;
+      v_8822 <- eval (mux (isBitSet v_8790 0) (expression.bv_nat 16 0) (mux (isBitSet v_8790 1) (expression.bv_nat 16 1) (mux (isBitSet v_8790 2) (expression.bv_nat 16 2) (mux (isBitSet v_8790 3) (expression.bv_nat 16 3) (mux (isBitSet v_8790 4) (expression.bv_nat 16 4) (mux (isBitSet v_8790 5) (expression.bv_nat 16 5) (mux (isBitSet v_8790 6) (expression.bv_nat 16 6) (mux (isBitSet v_8790 7) (expression.bv_nat 16 7) (mux (isBitSet v_8790 8) (expression.bv_nat 16 8) (mux (isBitSet v_8790 9) (expression.bv_nat 16 9) (mux (isBitSet v_8790 10) (expression.bv_nat 16 10) (mux (isBitSet v_8790 11) (expression.bv_nat 16 11) (mux (isBitSet v_8790 12) (expression.bv_nat 16 12) (mux (isBitSet v_8790 13) (expression.bv_nat 16 13) (mux (isBitSet v_8790 14) (expression.bv_nat 16 14) (mux (isBitSet v_8790 15) (expression.bv_nat 16 15) (expression.bv_nat 16 16)))))))))))))))));
+      setRegister (lhs.of_reg v_3130) v_8822;
       setRegister af undef;
-      setRegister cf (eq v_8812 (expression.bv_nat 16 16));
+      setRegister cf (eq v_8822 (expression.bv_nat 16 16));
       setRegister of undef;
       setRegister pf undef;
       setRegister sf undef;
-      setRegister zf (zeroFlag v_8812);
+      setRegister zf (zeroFlag v_8822);
       pure ()
     pat_end

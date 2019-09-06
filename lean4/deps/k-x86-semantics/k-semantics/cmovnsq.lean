@@ -1,17 +1,17 @@
 def cmovnsq1 : instruction :=
   definst "cmovnsq" $ do
-    pattern fun (v_3129 : reg (bv 64)) (v_3130 : reg (bv 64)) => do
-      v_5008 <- getRegister sf;
-      v_5011 <- getRegister v_3129;
-      v_5012 <- getRegister v_3130;
-      setRegister (lhs.of_reg v_3130) (mux (notBool_ (eq v_5008 (expression.bv_nat 1 1))) v_5011 v_5012);
+    pattern fun (v_3155 : reg (bv 64)) (v_3156 : reg (bv 64)) => do
+      v_4921 <- getRegister sf;
+      v_4923 <- getRegister v_3155;
+      v_4924 <- getRegister v_3156;
+      setRegister (lhs.of_reg v_3156) (mux (notBool_ v_4921) v_4923 v_4924);
       pure ()
     pat_end;
-    pattern fun (v_3120 : Mem) (v_3121 : reg (bv 64)) => do
-      v_8459 <- getRegister sf;
-      v_8462 <- evaluateAddress v_3120;
-      v_8463 <- load v_8462 8;
-      v_8464 <- getRegister v_3121;
-      setRegister (lhs.of_reg v_3121) (mux (notBool_ (eq v_8459 (expression.bv_nat 1 1))) v_8463 v_8464);
+    pattern fun (v_3147 : Mem) (v_3148 : reg (bv 64)) => do
+      v_8198 <- getRegister sf;
+      v_8200 <- evaluateAddress v_3147;
+      v_8201 <- load v_8200 8;
+      v_8202 <- getRegister v_3148;
+      setRegister (lhs.of_reg v_3148) (mux (notBool_ v_8198) v_8201 v_8202);
       pure ()
     pat_end

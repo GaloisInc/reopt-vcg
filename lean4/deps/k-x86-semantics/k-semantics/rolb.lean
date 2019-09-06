@@ -1,66 +1,58 @@
 def rolb1 : instruction :=
   definst "rolb" $ do
-    pattern fun cl (v_2637 : reg (bv 8)) => do
-      v_4768 <- getRegister rcx;
-      v_4770 <- eval (bv_and (extract v_4768 56 64) (expression.bv_nat 8 31));
-      v_4771 <- eval (eq v_4770 (expression.bv_nat 8 1));
-      v_4772 <- getRegister v_2637;
-      v_4773 <- eval (rol v_4772 v_4770);
-      v_4775 <- eval (isBitSet v_4773 7);
-      v_4780 <- eval (eq v_4770 (expression.bv_nat 8 0));
-      v_4781 <- eval (notBool_ v_4780);
-      v_4783 <- getRegister of;
-      v_4790 <- getRegister cf;
-      setRegister (lhs.of_reg v_2637) v_4773;
-      setRegister cf (bit_or (bit_and v_4781 v_4775) (bit_and v_4780 (eq v_4790 (expression.bv_nat 1 1))));
-      setRegister of (bit_or (bit_and v_4771 (notBool_ (eq (isBitSet v_4773 0) v_4775))) (bit_and (notBool_ v_4771) (bit_or (bit_and v_4781 undef) (bit_and v_4780 (eq v_4783 (expression.bv_nat 1 1))))));
+    pattern fun (_ : clReg) (v_2664 : reg (bv 8)) => do
+      v_4656 <- getRegister rcx;
+      v_4658 <- eval (bv_and (extract v_4656 56 64) (expression.bv_nat 8 31));
+      v_4660 <- getRegister v_2664;
+      v_4661 <- eval (rol v_4660 v_4658);
+      v_4663 <- eval (isBitSet v_4661 7);
+      v_4666 <- eval (eq v_4658 (expression.bv_nat 8 0));
+      v_4667 <- getRegister of;
+      v_4670 <- getRegister cf;
+      setRegister (lhs.of_reg v_2664) v_4661;
+      setRegister cf (mux v_4666 v_4670 v_4663);
+      setRegister of (mux (eq v_4658 (expression.bv_nat 8 1)) (notBool_ (eq (isBitSet v_4661 0) v_4663)) (mux v_4666 v_4667 undef));
       pure ()
     pat_end;
-    pattern fun (v_2640 : imm int) (v_2642 : reg (bv 8)) => do
-      v_4798 <- eval (bv_and (handleImmediateWithSignExtend v_2640 8 8) (expression.bv_nat 8 31));
-      v_4799 <- eval (eq v_4798 (expression.bv_nat 8 1));
-      v_4800 <- getRegister v_2642;
-      v_4801 <- eval (rol v_4800 v_4798);
-      v_4803 <- eval (isBitSet v_4801 7);
-      v_4808 <- eval (eq v_4798 (expression.bv_nat 8 0));
-      v_4809 <- eval (notBool_ v_4808);
-      v_4811 <- getRegister of;
-      v_4818 <- getRegister cf;
-      setRegister (lhs.of_reg v_2642) v_4801;
-      setRegister cf (bit_or (bit_and v_4809 v_4803) (bit_and v_4808 (eq v_4818 (expression.bv_nat 1 1))));
-      setRegister of (bit_or (bit_and v_4799 (notBool_ (eq (isBitSet v_4801 0) v_4803))) (bit_and (notBool_ v_4799) (bit_or (bit_and v_4809 undef) (bit_and v_4808 (eq v_4811 (expression.bv_nat 1 1))))));
+    pattern fun (v_2665 : imm int) (v_2669 : reg (bv 8)) => do
+      v_4676 <- eval (bv_and (handleImmediateWithSignExtend v_2665 8 8) (expression.bv_nat 8 31));
+      v_4678 <- getRegister v_2669;
+      v_4679 <- eval (rol v_4678 v_4676);
+      v_4681 <- eval (isBitSet v_4679 7);
+      v_4684 <- eval (eq v_4676 (expression.bv_nat 8 0));
+      v_4685 <- getRegister of;
+      v_4688 <- getRegister cf;
+      setRegister (lhs.of_reg v_2669) v_4679;
+      setRegister cf (mux v_4684 v_4688 v_4681);
+      setRegister of (mux (eq v_4676 (expression.bv_nat 8 1)) (notBool_ (eq (isBitSet v_4679 0) v_4681)) (mux v_4684 v_4685 undef));
       pure ()
     pat_end;
-    pattern fun cl (v_2613 : Mem) => do
-      v_12212 <- evaluateAddress v_2613;
-      v_12213 <- load v_12212 1;
-      v_12214 <- getRegister rcx;
-      v_12216 <- eval (bv_and (extract v_12214 56 64) (expression.bv_nat 8 31));
-      v_12217 <- eval (rol v_12213 v_12216);
-      store v_12212 v_12217 1;
-      v_12219 <- eval (eq v_12216 (expression.bv_nat 8 1));
-      v_12221 <- eval (isBitSet v_12217 7);
-      v_12226 <- eval (eq v_12216 (expression.bv_nat 8 0));
-      v_12227 <- eval (notBool_ v_12226);
-      v_12229 <- getRegister of;
-      v_12236 <- getRegister cf;
-      setRegister cf (bit_or (bit_and v_12227 v_12221) (bit_and v_12226 (eq v_12236 (expression.bv_nat 1 1))));
-      setRegister of (bit_or (bit_and v_12219 (notBool_ (eq (isBitSet v_12217 0) v_12221))) (bit_and (notBool_ v_12219) (bit_or (bit_and v_12227 undef) (bit_and v_12226 (eq v_12229 (expression.bv_nat 1 1))))));
+    pattern fun (_ : clReg) (v_2638 : Mem) => do
+      v_11350 <- evaluateAddress v_2638;
+      v_11351 <- load v_11350 1;
+      v_11352 <- getRegister rcx;
+      v_11354 <- eval (bv_and (extract v_11352 56 64) (expression.bv_nat 8 31));
+      v_11355 <- eval (rol v_11351 v_11354);
+      store v_11350 v_11355 1;
+      v_11359 <- eval (isBitSet v_11355 7);
+      v_11362 <- eval (eq v_11354 (expression.bv_nat 8 0));
+      v_11363 <- getRegister of;
+      v_11366 <- getRegister cf;
+      setRegister cf (mux v_11362 v_11366 v_11359);
+      setRegister of (mux (eq v_11354 (expression.bv_nat 8 1)) (notBool_ (eq (isBitSet v_11355 0) v_11359)) (mux v_11362 v_11363 undef));
       pure ()
     pat_end;
-    pattern fun (v_2616 : imm int) (v_2617 : Mem) => do
-      v_12242 <- evaluateAddress v_2617;
-      v_12243 <- load v_12242 1;
-      v_12245 <- eval (bv_and (handleImmediateWithSignExtend v_2616 8 8) (expression.bv_nat 8 31));
-      v_12246 <- eval (rol v_12243 v_12245);
-      store v_12242 v_12246 1;
-      v_12248 <- eval (eq v_12245 (expression.bv_nat 8 1));
-      v_12250 <- eval (isBitSet v_12246 7);
-      v_12255 <- eval (eq v_12245 (expression.bv_nat 8 0));
-      v_12256 <- eval (notBool_ v_12255);
-      v_12258 <- getRegister of;
-      v_12265 <- getRegister cf;
-      setRegister cf (bit_or (bit_and v_12256 v_12250) (bit_and v_12255 (eq v_12265 (expression.bv_nat 1 1))));
-      setRegister of (bit_or (bit_and v_12248 (notBool_ (eq (isBitSet v_12246 0) v_12250))) (bit_and (notBool_ v_12248) (bit_or (bit_and v_12256 undef) (bit_and v_12255 (eq v_12258 (expression.bv_nat 1 1))))));
+    pattern fun (v_2641 : imm int) (v_2642 : Mem) => do
+      v_11370 <- evaluateAddress v_2642;
+      v_11371 <- load v_11370 1;
+      v_11373 <- eval (bv_and (handleImmediateWithSignExtend v_2641 8 8) (expression.bv_nat 8 31));
+      v_11374 <- eval (rol v_11371 v_11373);
+      store v_11370 v_11374 1;
+      v_11378 <- eval (isBitSet v_11374 7);
+      v_11381 <- eval (eq v_11373 (expression.bv_nat 8 0));
+      v_11382 <- getRegister of;
+      v_11385 <- getRegister cf;
+      setRegister cf (mux v_11381 v_11385 v_11378);
+      setRegister of (mux (eq v_11373 (expression.bv_nat 8 1)) (notBool_ (eq (isBitSet v_11374 0) v_11378)) (mux v_11381 v_11382 undef));
       pure ()
     pat_end

@@ -1,15 +1,15 @@
 def vcmpss1 : instruction :=
   definst "vcmpss" $ do
-    pattern fun (v_3036 : imm int) (v_3038 : reg (bv 128)) (v_3039 : reg (bv 128)) (v_3040 : reg (bv 128)) => do
-      v_5657 <- getRegister v_3039;
-      v_5660 <- getRegister v_3038;
-      setRegister (lhs.of_reg v_3040) (concat (extract v_5657 0 96) (mux (eq (_(_,_,_)_MINT-WRAPPER-SYNTAX cmp_single_pred (extract v_5657 96 128) (extract v_5660 96 128) (handleImmediateWithSignExtend v_3036 8 8)) (expression.bv_nat 1 1)) (expression.bv_nat 32 4294967295) (expression.bv_nat 32 0)));
+    pattern fun (v_3061 : imm int) (v_3065 : reg (bv 128)) (v_3066 : reg (bv 128)) (v_3067 : reg (bv 128)) => do
+      v_5684 <- getRegister v_3066;
+      v_5687 <- getRegister v_3065;
+      setRegister (lhs.of_reg v_3067) (concat (extract v_5684 0 96) (mux (eq (_(_,_,_)_MINT-WRAPPER-SYNTAX cmp_single_pred (extract v_5684 96 128) (extract v_5687 96 128) (handleImmediateWithSignExtend v_3061 8 8)) (expression.bv_nat 1 1)) (expression.bv_nat 32 4294967295) (expression.bv_nat 32 0)));
       pure ()
     pat_end;
-    pattern fun (v_3030 : imm int) (v_3031 : Mem) (v_3032 : reg (bv 128)) (v_3033 : reg (bv 128)) => do
-      v_9813 <- getRegister v_3032;
-      v_9816 <- evaluateAddress v_3031;
-      v_9817 <- load v_9816 4;
-      setRegister (lhs.of_reg v_3033) (concat (extract v_9813 0 96) (mux (eq (_(_,_,_)_MINT-WRAPPER-SYNTAX cmp_single_pred (extract v_9813 96 128) v_9817 (handleImmediateWithSignExtend v_3030 8 8)) (expression.bv_nat 1 1)) (expression.bv_nat 32 4294967295) (expression.bv_nat 32 0)));
+    pattern fun (v_3055 : imm int) (v_3056 : Mem) (v_3059 : reg (bv 128)) (v_3060 : reg (bv 128)) => do
+      v_9840 <- getRegister v_3059;
+      v_9843 <- evaluateAddress v_3056;
+      v_9844 <- load v_9843 4;
+      setRegister (lhs.of_reg v_3060) (concat (extract v_9840 0 96) (mux (eq (_(_,_,_)_MINT-WRAPPER-SYNTAX cmp_single_pred (extract v_9840 96 128) v_9844 (handleImmediateWithSignExtend v_3055 8 8)) (expression.bv_nat 1 1)) (expression.bv_nat 32 4294967295) (expression.bv_nat 32 0)));
       pure ()
     pat_end

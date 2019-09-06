@@ -1,14 +1,14 @@
 def vmovntps1 : instruction :=
   definst "vmovntps" $ do
-    pattern fun (v_2982 : reg (bv 128)) (v_2981 : Mem) => do
-      v_12445 <- evaluateAddress v_2981;
-      v_12446 <- getRegister v_2982;
-      store v_12445 v_12446 16;
+    pattern fun (v_3007 : reg (bv 128)) (v_3006 : Mem) => do
+      v_12472 <- evaluateAddress v_3006;
+      v_12473 <- getRegister v_3007;
+      store v_12472 v_12473 16;
       pure ()
     pat_end;
-    pattern fun (v_2986 : reg (bv 256)) (v_2985 : Mem) => do
-      v_12448 <- evaluateAddress v_2985;
-      v_12449 <- getRegister v_2986;
-      store v_12448 v_12449 32;
+    pattern fun (v_3011 : reg (bv 256)) (v_3010 : Mem) => do
+      v_12475 <- evaluateAddress v_3010;
+      v_12476 <- getRegister v_3011;
+      store v_12475 v_12476 32;
       pure ()
     pat_end

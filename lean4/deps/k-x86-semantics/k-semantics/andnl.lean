@@ -1,29 +1,29 @@
 def andnl1 : instruction :=
   definst "andnl" $ do
-    pattern fun (v_2847 : reg (bv 32)) (v_2848 : reg (bv 32)) (v_2849 : reg (bv 32)) => do
-      v_5355 <- getRegister v_2848;
-      v_5357 <- getRegister v_2847;
-      v_5358 <- eval (bv_and (bv_xor v_5355 (expression.bv_nat 32 4294967295)) v_5357);
-      setRegister (lhs.of_reg v_2849) v_5358;
+    pattern fun (v_2875 : reg (bv 32)) (v_2876 : reg (bv 32)) (v_2877 : reg (bv 32)) => do
+      v_5236 <- getRegister v_2876;
+      v_5238 <- getRegister v_2875;
+      v_5239 <- eval (bv_and (bv_xor v_5236 (expression.bv_nat 32 4294967295)) v_5238);
+      setRegister (lhs.of_reg v_2877) v_5239;
       setRegister af undef;
       setRegister cf bit_zero;
       setRegister of bit_zero;
       setRegister pf undef;
-      setRegister sf (bit_and (notBool_ (eq (isBitSet v_5355 0) (bv1ToBool (expression.bv_nat 1 1)))) (isBitSet v_5357 0));
-      setRegister zf (zeroFlag v_5358);
+      setRegister sf (bit_and (notBool_ (eq (isBitSet v_5236 0) (bv1ToBool (expression.bv_nat 1 1)))) (isBitSet v_5238 0));
+      setRegister zf (zeroFlag v_5239);
       pure ()
     pat_end;
-    pattern fun (v_2844 : Mem) (v_2842 : reg (bv 32)) (v_2843 : reg (bv 32)) => do
-      v_9148 <- getRegister v_2842;
-      v_9150 <- evaluateAddress v_2844;
-      v_9151 <- load v_9150 4;
-      v_9152 <- eval (bv_and (bv_xor v_9148 (expression.bv_nat 32 4294967295)) v_9151);
-      setRegister (lhs.of_reg v_2843) v_9152;
+    pattern fun (v_2869 : Mem) (v_2870 : reg (bv 32)) (v_2871 : reg (bv 32)) => do
+      v_8972 <- getRegister v_2870;
+      v_8974 <- evaluateAddress v_2869;
+      v_8975 <- load v_8974 4;
+      v_8976 <- eval (bv_and (bv_xor v_8972 (expression.bv_nat 32 4294967295)) v_8975);
+      setRegister (lhs.of_reg v_2871) v_8976;
       setRegister af undef;
       setRegister cf bit_zero;
       setRegister of bit_zero;
       setRegister pf undef;
-      setRegister sf (bit_and (notBool_ (eq (isBitSet v_9148 0) (bv1ToBool (expression.bv_nat 1 1)))) (isBitSet v_9151 0));
-      setRegister zf (zeroFlag v_9152);
+      setRegister sf (bit_and (notBool_ (eq (isBitSet v_8972 0) (bv1ToBool (expression.bv_nat 1 1)))) (isBitSet v_8975 0));
+      setRegister zf (zeroFlag v_8976);
       pure ()
     pat_end

@@ -1,17 +1,17 @@
 def cmovnaew1 : instruction :=
   definst "cmovnaew" $ do
-    pattern fun (v_2798 : reg (bv 16)) (v_2799 : reg (bv 16)) => do
-      v_4545 <- getRegister cf;
-      v_4547 <- getRegister v_2798;
-      v_4548 <- getRegister v_2799;
-      setRegister (lhs.of_reg v_2799) (mux (eq v_4545 (expression.bv_nat 1 1)) v_4547 v_4548);
+    pattern fun (v_2824 : reg (bv 16)) (v_2825 : reg (bv 16)) => do
+      v_4517 <- getRegister cf;
+      v_4518 <- getRegister v_2824;
+      v_4519 <- getRegister v_2825;
+      setRegister (lhs.of_reg v_2825) (mux v_4517 v_4518 v_4519);
       pure ()
     pat_end;
-    pattern fun (v_2793 : Mem) (v_2794 : reg (bv 16)) => do
-      v_8109 <- getRegister cf;
-      v_8111 <- evaluateAddress v_2793;
-      v_8112 <- load v_8111 2;
-      v_8113 <- getRegister v_2794;
-      setRegister (lhs.of_reg v_2794) (mux (eq v_8109 (expression.bv_nat 1 1)) v_8112 v_8113);
+    pattern fun (v_2820 : Mem) (v_2821 : reg (bv 16)) => do
+      v_7907 <- getRegister cf;
+      v_7908 <- evaluateAddress v_2820;
+      v_7909 <- load v_7908 2;
+      v_7910 <- getRegister v_2821;
+      setRegister (lhs.of_reg v_2821) (mux v_7907 v_7909 v_7910);
       pure ()
     pat_end

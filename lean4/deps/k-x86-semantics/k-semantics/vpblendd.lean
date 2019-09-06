@@ -1,32 +1,32 @@
 def vpblendd1 : instruction :=
   definst "vpblendd" $ do
-    pattern fun (v_2674 : imm int) (v_2676 : reg (bv 128)) (v_2677 : reg (bv 128)) (v_2678 : reg (bv 128)) => do
-      v_6424 <- eval (handleImmediateWithSignExtend v_2674 8 8);
-      v_6426 <- getRegister v_2677;
-      v_6428 <- getRegister v_2676;
-      setRegister (lhs.of_reg v_2678) (concat (mux (isBitClear v_6424 4) (extract v_6426 0 32) (extract v_6428 0 32)) (concat (mux (isBitClear v_6424 5) (extract v_6426 32 64) (extract v_6428 32 64)) (concat (mux (isBitClear v_6424 6) (extract v_6426 64 96) (extract v_6428 64 96)) (mux (isBitClear v_6424 7) (extract v_6426 96 128) (extract v_6428 96 128)))));
+    pattern fun (v_2701 : imm int) (v_2702 : reg (bv 128)) (v_2703 : reg (bv 128)) (v_2704 : reg (bv 128)) => do
+      v_6451 <- eval (handleImmediateWithSignExtend v_2701 8 8);
+      v_6453 <- getRegister v_2703;
+      v_6455 <- getRegister v_2702;
+      setRegister (lhs.of_reg v_2704) (concat (mux (isBitClear v_6451 4) (extract v_6453 0 32) (extract v_6455 0 32)) (concat (mux (isBitClear v_6451 5) (extract v_6453 32 64) (extract v_6455 32 64)) (concat (mux (isBitClear v_6451 6) (extract v_6453 64 96) (extract v_6455 64 96)) (mux (isBitClear v_6451 7) (extract v_6453 96 128) (extract v_6455 96 128)))));
       pure ()
     pat_end;
-    pattern fun (v_2687 : imm int) (v_2688 : reg (bv 256)) (v_2689 : reg (bv 256)) (v_2690 : reg (bv 256)) => do
-      v_6453 <- eval (handleImmediateWithSignExtend v_2687 8 8);
-      v_6455 <- getRegister v_2689;
-      v_6457 <- getRegister v_2688;
-      setRegister (lhs.of_reg v_2690) (concat (mux (isBitClear v_6453 0) (extract v_6455 0 32) (extract v_6457 0 32)) (concat (mux (isBitClear v_6453 1) (extract v_6455 32 64) (extract v_6457 32 64)) (concat (mux (isBitClear v_6453 2) (extract v_6455 64 96) (extract v_6457 64 96)) (concat (mux (isBitClear v_6453 3) (extract v_6455 96 128) (extract v_6457 96 128)) (concat (mux (isBitClear v_6453 4) (extract v_6455 128 160) (extract v_6457 128 160)) (concat (mux (isBitClear v_6453 5) (extract v_6455 160 192) (extract v_6457 160 192)) (concat (mux (isBitClear v_6453 6) (extract v_6455 192 224) (extract v_6457 192 224)) (mux (isBitClear v_6453 7) (extract v_6455 224 256) (extract v_6457 224 256)))))))));
+    pattern fun (v_2714 : imm int) (v_2715 : reg (bv 256)) (v_2716 : reg (bv 256)) (v_2717 : reg (bv 256)) => do
+      v_6480 <- eval (handleImmediateWithSignExtend v_2714 8 8);
+      v_6482 <- getRegister v_2716;
+      v_6484 <- getRegister v_2715;
+      setRegister (lhs.of_reg v_2717) (concat (mux (isBitClear v_6480 0) (extract v_6482 0 32) (extract v_6484 0 32)) (concat (mux (isBitClear v_6480 1) (extract v_6482 32 64) (extract v_6484 32 64)) (concat (mux (isBitClear v_6480 2) (extract v_6482 64 96) (extract v_6484 64 96)) (concat (mux (isBitClear v_6480 3) (extract v_6482 96 128) (extract v_6484 96 128)) (concat (mux (isBitClear v_6480 4) (extract v_6482 128 160) (extract v_6484 128 160)) (concat (mux (isBitClear v_6480 5) (extract v_6482 160 192) (extract v_6484 160 192)) (concat (mux (isBitClear v_6480 6) (extract v_6482 192 224) (extract v_6484 192 224)) (mux (isBitClear v_6480 7) (extract v_6482 224 256) (extract v_6484 224 256)))))))));
       pure ()
     pat_end;
-    pattern fun (v_2668 : imm int) (v_2669 : Mem) (v_2670 : reg (bv 128)) (v_2671 : reg (bv 128)) => do
-      v_15101 <- eval (handleImmediateWithSignExtend v_2668 8 8);
-      v_15103 <- getRegister v_2670;
-      v_15105 <- evaluateAddress v_2669;
-      v_15106 <- load v_15105 16;
-      setRegister (lhs.of_reg v_2671) (concat (mux (isBitClear v_15101 4) (extract v_15103 0 32) (extract v_15106 0 32)) (concat (mux (isBitClear v_15101 5) (extract v_15103 32 64) (extract v_15106 32 64)) (concat (mux (isBitClear v_15101 6) (extract v_15103 64 96) (extract v_15106 64 96)) (mux (isBitClear v_15101 7) (extract v_15103 96 128) (extract v_15106 96 128)))));
+    pattern fun (v_2696 : imm int) (v_2695 : Mem) (v_2697 : reg (bv 128)) (v_2698 : reg (bv 128)) => do
+      v_15128 <- eval (handleImmediateWithSignExtend v_2696 8 8);
+      v_15130 <- getRegister v_2697;
+      v_15132 <- evaluateAddress v_2695;
+      v_15133 <- load v_15132 16;
+      setRegister (lhs.of_reg v_2698) (concat (mux (isBitClear v_15128 4) (extract v_15130 0 32) (extract v_15133 0 32)) (concat (mux (isBitClear v_15128 5) (extract v_15130 32 64) (extract v_15133 32 64)) (concat (mux (isBitClear v_15128 6) (extract v_15130 64 96) (extract v_15133 64 96)) (mux (isBitClear v_15128 7) (extract v_15130 96 128) (extract v_15133 96 128)))));
       pure ()
     pat_end;
-    pattern fun (v_2681 : imm int) (v_2682 : Mem) (v_2683 : reg (bv 256)) (v_2684 : reg (bv 256)) => do
-      v_15125 <- eval (handleImmediateWithSignExtend v_2681 8 8);
-      v_15127 <- getRegister v_2683;
-      v_15129 <- evaluateAddress v_2682;
-      v_15130 <- load v_15129 32;
-      setRegister (lhs.of_reg v_2684) (concat (mux (isBitClear v_15125 0) (extract v_15127 0 32) (extract v_15130 0 32)) (concat (mux (isBitClear v_15125 1) (extract v_15127 32 64) (extract v_15130 32 64)) (concat (mux (isBitClear v_15125 2) (extract v_15127 64 96) (extract v_15130 64 96)) (concat (mux (isBitClear v_15125 3) (extract v_15127 96 128) (extract v_15130 96 128)) (concat (mux (isBitClear v_15125 4) (extract v_15127 128 160) (extract v_15130 128 160)) (concat (mux (isBitClear v_15125 5) (extract v_15127 160 192) (extract v_15130 160 192)) (concat (mux (isBitClear v_15125 6) (extract v_15127 192 224) (extract v_15130 192 224)) (mux (isBitClear v_15125 7) (extract v_15127 224 256) (extract v_15130 224 256)))))))));
+    pattern fun (v_2709 : imm int) (v_2708 : Mem) (v_2710 : reg (bv 256)) (v_2711 : reg (bv 256)) => do
+      v_15152 <- eval (handleImmediateWithSignExtend v_2709 8 8);
+      v_15154 <- getRegister v_2710;
+      v_15156 <- evaluateAddress v_2708;
+      v_15157 <- load v_15156 32;
+      setRegister (lhs.of_reg v_2711) (concat (mux (isBitClear v_15152 0) (extract v_15154 0 32) (extract v_15157 0 32)) (concat (mux (isBitClear v_15152 1) (extract v_15154 32 64) (extract v_15157 32 64)) (concat (mux (isBitClear v_15152 2) (extract v_15154 64 96) (extract v_15157 64 96)) (concat (mux (isBitClear v_15152 3) (extract v_15154 96 128) (extract v_15157 96 128)) (concat (mux (isBitClear v_15152 4) (extract v_15154 128 160) (extract v_15157 128 160)) (concat (mux (isBitClear v_15152 5) (extract v_15154 160 192) (extract v_15157 160 192)) (concat (mux (isBitClear v_15152 6) (extract v_15154 192 224) (extract v_15157 192 224)) (mux (isBitClear v_15152 7) (extract v_15154 224 256) (extract v_15157 224 256)))))))));
       pure ()
     pat_end

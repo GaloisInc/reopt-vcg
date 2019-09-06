@@ -1,28 +1,28 @@
 def movw1 : instruction :=
   definst "movw" $ do
-    pattern fun (v_2699 : imm int) (v_2701 : reg (bv 16)) => do
-      setRegister (lhs.of_reg v_2701) (handleImmediateWithSignExtend v_2699 16 16);
+    pattern fun (v_2725 : imm int) (v_2726 : reg (bv 16)) => do
+      setRegister (lhs.of_reg v_2726) (handleImmediateWithSignExtend v_2725 16 16);
       pure ()
     pat_end;
-    pattern fun (v_2709 : reg (bv 16)) (v_2710 : reg (bv 16)) => do
-      v_4118 <- getRegister v_2709;
-      setRegister (lhs.of_reg v_2710) v_4118;
+    pattern fun (v_2734 : reg (bv 16)) (v_2735 : reg (bv 16)) => do
+      v_4145 <- getRegister v_2734;
+      setRegister (lhs.of_reg v_2735) v_4145;
       pure ()
     pat_end;
-    pattern fun (v_2692 : imm int) (v_2691 : Mem) => do
-      v_8495 <- evaluateAddress v_2691;
-      store v_8495 (handleImmediateWithSignExtend v_2692 16 16) 2;
+    pattern fun (v_2718 : imm int) (v_2717 : Mem) => do
+      v_8522 <- evaluateAddress v_2717;
+      store v_8522 (handleImmediateWithSignExtend v_2718 16 16) 2;
       pure ()
     pat_end;
-    pattern fun (v_2696 : reg (bv 16)) (v_2695 : Mem) => do
-      v_8498 <- evaluateAddress v_2695;
-      v_8499 <- getRegister v_2696;
-      store v_8498 v_8499 2;
+    pattern fun (v_2722 : reg (bv 16)) (v_2721 : Mem) => do
+      v_8525 <- evaluateAddress v_2721;
+      v_8526 <- getRegister v_2722;
+      store v_8525 v_8526 2;
       pure ()
     pat_end;
-    pattern fun (v_2704 : Mem) (v_2705 : reg (bv 16)) => do
-      v_8735 <- evaluateAddress v_2704;
-      v_8736 <- load v_8735 2;
-      setRegister (lhs.of_reg v_2705) v_8736;
+    pattern fun (v_2730 : Mem) (v_2731 : reg (bv 16)) => do
+      v_8762 <- evaluateAddress v_2730;
+      v_8763 <- load v_8762 2;
+      setRegister (lhs.of_reg v_2731) v_8763;
       pure ()
     pat_end

@@ -1,17 +1,17 @@
 def cmovsl1 : instruction :=
   definst "cmovsl" $ do
-    pattern fun (v_3300 : reg (bv 32)) (v_3301 : reg (bv 32)) => do
-      v_5196 <- getRegister sf;
-      v_5198 <- getRegister v_3300;
-      v_5199 <- getRegister v_3301;
-      setRegister (lhs.of_reg v_3301) (mux (eq v_5196 (expression.bv_nat 1 1)) v_5198 v_5199);
+    pattern fun (v_3327 : reg (bv 32)) (v_3328 : reg (bv 32)) => do
+      v_5092 <- getRegister sf;
+      v_5093 <- getRegister v_3327;
+      v_5094 <- getRegister v_3328;
+      setRegister (lhs.of_reg v_3328) (mux v_5092 v_5093 v_5094);
       pure ()
     pat_end;
-    pattern fun (v_3289 : Mem) (v_3292 : reg (bv 32)) => do
-      v_8588 <- getRegister sf;
-      v_8590 <- evaluateAddress v_3289;
-      v_8591 <- load v_8590 4;
-      v_8592 <- getRegister v_3292;
-      setRegister (lhs.of_reg v_3292) (mux (eq v_8588 (expression.bv_nat 1 1)) v_8591 v_8592);
+    pattern fun (v_3316 : Mem) (v_3319 : reg (bv 32)) => do
+      v_8310 <- getRegister sf;
+      v_8311 <- evaluateAddress v_3316;
+      v_8312 <- load v_8311 4;
+      v_8313 <- getRegister v_3319;
+      setRegister (lhs.of_reg v_3319) (mux v_8310 v_8312 v_8313);
       pure ()
     pat_end

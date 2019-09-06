@@ -1,28 +1,28 @@
 def vpunpckhbw1 : instruction :=
   definst "vpunpckhbw" $ do
-    pattern fun (v_2644 : reg (bv 128)) (v_2645 : reg (bv 128)) (v_2646 : reg (bv 128)) => do
-      v_6069 <- getRegister v_2644;
-      v_6071 <- getRegister v_2645;
-      setRegister (lhs.of_reg v_2646) (concat (concat (extract v_6069 0 8) (extract v_6071 0 8)) (concat (concat (extract v_6069 8 16) (extract v_6071 8 16)) (concat (concat (extract v_6069 16 24) (extract v_6071 16 24)) (concat (concat (extract v_6069 24 32) (extract v_6071 24 32)) (concat (concat (extract v_6069 32 40) (extract v_6071 32 40)) (concat (concat (extract v_6069 40 48) (extract v_6071 40 48)) (concat (concat (extract v_6069 48 56) (extract v_6071 48 56)) (concat (extract v_6069 56 64) (extract v_6071 56 64)))))))));
+    pattern fun (v_2671 : reg (bv 128)) (v_2672 : reg (bv 128)) (v_2673 : reg (bv 128)) => do
+      v_6096 <- getRegister v_2671;
+      v_6098 <- getRegister v_2672;
+      setRegister (lhs.of_reg v_2673) (concat (concat (extract v_6096 0 8) (extract v_6098 0 8)) (concat (concat (extract v_6096 8 16) (extract v_6098 8 16)) (concat (concat (extract v_6096 16 24) (extract v_6098 16 24)) (concat (concat (extract v_6096 24 32) (extract v_6098 24 32)) (concat (concat (extract v_6096 32 40) (extract v_6098 32 40)) (concat (concat (extract v_6096 40 48) (extract v_6098 40 48)) (concat (concat (extract v_6096 48 56) (extract v_6098 48 56)) (concat (extract v_6096 56 64) (extract v_6098 56 64)))))))));
       pure ()
     pat_end;
-    pattern fun (v_2655 : reg (bv 256)) (v_2656 : reg (bv 256)) (v_2657 : reg (bv 256)) => do
-      v_6108 <- getRegister v_2655;
-      v_6110 <- getRegister v_2656;
-      setRegister (lhs.of_reg v_2657) (concat (concat (extract v_6108 0 8) (extract v_6110 0 8)) (concat (concat (extract v_6108 8 16) (extract v_6110 8 16)) (concat (concat (extract v_6108 16 24) (extract v_6110 16 24)) (concat (concat (extract v_6108 24 32) (extract v_6110 24 32)) (concat (concat (extract v_6108 32 40) (extract v_6110 32 40)) (concat (concat (extract v_6108 40 48) (extract v_6110 40 48)) (concat (concat (extract v_6108 48 56) (extract v_6110 48 56)) (concat (concat (extract v_6108 56 64) (extract v_6110 56 64)) (concat (concat (extract v_6108 128 136) (extract v_6110 128 136)) (concat (concat (extract v_6108 136 144) (extract v_6110 136 144)) (concat (concat (extract v_6108 144 152) (extract v_6110 144 152)) (concat (concat (extract v_6108 152 160) (extract v_6110 152 160)) (concat (concat (extract v_6108 160 168) (extract v_6110 160 168)) (concat (concat (extract v_6108 168 176) (extract v_6110 168 176)) (concat (concat (extract v_6108 176 184) (extract v_6110 176 184)) (concat (extract v_6108 184 192) (extract v_6110 184 192)))))))))))))))));
+    pattern fun (v_2682 : reg (bv 256)) (v_2683 : reg (bv 256)) (v_2684 : reg (bv 256)) => do
+      v_6135 <- getRegister v_2682;
+      v_6137 <- getRegister v_2683;
+      setRegister (lhs.of_reg v_2684) (concat (concat (extract v_6135 0 8) (extract v_6137 0 8)) (concat (concat (extract v_6135 8 16) (extract v_6137 8 16)) (concat (concat (extract v_6135 16 24) (extract v_6137 16 24)) (concat (concat (extract v_6135 24 32) (extract v_6137 24 32)) (concat (concat (extract v_6135 32 40) (extract v_6137 32 40)) (concat (concat (extract v_6135 40 48) (extract v_6137 40 48)) (concat (concat (extract v_6135 48 56) (extract v_6137 48 56)) (concat (concat (extract v_6135 56 64) (extract v_6137 56 64)) (concat (concat (extract v_6135 128 136) (extract v_6137 128 136)) (concat (concat (extract v_6135 136 144) (extract v_6137 136 144)) (concat (concat (extract v_6135 144 152) (extract v_6137 144 152)) (concat (concat (extract v_6135 152 160) (extract v_6137 152 160)) (concat (concat (extract v_6135 160 168) (extract v_6137 160 168)) (concat (concat (extract v_6135 168 176) (extract v_6137 168 176)) (concat (concat (extract v_6135 176 184) (extract v_6137 176 184)) (concat (extract v_6135 184 192) (extract v_6137 184 192)))))))))))))))));
       pure ()
     pat_end;
-    pattern fun (v_2638 : Mem) (v_2639 : reg (bv 128)) (v_2640 : reg (bv 128)) => do
-      v_12159 <- evaluateAddress v_2638;
-      v_12160 <- load v_12159 16;
-      v_12162 <- getRegister v_2639;
-      setRegister (lhs.of_reg v_2640) (concat (concat (extract v_12160 0 8) (extract v_12162 0 8)) (concat (concat (extract v_12160 8 16) (extract v_12162 8 16)) (concat (concat (extract v_12160 16 24) (extract v_12162 16 24)) (concat (concat (extract v_12160 24 32) (extract v_12162 24 32)) (concat (concat (extract v_12160 32 40) (extract v_12162 32 40)) (concat (concat (extract v_12160 40 48) (extract v_12162 40 48)) (concat (concat (extract v_12160 48 56) (extract v_12162 48 56)) (concat (extract v_12160 56 64) (extract v_12162 56 64)))))))));
+    pattern fun (v_2665 : Mem) (v_2666 : reg (bv 128)) (v_2667 : reg (bv 128)) => do
+      v_12186 <- evaluateAddress v_2665;
+      v_12187 <- load v_12186 16;
+      v_12189 <- getRegister v_2666;
+      setRegister (lhs.of_reg v_2667) (concat (concat (extract v_12187 0 8) (extract v_12189 0 8)) (concat (concat (extract v_12187 8 16) (extract v_12189 8 16)) (concat (concat (extract v_12187 16 24) (extract v_12189 16 24)) (concat (concat (extract v_12187 24 32) (extract v_12189 24 32)) (concat (concat (extract v_12187 32 40) (extract v_12189 32 40)) (concat (concat (extract v_12187 40 48) (extract v_12189 40 48)) (concat (concat (extract v_12187 48 56) (extract v_12189 48 56)) (concat (extract v_12187 56 64) (extract v_12189 56 64)))))))));
       pure ()
     pat_end;
-    pattern fun (v_2649 : Mem) (v_2650 : reg (bv 256)) (v_2651 : reg (bv 256)) => do
-      v_12194 <- evaluateAddress v_2649;
-      v_12195 <- load v_12194 32;
-      v_12197 <- getRegister v_2650;
-      setRegister (lhs.of_reg v_2651) (concat (concat (extract v_12195 0 8) (extract v_12197 0 8)) (concat (concat (extract v_12195 8 16) (extract v_12197 8 16)) (concat (concat (extract v_12195 16 24) (extract v_12197 16 24)) (concat (concat (extract v_12195 24 32) (extract v_12197 24 32)) (concat (concat (extract v_12195 32 40) (extract v_12197 32 40)) (concat (concat (extract v_12195 40 48) (extract v_12197 40 48)) (concat (concat (extract v_12195 48 56) (extract v_12197 48 56)) (concat (concat (extract v_12195 56 64) (extract v_12197 56 64)) (concat (concat (extract v_12195 128 136) (extract v_12197 128 136)) (concat (concat (extract v_12195 136 144) (extract v_12197 136 144)) (concat (concat (extract v_12195 144 152) (extract v_12197 144 152)) (concat (concat (extract v_12195 152 160) (extract v_12197 152 160)) (concat (concat (extract v_12195 160 168) (extract v_12197 160 168)) (concat (concat (extract v_12195 168 176) (extract v_12197 168 176)) (concat (concat (extract v_12195 176 184) (extract v_12197 176 184)) (concat (extract v_12195 184 192) (extract v_12197 184 192)))))))))))))))));
+    pattern fun (v_2676 : Mem) (v_2677 : reg (bv 256)) (v_2678 : reg (bv 256)) => do
+      v_12221 <- evaluateAddress v_2676;
+      v_12222 <- load v_12221 32;
+      v_12224 <- getRegister v_2677;
+      setRegister (lhs.of_reg v_2678) (concat (concat (extract v_12222 0 8) (extract v_12224 0 8)) (concat (concat (extract v_12222 8 16) (extract v_12224 8 16)) (concat (concat (extract v_12222 16 24) (extract v_12224 16 24)) (concat (concat (extract v_12222 24 32) (extract v_12224 24 32)) (concat (concat (extract v_12222 32 40) (extract v_12224 32 40)) (concat (concat (extract v_12222 40 48) (extract v_12224 40 48)) (concat (concat (extract v_12222 48 56) (extract v_12224 48 56)) (concat (concat (extract v_12222 56 64) (extract v_12224 56 64)) (concat (concat (extract v_12222 128 136) (extract v_12224 128 136)) (concat (concat (extract v_12222 136 144) (extract v_12224 136 144)) (concat (concat (extract v_12222 144 152) (extract v_12224 144 152)) (concat (concat (extract v_12222 152 160) (extract v_12224 152 160)) (concat (concat (extract v_12222 160 168) (extract v_12224 160 168)) (concat (concat (extract v_12222 168 176) (extract v_12224 168 176)) (concat (concat (extract v_12222 176 184) (extract v_12224 176 184)) (concat (extract v_12222 184 192) (extract v_12224 184 192)))))))))))))))));
       pure ()
     pat_end

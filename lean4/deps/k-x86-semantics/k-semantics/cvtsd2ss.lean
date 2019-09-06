@@ -1,15 +1,15 @@
 def cvtsd2ss1 : instruction :=
   definst "cvtsd2ss" $ do
-    pattern fun (v_2608 : reg (bv 128)) (v_2609 : reg (bv 128)) => do
-      v_4205 <- getRegister v_2609;
-      v_4207 <- getRegister v_2608;
-      setRegister (lhs.of_reg v_2609) (concat (extract v_4205 0 96) (Float2MInt (roundFloat (MInt2Float (extract v_4207 64 128) 53 11) 24 8) 32));
+    pattern fun (v_2634 : reg (bv 128)) (v_2635 : reg (bv 128)) => do
+      v_4226 <- getRegister v_2635;
+      v_4228 <- getRegister v_2634;
+      setRegister (lhs.of_reg v_2635) (concat (extract v_4226 0 96) (Float2MInt (roundFloat (MInt2Float (extract v_4228 64 128) 53 11) 24 8) 32));
       pure ()
     pat_end;
-    pattern fun (v_2603 : Mem) (v_2604 : reg (bv 128)) => do
-      v_7914 <- getRegister v_2604;
-      v_7916 <- evaluateAddress v_2603;
-      v_7917 <- load v_7916 8;
-      setRegister (lhs.of_reg v_2604) (concat (extract v_7914 0 96) (Float2MInt (roundFloat (MInt2Float v_7917 53 11) 24 8) 32));
+    pattern fun (v_2630 : Mem) (v_2631 : reg (bv 128)) => do
+      v_7924 <- getRegister v_2631;
+      v_7926 <- evaluateAddress v_2630;
+      v_7927 <- load v_7926 8;
+      setRegister (lhs.of_reg v_2631) (concat (extract v_7924 0 96) (Float2MInt (roundFloat (MInt2Float v_7927 53 11) 24 8) 32));
       pure ()
     pat_end

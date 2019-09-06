@@ -1,13 +1,13 @@
 def vextractf1281 : instruction :=
   definst "vextractf128" $ do
-    pattern fun (v_2449 : imm int) (v_2450 : reg (bv 256)) (v_2452 : reg (bv 128)) => do
-      v_4065 <- getRegister v_2450;
-      setRegister (lhs.of_reg v_2452) (mux (isBitClear (handleImmediateWithSignExtend v_2449 8 8) 7) (extract v_4065 128 256) (extract v_4065 0 128));
+    pattern fun (v_2475 : imm int) (v_2479 : reg (bv 256)) (v_2474 : reg (bv 128)) => do
+      v_4092 <- getRegister v_2479;
+      setRegister (lhs.of_reg v_2474) (mux (isBitClear (handleImmediateWithSignExtend v_2475 8 8) 7) (extract v_4092 128 256) (extract v_4092 0 128));
       pure ()
     pat_end;
-    pattern fun (v_2445 : imm int) (v_2446 : reg (bv 256)) (v_2444 : Mem) => do
-      v_13821 <- evaluateAddress v_2444;
-      v_13824 <- getRegister v_2446;
-      store v_13821 (mux (isBitClear (handleImmediateWithSignExtend v_2445 8 8) 7) (extract v_13824 128 256) (extract v_13824 0 128)) 16;
+    pattern fun (v_2470 : imm int) (v_2473 : reg (bv 256)) (v_2469 : Mem) => do
+      v_13848 <- evaluateAddress v_2469;
+      v_13851 <- getRegister v_2473;
+      store v_13848 (mux (isBitClear (handleImmediateWithSignExtend v_2470 8 8) 7) (extract v_13851 128 256) (extract v_13851 0 128)) 16;
       pure ()
     pat_end

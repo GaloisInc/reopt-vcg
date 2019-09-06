@@ -1,17 +1,17 @@
 def cmovneq1 : instruction :=
   definst "cmovneq" $ do
-    pattern fun (v_2924 : reg (bv 64)) (v_2925 : reg (bv 64)) => do
-      v_4716 <- getRegister zf;
-      v_4719 <- getRegister v_2924;
-      v_4720 <- getRegister v_2925;
-      setRegister (lhs.of_reg v_2925) (mux (notBool_ (eq v_4716 (expression.bv_nat 1 1))) v_4719 v_4720);
+    pattern fun (v_2950 : reg (bv 64)) (v_2951 : reg (bv 64)) => do
+      v_4668 <- getRegister zf;
+      v_4670 <- getRegister v_2950;
+      v_4671 <- getRegister v_2951;
+      setRegister (lhs.of_reg v_2951) (mux (notBool_ v_4668) v_4670 v_4671);
       pure ()
     pat_end;
-    pattern fun (v_2919 : Mem) (v_2920 : reg (bv 64)) => do
-      v_8238 <- getRegister zf;
-      v_8241 <- evaluateAddress v_2919;
-      v_8242 <- load v_8241 8;
-      v_8243 <- getRegister v_2920;
-      setRegister (lhs.of_reg v_2920) (mux (notBool_ (eq v_8238 (expression.bv_nat 1 1))) v_8242 v_8243);
+    pattern fun (v_2946 : Mem) (v_2947 : reg (bv 64)) => do
+      v_8016 <- getRegister zf;
+      v_8018 <- evaluateAddress v_2946;
+      v_8019 <- load v_8018 8;
+      v_8020 <- getRegister v_2947;
+      setRegister (lhs.of_reg v_2947) (mux (notBool_ v_8016) v_8019 v_8020);
       pure ()
     pat_end
