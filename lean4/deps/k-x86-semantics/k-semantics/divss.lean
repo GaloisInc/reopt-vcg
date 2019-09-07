@@ -1,15 +1,15 @@
 def divss1 : instruction :=
   definst "divss" $ do
-    pattern fun (v_2850 : reg (bv 128)) (v_2851 : reg (bv 128)) => do
-      v_4629 <- getRegister v_2851;
-      v_4633 <- getRegister v_2850;
-      setRegister (lhs.of_reg v_2851) (concat (extract v_4629 0 96) (Float2MInt (_/Float__FLOAT (MInt2Float (extract v_4629 96 128) 24 8) (MInt2Float (extract v_4633 96 128) 24 8)) 32));
+    pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) => do
+      v_2 <- getRegister xmm_1;
+      v_3 <- evaluateAddress mem_0;
+      v_4 <- load v_3 4;
+      setRegister (lhs.of_reg xmm_1) (concat (extract v_2 0 96) (Float2MInt (_/Float__FLOAT (MInt2Float (extract v_2 96 128) 24 8) (MInt2Float v_4 24 8)) 32));
       pure ()
     pat_end;
-    pattern fun (v_2846 : Mem) (v_2847 : reg (bv 128)) => do
-      v_8136 <- getRegister v_2847;
-      v_8140 <- evaluateAddress v_2846;
-      v_8141 <- load v_8140 4;
-      setRegister (lhs.of_reg v_2847) (concat (extract v_8136 0 96) (Float2MInt (_/Float__FLOAT (MInt2Float (extract v_8136 96 128) 24 8) (MInt2Float v_8141 24 8)) 32));
+    pattern fun (xmm_0 : reg (bv 128)) (xmm_1 : reg (bv 128)) => do
+      v_2 <- getRegister xmm_1;
+      v_3 <- getRegister xmm_0;
+      setRegister (lhs.of_reg xmm_1) (concat (extract v_2 0 96) (Float2MInt (_/Float__FLOAT (MInt2Float (extract v_2 96 128) 24 8) (MInt2Float (extract v_3 96 128) 24 8)) 32));
       pure ()
     pat_end

@@ -1,17 +1,17 @@
 def cmovncq1 : instruction :=
   definst "cmovncq" $ do
-    pattern fun (v_2923 : reg (bv 64)) (v_2924 : reg (bv 64)) => do
-      v_4638 <- getRegister cf;
-      v_4640 <- getRegister v_2923;
-      v_4641 <- getRegister v_2924;
-      setRegister (lhs.of_reg v_2924) (mux (notBool_ v_4638) v_4640 v_4641);
+    pattern fun (mem_0 : Mem) (r64_1 : reg (bv 64)) => do
+      v_2 <- getRegister cf;
+      v_3 <- evaluateAddress mem_0;
+      v_4 <- load v_3 8;
+      v_5 <- getRegister r64_1;
+      setRegister (lhs.of_reg r64_1) (mux (notBool_ v_2) v_4 v_5);
       pure ()
     pat_end;
-    pattern fun (v_2919 : Mem) (v_2920 : reg (bv 64)) => do
-      v_7995 <- getRegister cf;
-      v_7997 <- evaluateAddress v_2919;
-      v_7998 <- load v_7997 8;
-      v_7999 <- getRegister v_2920;
-      setRegister (lhs.of_reg v_2920) (mux (notBool_ v_7995) v_7998 v_7999);
+    pattern fun (r64_0 : reg (bv 64)) (r64_1 : reg (bv 64)) => do
+      v_2 <- getRegister cf;
+      v_3 <- getRegister r64_0;
+      v_4 <- getRegister r64_1;
+      setRegister (lhs.of_reg r64_1) (mux (notBool_ v_2) v_3 v_4);
       pure ()
     pat_end

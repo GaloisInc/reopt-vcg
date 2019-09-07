@@ -1,15 +1,15 @@
 def orps1 : instruction :=
   definst "orps" $ do
-    pattern fun (v_3075 : reg (bv 128)) (v_3076 : reg (bv 128)) => do
-      v_4850 <- getRegister v_3076;
-      v_4851 <- getRegister v_3075;
-      setRegister (lhs.of_reg v_3076) (bv_or v_4850 v_4851);
+    pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) => do
+      v_2 <- getRegister xmm_1;
+      v_3 <- evaluateAddress mem_0;
+      v_4 <- load v_3 16;
+      setRegister (lhs.of_reg xmm_1) (bv_or v_2 v_4);
       pure ()
     pat_end;
-    pattern fun (v_3071 : Mem) (v_3072 : reg (bv 128)) => do
-      v_9019 <- getRegister v_3072;
-      v_9020 <- evaluateAddress v_3071;
-      v_9021 <- load v_9020 16;
-      setRegister (lhs.of_reg v_3072) (bv_or v_9019 v_9021);
+    pattern fun (xmm_0 : reg (bv 128)) (xmm_1 : reg (bv 128)) => do
+      v_2 <- getRegister xmm_1;
+      v_3 <- getRegister xmm_0;
+      setRegister (lhs.of_reg xmm_1) (bv_or v_2 v_3);
       pure ()
     pat_end

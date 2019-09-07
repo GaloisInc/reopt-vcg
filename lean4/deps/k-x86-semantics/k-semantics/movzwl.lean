@@ -1,13 +1,13 @@
 def movzwl1 : instruction :=
   definst "movzwl" $ do
-    pattern fun (v_2780 : reg (bv 16)) (v_2781 : reg (bv 32)) => do
-      v_4178 <- getRegister v_2780;
-      setRegister (lhs.of_reg v_2781) (concat (expression.bv_nat 16 0) v_4178);
+    pattern fun (mem_0 : Mem) (r32_1 : reg (bv 32)) => do
+      v_2 <- evaluateAddress mem_0;
+      v_3 <- load v_2 2;
+      setRegister (lhs.of_reg r32_1) (concat (expression.bv_nat 16 0) v_3);
       pure ()
     pat_end;
-    pattern fun (v_2776 : Mem) (v_2777 : reg (bv 32)) => do
-      v_8777 <- evaluateAddress v_2776;
-      v_8778 <- load v_8777 2;
-      setRegister (lhs.of_reg v_2777) (concat (expression.bv_nat 16 0) v_8778);
+    pattern fun (r16_0 : reg (bv 16)) (r32_1 : reg (bv 32)) => do
+      v_2 <- getRegister r16_0;
+      setRegister (lhs.of_reg r32_1) (concat (expression.bv_nat 16 0) v_2);
       pure ()
     pat_end

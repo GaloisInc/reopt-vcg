@@ -1,18 +1,18 @@
 def mulxl1 : instruction :=
   definst "mulxl" $ do
-    pattern fun (v_2877 : reg (bv 32)) (v_2878 : reg (bv 32)) (v_2879 : reg (bv 32)) => do
-      v_4388 <- getRegister rdx;
-      v_4391 <- getRegister v_2877;
-      v_4393 <- eval (mul (concat (expression.bv_nat 32 0) (extract v_4388 32 64)) (concat (expression.bv_nat 32 0) v_4391));
-      setRegister (lhs.of_reg v_2879) (extract v_4393 0 32);
-      setRegister (lhs.of_reg v_2878) (extract v_4393 32 64);
+    pattern fun (mem_0 : Mem) (r32_1 : reg (bv 32)) (r32_2 : reg (bv 32)) => do
+      v_3 <- evaluateAddress mem_0;
+      v_4 <- load v_3 4;
+      v_5 <- eval (mul (concat (expression.bv_nat 32 0) (extract v_3 32 64)) (concat (expression.bv_nat 32 0) v_4));
+      setRegister (lhs.of_reg r32_2) (extract v_5 0 32);
+      setRegister (lhs.of_reg r32_1) (extract v_5 32 64);
       pure ()
     pat_end;
-    pattern fun (v_2867 : Mem) (v_2868 : reg (bv 32)) (v_2869 : reg (bv 32)) => do
-      v_8936 <- evaluateAddress v_2867;
-      v_8939 <- load v_8936 4;
-      v_8941 <- eval (mul (concat (expression.bv_nat 32 0) (extract v_8936 32 64)) (concat (expression.bv_nat 32 0) v_8939));
-      setRegister (lhs.of_reg v_2869) (extract v_8941 0 32);
-      setRegister (lhs.of_reg v_2868) (extract v_8941 32 64);
+    pattern fun (r32_0 : reg (bv 32)) (r32_1 : reg (bv 32)) (r32_2 : reg (bv 32)) => do
+      v_3 <- getRegister rdx;
+      v_4 <- getRegister r32_0;
+      v_5 <- eval (mul (concat (expression.bv_nat 32 0) (extract v_3 32 64)) (concat (expression.bv_nat 32 0) v_4));
+      setRegister (lhs.of_reg r32_2) (extract v_5 0 32);
+      setRegister (lhs.of_reg r32_1) (extract v_5 32 64);
       pure ()
     pat_end

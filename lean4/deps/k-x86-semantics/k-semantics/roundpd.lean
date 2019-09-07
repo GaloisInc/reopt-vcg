@@ -1,15 +1,15 @@
 def roundpd1 : instruction :=
   definst "roundpd" $ do
-    pattern fun (v_2898 : imm int) (v_2901 : reg (bv 128)) (v_2902 : reg (bv 128)) => do
-      v_5205 <- getRegister v_2901;
-      v_5207 <- eval (handleImmediateWithSignExtend v_2898 8 8);
-      setRegister (lhs.of_reg v_2902) (concat (_(_,_)_MINT-WRAPPER-SYNTAX cvt_double_to_int64_rm (extract v_5205 0 64) v_5207) (_(_,_)_MINT-WRAPPER-SYNTAX cvt_double_to_int64_rm (extract v_5205 64 128) v_5207));
+    pattern fun (imm_0 : imm int) (mem_1 : Mem) (xmm_2 : reg (bv 128)) => do
+      v_3 <- evaluateAddress mem_1;
+      v_4 <- load v_3 16;
+      v_5 <- eval (handleImmediateWithSignExtend imm_0 8 8);
+      setRegister (lhs.of_reg xmm_2) (concat (_(_,_)_MINT-WRAPPER-SYNTAX cvt_double_to_int64_rm (extract v_4 0 64) v_5) (_(_,_)_MINT-WRAPPER-SYNTAX cvt_double_to_int64_rm (extract v_4 64 128) v_5));
       pure ()
     pat_end;
-    pattern fun (v_2893 : imm int) (v_2894 : Mem) (v_2897 : reg (bv 128)) => do
-      v_10515 <- evaluateAddress v_2894;
-      v_10516 <- load v_10515 16;
-      v_10518 <- eval (handleImmediateWithSignExtend v_2893 8 8);
-      setRegister (lhs.of_reg v_2897) (concat (_(_,_)_MINT-WRAPPER-SYNTAX cvt_double_to_int64_rm (extract v_10516 0 64) v_10518) (_(_,_)_MINT-WRAPPER-SYNTAX cvt_double_to_int64_rm (extract v_10516 64 128) v_10518));
+    pattern fun (imm_0 : imm int) (xmm_1 : reg (bv 128)) (xmm_2 : reg (bv 128)) => do
+      v_3 <- getRegister xmm_1;
+      v_4 <- eval (handleImmediateWithSignExtend imm_0 8 8);
+      setRegister (lhs.of_reg xmm_2) (concat (_(_,_)_MINT-WRAPPER-SYNTAX cvt_double_to_int64_rm (extract v_3 0 64) v_4) (_(_,_)_MINT-WRAPPER-SYNTAX cvt_double_to_int64_rm (extract v_3 64 128) v_4));
       pure ()
     pat_end

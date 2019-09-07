@@ -1,68 +1,68 @@
 def orb1 : instruction :=
   definst "orb" $ do
-    pattern fun (v_3017 : imm int) (v_3018 : reg (bv 8)) => do
-      v_4692 <- getRegister v_3018;
-      v_4694 <- eval (bv_or v_4692 (handleImmediateWithSignExtend v_3017 8 8));
-      setRegister (lhs.of_reg v_3018) v_4694;
+    pattern fun (imm_0 : imm int) (mem_1 : Mem) => do
+      v_2 <- evaluateAddress mem_1;
+      v_3 <- load v_2 1;
+      v_4 <- eval (bv_or v_3 (handleImmediateWithSignExtend imm_0 8 8));
+      store v_2 v_4 1;
       setRegister af undef;
       setRegister cf bit_zero;
       setRegister of bit_zero;
-      setRegister pf (parityFlag (extract v_4694 0 8));
-      setRegister sf (isBitSet v_4694 0);
-      setRegister zf (zeroFlag v_4694);
+      setRegister pf (parityFlag (extract v_4 0 8));
+      setRegister sf (isBitSet v_4 0);
+      setRegister zf (zeroFlag v_4);
       pure ()
     pat_end;
-    pattern fun (v_3031 : reg (bv 8)) (v_3032 : reg (bv 8)) => do
-      v_4724 <- getRegister v_3032;
-      v_4725 <- getRegister v_3031;
-      v_4726 <- eval (bv_or v_4724 v_4725);
-      setRegister (lhs.of_reg v_3032) v_4726;
+    pattern fun (imm_0 : imm int) (rh_1 : reg (bv 8)) => do
+      v_2 <- getRegister rh_1;
+      v_3 <- eval (bv_or v_2 (handleImmediateWithSignExtend imm_0 8 8));
+      setRegister (lhs.of_reg rh_1) v_3;
       setRegister af undef;
       setRegister cf bit_zero;
       setRegister of bit_zero;
-      setRegister pf (parityFlag (extract v_4726 0 8));
-      setRegister sf (isBitSet v_4726 0);
-      setRegister zf (zeroFlag v_4726);
+      setRegister pf (parityFlag (extract v_3 0 8));
+      setRegister sf (isBitSet v_3 0);
+      setRegister zf (zeroFlag v_3);
       pure ()
     pat_end;
-    pattern fun (v_3022 : Mem) (v_3023 : reg (bv 8)) => do
-      v_8982 <- getRegister v_3023;
-      v_8983 <- evaluateAddress v_3022;
-      v_8984 <- load v_8983 1;
-      v_8985 <- eval (bv_or v_8982 v_8984);
-      setRegister (lhs.of_reg v_3023) v_8985;
+    pattern fun (mem_0 : Mem) (rh_1 : reg (bv 8)) => do
+      v_2 <- getRegister rh_1;
+      v_3 <- evaluateAddress mem_0;
+      v_4 <- load v_3 1;
+      v_5 <- eval (bv_or v_2 v_4);
+      setRegister (lhs.of_reg rh_1) v_5;
       setRegister af undef;
       setRegister cf bit_zero;
       setRegister of bit_zero;
-      setRegister pf (parityFlag (extract v_8985 0 8));
-      setRegister sf (isBitSet v_8985 0);
-      setRegister zf (zeroFlag v_8985);
+      setRegister pf (parityFlag (extract v_5 0 8));
+      setRegister sf (isBitSet v_5 0);
+      setRegister zf (zeroFlag v_5);
       pure ()
     pat_end;
-    pattern fun (v_2987 : imm int) (v_2986 : Mem) => do
-      v_10828 <- evaluateAddress v_2986;
-      v_10829 <- load v_10828 1;
-      v_10831 <- eval (bv_or v_10829 (handleImmediateWithSignExtend v_2987 8 8));
-      store v_10828 v_10831 1;
+    pattern fun (rh_0 : reg (bv 8)) (mem_1 : Mem) => do
+      v_2 <- evaluateAddress mem_1;
+      v_3 <- load v_2 1;
+      v_4 <- getRegister rh_0;
+      v_5 <- eval (bv_or v_3 v_4);
+      store v_2 v_5 1;
       setRegister af undef;
       setRegister cf bit_zero;
       setRegister of bit_zero;
-      setRegister pf (parityFlag (extract v_10831 0 8));
-      setRegister sf (isBitSet v_10831 0);
-      setRegister zf (zeroFlag v_10831);
+      setRegister pf (parityFlag (extract v_5 0 8));
+      setRegister sf (isBitSet v_5 0);
+      setRegister zf (zeroFlag v_5);
       pure ()
     pat_end;
-    pattern fun (v_2995 : reg (bv 8)) (v_2994 : Mem) => do
-      v_10858 <- evaluateAddress v_2994;
-      v_10859 <- load v_10858 1;
-      v_10860 <- getRegister v_2995;
-      v_10861 <- eval (bv_or v_10859 v_10860);
-      store v_10858 v_10861 1;
+    pattern fun (rh_0 : reg (bv 8)) (rh_1 : reg (bv 8)) => do
+      v_2 <- getRegister rh_1;
+      v_3 <- getRegister rh_0;
+      v_4 <- eval (bv_or v_2 v_3);
+      setRegister (lhs.of_reg rh_1) v_4;
       setRegister af undef;
       setRegister cf bit_zero;
       setRegister of bit_zero;
-      setRegister pf (parityFlag (extract v_10861 0 8));
-      setRegister sf (isBitSet v_10861 0);
-      setRegister zf (zeroFlag v_10861);
+      setRegister pf (parityFlag (extract v_4 0 8));
+      setRegister sf (isBitSet v_4 0);
+      setRegister zf (zeroFlag v_4);
       pure ()
     pat_end

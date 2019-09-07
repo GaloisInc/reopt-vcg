@@ -1,13 +1,13 @@
 def notw1 : instruction :=
   definst "notw" $ do
-    pattern fun (v_2978 : reg (bv 16)) => do
-      v_4569 <- getRegister v_2978;
-      setRegister (lhs.of_reg v_2978) (bv_xor v_4569 (expression.bv_nat 16 65535));
+    pattern fun (mem_0 : Mem) => do
+      v_1 <- evaluateAddress mem_0;
+      v_2 <- load v_1 2;
+      store v_1 (bv_xor v_2 (expression.bv_nat 16 65535)) 2;
       pure ()
     pat_end;
-    pattern fun (v_2975 : Mem) => do
-      v_10824 <- evaluateAddress v_2975;
-      v_10825 <- load v_10824 2;
-      store v_10824 (bv_xor v_10825 (expression.bv_nat 16 65535)) 2;
+    pattern fun (r16_0 : reg (bv 16)) => do
+      v_1 <- getRegister r16_0;
+      setRegister (lhs.of_reg r16_0) (bv_xor v_1 (expression.bv_nat 16 65535));
       pure ()
     pat_end

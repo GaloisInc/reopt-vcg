@@ -1,15 +1,15 @@
 def roundps1 : instruction :=
   definst "roundps" $ do
-    pattern fun (v_2909 : imm int) (v_2912 : reg (bv 128)) (v_2913 : reg (bv 128)) => do
-      v_5218 <- getRegister v_2912;
-      v_5220 <- eval (handleImmediateWithSignExtend v_2909 8 8);
-      setRegister (lhs.of_reg v_2913) (concat (_(_,_)_MINT-WRAPPER-SYNTAX cvt_single_to_int32_rm (extract v_5218 0 32) v_5220) (concat (_(_,_)_MINT-WRAPPER-SYNTAX cvt_single_to_int32_rm (extract v_5218 32 64) v_5220) (concat (_(_,_)_MINT-WRAPPER-SYNTAX cvt_single_to_int32_rm (extract v_5218 64 96) v_5220) (_(_,_)_MINT-WRAPPER-SYNTAX cvt_single_to_int32_rm (extract v_5218 96 128) v_5220))));
+    pattern fun (imm_0 : imm int) (mem_1 : Mem) (xmm_2 : reg (bv 128)) => do
+      v_3 <- evaluateAddress mem_1;
+      v_4 <- load v_3 16;
+      v_5 <- eval (handleImmediateWithSignExtend imm_0 8 8);
+      setRegister (lhs.of_reg xmm_2) (concat (_(_,_)_MINT-WRAPPER-SYNTAX cvt_single_to_int32_rm (extract v_4 0 32) v_5) (concat (_(_,_)_MINT-WRAPPER-SYNTAX cvt_single_to_int32_rm (extract v_4 32 64) v_5) (concat (_(_,_)_MINT-WRAPPER-SYNTAX cvt_single_to_int32_rm (extract v_4 64 96) v_5) (_(_,_)_MINT-WRAPPER-SYNTAX cvt_single_to_int32_rm (extract v_4 96 128) v_5))));
       pure ()
     pat_end;
-    pattern fun (v_2904 : imm int) (v_2905 : Mem) (v_2908 : reg (bv 128)) => do
-      v_10524 <- evaluateAddress v_2905;
-      v_10525 <- load v_10524 16;
-      v_10527 <- eval (handleImmediateWithSignExtend v_2904 8 8);
-      setRegister (lhs.of_reg v_2908) (concat (_(_,_)_MINT-WRAPPER-SYNTAX cvt_single_to_int32_rm (extract v_10525 0 32) v_10527) (concat (_(_,_)_MINT-WRAPPER-SYNTAX cvt_single_to_int32_rm (extract v_10525 32 64) v_10527) (concat (_(_,_)_MINT-WRAPPER-SYNTAX cvt_single_to_int32_rm (extract v_10525 64 96) v_10527) (_(_,_)_MINT-WRAPPER-SYNTAX cvt_single_to_int32_rm (extract v_10525 96 128) v_10527))));
+    pattern fun (imm_0 : imm int) (xmm_1 : reg (bv 128)) (xmm_2 : reg (bv 128)) => do
+      v_3 <- getRegister xmm_1;
+      v_4 <- eval (handleImmediateWithSignExtend imm_0 8 8);
+      setRegister (lhs.of_reg xmm_2) (concat (_(_,_)_MINT-WRAPPER-SYNTAX cvt_single_to_int32_rm (extract v_3 0 32) v_4) (concat (_(_,_)_MINT-WRAPPER-SYNTAX cvt_single_to_int32_rm (extract v_3 32 64) v_4) (concat (_(_,_)_MINT-WRAPPER-SYNTAX cvt_single_to_int32_rm (extract v_3 64 96) v_4) (_(_,_)_MINT-WRAPPER-SYNTAX cvt_single_to_int32_rm (extract v_3 96 128) v_4))));
       pure ()
     pat_end

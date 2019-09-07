@@ -1,15 +1,15 @@
 def phsubd1 : instruction :=
   definst "phsubd" $ do
-    pattern fun (v_2555 : reg (bv 128)) (v_2556 : reg (bv 128)) => do
-      v_4310 <- getRegister v_2555;
-      v_4318 <- getRegister v_2556;
-      setRegister (lhs.of_reg v_2556) (concat (concat (concat (sub (extract v_4310 32 64) (extract v_4310 0 32)) (sub (extract v_4310 96 128) (extract v_4310 64 96))) (sub (extract v_4318 32 64) (extract v_4318 0 32))) (sub (extract v_4318 96 128) (extract v_4318 64 96)));
+    pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) => do
+      v_2 <- evaluateAddress mem_0;
+      v_3 <- load v_2 16;
+      v_4 <- getRegister xmm_1;
+      setRegister (lhs.of_reg xmm_1) (concat (concat (concat (sub (extract v_3 32 64) (extract v_3 0 32)) (sub (extract v_3 96 128) (extract v_3 64 96))) (sub (extract v_4 32 64) (extract v_4 0 32))) (sub (extract v_4 96 128) (extract v_4 64 96)));
       pure ()
     pat_end;
-    pattern fun (v_2551 : Mem) (v_2552 : reg (bv 128)) => do
-      v_11207 <- evaluateAddress v_2551;
-      v_11208 <- load v_11207 16;
-      v_11216 <- getRegister v_2552;
-      setRegister (lhs.of_reg v_2552) (concat (concat (concat (sub (extract v_11208 32 64) (extract v_11208 0 32)) (sub (extract v_11208 96 128) (extract v_11208 64 96))) (sub (extract v_11216 32 64) (extract v_11216 0 32))) (sub (extract v_11216 96 128) (extract v_11216 64 96)));
+    pattern fun (xmm_0 : reg (bv 128)) (xmm_1 : reg (bv 128)) => do
+      v_2 <- getRegister xmm_0;
+      v_3 <- getRegister xmm_1;
+      setRegister (lhs.of_reg xmm_1) (concat (concat (concat (sub (extract v_2 32 64) (extract v_2 0 32)) (sub (extract v_2 96 128) (extract v_2 64 96))) (sub (extract v_3 32 64) (extract v_3 0 32))) (sub (extract v_3 96 128) (extract v_3 64 96)));
       pure ()
     pat_end

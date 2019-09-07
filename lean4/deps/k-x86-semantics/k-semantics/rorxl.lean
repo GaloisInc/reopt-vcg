@@ -1,15 +1,15 @@
 def rorxl1 : instruction :=
   definst "rorxl" $ do
-    pattern fun (v_2866 : imm int) (v_2869 : reg (bv 32)) (v_2870 : reg (bv 32)) => do
-      v_5170 <- getRegister v_2869;
-      v_5173 <- eval (bv_and (concat (expression.bv_nat 24 0) (handleImmediateWithSignExtend v_2866 8 8)) (expression.bv_nat 32 31));
-      setRegister (lhs.of_reg v_2870) (bv_or (lshr v_5170 v_5173) (extract (shl v_5170 (sub (expression.bv_nat 32 32) v_5173)) 0 32));
+    pattern fun (imm_0 : imm int) (mem_1 : Mem) (r32_2 : reg (bv 32)) => do
+      v_3 <- evaluateAddress mem_1;
+      v_4 <- load v_3 4;
+      v_5 <- eval (bv_and (concat (expression.bv_nat 24 0) (handleImmediateWithSignExtend imm_0 8 8)) (expression.bv_nat 32 31));
+      setRegister (lhs.of_reg r32_2) (bv_or (lshr v_4 v_5) (extract (shl v_4 (sub (expression.bv_nat 32 32) v_5)) 0 32));
       pure ()
     pat_end;
-    pattern fun (v_2856 : imm int) (v_2857 : Mem) (v_2860 : reg (bv 32)) => do
-      v_10492 <- evaluateAddress v_2857;
-      v_10493 <- load v_10492 4;
-      v_10496 <- eval (bv_and (concat (expression.bv_nat 24 0) (handleImmediateWithSignExtend v_2856 8 8)) (expression.bv_nat 32 31));
-      setRegister (lhs.of_reg v_2860) (bv_or (lshr v_10493 v_10496) (extract (shl v_10493 (sub (expression.bv_nat 32 32) v_10496)) 0 32));
+    pattern fun (imm_0 : imm int) (r32_1 : reg (bv 32)) (r32_2 : reg (bv 32)) => do
+      v_3 <- getRegister r32_1;
+      v_4 <- eval (bv_and (concat (expression.bv_nat 24 0) (handleImmediateWithSignExtend imm_0 8 8)) (expression.bv_nat 32 31));
+      setRegister (lhs.of_reg r32_2) (bv_or (lshr v_3 v_4) (extract (shl v_3 (sub (expression.bv_nat 32 32) v_4)) 0 32));
       pure ()
     pat_end

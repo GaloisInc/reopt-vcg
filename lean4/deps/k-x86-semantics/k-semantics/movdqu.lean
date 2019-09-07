@@ -1,19 +1,19 @@
 def movdqu1 : instruction :=
   definst "movdqu" $ do
-    pattern fun (v_2533 : reg (bv 128)) (v_2534 : reg (bv 128)) => do
-      v_3959 <- getRegister v_2533;
-      setRegister (lhs.of_reg v_2534) v_3959;
+    pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) => do
+      v_2 <- evaluateAddress mem_0;
+      v_3 <- load v_2 16;
+      setRegister (lhs.of_reg xmm_1) v_3;
       pure ()
     pat_end;
-    pattern fun (v_2526 : reg (bv 128)) (v_2525 : Mem) => do
-      v_8454 <- evaluateAddress v_2525;
-      v_8455 <- getRegister v_2526;
-      store v_8454 v_8455 16;
+    pattern fun (xmm_0 : reg (bv 128)) (mem_1 : Mem) => do
+      v_2 <- evaluateAddress mem_1;
+      v_3 <- getRegister xmm_0;
+      store v_2 v_3 16;
       pure ()
     pat_end;
-    pattern fun (v_2529 : Mem) (v_2530 : reg (bv 128)) => do
-      v_8716 <- evaluateAddress v_2529;
-      v_8717 <- load v_8716 16;
-      setRegister (lhs.of_reg v_2530) v_8717;
+    pattern fun (xmm_0 : reg (bv 128)) (xmm_1 : reg (bv 128)) => do
+      v_2 <- getRegister xmm_0;
+      setRegister (lhs.of_reg xmm_1) v_2;
       pure ()
     pat_end

@@ -1,19 +1,19 @@
 def cmovnaq1 : instruction :=
   definst "cmovnaq" $ do
-    pattern fun (v_2842 : reg (bv 64)) (v_2843 : reg (bv 64)) => do
-      v_4537 <- getRegister cf;
-      v_4538 <- getRegister zf;
-      v_4540 <- getRegister v_2842;
-      v_4541 <- getRegister v_2843;
-      setRegister (lhs.of_reg v_2843) (mux (bit_or v_4537 v_4538) v_4540 v_4541);
+    pattern fun (mem_0 : Mem) (r64_1 : reg (bv 64)) => do
+      v_2 <- getRegister cf;
+      v_3 <- getRegister zf;
+      v_4 <- evaluateAddress mem_0;
+      v_5 <- load v_4 8;
+      v_6 <- getRegister r64_1;
+      setRegister (lhs.of_reg r64_1) (mux (bit_or v_2 v_3) v_5 v_6);
       pure ()
     pat_end;
-    pattern fun (v_2838 : Mem) (v_2839 : reg (bv 64)) => do
-      v_7921 <- getRegister cf;
-      v_7922 <- getRegister zf;
-      v_7924 <- evaluateAddress v_2838;
-      v_7925 <- load v_7924 8;
-      v_7926 <- getRegister v_2839;
-      setRegister (lhs.of_reg v_2839) (mux (bit_or v_7921 v_7922) v_7925 v_7926);
+    pattern fun (r64_0 : reg (bv 64)) (r64_1 : reg (bv 64)) => do
+      v_2 <- getRegister cf;
+      v_3 <- getRegister zf;
+      v_4 <- getRegister r64_0;
+      v_5 <- getRegister r64_1;
+      setRegister (lhs.of_reg r64_1) (mux (bit_or v_2 v_3) v_4 v_5);
       pure ()
     pat_end

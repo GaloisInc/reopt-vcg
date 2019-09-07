@@ -1,27 +1,27 @@
 def blsmskl1 : instruction :=
   definst "blsmskl" $ do
-    pattern fun (v_3064 : reg (bv 32)) (v_3065 : reg (bv 32)) => do
-      v_5741 <- getRegister v_3064;
-      v_5743 <- eval (bv_xor (sub v_5741 (expression.bv_nat 32 1)) v_5741);
-      setRegister (lhs.of_reg v_3065) v_5743;
+    pattern fun (mem_0 : Mem) (r32_1 : reg (bv 32)) => do
+      v_2 <- evaluateAddress mem_0;
+      v_3 <- load v_2 4;
+      v_4 <- eval (bv_xor (sub v_3 (expression.bv_nat 32 1)) v_3);
+      setRegister (lhs.of_reg r32_1) v_4;
       setRegister af undef;
-      setRegister cf (eq v_5741 (expression.bv_nat 32 0));
+      setRegister cf (eq v_3 (expression.bv_nat 32 0));
       setRegister of bit_zero;
       setRegister pf undef;
-      setRegister sf (isBitSet v_5743 0);
+      setRegister sf (isBitSet v_4 0);
       setRegister zf bit_zero;
       pure ()
     pat_end;
-    pattern fun (v_3059 : Mem) (v_3060 : reg (bv 32)) => do
-      v_9220 <- evaluateAddress v_3059;
-      v_9221 <- load v_9220 4;
-      v_9223 <- eval (bv_xor (sub v_9221 (expression.bv_nat 32 1)) v_9221);
-      setRegister (lhs.of_reg v_3060) v_9223;
+    pattern fun (r32_0 : reg (bv 32)) (r32_1 : reg (bv 32)) => do
+      v_2 <- getRegister r32_0;
+      v_3 <- eval (bv_xor (sub v_2 (expression.bv_nat 32 1)) v_2);
+      setRegister (lhs.of_reg r32_1) v_3;
       setRegister af undef;
-      setRegister cf (eq v_9221 (expression.bv_nat 32 0));
+      setRegister cf (eq v_2 (expression.bv_nat 32 0));
       setRegister of bit_zero;
       setRegister pf undef;
-      setRegister sf (isBitSet v_9223 0);
+      setRegister sf (isBitSet v_3 0);
       setRegister zf bit_zero;
       pure ()
     pat_end

@@ -1,15 +1,15 @@
 def movlpd1 : instruction :=
   definst "movlpd" $ do
-    pattern fun (v_2587 : reg (bv 128)) (v_2586 : Mem) => do
-      v_8475 <- evaluateAddress v_2586;
-      v_8476 <- getRegister v_2587;
-      store v_8475 (extract v_8476 64 128) 8;
+    pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) => do
+      v_2 <- getRegister xmm_1;
+      v_3 <- evaluateAddress mem_0;
+      v_4 <- load v_3 8;
+      setRegister (lhs.of_reg xmm_1) (concat (extract v_2 0 64) v_4);
       pure ()
     pat_end;
-    pattern fun (v_2590 : Mem) (v_2591 : reg (bv 128)) => do
-      v_8734 <- getRegister v_2591;
-      v_8736 <- evaluateAddress v_2590;
-      v_8737 <- load v_8736 8;
-      setRegister (lhs.of_reg v_2591) (concat (extract v_8734 0 64) v_8737);
+    pattern fun (xmm_0 : reg (bv 128)) (mem_1 : Mem) => do
+      v_2 <- evaluateAddress mem_1;
+      v_3 <- getRegister xmm_0;
+      store v_2 (extract v_3 64 128) 8;
       pure ()
     pat_end

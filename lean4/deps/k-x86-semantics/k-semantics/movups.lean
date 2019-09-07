@@ -1,19 +1,19 @@
 def movups1 : instruction :=
   definst "movups" $ do
-    pattern fun (v_2712 : reg (bv 128)) (v_2713 : reg (bv 128)) => do
-      v_4129 <- getRegister v_2712;
-      setRegister (lhs.of_reg v_2713) v_4129;
+    pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) => do
+      v_2 <- evaluateAddress mem_0;
+      v_3 <- load v_2 16;
+      setRegister (lhs.of_reg xmm_1) v_3;
       pure ()
     pat_end;
-    pattern fun (v_2705 : reg (bv 128)) (v_2704 : Mem) => do
-      v_8518 <- evaluateAddress v_2704;
-      v_8519 <- getRegister v_2705;
-      store v_8518 v_8519 16;
+    pattern fun (xmm_0 : reg (bv 128)) (mem_1 : Mem) => do
+      v_2 <- evaluateAddress mem_1;
+      v_3 <- getRegister xmm_0;
+      store v_2 v_3 16;
       pure ()
     pat_end;
-    pattern fun (v_2708 : Mem) (v_2709 : reg (bv 128)) => do
-      v_8759 <- evaluateAddress v_2708;
-      v_8760 <- load v_8759 16;
-      setRegister (lhs.of_reg v_2709) v_8760;
+    pattern fun (xmm_0 : reg (bv 128)) (xmm_1 : reg (bv 128)) => do
+      v_2 <- getRegister xmm_0;
+      setRegister (lhs.of_reg xmm_1) v_2;
       pure ()
     pat_end

@@ -1,17 +1,17 @@
 def cmovpeq1 : instruction :=
   definst "cmovpeq" $ do
-    pattern fun (v_3244 : reg (bv 64)) (v_3245 : reg (bv 64)) => do
-      v_5012 <- getRegister pf;
-      v_5013 <- getRegister v_3244;
-      v_5014 <- getRegister v_3245;
-      setRegister (lhs.of_reg v_3245) (mux v_5012 v_5013 v_5014);
+    pattern fun (mem_0 : Mem) (r64_1 : reg (bv 64)) => do
+      v_2 <- getRegister pf;
+      v_3 <- evaluateAddress mem_0;
+      v_4 <- load v_3 8;
+      v_5 <- getRegister r64_1;
+      setRegister (lhs.of_reg r64_1) (mux v_2 v_4 v_5);
       pure ()
     pat_end;
-    pattern fun (v_3240 : Mem) (v_3241 : reg (bv 64)) => do
-      v_8258 <- getRegister pf;
-      v_8259 <- evaluateAddress v_3240;
-      v_8260 <- load v_8259 8;
-      v_8261 <- getRegister v_3241;
-      setRegister (lhs.of_reg v_3241) (mux v_8258 v_8260 v_8261);
+    pattern fun (r64_0 : reg (bv 64)) (r64_1 : reg (bv 64)) => do
+      v_2 <- getRegister pf;
+      v_3 <- getRegister r64_0;
+      v_4 <- getRegister r64_1;
+      setRegister (lhs.of_reg r64_1) (mux v_2 v_3 v_4);
       pure ()
     pat_end

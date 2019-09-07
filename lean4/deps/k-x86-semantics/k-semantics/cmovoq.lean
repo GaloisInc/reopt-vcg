@@ -1,17 +1,17 @@
 def cmovoq1 : instruction :=
   definst "cmovoq" $ do
-    pattern fun (v_3217 : reg (bv 64)) (v_3218 : reg (bv 64)) => do
-      v_4985 <- getRegister of;
-      v_4986 <- getRegister v_3217;
-      v_4987 <- getRegister v_3218;
-      setRegister (lhs.of_reg v_3218) (mux v_4985 v_4986 v_4987);
+    pattern fun (mem_0 : Mem) (r64_1 : reg (bv 64)) => do
+      v_2 <- getRegister of;
+      v_3 <- evaluateAddress mem_0;
+      v_4 <- load v_3 8;
+      v_5 <- getRegister r64_1;
+      setRegister (lhs.of_reg r64_1) (mux v_2 v_4 v_5);
       pure ()
     pat_end;
-    pattern fun (v_3213 : Mem) (v_3214 : reg (bv 64)) => do
-      v_8240 <- getRegister of;
-      v_8241 <- evaluateAddress v_3213;
-      v_8242 <- load v_8241 8;
-      v_8243 <- getRegister v_3214;
-      setRegister (lhs.of_reg v_3214) (mux v_8240 v_8242 v_8243);
+    pattern fun (r64_0 : reg (bv 64)) (r64_1 : reg (bv 64)) => do
+      v_2 <- getRegister of;
+      v_3 <- getRegister r64_0;
+      v_4 <- getRegister r64_1;
+      setRegister (lhs.of_reg r64_1) (mux v_2 v_3 v_4);
       pure ()
     pat_end

@@ -1,15 +1,15 @@
 def unpckhpd1 : instruction :=
   definst "unpckhpd" $ do
-    pattern fun (v_2624 : reg (bv 128)) (v_2625 : reg (bv 128)) => do
-      v_4763 <- getRegister v_2624;
-      v_4765 <- getRegister v_2625;
-      setRegister (lhs.of_reg v_2625) (concat (extract v_4763 0 64) (extract v_4765 0 64));
+    pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) => do
+      v_2 <- evaluateAddress mem_0;
+      v_3 <- load v_2 16;
+      v_4 <- getRegister xmm_1;
+      setRegister (lhs.of_reg xmm_1) (concat (extract v_3 0 64) (extract v_4 0 64));
       pure ()
     pat_end;
-    pattern fun (v_2617 : Mem) (v_2620 : reg (bv 128)) => do
-      v_9085 <- evaluateAddress v_2617;
-      v_9086 <- load v_9085 16;
-      v_9088 <- getRegister v_2620;
-      setRegister (lhs.of_reg v_2620) (concat (extract v_9086 0 64) (extract v_9088 0 64));
+    pattern fun (xmm_0 : reg (bv 128)) (xmm_1 : reg (bv 128)) => do
+      v_2 <- getRegister xmm_0;
+      v_3 <- getRegister xmm_1;
+      setRegister (lhs.of_reg xmm_1) (concat (extract v_2 0 64) (extract v_3 0 64));
       pure ()
     pat_end

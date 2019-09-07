@@ -1,19 +1,19 @@
 def cmovgel1 : instruction :=
   definst "cmovgel" $ do
-    pattern fun (v_2661 : reg (bv 32)) (v_2662 : reg (bv 32)) => do
-      v_4321 <- getRegister sf;
-      v_4322 <- getRegister of;
-      v_4324 <- getRegister v_2661;
-      v_4325 <- getRegister v_2662;
-      setRegister (lhs.of_reg v_2662) (mux (eq v_4321 v_4322) v_4324 v_4325);
+    pattern fun (mem_0 : Mem) (r32_1 : reg (bv 32)) => do
+      v_2 <- getRegister sf;
+      v_3 <- getRegister of;
+      v_4 <- evaluateAddress mem_0;
+      v_5 <- load v_4 4;
+      v_6 <- getRegister r32_1;
+      setRegister (lhs.of_reg r32_1) (mux (eq v_2 v_3) v_5 v_6);
       pure ()
     pat_end;
-    pattern fun (v_2650 : Mem) (v_2653 : reg (bv 32)) => do
-      v_7773 <- getRegister sf;
-      v_7774 <- getRegister of;
-      v_7776 <- evaluateAddress v_2650;
-      v_7777 <- load v_7776 4;
-      v_7778 <- getRegister v_2653;
-      setRegister (lhs.of_reg v_2653) (mux (eq v_7773 v_7774) v_7777 v_7778);
+    pattern fun (r32_0 : reg (bv 32)) (r32_1 : reg (bv 32)) => do
+      v_2 <- getRegister sf;
+      v_3 <- getRegister of;
+      v_4 <- getRegister r32_0;
+      v_5 <- getRegister r32_1;
+      setRegister (lhs.of_reg r32_1) (mux (eq v_2 v_3) v_4 v_5);
       pure ()
     pat_end

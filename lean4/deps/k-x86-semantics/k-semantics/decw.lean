@@ -1,25 +1,25 @@
 def decw1 : instruction :=
   definst "decw" $ do
-    pattern fun (v_2790 : reg (bv 16)) => do
-      v_4469 <- getRegister v_2790;
-      v_4470 <- eval (sub v_4469 (expression.bv_nat 16 1));
-      setRegister (lhs.of_reg v_2790) v_4470;
-      setRegister af (eq (extract v_4469 12 16) (expression.bv_nat 4 0));
-      setRegister of (bit_and (isBitSet v_4469 0) (eq (extract v_4469 1 16) (expression.bv_nat 15 0)));
-      setRegister pf (parityFlag (extract v_4470 8 16));
-      setRegister sf (isBitSet v_4470 0);
-      setRegister zf (zeroFlag v_4470);
+    pattern fun (mem_0 : Mem) => do
+      v_1 <- evaluateAddress mem_0;
+      v_2 <- load v_1 2;
+      v_3 <- eval (sub v_2 (expression.bv_nat 16 1));
+      store v_1 v_3 2;
+      setRegister af (eq (extract v_2 12 16) (expression.bv_nat 4 0));
+      setRegister of (bit_and (isBitSet v_2 0) (eq (extract v_2 1 16) (expression.bv_nat 15 0)));
+      setRegister pf (parityFlag (extract v_3 8 16));
+      setRegister sf (isBitSet v_3 0);
+      setRegister zf (zeroFlag v_3);
       pure ()
     pat_end;
-    pattern fun (v_2787 : Mem) => do
-      v_9124 <- evaluateAddress v_2787;
-      v_9125 <- load v_9124 2;
-      v_9126 <- eval (sub v_9125 (expression.bv_nat 16 1));
-      store v_9124 v_9126 2;
-      setRegister af (eq (extract v_9125 12 16) (expression.bv_nat 4 0));
-      setRegister of (bit_and (isBitSet v_9125 0) (eq (extract v_9125 1 16) (expression.bv_nat 15 0)));
-      setRegister pf (parityFlag (extract v_9126 8 16));
-      setRegister sf (isBitSet v_9126 0);
-      setRegister zf (zeroFlag v_9126);
+    pattern fun (r16_0 : reg (bv 16)) => do
+      v_1 <- getRegister r16_0;
+      v_2 <- eval (sub v_1 (expression.bv_nat 16 1));
+      setRegister (lhs.of_reg r16_0) v_2;
+      setRegister af (eq (extract v_1 12 16) (expression.bv_nat 4 0));
+      setRegister of (bit_and (isBitSet v_1 0) (eq (extract v_1 1 16) (expression.bv_nat 15 0)));
+      setRegister pf (parityFlag (extract v_2 8 16));
+      setRegister sf (isBitSet v_2 0);
+      setRegister zf (zeroFlag v_2);
       pure ()
     pat_end

@@ -1,31 +1,31 @@
 def minps1 : instruction :=
   definst "minps" $ do
-    pattern fun (v_3187 : reg (bv 128)) (v_3188 : reg (bv 128)) => do
-      v_5671 <- getRegister v_3188;
-      v_5672 <- eval (extract v_5671 0 32);
-      v_5673 <- getRegister v_3187;
-      v_5674 <- eval (extract v_5673 0 32);
-      v_5678 <- eval (extract v_5671 32 64);
-      v_5679 <- eval (extract v_5673 32 64);
-      v_5683 <- eval (extract v_5671 64 96);
-      v_5684 <- eval (extract v_5673 64 96);
-      v_5688 <- eval (extract v_5671 96 128);
-      v_5689 <- eval (extract v_5673 96 128);
-      setRegister (lhs.of_reg v_3188) (concat (mux (eq (_(_,_)_MINT-WRAPPER-SYNTAX mincmp_single v_5672 v_5674) (expression.bv_nat 1 1)) v_5672 v_5674) (concat (mux (eq (_(_,_)_MINT-WRAPPER-SYNTAX mincmp_single v_5678 v_5679) (expression.bv_nat 1 1)) v_5678 v_5679) (concat (mux (eq (_(_,_)_MINT-WRAPPER-SYNTAX mincmp_single v_5683 v_5684) (expression.bv_nat 1 1)) v_5683 v_5684) (mux (eq (_(_,_)_MINT-WRAPPER-SYNTAX mincmp_single v_5688 v_5689) (expression.bv_nat 1 1)) v_5688 v_5689))));
+    pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) => do
+      v_2 <- getRegister xmm_1;
+      v_3 <- eval (extract v_2 0 32);
+      v_4 <- evaluateAddress mem_0;
+      v_5 <- load v_4 16;
+      v_6 <- eval (extract v_5 0 32);
+      v_7 <- eval (extract v_2 32 64);
+      v_8 <- eval (extract v_5 32 64);
+      v_9 <- eval (extract v_2 64 96);
+      v_10 <- eval (extract v_5 64 96);
+      v_11 <- eval (extract v_2 96 128);
+      v_12 <- eval (extract v_5 96 128);
+      setRegister (lhs.of_reg xmm_1) (concat (mux (eq (_(_,_)_MINT-WRAPPER-SYNTAX mincmp_single v_3 v_6) (expression.bv_nat 1 1)) v_3 v_6) (concat (mux (eq (_(_,_)_MINT-WRAPPER-SYNTAX mincmp_single v_7 v_8) (expression.bv_nat 1 1)) v_7 v_8) (concat (mux (eq (_(_,_)_MINT-WRAPPER-SYNTAX mincmp_single v_9 v_10) (expression.bv_nat 1 1)) v_9 v_10) (mux (eq (_(_,_)_MINT-WRAPPER-SYNTAX mincmp_single v_11 v_12) (expression.bv_nat 1 1)) v_11 v_12))));
       pure ()
     pat_end;
-    pattern fun (v_3183 : Mem) (v_3184 : reg (bv 128)) => do
-      v_8909 <- getRegister v_3184;
-      v_8910 <- eval (extract v_8909 0 32);
-      v_8911 <- evaluateAddress v_3183;
-      v_8912 <- load v_8911 16;
-      v_8913 <- eval (extract v_8912 0 32);
-      v_8917 <- eval (extract v_8909 32 64);
-      v_8918 <- eval (extract v_8912 32 64);
-      v_8922 <- eval (extract v_8909 64 96);
-      v_8923 <- eval (extract v_8912 64 96);
-      v_8927 <- eval (extract v_8909 96 128);
-      v_8928 <- eval (extract v_8912 96 128);
-      setRegister (lhs.of_reg v_3184) (concat (mux (eq (_(_,_)_MINT-WRAPPER-SYNTAX mincmp_single v_8910 v_8913) (expression.bv_nat 1 1)) v_8910 v_8913) (concat (mux (eq (_(_,_)_MINT-WRAPPER-SYNTAX mincmp_single v_8917 v_8918) (expression.bv_nat 1 1)) v_8917 v_8918) (concat (mux (eq (_(_,_)_MINT-WRAPPER-SYNTAX mincmp_single v_8922 v_8923) (expression.bv_nat 1 1)) v_8922 v_8923) (mux (eq (_(_,_)_MINT-WRAPPER-SYNTAX mincmp_single v_8927 v_8928) (expression.bv_nat 1 1)) v_8927 v_8928))));
+    pattern fun (xmm_0 : reg (bv 128)) (xmm_1 : reg (bv 128)) => do
+      v_2 <- getRegister xmm_1;
+      v_3 <- eval (extract v_2 0 32);
+      v_4 <- getRegister xmm_0;
+      v_5 <- eval (extract v_4 0 32);
+      v_6 <- eval (extract v_2 32 64);
+      v_7 <- eval (extract v_4 32 64);
+      v_8 <- eval (extract v_2 64 96);
+      v_9 <- eval (extract v_4 64 96);
+      v_10 <- eval (extract v_2 96 128);
+      v_11 <- eval (extract v_4 96 128);
+      setRegister (lhs.of_reg xmm_1) (concat (mux (eq (_(_,_)_MINT-WRAPPER-SYNTAX mincmp_single v_3 v_5) (expression.bv_nat 1 1)) v_3 v_5) (concat (mux (eq (_(_,_)_MINT-WRAPPER-SYNTAX mincmp_single v_6 v_7) (expression.bv_nat 1 1)) v_6 v_7) (concat (mux (eq (_(_,_)_MINT-WRAPPER-SYNTAX mincmp_single v_8 v_9) (expression.bv_nat 1 1)) v_8 v_9) (mux (eq (_(_,_)_MINT-WRAPPER-SYNTAX mincmp_single v_10 v_11) (expression.bv_nat 1 1)) v_10 v_11))));
       pure ()
     pat_end

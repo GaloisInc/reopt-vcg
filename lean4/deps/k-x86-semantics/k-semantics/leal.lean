@@ -1,7 +1,7 @@
 def leal1 : instruction :=
   definst "leal" $ do
-    pattern fun (v_3108 : Mem) (v_3109 : reg (bv 32)) => do
-      v_7238 <- evaluateAddress v_3108;
-      setRegister (lhs.of_reg v_3109) (extract v_7238 32 64);
+    pattern fun (mem_0 : Mem) (r32_1 : reg (bv 32)) => do
+      v_2 <- evaluateAddress mem_0;
+      setRegister (lhs.of_reg r32_1) (extract v_2 32 64);
       pure ()
     pat_end

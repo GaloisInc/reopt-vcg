@@ -1,19 +1,19 @@
 def cmovbew1 : instruction :=
   definst "cmovbew" $ do
-    pattern fun (v_2560 : reg (bv 16)) (v_2561 : reg (bv 16)) => do
-      v_4224 <- getRegister cf;
-      v_4225 <- getRegister zf;
-      v_4227 <- getRegister v_2560;
-      v_4228 <- getRegister v_2561;
-      setRegister (lhs.of_reg v_2561) (mux (bit_or v_4224 v_4225) v_4227 v_4228);
+    pattern fun (mem_0 : Mem) (r16_1 : reg (bv 16)) => do
+      v_2 <- getRegister cf;
+      v_3 <- getRegister zf;
+      v_4 <- evaluateAddress mem_0;
+      v_5 <- load v_4 2;
+      v_6 <- getRegister r16_1;
+      setRegister (lhs.of_reg r16_1) (mux (bit_or v_2 v_3) v_5 v_6);
       pure ()
     pat_end;
-    pattern fun (v_2552 : Mem) (v_2553 : reg (bv 16)) => do
-      v_7710 <- getRegister cf;
-      v_7711 <- getRegister zf;
-      v_7713 <- evaluateAddress v_2552;
-      v_7714 <- load v_7713 2;
-      v_7715 <- getRegister v_2553;
-      setRegister (lhs.of_reg v_2553) (mux (bit_or v_7710 v_7711) v_7714 v_7715);
+    pattern fun (r16_0 : reg (bv 16)) (r16_1 : reg (bv 16)) => do
+      v_2 <- getRegister cf;
+      v_3 <- getRegister zf;
+      v_4 <- getRegister r16_0;
+      v_5 <- getRegister r16_1;
+      setRegister (lhs.of_reg r16_1) (mux (bit_or v_2 v_3) v_4 v_5);
       pure ()
     pat_end

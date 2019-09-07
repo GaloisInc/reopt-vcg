@@ -1,21 +1,21 @@
 def cmovngl1 : instruction :=
   definst "cmovngl" $ do
-    pattern fun (v_2998 : reg (bv 32)) (v_2999 : reg (bv 32)) => do
-      v_4724 <- getRegister zf;
-      v_4725 <- getRegister sf;
-      v_4726 <- getRegister of;
-      v_4730 <- getRegister v_2998;
-      v_4731 <- getRegister v_2999;
-      setRegister (lhs.of_reg v_2999) (mux (bit_or v_4724 (notBool_ (eq v_4725 v_4726))) v_4730 v_4731);
+    pattern fun (mem_0 : Mem) (r32_1 : reg (bv 32)) => do
+      v_2 <- getRegister zf;
+      v_3 <- getRegister sf;
+      v_4 <- getRegister of;
+      v_5 <- evaluateAddress mem_0;
+      v_6 <- load v_5 4;
+      v_7 <- getRegister r32_1;
+      setRegister (lhs.of_reg r32_1) (mux (bit_or v_2 (notBool_ (eq v_3 v_4))) v_6 v_7);
       pure ()
     pat_end;
-    pattern fun (v_2991 : Mem) (v_2994 : reg (bv 32)) => do
-      v_8057 <- getRegister zf;
-      v_8058 <- getRegister sf;
-      v_8059 <- getRegister of;
-      v_8063 <- evaluateAddress v_2991;
-      v_8064 <- load v_8063 4;
-      v_8065 <- getRegister v_2994;
-      setRegister (lhs.of_reg v_2994) (mux (bit_or v_8057 (notBool_ (eq v_8058 v_8059))) v_8064 v_8065);
+    pattern fun (r32_0 : reg (bv 32)) (r32_1 : reg (bv 32)) => do
+      v_2 <- getRegister zf;
+      v_3 <- getRegister sf;
+      v_4 <- getRegister of;
+      v_5 <- getRegister r32_0;
+      v_6 <- getRegister r32_1;
+      setRegister (lhs.of_reg r32_1) (mux (bit_or v_2 (notBool_ (eq v_3 v_4))) v_5 v_6);
       pure ()
     pat_end

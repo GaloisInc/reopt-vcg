@@ -1,17 +1,17 @@
 def cmovnow1 : instruction :=
   definst "cmovnow" $ do
-    pattern fun (v_3094 : reg (bv 16)) (v_3095 : reg (bv 16)) => do
-      v_4861 <- getRegister of;
-      v_4863 <- getRegister v_3094;
-      v_4864 <- getRegister v_3095;
-      setRegister (lhs.of_reg v_3095) (mux (notBool_ v_4861) v_4863 v_4864);
+    pattern fun (mem_0 : Mem) (r16_1 : reg (bv 16)) => do
+      v_2 <- getRegister of;
+      v_3 <- evaluateAddress mem_0;
+      v_4 <- load v_3 2;
+      v_5 <- getRegister r16_1;
+      setRegister (lhs.of_reg r16_1) (mux (notBool_ v_2) v_4 v_5);
       pure ()
     pat_end;
-    pattern fun (v_3090 : Mem) (v_3091 : reg (bv 16)) => do
-      v_8161 <- getRegister of;
-      v_8163 <- evaluateAddress v_3090;
-      v_8164 <- load v_8163 2;
-      v_8165 <- getRegister v_3091;
-      setRegister (lhs.of_reg v_3091) (mux (notBool_ v_8161) v_8164 v_8165);
+    pattern fun (r16_0 : reg (bv 16)) (r16_1 : reg (bv 16)) => do
+      v_2 <- getRegister of;
+      v_3 <- getRegister r16_0;
+      v_4 <- getRegister r16_1;
+      setRegister (lhs.of_reg r16_1) (mux (notBool_ v_2) v_3 v_4);
       pure ()
     pat_end

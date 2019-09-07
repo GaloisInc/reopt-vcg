@@ -1,27 +1,27 @@
 def blsiq1 : instruction :=
   definst "blsiq" $ do
-    pattern fun (v_3054 : reg (bv 64)) (v_3055 : reg (bv 64)) => do
-      v_5722 <- getRegister v_3054;
-      v_5725 <- eval (bv_and (add (expression.bv_nat 64 1) (bv_xor v_5722 (expression.bv_nat 64 18446744073709551615))) v_5722);
-      setRegister (lhs.of_reg v_3055) v_5725;
+    pattern fun (mem_0 : Mem) (r64_1 : reg (bv 64)) => do
+      v_2 <- evaluateAddress mem_0;
+      v_3 <- load v_2 8;
+      v_4 <- eval (bv_and (add (expression.bv_nat 64 1) (bv_xor v_3 (expression.bv_nat 64 18446744073709551615))) v_3);
+      setRegister (lhs.of_reg r64_1) v_4;
       setRegister af undef;
-      setRegister cf (notBool_ (eq v_5722 (expression.bv_nat 64 0)));
+      setRegister cf (notBool_ (eq v_3 (expression.bv_nat 64 0)));
       setRegister of bit_zero;
       setRegister pf undef;
-      setRegister sf (isBitSet v_5725 0);
-      setRegister zf (zeroFlag v_5725);
+      setRegister sf (isBitSet v_4 0);
+      setRegister zf (zeroFlag v_4);
       pure ()
     pat_end;
-    pattern fun (v_3050 : Mem) (v_3051 : reg (bv 64)) => do
-      v_9204 <- evaluateAddress v_3050;
-      v_9205 <- load v_9204 8;
-      v_9208 <- eval (bv_and (add (expression.bv_nat 64 1) (bv_xor v_9205 (expression.bv_nat 64 18446744073709551615))) v_9205);
-      setRegister (lhs.of_reg v_3051) v_9208;
+    pattern fun (r64_0 : reg (bv 64)) (r64_1 : reg (bv 64)) => do
+      v_2 <- getRegister r64_0;
+      v_3 <- eval (bv_and (add (expression.bv_nat 64 1) (bv_xor v_2 (expression.bv_nat 64 18446744073709551615))) v_2);
+      setRegister (lhs.of_reg r64_1) v_3;
       setRegister af undef;
-      setRegister cf (notBool_ (eq v_9205 (expression.bv_nat 64 0)));
+      setRegister cf (notBool_ (eq v_2 (expression.bv_nat 64 0)));
       setRegister of bit_zero;
       setRegister pf undef;
-      setRegister sf (isBitSet v_9208 0);
-      setRegister zf (zeroFlag v_9208);
+      setRegister sf (isBitSet v_3 0);
+      setRegister zf (zeroFlag v_3);
       pure ()
     pat_end

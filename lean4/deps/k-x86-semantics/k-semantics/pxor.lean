@@ -1,15 +1,15 @@
 def pxor1 : instruction :=
   definst "pxor" $ do
-    pattern fun (v_3335 : reg (bv 128)) (v_3336 : reg (bv 128)) => do
-      v_8864 <- getRegister v_3336;
-      v_8865 <- getRegister v_3335;
-      setRegister (lhs.of_reg v_3336) (bv_xor v_8864 v_8865);
+    pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) => do
+      v_2 <- getRegister xmm_1;
+      v_3 <- evaluateAddress mem_0;
+      v_4 <- load v_3 16;
+      setRegister (lhs.of_reg xmm_1) (bv_xor v_2 v_4);
       pure ()
     pat_end;
-    pattern fun (v_3331 : Mem) (v_3332 : reg (bv 128)) => do
-      v_15235 <- getRegister v_3332;
-      v_15236 <- evaluateAddress v_3331;
-      v_15237 <- load v_15236 16;
-      setRegister (lhs.of_reg v_3332) (bv_xor v_15235 v_15237);
+    pattern fun (xmm_0 : reg (bv 128)) (xmm_1 : reg (bv 128)) => do
+      v_2 <- getRegister xmm_1;
+      v_3 <- getRegister xmm_0;
+      setRegister (lhs.of_reg xmm_1) (bv_xor v_2 v_3);
       pure ()
     pat_end

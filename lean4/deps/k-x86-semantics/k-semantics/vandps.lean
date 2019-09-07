@@ -1,16 +1,16 @@
 def vandps1 : instruction :=
   definst "vandps" $ do
-    pattern fun (v_2829 : Mem) (v_2832 : reg (bv 128)) (v_2833 : reg (bv 128)) => do
-      v_9453 <- getRegister v_2832;
-      v_9454 <- evaluateAddress v_2829;
-      v_9455 <- load v_9454 16;
-      setRegister (lhs.of_reg v_2833) (bv_and v_9453 v_9455);
+    pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) (xmm_2 : reg (bv 128)) => do
+      v_3 <- getRegister xmm_1;
+      v_4 <- evaluateAddress mem_0;
+      v_5 <- load v_4 16;
+      setRegister (lhs.of_reg xmm_2) (bv_and v_3 v_5);
       pure ()
     pat_end;
-    pattern fun (v_2840 : Mem) (v_2841 : reg (bv 256)) (v_2842 : reg (bv 256)) => do
-      v_9458 <- getRegister v_2841;
-      v_9459 <- evaluateAddress v_2840;
-      v_9460 <- load v_9459 32;
-      setRegister (lhs.of_reg v_2842) (bv_and v_9458 v_9460);
+    pattern fun (mem_0 : Mem) (ymm_1 : reg (bv 256)) (ymm_2 : reg (bv 256)) => do
+      v_3 <- getRegister ymm_1;
+      v_4 <- evaluateAddress mem_0;
+      v_5 <- load v_4 32;
+      setRegister (lhs.of_reg ymm_2) (bv_and v_3 v_5);
       pure ()
     pat_end

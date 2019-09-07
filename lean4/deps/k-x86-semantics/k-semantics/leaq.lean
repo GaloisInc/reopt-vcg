@@ -1,7 +1,7 @@
 def leaq1 : instruction :=
   definst "leaq" $ do
-    pattern fun (v_3112 : Mem) (v_3113 : reg (bv 64)) => do
-      v_7241 <- evaluateAddress v_3112;
-      setRegister (lhs.of_reg v_3113) v_7241;
+    pattern fun (mem_0 : Mem) (r64_1 : reg (bv 64)) => do
+      v_2 <- evaluateAddress mem_0;
+      setRegister (lhs.of_reg r64_1) v_2;
       pure ()
     pat_end

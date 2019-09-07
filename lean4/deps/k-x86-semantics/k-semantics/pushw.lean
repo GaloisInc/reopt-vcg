@@ -1,11 +1,11 @@
 def pushw1 : instruction :=
   definst "pushw" $ do
-    pattern fun (v_3328 : Mem) => do
-      v_15266 <- getRegister rsp;
-      v_15267 <- eval (sub v_15266 (expression.bv_nat 64 2));
-      v_15268 <- evaluateAddress v_3328;
-      v_15269 <- load v_15268 2;
-      store v_15267 v_15269 2;
-      setRegister rsp v_15267;
+    pattern fun (mem_0 : Mem) => do
+      v_1 <- getRegister rsp;
+      v_2 <- eval (sub v_1 (expression.bv_nat 64 2));
+      v_3 <- evaluateAddress mem_0;
+      v_4 <- load v_3 2;
+      store v_2 v_4 2;
+      setRegister rsp v_2;
       pure ()
     pat_end

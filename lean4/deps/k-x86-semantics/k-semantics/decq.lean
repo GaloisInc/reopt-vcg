@@ -1,25 +1,25 @@
 def decq1 : instruction :=
   definst "decq" $ do
-    pattern fun (v_2783 : reg (bv 64)) => do
-      v_4448 <- getRegister v_2783;
-      v_4449 <- eval (sub v_4448 (expression.bv_nat 64 1));
-      setRegister (lhs.of_reg v_2783) v_4449;
-      setRegister af (eq (extract v_4448 60 64) (expression.bv_nat 4 0));
-      setRegister of (bit_and (isBitSet v_4448 0) (eq (extract v_4448 1 64) (expression.bv_nat 63 0)));
-      setRegister pf (parityFlag (extract v_4449 56 64));
-      setRegister sf (isBitSet v_4449 0);
-      setRegister zf (zeroFlag v_4449);
+    pattern fun (mem_0 : Mem) => do
+      v_1 <- evaluateAddress mem_0;
+      v_2 <- load v_1 8;
+      v_3 <- eval (sub v_2 (expression.bv_nat 64 1));
+      store v_1 v_3 8;
+      setRegister af (eq (extract v_2 60 64) (expression.bv_nat 4 0));
+      setRegister of (bit_and (isBitSet v_2 0) (eq (extract v_2 1 64) (expression.bv_nat 63 0)));
+      setRegister pf (parityFlag (extract v_3 56 64));
+      setRegister sf (isBitSet v_3 0);
+      setRegister zf (zeroFlag v_3);
       pure ()
     pat_end;
-    pattern fun (v_2780 : Mem) => do
-      v_9105 <- evaluateAddress v_2780;
-      v_9106 <- load v_9105 8;
-      v_9107 <- eval (sub v_9106 (expression.bv_nat 64 1));
-      store v_9105 v_9107 8;
-      setRegister af (eq (extract v_9106 60 64) (expression.bv_nat 4 0));
-      setRegister of (bit_and (isBitSet v_9106 0) (eq (extract v_9106 1 64) (expression.bv_nat 63 0)));
-      setRegister pf (parityFlag (extract v_9107 56 64));
-      setRegister sf (isBitSet v_9107 0);
-      setRegister zf (zeroFlag v_9107);
+    pattern fun (r64_0 : reg (bv 64)) => do
+      v_1 <- getRegister r64_0;
+      v_2 <- eval (sub v_1 (expression.bv_nat 64 1));
+      setRegister (lhs.of_reg r64_0) v_2;
+      setRegister af (eq (extract v_1 60 64) (expression.bv_nat 4 0));
+      setRegister of (bit_and (isBitSet v_1 0) (eq (extract v_1 1 64) (expression.bv_nat 63 0)));
+      setRegister pf (parityFlag (extract v_2 56 64));
+      setRegister sf (isBitSet v_2 0);
+      setRegister zf (zeroFlag v_2);
       pure ()
     pat_end

@@ -1,29 +1,29 @@
 def andnq1 : instruction :=
   definst "andnq" $ do
-    pattern fun (v_2903 : reg (bv 64)) (v_2904 : reg (bv 64)) (v_2905 : reg (bv 64)) => do
-      v_5276 <- getRegister v_2904;
-      v_5278 <- getRegister v_2903;
-      v_5279 <- eval (bv_and (bv_xor v_5276 (expression.bv_nat 64 18446744073709551615)) v_5278);
-      setRegister (lhs.of_reg v_2905) v_5279;
+    pattern fun (mem_0 : Mem) (r64_1 : reg (bv 64)) (r64_2 : reg (bv 64)) => do
+      v_3 <- getRegister r64_1;
+      v_4 <- evaluateAddress mem_0;
+      v_5 <- load v_4 8;
+      v_6 <- eval (bv_and (bv_xor v_3 (expression.bv_nat 64 18446744073709551615)) v_5);
+      setRegister (lhs.of_reg r64_2) v_6;
       setRegister af undef;
       setRegister cf bit_zero;
       setRegister of bit_zero;
       setRegister pf undef;
-      setRegister sf (bit_and (notBool_ (eq (isBitSet v_5276 0) (bv1ToBool (expression.bv_nat 1 1)))) (isBitSet v_5278 0));
-      setRegister zf (zeroFlag v_5279);
+      setRegister sf (bit_and (notBool_ (eq (isBitSet v_3 0) (bv1ToBool (expression.bv_nat 1 1)))) (isBitSet v_5 0));
+      setRegister zf (zeroFlag v_6);
       pure ()
     pat_end;
-    pattern fun (v_2898 : Mem) (v_2899 : reg (bv 64)) (v_2900 : reg (bv 64)) => do
-      v_9002 <- getRegister v_2899;
-      v_9004 <- evaluateAddress v_2898;
-      v_9005 <- load v_9004 8;
-      v_9006 <- eval (bv_and (bv_xor v_9002 (expression.bv_nat 64 18446744073709551615)) v_9005);
-      setRegister (lhs.of_reg v_2900) v_9006;
+    pattern fun (r64_0 : reg (bv 64)) (r64_1 : reg (bv 64)) (r64_2 : reg (bv 64)) => do
+      v_3 <- getRegister r64_1;
+      v_4 <- getRegister r64_0;
+      v_5 <- eval (bv_and (bv_xor v_3 (expression.bv_nat 64 18446744073709551615)) v_4);
+      setRegister (lhs.of_reg r64_2) v_5;
       setRegister af undef;
       setRegister cf bit_zero;
       setRegister of bit_zero;
       setRegister pf undef;
-      setRegister sf (bit_and (notBool_ (eq (isBitSet v_9002 0) (bv1ToBool (expression.bv_nat 1 1)))) (isBitSet v_9005 0));
-      setRegister zf (zeroFlag v_9006);
+      setRegister sf (bit_and (notBool_ (eq (isBitSet v_3 0) (bv1ToBool (expression.bv_nat 1 1)))) (isBitSet v_4 0));
+      setRegister zf (zeroFlag v_5);
       pure ()
     pat_end

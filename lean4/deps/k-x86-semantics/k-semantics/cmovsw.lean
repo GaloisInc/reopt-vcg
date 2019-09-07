@@ -1,17 +1,17 @@
 def cmovsw1 : instruction :=
   definst "cmovsw" $ do
-    pattern fun (v_3358 : reg (bv 16)) (v_3359 : reg (bv 16)) => do
-      v_5120 <- getRegister sf;
-      v_5121 <- getRegister v_3358;
-      v_5122 <- getRegister v_3359;
-      setRegister (lhs.of_reg v_3359) (mux v_5120 v_5121 v_5122);
+    pattern fun (mem_0 : Mem) (r16_1 : reg (bv 16)) => do
+      v_2 <- getRegister sf;
+      v_3 <- evaluateAddress mem_0;
+      v_4 <- load v_3 2;
+      v_5 <- getRegister r16_1;
+      setRegister (lhs.of_reg r16_1) (mux v_2 v_4 v_5);
       pure ()
     pat_end;
-    pattern fun (v_3350 : Mem) (v_3351 : reg (bv 16)) => do
-      v_8324 <- getRegister sf;
-      v_8325 <- evaluateAddress v_3350;
-      v_8326 <- load v_8325 2;
-      v_8327 <- getRegister v_3351;
-      setRegister (lhs.of_reg v_3351) (mux v_8324 v_8326 v_8327);
+    pattern fun (r16_0 : reg (bv 16)) (r16_1 : reg (bv 16)) => do
+      v_2 <- getRegister sf;
+      v_3 <- getRegister r16_0;
+      v_4 <- getRegister r16_1;
+      setRegister (lhs.of_reg r16_1) (mux v_2 v_3 v_4);
       pure ()
     pat_end

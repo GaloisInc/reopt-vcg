@@ -1,17 +1,17 @@
 def cmovol1 : instruction :=
   definst "cmovol" $ do
-    pattern fun (v_3211 : reg (bv 32)) (v_3212 : reg (bv 32)) => do
-      v_4976 <- getRegister of;
-      v_4977 <- getRegister v_3211;
-      v_4978 <- getRegister v_3212;
-      setRegister (lhs.of_reg v_3212) (mux v_4976 v_4977 v_4978);
+    pattern fun (mem_0 : Mem) (r32_1 : reg (bv 32)) => do
+      v_2 <- getRegister of;
+      v_3 <- evaluateAddress mem_0;
+      v_4 <- load v_3 4;
+      v_5 <- getRegister r32_1;
+      setRegister (lhs.of_reg r32_1) (mux v_2 v_4 v_5);
       pure ()
     pat_end;
-    pattern fun (v_3204 : Mem) (v_3207 : reg (bv 32)) => do
-      v_8234 <- getRegister of;
-      v_8235 <- evaluateAddress v_3204;
-      v_8236 <- load v_8235 4;
-      v_8237 <- getRegister v_3207;
-      setRegister (lhs.of_reg v_3207) (mux v_8234 v_8236 v_8237);
+    pattern fun (r32_0 : reg (bv 32)) (r32_1 : reg (bv 32)) => do
+      v_2 <- getRegister of;
+      v_3 <- getRegister r32_0;
+      v_4 <- getRegister r32_1;
+      setRegister (lhs.of_reg r32_1) (mux v_2 v_3 v_4);
       pure ()
     pat_end

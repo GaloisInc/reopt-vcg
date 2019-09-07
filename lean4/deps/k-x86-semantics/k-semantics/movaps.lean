@@ -1,19 +1,19 @@
 def movaps1 : instruction :=
   definst "movaps" $ do
-    pattern fun (v_3231 : reg (bv 128)) (v_3232 : reg (bv 128)) => do
-      v_5743 <- getRegister v_3231;
-      setRegister (lhs.of_reg v_3232) v_5743;
+    pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) => do
+      v_2 <- evaluateAddress mem_0;
+      v_3 <- load v_2 16;
+      setRegister (lhs.of_reg xmm_1) v_3;
       pure ()
     pat_end;
-    pattern fun (v_3224 : reg (bv 128)) (v_3223 : Mem) => do
-      v_7513 <- evaluateAddress v_3223;
-      v_7514 <- getRegister v_3224;
-      store v_7513 v_7514 16;
+    pattern fun (xmm_0 : reg (bv 128)) (mem_1 : Mem) => do
+      v_2 <- evaluateAddress mem_1;
+      v_3 <- getRegister xmm_0;
+      store v_2 v_3 16;
       pure ()
     pat_end;
-    pattern fun (v_3227 : Mem) (v_3228 : reg (bv 128)) => do
-      v_8959 <- evaluateAddress v_3227;
-      v_8960 <- load v_8959 16;
-      setRegister (lhs.of_reg v_3228) v_8960;
+    pattern fun (xmm_0 : reg (bv 128)) (xmm_1 : reg (bv 128)) => do
+      v_2 <- getRegister xmm_0;
+      setRegister (lhs.of_reg xmm_1) v_2;
       pure ()
     pat_end

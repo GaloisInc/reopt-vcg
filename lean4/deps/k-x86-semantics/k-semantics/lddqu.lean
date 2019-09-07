@@ -1,8 +1,8 @@
 def lddqu1 : instruction :=
   definst "lddqu" $ do
-    pattern fun (v_3104 : Mem) (v_3105 : reg (bv 128)) => do
-      v_8647 <- evaluateAddress v_3104;
-      v_8648 <- load v_8647 16;
-      setRegister (lhs.of_reg v_3105) v_8648;
+    pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) => do
+      v_2 <- evaluateAddress mem_0;
+      v_3 <- load v_2 16;
+      setRegister (lhs.of_reg xmm_1) v_3;
       pure ()
     pat_end

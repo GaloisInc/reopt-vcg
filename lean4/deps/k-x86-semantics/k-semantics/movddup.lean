@@ -1,13 +1,13 @@
 def movddup1 : instruction :=
   definst "movddup" $ do
-    pattern fun (v_2507 : reg (bv 128)) (v_2508 : reg (bv 128)) => do
-      v_3937 <- getRegister v_2507;
-      setRegister (lhs.of_reg v_2508) (concat (extract v_3937 64 128) (extract v_3937 64 128));
+    pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) => do
+      v_2 <- evaluateAddress mem_0;
+      v_3 <- load v_2 8;
+      setRegister (lhs.of_reg xmm_1) (concat v_3 v_3);
       pure ()
     pat_end;
-    pattern fun (v_2503 : Mem) (v_2504 : reg (bv 128)) => do
-      v_8709 <- evaluateAddress v_2503;
-      v_8710 <- load v_8709 8;
-      setRegister (lhs.of_reg v_2504) (concat v_8710 v_8710);
+    pattern fun (xmm_0 : reg (bv 128)) (xmm_1 : reg (bv 128)) => do
+      v_2 <- getRegister xmm_0;
+      setRegister (lhs.of_reg xmm_1) (concat (extract v_2 64 128) (extract v_2 64 128));
       pure ()
     pat_end

@@ -1,14 +1,14 @@
 def movbel1 : instruction :=
   definst "movbel" $ do
-    pattern fun (v_3291 : reg (bv 32)) (v_3290 : Mem) => do
-      v_7529 <- evaluateAddress v_3290;
-      v_7530 <- getRegister v_3291;
-      store v_7529 (concat (concat (concat (extract v_7530 24 32) (extract v_7530 16 24)) (extract v_7530 8 16)) (extract v_7530 0 8)) 4;
+    pattern fun (mem_0 : Mem) (r32_1 : reg (bv 32)) => do
+      v_2 <- evaluateAddress mem_0;
+      v_3 <- load v_2 4;
+      setRegister (lhs.of_reg r32_1) (concat (concat (concat (extract v_3 24 32) (extract v_3 16 24)) (extract v_3 8 16)) (extract v_3 0 8));
       pure ()
     pat_end;
-    pattern fun (v_3298 : Mem) (v_3299 : reg (bv 32)) => do
-      v_8979 <- evaluateAddress v_3298;
-      v_8980 <- load v_8979 4;
-      setRegister (lhs.of_reg v_3299) (concat (concat (concat (extract v_8980 24 32) (extract v_8980 16 24)) (extract v_8980 8 16)) (extract v_8980 0 8));
+    pattern fun (r32_0 : reg (bv 32)) (mem_1 : Mem) => do
+      v_2 <- evaluateAddress mem_1;
+      v_3 <- getRegister r32_0;
+      store v_2 (concat (concat (concat (extract v_3 24 32) (extract v_3 16 24)) (extract v_3 8 16)) (extract v_3 0 8)) 4;
       pure ()
     pat_end

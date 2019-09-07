@@ -1,15 +1,15 @@
 def paddb1 : instruction :=
   definst "paddb" $ do
-    pattern fun (v_3199 : reg (bv 128)) (v_3200 : reg (bv 128)) => do
-      v_5645 <- getRegister v_3200;
-      v_5647 <- getRegister v_3199;
-      setRegister (lhs.of_reg v_3200) (concat (add (extract v_5645 0 8) (extract v_5647 0 8)) (concat (add (extract v_5645 8 16) (extract v_5647 8 16)) (concat (add (extract v_5645 16 24) (extract v_5647 16 24)) (concat (add (extract v_5645 24 32) (extract v_5647 24 32)) (concat (add (extract v_5645 32 40) (extract v_5647 32 40)) (concat (add (extract v_5645 40 48) (extract v_5647 40 48)) (concat (add (extract v_5645 48 56) (extract v_5647 48 56)) (concat (add (extract v_5645 56 64) (extract v_5647 56 64)) (concat (add (extract v_5645 64 72) (extract v_5647 64 72)) (concat (add (extract v_5645 72 80) (extract v_5647 72 80)) (concat (add (extract v_5645 80 88) (extract v_5647 80 88)) (concat (add (extract v_5645 88 96) (extract v_5647 88 96)) (concat (add (extract v_5645 96 104) (extract v_5647 96 104)) (concat (add (extract v_5645 104 112) (extract v_5647 104 112)) (concat (add (extract v_5645 112 120) (extract v_5647 112 120)) (add (extract v_5645 120 128) (extract v_5647 120 128)))))))))))))))));
+    pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) => do
+      v_2 <- getRegister xmm_1;
+      v_3 <- evaluateAddress mem_0;
+      v_4 <- load v_3 16;
+      setRegister (lhs.of_reg xmm_1) (concat (add (extract v_2 0 8) (extract v_4 0 8)) (concat (add (extract v_2 8 16) (extract v_4 8 16)) (concat (add (extract v_2 16 24) (extract v_4 16 24)) (concat (add (extract v_2 24 32) (extract v_4 24 32)) (concat (add (extract v_2 32 40) (extract v_4 32 40)) (concat (add (extract v_2 40 48) (extract v_4 40 48)) (concat (add (extract v_2 48 56) (extract v_4 48 56)) (concat (add (extract v_2 56 64) (extract v_4 56 64)) (concat (add (extract v_2 64 72) (extract v_4 64 72)) (concat (add (extract v_2 72 80) (extract v_4 72 80)) (concat (add (extract v_2 80 88) (extract v_4 80 88)) (concat (add (extract v_2 88 96) (extract v_4 88 96)) (concat (add (extract v_2 96 104) (extract v_4 96 104)) (concat (add (extract v_2 104 112) (extract v_4 104 112)) (concat (add (extract v_2 112 120) (extract v_4 112 120)) (add (extract v_2 120 128) (extract v_4 120 128)))))))))))))))));
       pure ()
     pat_end;
-    pattern fun (v_3195 : Mem) (v_3196 : reg (bv 128)) => do
-      v_9580 <- getRegister v_3196;
-      v_9582 <- evaluateAddress v_3195;
-      v_9583 <- load v_9582 16;
-      setRegister (lhs.of_reg v_3196) (concat (add (extract v_9580 0 8) (extract v_9583 0 8)) (concat (add (extract v_9580 8 16) (extract v_9583 8 16)) (concat (add (extract v_9580 16 24) (extract v_9583 16 24)) (concat (add (extract v_9580 24 32) (extract v_9583 24 32)) (concat (add (extract v_9580 32 40) (extract v_9583 32 40)) (concat (add (extract v_9580 40 48) (extract v_9583 40 48)) (concat (add (extract v_9580 48 56) (extract v_9583 48 56)) (concat (add (extract v_9580 56 64) (extract v_9583 56 64)) (concat (add (extract v_9580 64 72) (extract v_9583 64 72)) (concat (add (extract v_9580 72 80) (extract v_9583 72 80)) (concat (add (extract v_9580 80 88) (extract v_9583 80 88)) (concat (add (extract v_9580 88 96) (extract v_9583 88 96)) (concat (add (extract v_9580 96 104) (extract v_9583 96 104)) (concat (add (extract v_9580 104 112) (extract v_9583 104 112)) (concat (add (extract v_9580 112 120) (extract v_9583 112 120)) (add (extract v_9580 120 128) (extract v_9583 120 128)))))))))))))))));
+    pattern fun (xmm_0 : reg (bv 128)) (xmm_1 : reg (bv 128)) => do
+      v_2 <- getRegister xmm_1;
+      v_3 <- getRegister xmm_0;
+      setRegister (lhs.of_reg xmm_1) (concat (add (extract v_2 0 8) (extract v_3 0 8)) (concat (add (extract v_2 8 16) (extract v_3 8 16)) (concat (add (extract v_2 16 24) (extract v_3 16 24)) (concat (add (extract v_2 24 32) (extract v_3 24 32)) (concat (add (extract v_2 32 40) (extract v_3 32 40)) (concat (add (extract v_2 40 48) (extract v_3 40 48)) (concat (add (extract v_2 48 56) (extract v_3 48 56)) (concat (add (extract v_2 56 64) (extract v_3 56 64)) (concat (add (extract v_2 64 72) (extract v_3 64 72)) (concat (add (extract v_2 72 80) (extract v_3 72 80)) (concat (add (extract v_2 80 88) (extract v_3 80 88)) (concat (add (extract v_2 88 96) (extract v_3 88 96)) (concat (add (extract v_2 96 104) (extract v_3 96 104)) (concat (add (extract v_2 104 112) (extract v_3 104 112)) (concat (add (extract v_2 112 120) (extract v_3 112 120)) (add (extract v_2 120 128) (extract v_3 120 128)))))))))))))))));
       pure ()
     pat_end

@@ -1,19 +1,19 @@
 def cmovngeq1 : instruction :=
   definst "cmovngeq" $ do
-    pattern fun (v_2977 : reg (bv 64)) (v_2978 : reg (bv 64)) => do
-      v_4700 <- getRegister sf;
-      v_4701 <- getRegister of;
-      v_4704 <- getRegister v_2977;
-      v_4705 <- getRegister v_2978;
-      setRegister (lhs.of_reg v_2978) (mux (notBool_ (eq v_4700 v_4701)) v_4704 v_4705);
+    pattern fun (mem_0 : Mem) (r64_1 : reg (bv 64)) => do
+      v_2 <- getRegister sf;
+      v_3 <- getRegister of;
+      v_4 <- evaluateAddress mem_0;
+      v_5 <- load v_4 8;
+      v_6 <- getRegister r64_1;
+      setRegister (lhs.of_reg r64_1) (mux (notBool_ (eq v_2 v_3)) v_5 v_6);
       pure ()
     pat_end;
-    pattern fun (v_2973 : Mem) (v_2974 : reg (bv 64)) => do
-      v_8039 <- getRegister sf;
-      v_8040 <- getRegister of;
-      v_8043 <- evaluateAddress v_2973;
-      v_8044 <- load v_8043 8;
-      v_8045 <- getRegister v_2974;
-      setRegister (lhs.of_reg v_2974) (mux (notBool_ (eq v_8039 v_8040)) v_8044 v_8045);
+    pattern fun (r64_0 : reg (bv 64)) (r64_1 : reg (bv 64)) => do
+      v_2 <- getRegister sf;
+      v_3 <- getRegister of;
+      v_4 <- getRegister r64_0;
+      v_5 <- getRegister r64_1;
+      setRegister (lhs.of_reg r64_1) (mux (notBool_ (eq v_2 v_3)) v_4 v_5);
       pure ()
     pat_end

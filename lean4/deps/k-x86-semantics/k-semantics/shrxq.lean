@@ -1,15 +1,15 @@
 def shrxq1 : instruction :=
   definst "shrxq" $ do
-    pattern fun (v_3116 : reg (bv 64)) (v_3117 : reg (bv 64)) (v_3118 : reg (bv 64)) => do
-      v_5403 <- getRegister v_3117;
-      v_5405 <- getRegister v_3116;
-      setRegister (lhs.of_reg v_3118) (extract (lshr (concat v_5403 (expression.bv_nat 1 0)) (concat (expression.bv_nat 57 0) (bv_and (extract v_5405 56 64) (expression.bv_nat 8 63)))) 0 64);
+    pattern fun (r64_0 : reg (bv 64)) (mem_1 : Mem) (r64_2 : reg (bv 64)) => do
+      v_3 <- evaluateAddress mem_1;
+      v_4 <- load v_3 8;
+      v_5 <- getRegister r64_0;
+      setRegister (lhs.of_reg r64_2) (extract (lshr (concat v_4 (expression.bv_nat 1 0)) (concat (expression.bv_nat 57 0) (bv_and (extract v_5 56 64) (expression.bv_nat 8 63)))) 0 64);
       pure ()
     pat_end;
-    pattern fun (v_3107 : reg (bv 64)) (v_3106 : Mem) (v_3108 : reg (bv 64)) => do
-      v_8477 <- evaluateAddress v_3106;
-      v_8478 <- load v_8477 8;
-      v_8480 <- getRegister v_3107;
-      setRegister (lhs.of_reg v_3108) (extract (lshr (concat v_8478 (expression.bv_nat 1 0)) (concat (expression.bv_nat 57 0) (bv_and (extract v_8480 56 64) (expression.bv_nat 8 63)))) 0 64);
+    pattern fun (r64_0 : reg (bv 64)) (r64_1 : reg (bv 64)) (r64_2 : reg (bv 64)) => do
+      v_3 <- getRegister r64_1;
+      v_4 <- getRegister r64_0;
+      setRegister (lhs.of_reg r64_2) (extract (lshr (concat v_3 (expression.bv_nat 1 0)) (concat (expression.bv_nat 57 0) (bv_and (extract v_4 56 64) (expression.bv_nat 8 63)))) 0 64);
       pure ()
     pat_end

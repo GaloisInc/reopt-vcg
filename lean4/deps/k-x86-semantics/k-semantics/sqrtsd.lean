@@ -1,15 +1,15 @@
 def sqrtsd1 : instruction :=
   definst "sqrtsd" $ do
-    pattern fun (v_3166 : reg (bv 128)) (v_3167 : reg (bv 128)) => do
-      v_5502 <- getRegister v_3167;
-      v_5504 <- getRegister v_3166;
-      setRegister (lhs.of_reg v_3167) (concat (extract v_5502 0 64) (_(_)_MINT-WRAPPER-SYNTAX sqrt_double (extract v_5504 64 128)));
+    pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) => do
+      v_2 <- getRegister xmm_1;
+      v_3 <- evaluateAddress mem_0;
+      v_4 <- load v_3 8;
+      setRegister (lhs.of_reg xmm_1) (concat (extract v_2 0 64) (_(_)_MINT-WRAPPER-SYNTAX sqrt_double v_4));
       pure ()
     pat_end;
-    pattern fun (v_3162 : Mem) (v_3163 : reg (bv 128)) => do
-      v_8559 <- getRegister v_3163;
-      v_8561 <- evaluateAddress v_3162;
-      v_8562 <- load v_8561 8;
-      setRegister (lhs.of_reg v_3163) (concat (extract v_8559 0 64) (_(_)_MINT-WRAPPER-SYNTAX sqrt_double v_8562));
+    pattern fun (xmm_0 : reg (bv 128)) (xmm_1 : reg (bv 128)) => do
+      v_2 <- getRegister xmm_1;
+      v_3 <- getRegister xmm_0;
+      setRegister (lhs.of_reg xmm_1) (concat (extract v_2 0 64) (_(_)_MINT-WRAPPER-SYNTAX sqrt_double (extract v_3 64 128)));
       pure ()
     pat_end

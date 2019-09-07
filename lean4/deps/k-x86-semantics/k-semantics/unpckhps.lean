@@ -1,15 +1,15 @@
 def unpckhps1 : instruction :=
   definst "unpckhps" $ do
-    pattern fun (v_2633 : reg (bv 128)) (v_2634 : reg (bv 128)) => do
-      v_4773 <- getRegister v_2633;
-      v_4775 <- getRegister v_2634;
-      setRegister (lhs.of_reg v_2634) (concat (concat (concat (extract v_4773 0 32) (extract v_4775 0 32)) (extract v_4773 32 64)) (extract v_4775 32 64));
+    pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) => do
+      v_2 <- evaluateAddress mem_0;
+      v_3 <- load v_2 16;
+      v_4 <- getRegister xmm_1;
+      setRegister (lhs.of_reg xmm_1) (concat (concat (concat (extract v_3 0 32) (extract v_4 0 32)) (extract v_3 32 64)) (extract v_4 32 64));
       pure ()
     pat_end;
-    pattern fun (v_2626 : Mem) (v_2629 : reg (bv 128)) => do
-      v_9092 <- evaluateAddress v_2626;
-      v_9093 <- load v_9092 16;
-      v_9095 <- getRegister v_2629;
-      setRegister (lhs.of_reg v_2629) (concat (concat (concat (extract v_9093 0 32) (extract v_9095 0 32)) (extract v_9093 32 64)) (extract v_9095 32 64));
+    pattern fun (xmm_0 : reg (bv 128)) (xmm_1 : reg (bv 128)) => do
+      v_2 <- getRegister xmm_0;
+      v_3 <- getRegister xmm_1;
+      setRegister (lhs.of_reg xmm_1) (concat (concat (concat (extract v_2 0 32) (extract v_3 0 32)) (extract v_2 32 64)) (extract v_3 32 64));
       pure ()
     pat_end

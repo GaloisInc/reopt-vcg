@@ -1,17 +1,17 @@
 def cmovnzw1 : instruction :=
   definst "cmovnzw" $ do
-    pattern fun (v_3199 : reg (bv 16)) (v_3200 : reg (bv 16)) => do
-      v_4966 <- getRegister zf;
-      v_4968 <- getRegister v_3199;
-      v_4969 <- getRegister v_3200;
-      setRegister (lhs.of_reg v_3200) (mux (notBool_ v_4966) v_4968 v_4969);
+    pattern fun (mem_0 : Mem) (r16_1 : reg (bv 16)) => do
+      v_2 <- getRegister zf;
+      v_3 <- evaluateAddress mem_0;
+      v_4 <- load v_3 2;
+      v_5 <- getRegister r16_1;
+      setRegister (lhs.of_reg r16_1) (mux (notBool_ v_2) v_4 v_5);
       pure ()
     pat_end;
-    pattern fun (v_3195 : Mem) (v_3196 : reg (bv 16)) => do
-      v_8227 <- getRegister zf;
-      v_8229 <- evaluateAddress v_3195;
-      v_8230 <- load v_8229 2;
-      v_8231 <- getRegister v_3196;
-      setRegister (lhs.of_reg v_3196) (mux (notBool_ v_8227) v_8230 v_8231);
+    pattern fun (r16_0 : reg (bv 16)) (r16_1 : reg (bv 16)) => do
+      v_2 <- getRegister zf;
+      v_3 <- getRegister r16_0;
+      v_4 <- getRegister r16_1;
+      setRegister (lhs.of_reg r16_1) (mux (notBool_ v_2) v_3 v_4);
       pure ()
     pat_end

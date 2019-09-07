@@ -1,15 +1,15 @@
 def sarxl1 : instruction :=
   definst "sarxl" $ do
-    pattern fun (v_3236 : reg (bv 32)) (v_3237 : reg (bv 32)) (v_3238 : reg (bv 32)) => do
-      v_6378 <- getRegister v_3237;
-      v_6379 <- getRegister v_3236;
-      setRegister (lhs.of_reg v_3238) (ashr v_6378 (bv_and v_6379 (expression.bv_nat 32 31)));
+    pattern fun (r32_0 : reg (bv 32)) (mem_1 : Mem) (r32_2 : reg (bv 32)) => do
+      v_3 <- evaluateAddress mem_1;
+      v_4 <- load v_3 4;
+      v_5 <- getRegister r32_0;
+      setRegister (lhs.of_reg r32_2) (ashr v_4 (bv_and v_5 (expression.bv_nat 32 31)));
       pure ()
     pat_end;
-    pattern fun (v_3227 : reg (bv 32)) (v_3224 : Mem) (v_3228 : reg (bv 32)) => do
-      v_10672 <- evaluateAddress v_3224;
-      v_10673 <- load v_10672 4;
-      v_10674 <- getRegister v_3227;
-      setRegister (lhs.of_reg v_3228) (ashr v_10673 (bv_and v_10674 (expression.bv_nat 32 31)));
+    pattern fun (r32_0 : reg (bv 32)) (r32_1 : reg (bv 32)) (r32_2 : reg (bv 32)) => do
+      v_3 <- getRegister r32_1;
+      v_4 <- getRegister r32_0;
+      setRegister (lhs.of_reg r32_2) (ashr v_3 (bv_and v_4 (expression.bv_nat 32 31)));
       pure ()
     pat_end

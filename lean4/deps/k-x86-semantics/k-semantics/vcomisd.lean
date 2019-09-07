@@ -1,29 +1,29 @@
 def vcomisd1 : instruction :=
   definst "vcomisd" $ do
-    pattern fun (v_3075 : reg (bv 128)) (v_3076 : reg (bv 128)) => do
-      v_5699 <- getRegister v_3076;
-      v_5701 <- getRegister v_3075;
-      v_5703 <- eval (_(_,_)_MINT-WRAPPER-SYNTAX comisd (extract v_5699 64 128) (extract v_5701 64 128));
-      v_5704 <- eval (eq v_5703 (expression.bv_nat 2 0));
+    pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) => do
+      v_2 <- getRegister xmm_1;
+      v_3 <- evaluateAddress mem_0;
+      v_4 <- load v_3 8;
+      v_5 <- eval (_(_,_)_MINT-WRAPPER-SYNTAX comisd (extract v_2 64 128) v_4);
+      v_6 <- eval (eq v_5 (expression.bv_nat 2 0));
       setRegister af bit_zero;
-      setRegister cf (bit_or v_5704 (eq v_5703 (expression.bv_nat 2 2)));
+      setRegister cf (bit_or v_6 (eq v_5 (expression.bv_nat 2 2)));
       setRegister of bit_zero;
-      setRegister pf v_5704;
+      setRegister pf v_6;
       setRegister sf bit_zero;
-      setRegister zf (bit_or v_5704 (eq v_5703 (expression.bv_nat 2 3)));
+      setRegister zf (bit_or v_6 (eq v_5 (expression.bv_nat 2 3)));
       pure ()
     pat_end;
-    pattern fun (v_3068 : Mem) (v_3071 : reg (bv 128)) => do
-      v_9851 <- getRegister v_3071;
-      v_9853 <- evaluateAddress v_3068;
-      v_9854 <- load v_9853 8;
-      v_9855 <- eval (_(_,_)_MINT-WRAPPER-SYNTAX comisd (extract v_9851 64 128) v_9854);
-      v_9856 <- eval (eq v_9855 (expression.bv_nat 2 0));
+    pattern fun (xmm_0 : reg (bv 128)) (xmm_1 : reg (bv 128)) => do
+      v_2 <- getRegister xmm_1;
+      v_3 <- getRegister xmm_0;
+      v_4 <- eval (_(_,_)_MINT-WRAPPER-SYNTAX comisd (extract v_2 64 128) (extract v_3 64 128));
+      v_5 <- eval (eq v_4 (expression.bv_nat 2 0));
       setRegister af bit_zero;
-      setRegister cf (bit_or v_9856 (eq v_9855 (expression.bv_nat 2 2)));
+      setRegister cf (bit_or v_5 (eq v_4 (expression.bv_nat 2 2)));
       setRegister of bit_zero;
-      setRegister pf v_9856;
+      setRegister pf v_5;
       setRegister sf bit_zero;
-      setRegister zf (bit_or v_9856 (eq v_9855 (expression.bv_nat 2 3)));
+      setRegister zf (bit_or v_5 (eq v_4 (expression.bv_nat 2 3)));
       pure ()
     pat_end

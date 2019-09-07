@@ -1,14 +1,14 @@
 def vbroadcastsd1 : instruction :=
   definst "vbroadcastsd" $ do
-    pattern fun (v_2971 : reg (bv 128)) (v_2967 : reg (bv 256)) => do
-      v_5487 <- getRegister v_2971;
-      v_5488 <- eval (extract v_5487 64 128);
-      setRegister (lhs.of_reg v_2967) (concat (concat (concat v_5488 v_5488) v_5488) v_5488);
+    pattern fun (mem_0 : Mem) (ymm_1 : reg (bv 256)) => do
+      v_2 <- evaluateAddress mem_0;
+      v_3 <- load v_2 8;
+      setRegister (lhs.of_reg ymm_1) (concat (concat (concat v_3 v_3) v_3) v_3);
       pure ()
     pat_end;
-    pattern fun (v_2963 : Mem) (v_2964 : reg (bv 256)) => do
-      v_9683 <- evaluateAddress v_2963;
-      v_9684 <- load v_9683 8;
-      setRegister (lhs.of_reg v_2964) (concat (concat (concat v_9684 v_9684) v_9684) v_9684);
+    pattern fun (xmm_0 : reg (bv 128)) (ymm_1 : reg (bv 256)) => do
+      v_2 <- getRegister xmm_0;
+      v_3 <- eval (extract v_2 64 128);
+      setRegister (lhs.of_reg ymm_1) (concat (concat (concat v_3 v_3) v_3) v_3);
       pure ()
     pat_end

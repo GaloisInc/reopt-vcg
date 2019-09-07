@@ -1,17 +1,17 @@
 def setnle1 : instruction :=
   definst "setnle" $ do
-    pattern fun (v_2687 : reg (bv 8)) => do
-      v_4183 <- getRegister zf;
-      v_4185 <- getRegister sf;
-      v_4186 <- getRegister of;
-      setRegister (lhs.of_reg v_2687) (mux (bit_and (notBool_ v_4183) (eq v_4185 v_4186)) (expression.bv_nat 8 1) (expression.bv_nat 8 0));
+    pattern fun (mem_0 : Mem) => do
+      v_1 <- evaluateAddress mem_0;
+      v_2 <- getRegister zf;
+      v_3 <- getRegister sf;
+      v_4 <- getRegister of;
+      store v_1 (mux (bit_and (notBool_ v_2) (eq v_3 v_4)) (expression.bv_nat 8 1) (expression.bv_nat 8 0)) 1;
       pure ()
     pat_end;
-    pattern fun (v_2680 : Mem) => do
-      v_8006 <- evaluateAddress v_2680;
-      v_8007 <- getRegister zf;
-      v_8009 <- getRegister sf;
-      v_8010 <- getRegister of;
-      store v_8006 (mux (bit_and (notBool_ v_8007) (eq v_8009 v_8010)) (expression.bv_nat 8 1) (expression.bv_nat 8 0)) 1;
+    pattern fun (rh_0 : reg (bv 8)) => do
+      v_1 <- getRegister zf;
+      v_2 <- getRegister sf;
+      v_3 <- getRegister of;
+      setRegister (lhs.of_reg rh_0) (mux (bit_and (notBool_ v_1) (eq v_2 v_3)) (expression.bv_nat 8 1) (expression.bv_nat 8 0));
       pure ()
     pat_end

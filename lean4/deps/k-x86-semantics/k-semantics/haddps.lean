@@ -1,15 +1,15 @@
 def haddps1 : instruction :=
   definst "haddps" $ do
-    pattern fun (v_2914 : reg (bv 128)) (v_2915 : reg (bv 128)) => do
-      v_4809 <- getRegister v_2914;
-      v_4823 <- getRegister v_2915;
-      setRegister (lhs.of_reg v_2915) (concat (concat (concat (Float2MInt (_+Float__FLOAT (MInt2Float (extract v_4809 32 64) 24 8) (MInt2Float (extract v_4809 0 32) 24 8)) 32) (Float2MInt (_+Float__FLOAT (MInt2Float (extract v_4809 96 128) 24 8) (MInt2Float (extract v_4809 64 96) 24 8)) 32)) (Float2MInt (_+Float__FLOAT (MInt2Float (extract v_4823 32 64) 24 8) (MInt2Float (extract v_4823 0 32) 24 8)) 32)) (Float2MInt (_+Float__FLOAT (MInt2Float (extract v_4823 96 128) 24 8) (MInt2Float (extract v_4823 64 96) 24 8)) 32));
+    pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) => do
+      v_2 <- evaluateAddress mem_0;
+      v_3 <- load v_2 16;
+      v_4 <- getRegister xmm_1;
+      setRegister (lhs.of_reg xmm_1) (concat (concat (concat (Float2MInt (_+Float__FLOAT (MInt2Float (extract v_3 32 64) 24 8) (MInt2Float (extract v_3 0 32) 24 8)) 32) (Float2MInt (_+Float__FLOAT (MInt2Float (extract v_3 96 128) 24 8) (MInt2Float (extract v_3 64 96) 24 8)) 32)) (Float2MInt (_+Float__FLOAT (MInt2Float (extract v_4 32 64) 24 8) (MInt2Float (extract v_4 0 32) 24 8)) 32)) (Float2MInt (_+Float__FLOAT (MInt2Float (extract v_4 96 128) 24 8) (MInt2Float (extract v_4 64 96) 24 8)) 32));
       pure ()
     pat_end;
-    pattern fun (v_2910 : Mem) (v_2911 : reg (bv 128)) => do
-      v_8276 <- evaluateAddress v_2910;
-      v_8277 <- load v_8276 16;
-      v_8291 <- getRegister v_2911;
-      setRegister (lhs.of_reg v_2911) (concat (concat (concat (Float2MInt (_+Float__FLOAT (MInt2Float (extract v_8277 32 64) 24 8) (MInt2Float (extract v_8277 0 32) 24 8)) 32) (Float2MInt (_+Float__FLOAT (MInt2Float (extract v_8277 96 128) 24 8) (MInt2Float (extract v_8277 64 96) 24 8)) 32)) (Float2MInt (_+Float__FLOAT (MInt2Float (extract v_8291 32 64) 24 8) (MInt2Float (extract v_8291 0 32) 24 8)) 32)) (Float2MInt (_+Float__FLOAT (MInt2Float (extract v_8291 96 128) 24 8) (MInt2Float (extract v_8291 64 96) 24 8)) 32));
+    pattern fun (xmm_0 : reg (bv 128)) (xmm_1 : reg (bv 128)) => do
+      v_2 <- getRegister xmm_0;
+      v_3 <- getRegister xmm_1;
+      setRegister (lhs.of_reg xmm_1) (concat (concat (concat (Float2MInt (_+Float__FLOAT (MInt2Float (extract v_2 32 64) 24 8) (MInt2Float (extract v_2 0 32) 24 8)) 32) (Float2MInt (_+Float__FLOAT (MInt2Float (extract v_2 96 128) 24 8) (MInt2Float (extract v_2 64 96) 24 8)) 32)) (Float2MInt (_+Float__FLOAT (MInt2Float (extract v_3 32 64) 24 8) (MInt2Float (extract v_3 0 32) 24 8)) 32)) (Float2MInt (_+Float__FLOAT (MInt2Float (extract v_3 96 128) 24 8) (MInt2Float (extract v_3 64 96) 24 8)) 32));
       pure ()
     pat_end

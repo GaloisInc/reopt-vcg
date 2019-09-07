@@ -1,10 +1,11 @@
 def divb1 : instruction :=
   definst "divb" $ do
-    pattern fun (v_2802 : reg (bv 8)) => do
-      v_4505 <- getRegister rax;
-      v_4507 <- eval (extract v_4505 48 64);
-      v_4508 <- getRegister v_2802;
-      setRegister rax (concat (concat (extract v_4505 0 48) (_(_,_)_MINT-WRAPPER-SYNTAX div_remainder_int8 v_4507 v_4508)) (_(_,_)_MINT-WRAPPER-SYNTAX div_quotient_int8 v_4507 v_4508));
+    pattern fun (mem_0 : Mem) => do
+      v_1 <- getRegister rax;
+      v_2 <- eval (extract v_1 48 64);
+      v_3 <- evaluateAddress mem_0;
+      v_4 <- load v_3 1;
+      setRegister rax (concat (concat (extract v_1 0 48) (_(_,_)_MINT-WRAPPER-SYNTAX div_remainder_int8 v_2 v_4)) (_(_,_)_MINT-WRAPPER-SYNTAX div_quotient_int8 v_2 v_4));
       setRegister af undef;
       setRegister cf undef;
       setRegister of undef;
@@ -13,12 +14,11 @@ def divb1 : instruction :=
       setRegister zf undef;
       pure ()
     pat_end;
-    pattern fun (v_2794 : Mem) => do
-      v_8029 <- getRegister rax;
-      v_8031 <- eval (extract v_8029 48 64);
-      v_8032 <- evaluateAddress v_2794;
-      v_8033 <- load v_8032 1;
-      setRegister rax (concat (concat (extract v_8029 0 48) (_(_,_)_MINT-WRAPPER-SYNTAX div_remainder_int8 v_8031 v_8033)) (_(_,_)_MINT-WRAPPER-SYNTAX div_quotient_int8 v_8031 v_8033));
+    pattern fun (rh_0 : reg (bv 8)) => do
+      v_1 <- getRegister rax;
+      v_2 <- eval (extract v_1 48 64);
+      v_3 <- getRegister rh_0;
+      setRegister rax (concat (concat (extract v_1 0 48) (_(_,_)_MINT-WRAPPER-SYNTAX div_remainder_int8 v_2 v_3)) (_(_,_)_MINT-WRAPPER-SYNTAX div_quotient_int8 v_2 v_3));
       setRegister af undef;
       setRegister cf undef;
       setRegister of undef;
