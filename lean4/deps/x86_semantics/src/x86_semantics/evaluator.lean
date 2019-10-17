@@ -224,17 +224,20 @@ end arg_lval
 
 section with_nat_env
 
--- OS stuff
-variables (os_state : Type)
-
-structure system_state := 
+structure system_state (ost : Type) : Type := 
   (machine_state : machine_state)
-  (os_state      : os_state)
+  (os_state      : ost)
 
 @[reducible]
-def system_m := StateT (system_state os_state) (Except String)
+def system_m (os_state : Type) := StateT (system_state os_state) (Except String)
 
-variables (os_transition : system_m os_state Unit) (nenv : nat_env)
+structure SystemConfig : Type 1 := 
+  (os_state          : Type)
+  (os_transition     : system_m os_state Unit)
+  (read_trace_event  : system_m os_state Unit)
+  (write_trace_event : system_m os_state Unit)
+
+variables (system_config : SystemConfig) (nenv : nat_env)
 
 @[reducible]
 def eval_nat_expr (e : nat_expr) : Nat
@@ -293,15 +296,16 @@ inductive arg_value
 def environment := List (arg_value nenv)
 
 structure evaluator_state : Type :=
-  (system_state : system_state os_state)
+  (system_state : system_state system_config.os_state)
   (environment  : environment nenv) -- read only, but reading can fail
   (locals       : RBMap Nat (Sigma (value nenv)) (fun (n n' : Nat) => decide (n < n')))
 
 -- namespace evaluator_state
 
-def evaluator_state.init (sst : system_state os_state) : evaluator_state os_state nenv := 
+def evaluator_state.init (sst : system_state os_state) : evaluator_state trace_event os_state nenv := 
   { system_state  := sst
   , environment   := []
+  , trace         := []
   , locals        := {}
   }
 
@@ -309,7 +313,7 @@ def evaluator_state.init (sst : system_state os_state) : evaluator_state os_stat
 
 -- Monad for evaluating with failure.  This nesting might be useful to get the ip where things break?
 @[reducible]
-def evaluator := StateT (evaluator_state os_state nenv) (Except String)
+def evaluator := StateT (evaluator_state trace_event os_state nenv) (Except String)
 
 -- FIXME: are these an oversight in the stdlib? 
 instance (ε): MonadExcept ε (Except ε) := 
@@ -373,10 +377,11 @@ def value.type_check {m} [Monad m] [MonadExcept String m] (tp : type) (v : value
 
 -- namespace evaluator
 
-def evaluator.run {a : Type} (m : evaluator os_state nenv a) (s : evaluator_state os_state nenv) : Except String (a × evaluator_state os_state nenv) :=
+def evaluator.run {a : Type} (m : evaluator trace_event os_state nenv a) 
+                             (s : evaluator_state trace_event os_state nenv) : Except String (a × evaluator_state trace_event os_state nenv) :=
   (m.run s)
 
-def evaluator.read_memory_at (addr : machine_word) (n : Nat) : evaluator os_state nenv (bitvec n) := do
+def evaluator.read_memory_at (addr : machine_word) (n : Nat) : evaluator trace_event os_state nenv (bitvec n) := do
     s <- get;
     match s.system_state.machine_state.read_word addr (n / 8) with
     | none     => throw "read_memory_at: no bytes at addr" 
@@ -386,19 +391,19 @@ def evaluator.read_memory_at (addr : machine_word) (n : Nat) : evaluator os_stat
       else throw "evaluator.read_memory_at: width not a multiple of 8"
    
 
-def evaluator.map_machine_state (f : machine_state → machine_state) : evaluator os_state nenv Unit :=
-  modify (fun (s : evaluator_state os_state nenv) => { s with system_state := { s.system_state with machine_state := f s.system_state.machine_state } })
+def evaluator.map_machine_state (f : machine_state → machine_state) : evaluator trace_event os_state nenv Unit :=
+  modify (fun (s : evaluator_state trace_event os_state nenv) => { s with system_state := { s.system_state with machine_state := f s.system_state.machine_state } })
 
 def evaluator.write_memory_at : ∀{tp : type} (addr : machine_word) (bytes : value nenv tp)
-  , evaluator os_state nenv Unit
+  , evaluator trace_event os_state nenv Unit
   | (bv e), addr, bytes =>
     let width := eval_nat_expr nenv e;
     (if H : width = 8 * (width / 8)
-        then evaluator.map_machine_state os_state nenv (fun (s : machine_state) => s.store_word addr (bitvec.cong H bytes))
+        then evaluator.map_machine_state trace_event os_state nenv (fun (s : machine_state) => s.store_word addr (bitvec.cong H bytes))
         else throw "evaluator.write_memory_at: width not a multiple of 8")
   | _, _, _ => throw "evaluator.write_memory_at not a bv"
 
-def evaluator.arg_at_idx (idx : Nat) : evaluator os_state nenv (arg_value nenv) :=
+def evaluator.arg_at_idx (idx : Nat) : evaluator trace_event os_state nenv (arg_value nenv) :=
   do s <- get;
      match s.environment.getOpt idx with
        | (some a) => pure a
@@ -406,7 +411,7 @@ def evaluator.arg_at_idx (idx : Nat) : evaluator os_state nenv (arg_value nenv) 
 
 -- We should factor out the type check, although it might depend on
 -- the functor (value in this case) if we generalise equality
-def evaluator.local_at_idx (idx : Nat) (tp : type) : evaluator os_state nenv (value nenv tp) :=
+def evaluator.local_at_idx (idx : Nat) (tp : type) : evaluator trace_event os_state nenv (value nenv tp) :=
   do s <- get;
      (match s.locals.find idx with
      | (some (Sigma.mk tp' v)) => value.type_check nenv _ v tp
@@ -415,12 +420,12 @@ def evaluator.local_at_idx (idx : Nat) (tp : type) : evaluator os_state nenv (va
 theorem width_width' : ∀(rtp : gpreg_type), eval_nat_expr nenv rtp.width = rtp.width' :=
   I_am_really_sorry _
 
-def concrete_reg.set : ∀{tp : type}, concrete_reg tp -> value nenv tp -> evaluator os_state nenv Unit
+def concrete_reg.set : ∀{tp : type}, concrete_reg tp -> value nenv tp -> evaluator trace_event os_state nenv Unit
   | ._, (concrete_reg.gpreg idx rtp), b => 
     let b' : bitvec rtp.width' := Eq.rec b (width_width' nenv rtp);
-    evaluator.map_machine_state os_state nenv (machine_state.update_gpreg idx (reg.inject rtp b'))
+    evaluator.map_machine_state trace_event os_state nenv (machine_state.update_gpreg idx (reg.inject rtp b'))
   | ._, (concrete_reg.flagreg idx),   b => 
-    evaluator.map_machine_state os_state nenv (machine_state.update_flag idx (fun _ => b))
+    evaluator.map_machine_state trace_event os_state nenv (machine_state.update_flag idx (fun _ => b))
   
 def concrete_reg.from_state : ∀{tp : type}, concrete_reg tp -> machine_state 
   -> value nenv tp
@@ -431,7 +436,7 @@ def concrete_reg.from_state : ∀{tp : type}, concrete_reg tp -> machine_state
     v'
   | _, (concrete_reg.flagreg idx),   s => s.get_flag idx
 
-def concrete_reg.read {tp : type} (r : concrete_reg tp) : evaluator os_state nenv (value nenv tp) := 
+def concrete_reg.read {tp : type} (r : concrete_reg tp) : evaluator trace_event os_state nenv (value nenv tp) := 
     do s <- get;
        pure (concrete_reg.from_state nenv r s.system_state.machine_state)
 
@@ -447,47 +452,47 @@ def arg_lval.to_value' {m} [Monad m] [MonadExcept String m]
     | none     => throw "arg_lval.to_value': no bytes at addr" 
     | (some w) => value.type_check nenv (bv (8 * (width / 8))) w tp'
 
-def arg_lval.to_value : arg_lval -> ∀(tp : type), evaluator os_state nenv (value nenv tp)
-  | (@arg_lval.reg tp r), tp' => do v <- concrete_reg.read os_state nenv r;
+def arg_lval.to_value : arg_lval -> ∀(tp : type), evaluator trace_event os_state nenv (value nenv tp)
+  | (@arg_lval.reg tp r), tp' => do v <- concrete_reg.read trace_event os_state nenv r;
                                    value.type_check nenv tp v tp'
   | (arg_lval.memloc width addr), tp' => do
-    v <- evaluator.read_memory_at os_state nenv addr width;
+    v <- evaluator.read_memory_at trace_event os_state nenv addr width;
     value.type_check nenv (bv width) v tp'
 
 def arg_lval.set_value : arg_lval -> ∀{tp : type}, value nenv tp 
-  -> evaluator os_state nenv  Unit
+  -> evaluator trace_event os_state nenv  Unit
   | (@arg_lval.reg tp r), tp', v => do v' <- value.type_check nenv _ v tp;
-                                     concrete_reg.set os_state nenv r v'
+                                     concrete_reg.set trace_event os_state nenv r v'
   | (arg_lval.memloc _width addr), tp, v => do
-    evaluator.write_memory_at os_state nenv addr v
+    evaluator.write_memory_at trace_event os_state nenv addr v
 
--- def read_memory_at (av : arg_value) (n : Nat) : evaluator (bitvec (8 * n)) :=
+-- def read_memory_at (av : arg_value) (n : Nat) : evaluator trace_event (bitvec (8 * n)) :=
 --   match av with 
 --   | (@arg_value.bv 64 addr) => 
 --   | _                      => throw "addr.read: not a 64-bit bitvecor"
 --   end
 
 -- Can fail if types mismatch
-def arg_value.to_value : arg_value nenv -> ∀(tp : type), evaluator os_state nenv (value nenv tp)
+def arg_value.to_value : arg_value nenv -> ∀(tp : type), evaluator trace_event os_state nenv (value nenv tp)
   | (arg_value.natv _ _),  _ => throw "arg_value.to_value: saw a natv"
-  | (arg_value.lval _ l), tp => arg_lval.to_value os_state nenv l tp
+  | (arg_value.lval _ l), tp => arg_lval.to_value trace_event os_state nenv l tp
   | (arg_value.rval v), tp => value.type_check nenv _ v tp
 
-def arg_value.set_value : arg_value nenv -> ∀{tp : type}, value nenv tp -> evaluator os_state nenv Unit
-  | (arg_value.lval _ l), tp, v => arg_lval.set_value os_state nenv l v
+def arg_value.set_value : arg_value nenv -> ∀{tp : type}, value nenv tp -> evaluator trace_event os_state nenv Unit
+  | (arg_value.lval _ l), tp, v => arg_lval.set_value trace_event os_state nenv l v
   | _, _, _ => throw "arg_value.set_value: not an lvalue"
 
-def addr.read : ∀{tp : type}, addr tp -> evaluator os_state nenv (value nenv tp)
+def addr.read : ∀{tp : type}, addr tp -> evaluator trace_event os_state nenv (value nenv tp)
   | tp, (addr.arg idx) => do 
-      av <- evaluator.arg_at_idx os_state nenv idx;
-      arg_value.to_value os_state nenv av tp -- FIXME: we should really check if this is a memloc first.
+      av <- evaluator.arg_at_idx trace_event os_state nenv idx;
+      arg_value.to_value trace_event os_state nenv av tp -- FIXME: we should really check if this is a memloc first.
       -- w  <- av.read_memory_at n,
       -- return (value.bv w)
 
-def addr.set : ∀{tp : type}, addr tp -> value nenv tp -> evaluator os_state nenv Unit
+def addr.set : ∀{tp : type}, addr tp -> value nenv tp -> evaluator trace_event os_state nenv Unit
   | tp, (addr.arg idx), v => do 
-      av <- evaluator.arg_at_idx os_state nenv idx; -- FIXME: we should really check if this is a memloc first.
-      arg_value.set_value os_state nenv av v
+      av <- evaluator.arg_at_idx trace_event os_state nenv idx; -- FIXME: we should really check if this is a memloc first.
+      arg_value.set_value trace_event os_state nenv av v
 
 -- This is the least-worst option.  The other alternative is to have a
 -- value constructor for functions, which we only need here.
@@ -497,7 +502,7 @@ inductive hlist.{u,v} {α : Type u} (f : α -> Type v): List α -> Type (max u v
 
 -- namespace nat_expr
 
--- def eval' (ne : nat_expr) : evaluator Nat := do
+-- def eval' (ne : nat_expr) : evaluator trace_event Nat := do
 --   s <- get,
 --   match nat_expr.eval s.environment ne with
 --   | none => throw "nat_expr.eval': couldn't eval"
@@ -590,7 +595,7 @@ def bitvec.parity {n : Nat} (b : bitvec n) : Bool :=
 -- example : bitvec.parity (3 : bitvec 4) = false := by refl
 -- example : bitvec.parity (7 : bitvec 4) = true := by refl
 
-def prim.eval : ∀{tp : type}, prim tp -> evaluator os_state nenv (value nenv tp)
+def prim.eval : ∀{tp : type}, prim tp -> evaluator trace_event os_state nenv (value nenv tp)
   -- `(eq tp)` returns `true` if two values are equal.
   | ._, (prim.eq tp) => 
     if pf : type.has_eq tp 
@@ -797,8 +802,8 @@ def value.make_undef : ∀(tp : type), value nenv tp
   | (pair tp tp') => (value.make_undef tp, value.make_undef tp')
   | (fn arg res) => fun _ => value.make_undef res
 
-def expression.eval : ∀{tp : type}, expression tp -> evaluator os_state nenv (value nenv tp)
-  | ._, (expression.primitive p) => prim.eval os_state nenv p
+def expression.eval : ∀{tp : type}, expression tp -> evaluator trace_event os_state nenv (value nenv tp)
+  | ._, (expression.primitive p) => prim.eval trace_event os_state nenv p
   | ._, (@expression.bit_test wr wi re idxe) => do
     r   <- expression.eval re;
     idx <- expression.eval idxe;
@@ -810,66 +815,66 @@ def expression.eval : ∀{tp : type}, expression tp -> evaluator os_state nenv (
   | ._, (expression.quotc m xe) => throw "expression.eval.quotc unimplemented"
   | ._, (expression.undef tp)   => pure (value.make_undef nenv tp)
   | ._, (expression.app f a) => (expression.eval f) <*> (expression.eval a)
-  | ._, (expression.get_reg r) => concrete_reg.read os_state nenv r
+  | ._, (expression.get_reg r) => concrete_reg.read trace_event os_state nenv r
   | ._, (expression.read tp addre) => do
     addr   <- expression.eval addre;
     (match tp with
-      | (bv we) => evaluator.read_memory_at os_state nenv  addr (eval_nat_expr nenv we)
+      | (bv we) => evaluator.read_memory_at trace_event os_state nenv  addr (eval_nat_expr nenv we)
       | _ => throw "expression.eval.read Trying to store non-bitvector")
 
   | ._, (expression.streg idx) => throw "expression.eval.streg unimplemented"
-  | ._, (expression.get_local idx tp) => evaluator.local_at_idx os_state nenv idx tp
+  | ._, (expression.get_local idx tp) => evaluator.local_at_idx trace_event os_state nenv idx tp
   -- This is overly general, we might not know that av here is an rval
   | ._, (expression.imm_arg idx tp) => do
-    av <- evaluator.arg_at_idx os_state nenv idx;
+    av <- evaluator.arg_at_idx trace_event os_state nenv idx;
     (match av with
     | (arg_value.rval v) => value.type_check nenv _ v tp
     | _ => throw "expression.eval.imm_arg Not an rval")
 
   | ._, (expression.addr_arg idx) => do
-    av <- evaluator.arg_at_idx os_state nenv idx;
+    av <- evaluator.arg_at_idx trace_event os_state nenv idx;
     (match av with
     | (arg_value.lval _ (arg_lval.memloc _ addr)) => pure addr
     | _ => throw "expression.eval.addr_arg Not an memloc lval")
   -- FIXME: isn't specific to arg_lval
   | ._, (expression.read_arg idx tp) => do
-    av <- evaluator.arg_at_idx os_state nenv idx;
-    arg_value.to_value os_state nenv av tp
+    av <- evaluator.arg_at_idx trace_event os_state nenv idx;
+    arg_value.to_value trace_event os_state nenv av tp
 
-def evaluator.set_ip (new_ip : bitvec 64) : evaluator os_state nenv Unit :=
-  evaluator.map_machine_state os_state nenv (fun (s : machine_state) => { s with ip := new_ip })
+def evaluator.set_ip (new_ip : bitvec 64) : evaluator trace_event os_state nenv Unit :=
+  evaluator.map_machine_state trace_event os_state nenv (fun (s : machine_state) => { s with ip := new_ip })
 
-def lhs.set : ∀{tp : type}, lhs tp -> value nenv tp -> evaluator os_state nenv Unit
-  | ._, (lhs.set_reg r), v        => concrete_reg.set os_state nenv  r v
+def lhs.set : ∀{tp : type}, lhs tp -> value nenv tp -> evaluator trace_event os_state nenv Unit
+  | ._, (lhs.set_reg r), v        => concrete_reg.set trace_event os_state nenv  r v
   | ._, (lhs.write_addr ae tp), v => do
-    a <- expression.eval os_state nenv ae;
-    evaluator.write_memory_at os_state nenv a v
+    a <- expression.eval trace_event os_state nenv ae;
+    evaluator.write_memory_at trace_event os_state nenv a v
   | ._, (lhs.write_arg idx _tp), v => do
-    av <- evaluator.arg_at_idx os_state nenv idx;
+    av <- evaluator.arg_at_idx trace_event os_state nenv idx;
     -- fixme: we ignore tp here?
-    arg_value.set_value os_state nenv av v
+    arg_value.set_value trace_event os_state nenv av v
   | ._, (lhs.streg idx), v  => throw "lhs.set: unsupported FP write"
 
-def lhs.read : ∀{tp : type}, lhs tp -> evaluator os_state nenv (value nenv tp)
-  | ._, (lhs.set_reg r)        => concrete_reg.read os_state nenv r
+def lhs.read : ∀{tp : type}, lhs tp -> evaluator trace_event os_state nenv (value nenv tp)
+  | ._, (lhs.set_reg r)        => concrete_reg.read trace_event os_state nenv r
   | ._, (lhs.write_addr ae tp) => do
-    addr <- expression.eval os_state nenv ae;
+    addr <- expression.eval trace_event os_state nenv ae;
    (match tp with
-     | (bv we) => evaluator.read_memory_at os_state nenv addr (eval_nat_expr nenv we)
+     | (bv we) => evaluator.read_memory_at trace_event os_state nenv addr (eval_nat_expr nenv we)
      | _ => throw "lhs.read Trying to store non-bitvector")
   | ._, (lhs.write_arg idx tp) => do
-    av <- evaluator.arg_at_idx os_state nenv idx;
+    av <- evaluator.arg_at_idx trace_event os_state nenv idx;
     -- fixme: we ignore tp here?
-    arg_value.to_value os_state nenv av tp
+    arg_value.to_value trace_event os_state nenv av tp
   | ._, (lhs.streg idx) => throw "lhs.set: unsupported FP write"
 
-def evaluator.push64 (v : value nenv (bv 64)) : evaluator os_state nenv Unit := do
-  sp <- lhs.read os_state nenv rsp;
+def evaluator.push64 (v : value nenv (bv 64)) : evaluator trace_event os_state nenv Unit := do
+  sp <- lhs.read trace_event os_state nenv rsp;
   let sp' := sp - 8; do
-    lhs.set os_state nenv rsp sp';
-    evaluator.write_memory_at os_state nenv sp' v
+    lhs.set trace_event os_state nenv rsp sp';
+    evaluator.write_memory_at trace_event os_state nenv sp' v
 
-def read_cpuid : evaluator os_state nenv Unit :=
+def read_cpuid : evaluator trace_event os_state nenv Unit :=
   -- Copied from the cpuid results from my macbook
   -- Note: CPUID is allowed to return 0s 
   let cpuid_values : RBMap Nat (bitvec 32 × bitvec 32 × bitvec 32 × bitvec 32) (fun x y => decide (x < y)) :=
@@ -902,52 +907,52 @@ def read_cpuid : evaluator os_state nenv Unit :=
       | none     => (0, 0, 0, 0)
       | (some r) => r;
     do 
-      raxv <- lhs.read os_state nenv rax;
+      raxv <- lhs.read trace_event os_state nenv rax;
       match cpuid_fn raxv.to_nat with 
       | (axv, bxv, cxv, dxv) => do 
-        lhs.set os_state nenv eax axv;
-        lhs.set os_state nenv ebx bxv;
-        lhs.set os_state nenv ecx cxv;
-        lhs.set os_state nenv edx dxv
+        lhs.set trace_event os_state nenv eax axv;
+        lhs.set trace_event os_state nenv ebx bxv;
+        lhs.set trace_event os_state nenv ecx cxv;
+        lhs.set trace_event os_state nenv edx dxv
 
-def event.eval : event -> evaluator os_state nenv Unit
+def event.eval : event -> evaluator trace_event os_state nenv Unit
   | event.syscall =>
-    adaptState (fun (s : evaluator_state os_state nenv) => (s.system_state, s))
+    adaptState (fun (s : evaluator_state trace_event os_state nenv) => (s.system_state, s))
                (fun s s' => { s' with system_state := s })
-               os_transition
+               (() <$ os_transition)
   | (event.unsupported msg) => throw ("event.eval: unsupported: " ++ msg)
   | event.pop_x87_register_stack => throw "pop_x87_register_stack"
   | (event.call addr) => do
-    new_ip <- expression.eval os_state nenv addr;
+    new_ip <- expression.eval trace_event os_state nenv addr;
     s <- get;
-    evaluator.push64 os_state nenv s.system_state.machine_state.ip;
-    evaluator.set_ip  os_state nenv new_ip
+    evaluator.push64 trace_event os_state nenv s.system_state.machine_state.ip;
+    evaluator.set_ip  trace_event os_state nenv new_ip
 
   | (event.jmp addr) => do
-    new_ip <- expression.eval os_state nenv addr;
-    evaluator.set_ip os_state nenv new_ip
+    new_ip <- expression.eval trace_event os_state nenv addr;
+    evaluator.set_ip trace_event os_state nenv new_ip
   | (event.branch c addr) => do
-    new_ip <- expression.eval os_state nenv addr;
-    b      <- expression.eval os_state nenv c;
-    when b (evaluator.set_ip os_state nenv new_ip)
+    new_ip <- expression.eval trace_event os_state nenv addr;
+    b      <- expression.eval trace_event os_state nenv c;
+    when b (evaluator.set_ip trace_event os_state nenv new_ip)
   | event.hlt => throw "halt"
   | (event.xchg addr1 addr2) => throw "xchg"
-  | event.cpuid => read_cpuid os_state nenv
+  | event.cpuid => read_cpuid trace_event os_state nenv
 
--- def lhs.read : ∀{tp : type}, lhs tp -> evaluator (value tp)
+-- def lhs.read : ∀{tp : type}, lhs tp -> evaluator trace_event (value tp)
 --   | ._ (lhs.reg r)       => reg.read r
 --   | ._ (lhs.addr a)      => addr.read a
 --   | ._ (lhs.arg idx tp)  => do av <- evaluator.arg_at_idx idx, 
 --                                   arg_value.to_value av tp
 --   | ._ (lhs.streg idx)   => throw "lhs.read: unsupported FP read"
 
-def action.eval : action -> evaluator os_state nenv Unit
-  | (action.set l e) => do v <- expression.eval os_state nenv e;
-                           lhs.set os_state nenv l v
+def action.eval : action -> evaluator trace_event os_state nenv Unit
+  | (action.set l e) => do v <- expression.eval trace_event os_state nenv e;
+                           lhs.set trace_event os_state nenv l v
   | (action.set_cond l c e) => do
-    b <- expression.eval os_state nenv c;
-    v <- expression.eval os_state nenv e;
-    when b (lhs.set os_state nenv l v)
+    b <- expression.eval trace_event os_state nenv c;
+    v <- expression.eval trace_event os_state nenv e;
+    when b (lhs.set trace_event os_state nenv l v)
   | (@action.set_aligned (bv _) l e align) => throw "set_aligned: buggy case" -- FIXME: compiler bug
     -- v <- expression.eval os_state nenv e,
     -- if v.to_nat % eval_nat_expr nenv align = 0
@@ -955,16 +960,16 @@ def action.eval : action -> evaluator os_state nenv Unit
     -- else throw "Unaligned set_aligned"
   | (@action.set_aligned _ l e align) => throw "set_aligned: not a bv"
   | (@action.local_def tp idx e) => do 
-    v <- expression.eval os_state nenv e;
+    v <- expression.eval trace_event os_state nenv e;
     modify (fun s => { s with locals := s.locals.insert idx (Sigma.mk tp v)})
-  | (action.event e) => event.eval os_state os_transition nenv e
+  | (action.event e) => event.eval trace_event os_state os_transition nenv e
 
 -- FIXME: check pattern.context |- environment
 def pattern.eval (p : pattern) (e : environment nenv) (s : system_state os_state) 
     : Except String (system_state os_state) :=
   -- only machine_state is preserved across instructions
-  let st := { evaluator_state.init os_state nenv s with environment := e };
-  do (_, s') <- evaluator.run os_state nenv (List.mmap (action.eval os_state os_transition nenv) p.actions >>= fun _ => pure ()) st; pure s'.system_state
+  let st := { evaluator_state.init trace_event os_state nenv s with environment := e };
+  do (_, s') <- evaluator.run trace_event os_state nenv (List.mmap (action.eval trace_event os_state os_transition nenv) p.actions >>= fun _ => pure ()) st; pure s'.system_state
 
 end with_nat_env
 

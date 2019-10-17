@@ -256,11 +256,11 @@ def instruction_family (inst : decodex86.instruction) : String :=
 def instruction_map : RBMap String instruction (fun x y => decide (x < y)) :=
   RBMap.fromList (List.map (fun (i : instruction) => (i.mnemonic, i)) all_instructions) (fun x y => decide (x < y))
 
-def eval_instruction { ost : Type } (s : system_state ost) (sys : system_m ost Unit) (i : decodex86.instruction) : Except String (system_state ost) :=
+def eval_instruction { tt ost : Type } (s : system_state ost) (sys : system_m ost tt ) (i : decodex86.instruction) : Except String (system_state ost) :=
   match instruction_map.find (instruction_family i) with               
   | none        => throw ("Unknown instruction: " ++ i.mnemonic)
   | (some inst) => do (Sigma.mk nenv env, p) <- annotate' "pattern" (instantiate_pattern s.machine_state inst i);
-                      annotate' "pattern.eval" (pattern.eval ost sys nenv p env s)
+                      annotate' "pattern.eval" (pattern.eval tt ost sys nenv p env s)
 
 /- testing -/
 -- def get_sexp : String -> sexp := fun st => 
