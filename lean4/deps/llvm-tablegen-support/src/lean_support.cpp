@@ -231,7 +231,7 @@ mk_operand_memloc(const std::string &type, reg_t seg, reg_t b, uint64_t s, reg_t
     object *b_obj    = llvmMeta().get_option_reg(b);
     object *s_obj    = mk_nat_obj(s);
     object *i_obj    = llvmMeta().get_option_reg(i);
-    object *d_obj    = mk_nat_obj(d);
+    object *d_obj    = uint64_to_nat(d);
     return decodex86_exported_mk_operand_memloc(type_obj, seg_obj, b_obj, s_obj, i_obj, d_obj);
 }
 

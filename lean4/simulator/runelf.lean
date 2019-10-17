@@ -55,8 +55,26 @@ open mc_semantics
 
 def rax_idx : Fin 16 := 0
 
-def os_state := Unit
-def os_state.empty := ()
+inductive trace_event 
+  | syscall : Nat -> trace_event
+  | read    : machine_word -> ∀(n:Nat), bitvec n -> trace_event
+  | write   : machine_word -> ∀(n:Nat), bitvec n -> trace_event
+
+def trace_event.repr : trace_event -> String 
+  | trace_event.syscall n      => "syscall " ++ repr n
+  | trace_event.read addr n b  => "read " ++ addr.pp_hex ++ " " ++ repr n ++ " " ++ b.pp_hex
+  | trace_event.write addr n b => "write " ++ addr.pp_hex ++ " " ++ repr n ++ " " ++ b.pp_hex
+
+instance trace_event_repr : HasRepr trace_event := ⟨trace_event.repr⟩
+
+structure os_state :=
+  (current_ip : machine_word)
+  (trace : List (machine_word × trace_event))
+
+def os_state.empty : os_state := os_state.mk 0 []
+
+def emit_trace_event (e : trace_event) : system_m os_state Unit :=
+  modify (fun s => { s with os_state := { trace := (s.os_state.current_ip, e) :: s.os_state.trace, ..s.os_state }})
 
 def simple_syscall (f : system_state os_state -> machine_word) : system_m os_state Unit :=
   modify (fun s => { s with machine_state := s.machine_state.update_gpreg rax_idx (fun _ => f s) })
@@ -94,10 +112,15 @@ def syscalls : RBMap Nat (system_m os_state Unit) (fun x y => decide (x < y)) :=
 def syscall_handler : system_m os_state Unit := do
   s <- get;
   let syscall_no := (s.machine_state.get_gpreg rax_idx).to_nat;
+  emit_trace_event (trace_event.syscall syscall_no);
   match syscalls.find syscall_no with
      | none     => throw ("Unknown syscall: " ++ repr syscall_no)
      | (some m) => m
 
+def system_config : SystemConfig :=
+  SystemConfig.mk os_state syscall_handler 
+                  (fun addr n b => emit_trace_event (trace_event.read addr n b))
+                  (fun addr n b => emit_trace_event (trace_event.write addr n b))
 end x86_64
 end linux
 
@@ -117,8 +140,12 @@ def decode_loop (d : decodex86.decoder) : Nat -> system_state linux.x86_64.os_st
   | (Sum.inl b) => throw ("Unknown byte")
   | (Sum.inr i) => do
     IO.println (repr i);
-    (match eval_instruction { machine_state := { ip := s.machine_state.ip + bitvec.of_nat _ i.nbytes, .. s.machine_state}, ..s } linux.x86_64.syscall_handler i with
-    | (Except.error e) => throwS ("Eval failed: (" ++ repr i ++ ") at " ++  s.machine_state.ip.pp_hex ++ " "  ++ e)
+    (match eval_instruction linux.x86_64.system_config 
+           { machine_state := { ip := s.machine_state.ip + bitvec.of_nat _ i.nbytes, .. s.machine_state}, 
+             os_state      := { current_ip := s.machine_state.ip, .. s.os_state } } i with
+    | (Except.error e) => 
+      do s.os_state.trace.mmap (fun (e : (machine_word × linux.x86_64.trace_event)) => IO.println (e.fst.pp_hex ++ " " ++ repr e.snd));
+         throwS ("Eval failed: (" ++ repr i ++ ") at " ++  s.machine_state.ip.pp_hex ++ " "  ++ e)
     | (Except.ok s')   => decode_loop n s')
 
 def doit (elffile : String) : IO Unit := do
