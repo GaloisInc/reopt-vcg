@@ -81,8 +81,11 @@ def sys_getegid : system_m os_state Unit :=
   let res     := bitvec.of_nat 64 4242;
   simple_syscall (fun _ => res)
 
+def sys_exit : system_m os_state Unit := throw "Exit system call"
+
 def syscalls : RBMap Nat (system_m os_state Unit) (fun x y => decide (x < y)) := 
-  RBMap.fromList [ (0x66, sys_geteuid)
+  RBMap.fromList [  (0x3c, sys_exit)
+                  , (0x66, sys_geteuid)
                   , (0x6b, sys_geteuid)
                   , (0x68, sys_getgid)
                   , (0x6c, sys_getegid)
@@ -112,9 +115,10 @@ def decode_loop (d : decodex86.decoder) : Nat -> system_state linux.x86_64.os_st
   let inst := decodex86.decode d s.machine_state.ip.to_nat;
   match inst with 
   | (Sum.inl b) => throw ("Unknown byte")
-  | (Sum.inr i) => 
+  | (Sum.inr i) => do
+    IO.println (repr i);
     (match eval_instruction { machine_state := { ip := s.machine_state.ip + bitvec.of_nat _ i.nbytes, .. s.machine_state}, ..s } linux.x86_64.syscall_handler i with
-    | (Except.error e) => throwS ("Eval failed: (" ++ repr i ++ ") "  ++ e)
+    | (Except.error e) => throwS ("Eval failed: (" ++ repr i ++ ") at " ++  s.machine_state.ip.pp_hex ++ " "  ++ e)
     | (Except.ok s')   => decode_loop n s')
 
 def doit (elffile : String) : IO Unit := do
@@ -137,7 +141,7 @@ def doit (elffile : String) : IO Unit := do
                       linux.x86_64.os_state.empty;
     let init_state_abi := sysv_abi.x86_64.initialise init_state;
     let fuel : Nat := 100000; decode_loop d fuel init_state_abi
-  
+    
 def main (xs : List String) : IO UInt32 :=
   match xs with 
   | [f] => do doit f; pure 0

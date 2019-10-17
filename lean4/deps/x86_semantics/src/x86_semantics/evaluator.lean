@@ -131,17 +131,17 @@ def machine_word := bitvec 64
 
 namespace reg
 
-axiom inject_ax0 : 48 + gpreg_type.width' gpreg_type.reg8h ≤ 64
-axiom inject_ax1 : ∀(rtp : gpreg_type), 64 - gpreg_type.width' rtp + gpreg_type.width' rtp ≤ 64
+axiom inject_ax0 : 8 + gpreg_type.width' gpreg_type.reg8h ≤ 64
+axiom inject_ax1 : ∀(rtp : gpreg_type), 0 + gpreg_type.width' rtp ≤ 64
 
 def inject : ∀(rtp : gpreg_type), bitvec rtp.width' -> machine_word -> machine_word
   | gpreg_type.reg32, b, _   => bitvec.append (bitvec.zero 32) b
-  | gpreg_type.reg8h, b, old => old.set_bits 48 b inject_ax0
-  | rtp,              b, old => old.set_bits (64 - rtp.width') b (inject_ax1 rtp) -- (begin cases rtp; simp end)
+  | gpreg_type.reg8h, b, old => old.set_bits 8 b inject_ax0
+  | rtp,              b, old => old.set_bits 0 b (inject_ax1 rtp) -- (begin cases rtp; simp end)
 
 def project : ∀(rtp : gpreg_type), machine_word -> bitvec rtp.width'
-  | gpreg_type.reg8h, b => b.get_bits 48 8 inject_ax0 -- (begin simp [gpreg_type.width'], exact dec_trivial end)
-  | rtp,              b => b.get_bits (64 - rtp.width') rtp.width' (inject_ax1 rtp) -- (begin cases rtp; simp end)
+  | gpreg_type.reg8h, b => b.get_bits 8 8 inject_ax0 -- (begin simp [gpreg_type.width'], exact dec_trivial end)
+  | rtp,              b => b.get_bits 0 rtp.width' (inject_ax1 rtp) -- (begin cases rtp; simp end)
 
 end reg
 

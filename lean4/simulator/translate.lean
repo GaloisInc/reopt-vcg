@@ -108,7 +108,7 @@ def operand_to_arg_lval {m} [Monad m] [MonadExcept String m]
     (nenv : nat_env) (s : machine_state) 
     (tp : type) (otp : decodex86.operand_type) : decodex86.operand_value -> m arg_lval
   -- FIXME: check width?
-  | (operand_value.register r) => do sgpr <- guard_some "operand_to_arg_lhs register" (register_to_reg r) pure;
+  | (operand_value.register r) => do sgpr <- guard_some "operand_to_arg_lval register" (register_to_reg r) pure;
                                      assert_types nenv (bv sgpr.fst.width) tp;
                                      pure (arg_lval.reg sgpr.snd)
   -- FIXME: check width?
@@ -135,6 +135,9 @@ def operand_to_arg_value_lhs {m} [Monad m] [MonadExcept String m]
    (tp : type) (op : decodex86.operand) : m (arg_value nenv) :=
    arg_value.lval nenv <$> operand_to_arg_lval nenv s tp op.type op.value
 
+def nat_to_signed_bitvec (val : Nat) (nbytes_in : Nat) (n : Nat) : bitvec n :=
+  bitvec.of_int n ((bitvec.of_nat (8 * nbytes_in) val).to_int)
+
 def operand_to_value {m} [Monad m] [MonadExcept String m] 
    (nenv : nat_env) (s : machine_state)
    (tp : type) (op : decodex86.operand) : m (value nenv tp) :=
@@ -143,13 +146,13 @@ def operand_to_value {m} [Monad m] [MonadExcept String m]
      -- FIXME: rather than failing here, we will sign extend/truncate.  This may be the wrong approach.
      -- We could also extend operand_type
        (match tp with
-       | (bv e) => pure (bitvec.of_int (nat_expr.eval_default nenv e) ((bitvec.of_nat (8 * nbytes) val).to_int))
+       | (bv e) => pure (nat_to_signed_bitvec val nbytes (nat_expr.eval_default nenv e))
        | _      => throw "Immediate should be a bv")
 
      -- FIXME: we use ip out of the state, we could use the value encoded in the decoded instruction 
      | (operand_value.rel_immediate next_addr nbytes val) => do
        -- checks for width = 64 bit, basically
-       @value.type_check nenv m _ _ (bv 64) (s.ip + bitvec.of_nat _ val) tp
+       @value.type_check nenv m _ _ (bv 64) (s.ip + nat_to_signed_bitvec val nbytes 64) tp
      | _ => do lval <- operand_to_arg_lval nenv s tp op.type op.value;
                arg_lval.to_value' nenv s lval tp
 
