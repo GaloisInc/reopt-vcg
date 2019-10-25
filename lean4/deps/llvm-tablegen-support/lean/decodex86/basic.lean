@@ -254,6 +254,7 @@ def operand_memtyp_map : RBMap String Nat (fun s1 s2 => decide (s1 < s2)) :=
        ,("i8mem"        , 8  ) 
        ,("i8mem_NOREX"  , 8  ) 
        ,("lea64mem"     , 64 ) 
+       ,("lea64_32mem"  , 64 ) 
        ,("sdmem"        , 64 ) 
        ,("ssmem"        , 32 ) 
        ,("v512mem"      , 512) 

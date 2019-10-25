@@ -229,11 +229,11 @@ structure system_state (ost : Type) : Type :=
   (os_state      : ost)
 
 @[reducible]
-def system_m (os_state : Type) := StateT (system_state os_state) (Except String)
+def system_m (os_state : Type) := StateT (system_state os_state) (ExceptT String IO)
 
 structure SystemConfig : Type 1 := 
-  (os_state          : Type)
-  (os_transition     : system_m os_state Unit)
+  (os_state         : Type)
+  (os_transition    : system_m os_state Unit)
   (emit_read_event  : machine_word -> ∀(n : Nat), bitvec n -> system_m os_state Unit)
   (emit_write_event : machine_word -> ∀(n : Nat), bitvec n -> system_m os_state Unit)
 
@@ -312,14 +312,24 @@ def evaluator_state.init (sst : system_state system_config.os_state) : evaluator
 
 -- Monad for evaluating with failure.  This nesting might be useful to get the ip where things break?
 @[reducible]
-def evaluator := StateT (evaluator_state system_config nenv) (Except String)
+def evaluator := StateT (evaluator_state system_config nenv) (ExceptT String IO)
 
--- FIXME: are these an oversight in the stdlib? 
+-- FIXME: this is repeated from the stdlib, not sure why it needs to be
 instance (ε): MonadExcept ε (Except ε) := 
   { throw := fun α e => Except.error e, catch := fun α m f => match m with | (Except.error e) => f e | _ => m }
 
 instance (ε) [Inhabited ε] : Alternative (Except ε) := 
   { failure := fun α => Except.error (default ε)
+  , orelse  := fun α => MonadExcept.orelse }
+
+instance MonadExcept_ExceptT (ε) (m)  [Monad m]: MonadExcept ε (ExceptT ε m) := 
+  { throw := fun α e => ExceptT.mk (pure (Except.error e))
+  , catch := fun α m f => ExceptT.mk (do
+          v <- m.run;
+          match v with | (Except.error e) => (f e).run | _ => ExceptT.mk (pure v) )}
+
+instance Alternative_ExceptT (ε) (m) [Inhabited ε] [Monad m] : Alternative (ExceptT ε m) := 
+  { failure := fun α => throw (default ε)
   , orelse  := fun α => MonadExcept.orelse }
 
 
@@ -377,8 +387,8 @@ def value.type_check {m} [Monad m] [MonadExcept String m] (tp : type) (v : value
 -- namespace evaluator
 
 def evaluator.run {a : Type} (m : evaluator system_config nenv a) 
-                             (s : evaluator_state system_config nenv) : Except String (a × evaluator_state system_config nenv) :=
-  (m.run s)
+                             (s : evaluator_state system_config nenv) : IO (Except String (a × evaluator_state system_config nenv)) :=
+  (m.run s).run
 
 def evaluator.map_machine_state (f : machine_state → machine_state) : evaluator system_config nenv Unit :=
   modify (fun (s : evaluator_state system_config nenv) => { s with system_state := { s.system_state with machine_state := f s.system_state.machine_state } })
@@ -974,10 +984,11 @@ def action.eval : action -> evaluator system_config nenv Unit
 
 -- FIXME: check pattern.context |- environment
 def pattern.eval (p : pattern) (e : environment nenv) (s : system_state system_config.os_state) 
-    : Except String (system_state system_config.os_state) :=
+    : IO (Except String (system_state system_config.os_state)) :=
   -- only machine_state is preserved across instructions
   let st := { evaluator_state.init system_config nenv s with environment := e };
-  do (_, s') <- evaluator.run system_config nenv (List.mmap (action.eval system_config nenv) p.actions >>= fun _ => pure ()) st; pure s'.system_state
+  do r <- evaluator.run system_config nenv (List.mmap (action.eval system_config nenv) p.actions >>= fun _ => pure ()) st;
+     pure ((fun (v : Unit × evaluator_state system_config nenv) => v.snd.system_state) <$> r)
 
 end with_nat_env
 

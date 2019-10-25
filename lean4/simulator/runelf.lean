@@ -53,15 +53,16 @@ namespace linux
 namespace x86_64
 open mc_semantics
 
-def rax_idx : Fin 16 := 0
 
 inductive trace_event 
-  | syscall : Nat -> trace_event
+  | syscall : Nat -> List machine_word -> trace_event
   | read    : machine_word -> ∀(n:Nat), bitvec n -> trace_event
   | write   : machine_word -> ∀(n:Nat), bitvec n -> trace_event
 
 def trace_event.repr : trace_event -> String 
-  | trace_event.syscall n      => "syscall " ++ repr n
+  | trace_event.syscall n args => 
+    let pfx := "syscall " ++ repr n ++ " " ++ repr args.length;
+    List.foldl (fun (s : String) (w : machine_word) => s ++ " " ++ w.pp_hex) pfx args
   | trace_event.read addr n b  => "read " ++ addr.pp_hex ++ " " ++ repr n ++ " " ++ b.pp_hex
   | trace_event.write addr n b => "write " ++ addr.pp_hex ++ " " ++ repr n ++ " " ++ b.pp_hex
 
@@ -76,33 +77,106 @@ def os_state.empty : os_state := os_state.mk 0 []
 def emit_trace_event (e : trace_event) : system_m os_state Unit :=
   modify (fun s => { s with os_state := { trace := (s.os_state.current_ip, e) :: s.os_state.trace, ..s.os_state }})
 
-def simple_syscall (f : system_state os_state -> machine_word) : system_m os_state Unit :=
-  modify (fun s => { s with machine_state := s.machine_state.update_gpreg rax_idx (fun _ => f s) })
+-- Linux calling conv: %rdi, %rsi, %rdx, %r10, %r8 and %r9, with %rax holding syscall number.
 
-def sys_getuid : system_m os_state Unit := 
-  let res     := bitvec.of_nat 64 4242;
-  simple_syscall (fun _ => res)
+-- FIXME: these should maybe be in common?
+
+def rax_idx : Fin 16 := 0
+def rcx_idx : Fin 16 := 1
+def rdx_idx : Fin 16 := 2
+def rbx_idx : Fin 16 := 3
+def rsp_idx : Fin 16 := 4
+def rbp_idx : Fin 16 := 5
+def rsi_idx : Fin 16 := 6
+def rdi_idx : Fin 16 := 7
+def r8_idx  : Fin 16 := 8
+def r9_idx  : Fin 16 := 9
+def r10_idx : Fin 16 := 10
+def r11_idx : Fin 16 := 11
+def r12_idx : Fin 16 := 12
+def r13_idx : Fin 16 := 13
+def r14_idx : Fin 16 := 14
+def r15_idx : Fin 16 := 15
+
+-- def simple_syscall (f : system_state os_state -> machine_word) : system_m os_state Unit :=
+--   modify (fun s => { s with machine_state := s.machine_state.update_gpreg rax_idx (fun _ => f s) })
+
+def emit_syscall_trace (syscall_no : Nat) (args : List machine_word) : system_m os_state Unit :=
+    emit_trace_event (trace_event.syscall syscall_no args)
+
+def raw_syscall {a : Type} (f : machine_word -> machine_word -> machine_word -> machine_word -> machine_word -> machine_word -> system_m os_state a)
+  : system_m os_state a := do
+  s <- get;
+  f (s.machine_state.get_gpreg rdi_idx)
+    (s.machine_state.get_gpreg rsi_idx)
+    (s.machine_state.get_gpreg rdx_idx)
+    (s.machine_state.get_gpreg r10_idx)
+    (s.machine_state.get_gpreg r8_idx)
+    (s.machine_state.get_gpreg r9_idx)
+
+def syscall0 (sys_f : system_m os_state machine_word)
+             (syscall_no : Nat) 
+             : system_m os_state Unit := do
+  res <- raw_syscall (fun _ _ _ _ _ _ => do emit_syscall_trace syscall_no []; sys_f);
+  modify (fun s => { s with machine_state := s.machine_state.update_gpreg rax_idx (fun _ => res) })
+
+def syscall1 (sys_f : machine_word -> system_m os_state machine_word) 
+             (syscall_no : Nat)
+             : system_m os_state Unit := do
+  res <- raw_syscall (fun a _ _ _ _ _ => do emit_syscall_trace syscall_no [a]; sys_f a);
+  modify (fun s => { s with machine_state := s.machine_state.update_gpreg rax_idx (fun _ => res) })
+
+def syscall3 (sys_f : machine_word -> machine_word -> machine_word -> system_m os_state machine_word) 
+             (syscall_no : Nat)
+             : system_m os_state Unit := do
+  res <- raw_syscall (fun a b c _ _ _ => do emit_syscall_trace syscall_no [a, b, c]; sys_f a b c);
+  modify (fun s => { s with machine_state := s.machine_state.update_gpreg rax_idx (fun _ => res) })
+
+def syscall6 (sys_f : machine_word -> machine_word -> machine_word -> machine_word -> machine_word -> machine_word -> system_m os_state machine_word) 
+             (syscall_no : Nat)
+             : system_m os_state Unit := do
+  res <- raw_syscall (fun a b c d e f => do emit_syscall_trace syscall_no [a, b, c, d, e, f]; sys_f a b c d e f);
+  modify (fun s => { s with machine_state := s.machine_state.update_gpreg rax_idx (fun _ => res) })
+
+
+-- Stub calls
+abbrev syscall_t := ∀(syscall_no : Nat), system_m os_state Unit
+
+def sys_getuid : syscall_t :=
+  syscall0 (pure (bitvec.of_nat 64 4242))
 
 -- FIXME: maybe use the euid of the current (lean) process?  We could
 -- also forward these to the underlying (Linux) kernel
-def sys_geteuid : system_m os_state Unit := 
-  let res     := bitvec.of_nat 64 4242;
-  simple_syscall (fun _ => res)
+def sys_geteuid : syscall_t :=
+  syscall0 (pure (bitvec.of_nat 64 4242))
 
-def sys_getgid : system_m os_state Unit := 
-  let res     := bitvec.of_nat 64 4242;
-  simple_syscall (fun _ => res)
+def sys_getgid : syscall_t :=
+  syscall0 (pure (bitvec.of_nat 64 4242))
 
 -- FIXME: maybe use the euid of the current (lean) process?  We could
 -- also forward these to the underlying (Linux) kernel
-def sys_getegid : system_m os_state Unit := 
-  let res     := bitvec.of_nat 64 4242;
-  simple_syscall (fun _ => res)
+def sys_getegid : syscall_t :=
+  syscall0 (pure (bitvec.of_nat 64 4242))
 
-def sys_exit : system_m os_state Unit := throw "Exit system call"
+def sys_exit : syscall_t :=
+  syscall1 (fun _ => throw "Exit system call")
 
-def syscalls : RBMap Nat (system_m os_state Unit) (fun x y => decide (x < y)) := 
-  RBMap.fromList [  (0x3c, sys_exit)
+def sys_write : syscall_t :=
+  syscall3 (fun filedes buf nbytes => do
+               s <- get;
+               let m_bytes := s.machine_state.mem.read_bytes buf nbytes.to_nat;
+               match m_bytes with
+               | none      => throw ("sys_write: unable to read " ++ nbytes.to_nat.repr ++ " bytes at " ++ buf.pp_hex)
+               | (some bs) => if filedes = 1 
+                              then do let str := String.mk (bs.map (fun (b : byte) => Char.ofNat b.toNat));
+                                      IO.print str;
+                                      pure nbytes -- always succeed
+                              else throw ("sys_write: unable to write to filedes " ++ filedes.to_nat.repr)
+           )
+
+def syscalls : RBMap Nat syscall_t (fun x y => decide (x < y)) := 
+  RBMap.fromList [  (0x01, sys_write)
+                  , (0x3c, sys_exit)
                   , (0x66, sys_geteuid)
                   , (0x6b, sys_geteuid)
                   , (0x68, sys_getgid)
@@ -112,10 +186,9 @@ def syscalls : RBMap Nat (system_m os_state Unit) (fun x y => decide (x < y)) :=
 def syscall_handler : system_m os_state Unit := do
   s <- get;
   let syscall_no := (s.machine_state.get_gpreg rax_idx).to_nat;
-  emit_trace_event (trace_event.syscall syscall_no);
   match syscalls.find syscall_no with
      | none     => throw ("Unknown syscall: " ++ repr syscall_no)
-     | (some m) => m
+     | (some m) => m syscall_no
 
 def system_config : SystemConfig :=
   SystemConfig.mk os_state syscall_handler 
@@ -134,17 +207,19 @@ def dump_state (s : system_state linux.x86_64.os_state) : IO Unit := do
 def decode_loop (d : decodex86.decoder) : Nat -> system_state linux.x86_64.os_state -> IO Unit
   | Nat.zero,    _   => throw "Out of fuel"
   | (Nat.succ n), s  => do
-  dump_state s;
+  -- dump_state s;
   let inst := decodex86.decode d s.machine_state.ip.to_nat;
   match inst with 
   | (Sum.inl b) => throw ("Unknown byte")
   | (Sum.inr i) => do
-    IO.println (repr i);
-    (match eval_instruction linux.x86_64.system_config 
+    -- IO.println (repr i);
+    r <- eval_instruction linux.x86_64.system_config 
            { machine_state := { ip := s.machine_state.ip + bitvec.of_nat _ i.nbytes, .. s.machine_state}, 
-             os_state      := { current_ip := s.machine_state.ip, .. s.os_state } } i with
+             os_state      := { current_ip := s.machine_state.ip, .. s.os_state } } 
+           i;
+    (match r with
     | (Except.error e) => 
-      do s.os_state.trace.mmap (fun (e : (machine_word × linux.x86_64.trace_event)) => IO.println (e.fst.pp_hex ++ " " ++ repr e.snd));
+      do s.os_state.trace.reverse.mmap (fun (e : (machine_word × linux.x86_64.trace_event)) => IO.println (e.fst.pp_hex ++ " " ++ repr e.snd));
          throwS ("Eval failed: (" ++ repr i ++ ") at " ++  s.machine_state.ip.pp_hex ++ " "  ++ e)
     | (Except.ok s')   => decode_loop n s')
 

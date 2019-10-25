@@ -257,11 +257,12 @@ def instruction_map : RBMap String instruction (fun x y => decide (x < y)) :=
   RBMap.fromList (List.map (fun (i : instruction) => (i.mnemonic, i)) all_instructions) (fun x y => decide (x < y))
 
 def eval_instruction ( cfg : SystemConfig ) (s : system_state cfg.os_state) (i : decodex86.instruction) 
-  : Except String (system_state cfg.os_state) :=
+  : IO (Except String (system_state cfg.os_state)) :=
   match instruction_map.find (instruction_family i) with               
-  | none        => throw ("Unknown instruction: " ++ i.mnemonic)
-  | (some inst) => do (Sigma.mk nenv env, p) <- annotate' "pattern" (instantiate_pattern s.machine_state inst i);
-                      annotate' "pattern.eval" (pattern.eval cfg nenv p env s)
+  | none        => pure (throw ("Unknown instruction: " ++ i.mnemonic))
+  | (some inst) => match annotate' "pattern" (instantiate_pattern s.machine_state inst i) with
+                   | Except.error e                   => pure (Except.error e)
+                   | Except.ok (Sigma.mk nenv env, p) => annotate' "pattern.eval" (pattern.eval cfg nenv p env s)
 
 /- testing -/
 -- def get_sexp : String -> sexp := fun st => 
