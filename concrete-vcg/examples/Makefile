@@ -25,7 +25,7 @@ cpp_flags ?=
 #reopt-vcg := $(shell which reopt-vcg)
 
 
-TESTS := test_fib test_sort
+TESTS := test_fib test_sort test_add
 
 TARGETS := $(foreach x,$(TESTS),$(x)_mindiet_lld.exe $(x).ll)
 
