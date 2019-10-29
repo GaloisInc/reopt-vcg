@@ -88,25 +88,25 @@ def guard_some {m} [Monad m] [MonadExcept String m] {α β : Type} (reason : Str
   | none     => throw (String.append "guard_some: none: " reason)
   | (some y) => f y
   
-def option_register_to_bv64 {m} [Monad m] [MonadExcept String m] 
-  (nenv : nat_env) (s : machine_state)
-  (opt_r : Option decodex86.register) : m (bitvec 64) := 
+def option_register_to_bv64
+  (cfg : SystemConfig) (nenv : nat_env) 
+  (opt_r : Option decodex86.register) : system_m cfg.os_state (bitvec 64) := 
   match opt_r with 
   | none     => pure (bitvec.of_nat 64 0)
   | (some r) => 
     (match String.decEq r.top "rip" with -- FIXME: compiler bug with ite?
-     | isTrue _  => pure s.ip
+     | isTrue _  => do s <- get; pure s.machine_state.ip
      | isFalse _ => guard_some "option_register_to_bv64" (register_to_reg r)      
                     (fun (r' : some_gpr) =>
                       match r' with 
-                      | (Sigma.mk gpreg_type.reg64 rr) => pure (concrete_reg.from_state nenv rr s)
+                      | (Sigma.mk gpreg_type.reg64 rr) => do s <- get; pure (concrete_reg.from_state nenv rr s.machine_state)
                       | _                              => throw "not a 64bit reg"
       ))
 
 
-def operand_to_arg_lval {m} [Monad m] [MonadExcept String m] 
-    (nenv : nat_env) (s : machine_state) 
-    (tp : type) (otp : decodex86.operand_type) : decodex86.operand_value -> m arg_lval
+def operand_to_arg_lval
+    (cfg : SystemConfig) (nenv : nat_env)
+    (tp : type) (otp : decodex86.operand_type) : decodex86.operand_value -> system_m cfg.os_state arg_lval
   -- FIXME: check width?
   | (operand_value.register r) => do sgpr <- guard_some "operand_to_arg_lval register" (register_to_reg r) pure;
                                      assert_types nenv (bv sgpr.fst.width) tp;
@@ -126,21 +126,21 @@ def operand_to_arg_lval {m} [Monad m] [MonadExcept String m]
     n <- match otp with | (operand_type.mem n) => pure n | other => throw "memloc not of mem type";
     assert_types nenv (bv n) tp;
     throw_if (Option.isSome opt_seg) "got a segment reg";
-    b_v   <- option_register_to_bv64 nenv s opt_base;
-    idx_v <- option_register_to_bv64 nenv s opt_idx;
+    b_v   <- option_register_to_bv64 cfg nenv opt_base;
+    idx_v <- option_register_to_bv64 cfg nenv opt_idx;
     pure (arg_lval.memloc n (b_v + scale * idx_v + disp))
 
-def operand_to_arg_value_lhs {m} [Monad m] [MonadExcept String m] 
-   (nenv : nat_env) (s : machine_state)
-   (tp : type) (op : decodex86.operand) : m (arg_value nenv) :=
-   arg_value.lval nenv <$> operand_to_arg_lval nenv s tp op.type op.value
+def operand_to_arg_value_lhs
+   (cfg : SystemConfig) (nenv : nat_env)
+   (tp : type) (op : decodex86.operand) : system_m cfg.os_state (arg_value nenv) :=
+   arg_value.lval nenv <$> operand_to_arg_lval cfg nenv tp op.type op.value
 
 def nat_to_signed_bitvec (val : Nat) (nbytes_in : Nat) (n : Nat) : bitvec n :=
   bitvec.of_int n ((bitvec.of_nat (8 * nbytes_in) val).to_int)
 
-def operand_to_value {m} [Monad m] [MonadExcept String m] 
-   (nenv : nat_env) (s : machine_state)
-   (tp : type) (op : decodex86.operand) : m (value nenv tp) :=
+def operand_to_value 
+   ( cfg : SystemConfig ) (nenv : nat_env) 
+   (tp : type) (op : decodex86.operand) : system_m cfg.os_state (value nenv tp) :=
    match op.value with 
      | (operand_value.immediate nbytes val) =>
      -- FIXME: rather than failing here, we will sign extend/truncate.  This may be the wrong approach.
@@ -152,15 +152,17 @@ def operand_to_value {m} [Monad m] [MonadExcept String m]
      -- FIXME: we use ip out of the state, we could use the value encoded in the decoded instruction 
      | (operand_value.rel_immediate next_addr nbytes val) => do
        -- checks for width = 64 bit, basically
-       @value.type_check nenv m _ _ (bv 64) (s.ip + nat_to_signed_bitvec val nbytes 64) tp
-     | _ => do lval <- operand_to_arg_lval nenv s tp op.type op.value;
-               arg_lval.to_value' nenv s lval tp
+       -- @value.type_check nenv m _ _ (bv 64) (s.ip + nat_to_signed_bitvec val nbytes 64) tp
+       s <- get;
+       @value.type_check nenv _ _ _ (bv 64) (s.machine_state.ip + nat_to_signed_bitvec val nbytes 64) tp
+     | _ => do lval <- operand_to_arg_lval cfg nenv tp op.type op.value;
+               arg_lval.to_value' cfg nenv lval tp
 
    
-def operand_to_arg_value_expr {m} [Monad m] [MonadExcept String m] 
-   (nenv : nat_env) (s : machine_state)
-   (tp : type) (op : decodex86.operand) : m (arg_value nenv) :=
-   arg_value.rval <$> operand_to_value nenv s tp op
+def operand_to_arg_value_expr 
+   (cfg : SystemConfig )(nenv : nat_env) 
+   (tp : type) (op : decodex86.operand) : system_m cfg.os_state (arg_value nenv) :=
+   arg_value.rval <$> operand_to_value cfg nenv tp op
 
 def first_comb.{u,v,w} {ε : Type u} {m : Type v → Type w}
   [MonadExcept ε m] {α : Type v} (e : ε) (f : ε -> ε -> ε) : List (m α) -> m α
@@ -180,14 +182,14 @@ def test_pattern := match mov.patterns with | [x] := x | _ => sorry end
 #eval possible_nat_envs test_pattern.context.bindings.reverse
 -/
 
-def make_environment_helper (nenv : nat_env) (s : machine_state) 
-  : List binding -> List decodex86.operand -> nat_env -> Except String (environment nenv) 
+def make_environment_helper (cfg : SystemConfig) (nenv : nat_env)
+  : List binding -> List decodex86.operand -> nat_env -> system_m cfg.os_state (environment nenv) 
   | [], [], _              => pure []
   | (binding.one_of _ :: rest), ops, (some n :: ns) => do e <- make_environment_helper rest ops ns;
-                                                        pure (arg_value.natv nenv n :: e)
+                                                          pure (arg_value.natv nenv n :: e)
   | (binding.reg tp   :: rest), (op :: ops), (_ :: ns) =>
     annotate' "reg" $ do
-      av  <- operand_to_arg_value_lhs nenv s tp op;
+      av  <- operand_to_arg_value_lhs cfg nenv tp op;
       -- Mainly to check things are of the right form
       match av with | (arg_value.lval _ (arg_lval.reg r)) => pure () | _ => throw "Not a register";
       e   <- make_environment_helper rest ops ns;
@@ -195,7 +197,7 @@ def make_environment_helper (nenv : nat_env) (s : machine_state)
 
   | (binding.addr tp   :: rest), (op :: ops), (_ :: ns) =>
     annotate' "addr" $ do
-      av  <- operand_to_arg_value_lhs nenv s tp op;
+      av  <- operand_to_arg_value_lhs cfg nenv tp op;
       -- Mainly to check things are of the right form
       match av with | (arg_value.lval _ (arg_lval.memloc _ _)) => pure () | _ => throw "Not a memloc";
       e   <- make_environment_helper rest ops ns;
@@ -204,19 +206,19 @@ def make_environment_helper (nenv : nat_env) (s : machine_state)
   | (binding.imm tp   :: rest), (op :: ops), (_ :: ns) =>
     annotate' "imm" $ do
       -- FIXME: check that it is, in fact, an immediate
-      av  <- operand_to_arg_value_expr nenv s tp op;
+      av  <- operand_to_arg_value_expr cfg nenv tp op;
       e   <- make_environment_helper rest ops ns;
       pure (av :: e)
 
   | (binding.lhs tp   :: rest), (op :: ops), (_ :: ns) =>
     annotate' "lhs" $ do
-      av  <- operand_to_arg_value_lhs nenv s tp op;
+      av  <- operand_to_arg_value_lhs cfg nenv tp op;
       e   <- make_environment_helper rest ops ns;
       pure (av :: e)
       
   | (binding.expression tp :: rest), (op :: ops), (_ :: ns) => 
     annotate' "expression" $ do 
-      av  <- operand_to_arg_value_expr nenv s tp op;
+      av  <- operand_to_arg_value_expr cfg nenv tp op;
       e   <- make_environment_helper rest ops ns;
       pure (av :: e)
   | _, _, _ => throw "binding/operand mismatch"
@@ -231,15 +233,15 @@ inductive binding
 | expression : type → binding
 -/
 
-def make_environment (s : machine_state) (bindings : List binding) (ops : List decodex86.operand) 
-  : Except String (Sigma environment) :=
+def make_environment (cfg : SystemConfig) (bindings : List binding) (ops : List decodex86.operand) 
+  : system_m cfg.os_state (Sigma environment) :=
   first_comb "make_environment: no patterns" (fun l r => r) -- l ++ ", " ++ r)
-             (List.map (fun nenv => do e <- make_environment_helper nenv s bindings ops nenv; pure (Sigma.mk nenv e)) (possible_nat_envs bindings))
+             (List.map (fun nenv => do e <- make_environment_helper cfg nenv bindings ops nenv; pure (Sigma.mk nenv e)) (possible_nat_envs bindings))
 
-def instantiate_pattern (s : machine_state) (inst : instruction) (i : decodex86.instruction) 
-  : Except String ((Sigma environment) × x86.pattern) :=
+def instantiate_pattern (cfg : SystemConfig) (inst : instruction) (i : decodex86.instruction) 
+  : system_m cfg.os_state ((Sigma environment) × x86.pattern) :=
   first_comb "instantiate_pattern: no patterns" (fun l r => r) -- l ++ ", " ++ r)
-              (List.map (fun (p : x86.pattern) => do e <- make_environment s p.context.bindings.reverse i.operands; pure (e, p)) inst.patterns)
+              (List.map (fun (p : x86.pattern) => do e <- make_environment cfg p.context.bindings.reverse i.operands; pure (e, p)) inst.patterns)
 
 -- def eval_simple_instruction (s : instruction) (i : decodex86.instruction) : evaluator environment :=
 --   match s.patterns with
@@ -256,14 +258,18 @@ def instruction_family (inst : decodex86.instruction) : String :=
 def instruction_map : RBMap String instruction (fun x y => decide (x < y)) :=
   RBMap.fromList (List.map (fun (i : instruction) => (i.mnemonic, i)) all_instructions) (fun x y => decide (x < y))
 
-def eval_instruction ( cfg : SystemConfig ) (s : system_state cfg.os_state) (i : decodex86.instruction) 
-  : IO (Except String (system_state cfg.os_state)) :=
+def eval_instruction' ( cfg : SystemConfig ) (i : decodex86.instruction) 
+  : system_m cfg.os_state Unit :=
   match instruction_map.find (instruction_family i) with               
-  | none        => pure (throw ("Unknown instruction: " ++ i.mnemonic))
-  | (some inst) => match annotate' "pattern" (instantiate_pattern s.machine_state inst i) with
-                   | Except.error e                   => pure (Except.error e)
-                   | Except.ok (Sigma.mk nenv env, p) => annotate' "pattern.eval" (pattern.eval cfg nenv p env s)
+  | none        => throw ("Unknown instruction: " ++ i.mnemonic)
+  | (some inst) => do (Sigma.mk nenv env, p) <- annotate' "pattern" (instantiate_pattern cfg inst i);
+                      annotate' "pattern.eval" (pattern.eval cfg nenv p env)
 
+def eval_instruction ( cfg : SystemConfig ) (s : system_state cfg.os_state) (i : decodex86.instruction) 
+    : IO (Except String (system_state cfg.os_state)) := 
+    do r <- system_m.run (eval_instruction' cfg i) s;
+       pure ((fun (v : Unit × system_state cfg.os_state) => v.snd) <$> r)
+  
 /- testing -/
 -- def get_sexp : String -> sexp := fun st => 
 --     match sexp.from_string st with

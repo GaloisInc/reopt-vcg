@@ -231,6 +231,10 @@ structure system_state (ost : Type) : Type :=
 @[reducible]
 def system_m (os_state : Type) := StateT (system_state os_state) (ExceptT String IO)
 
+def system_m.run {a : Type} {os_state : Type} (m : system_m os_state a) (s : system_state os_state) : 
+  IO (Except String (a × system_state os_state)) :=
+  (m.run s).run
+
 structure SystemConfig : Type 1 := 
   (os_state         : Type)
   (os_transition    : system_m os_state Unit)
@@ -382,13 +386,48 @@ def value.type_check {m} [Monad m] [MonadExcept String m] (tp : type) (v : value
   else throw "type_check: arg type mismatch"
 
 -- end value
+def system_m.map_machine_state (f : machine_state → machine_state) : system_m system_config.os_state Unit :=
+  modify (fun (s : system_state system_config.os_state) => { s with machine_state := f s.machine_state })
 
+-- system_m stuff
+def system_m.read_memory_at (addr : machine_word) (n : Nat) : system_m system_config.os_state (bitvec n) := do
+    s <- get;
+    match s.machine_state.read_word addr (n / 8) with
+    | none     => throw "read_memory_at: no bytes at addr" 
+    | (some w) => 
+      if H : 8 * (n / 8) = n
+      then do let res := bitvec.cong H w;
+              system_config.emit_read_event addr n res;
+              pure res
+      else throw "read_memory_at: width not a multiple of 8"
+
+def system_m.write_memory_at : ∀{tp : type} (addr : machine_word) (bytes : value nenv tp)
+  , system_m system_config.os_state Unit
+  | (bv e), addr, bytes =>
+    let width := eval_nat_expr nenv e;
+    (if H : width = 8 * (width / 8)
+        then do 
+                system_m.map_machine_state system_config (fun (s : machine_state) => s.store_word addr (bitvec.cong H bytes));
+                system_config.emit_write_event addr width bytes
+        else throw "write_memory_at: width not a multiple of 8")
+  | _, _, _ => throw "write_memory_at not a bv"
 
 -- namespace evaluator
 
 def evaluator.run {a : Type} (m : evaluator system_config nenv a) 
                              (s : evaluator_state system_config nenv) : IO (Except String (a × evaluator_state system_config nenv)) :=
   (m.run s).run
+
+def evaluator.run' {a : Type} (m : evaluator system_config nenv a) (e : environment nenv)
+                              : system_m system_config.os_state a :=
+    adaptState' (fun (s : system_state system_config.os_state) => 
+                     { evaluator_state . 
+                       system_state  := s
+                     , environment   := e
+                     , locals        := {}
+                     })
+                (fun (s : evaluator_state system_config nenv) => s.system_state)
+                m
 
 def evaluator.map_machine_state (f : machine_state → machine_state) : evaluator system_config nenv Unit :=
   modify (fun (s : evaluator_state system_config nenv) => { s with system_state := { s.system_state with machine_state := f s.system_state.machine_state } })
@@ -399,27 +438,11 @@ def evaluator.run_system_m {a : Type} (m : system_m system_config.os_state a) : 
              m
 
 def evaluator.read_memory_at (addr : machine_word) (n : Nat) : evaluator system_config nenv (bitvec n) := do
-    s <- get;
-    match s.system_state.machine_state.read_word addr (n / 8) with
-    | none     => throw "read_memory_at: no bytes at addr" 
-    | (some w) => 
-      if H : 8 * (n / 8) = n
-      then do let res := bitvec.cong H w;
-              evaluator.run_system_m system_config nenv (system_config.emit_read_event addr n res);
-              pure res
-      else throw "evaluator.read_memory_at: width not a multiple of 8"
-   
+  evaluator.run_system_m system_config nenv (system_m.read_memory_at system_config addr n)
 
-def evaluator.write_memory_at : ∀{tp : type} (addr : machine_word) (bytes : value nenv tp)
-  , evaluator system_config nenv Unit
-  | (bv e), addr, bytes =>
-    let width := eval_nat_expr nenv e;
-    (if H : width = 8 * (width / 8)
-        then do 
-                evaluator.map_machine_state system_config nenv (fun (s : machine_state) => s.store_word addr (bitvec.cong H bytes));
-                evaluator.run_system_m system_config nenv (system_config.emit_write_event addr width bytes)
-        else throw "evaluator.write_memory_at: width not a multiple of 8")
-  | _, _, _ => throw "evaluator.write_memory_at not a bv"
+def evaluator.write_memory_at {tp : type} (addr : machine_word) (bytes : value nenv tp) :
+  evaluator system_config nenv Unit :=
+  evaluator.run_system_m system_config nenv (system_m.write_memory_at system_config nenv addr bytes)
 
 def evaluator.arg_at_idx (idx : Nat) : evaluator system_config nenv (arg_value nenv) :=
   do s <- get;
@@ -460,15 +483,13 @@ def concrete_reg.read {tp : type} (r : concrete_reg tp) : evaluator system_confi
 
 -- namespace arg_lval 
 
-def arg_lval.to_value' {m} [Monad m] [MonadExcept String m] 
-  (s : machine_state)
-  : arg_lval -> ∀(tp : type), m (value nenv tp)
-  | (@arg_lval.reg tp r), tp' => 
-    value.type_check nenv tp (concrete_reg.from_state nenv r s) tp'
-  | (arg_lval.memloc width addr), tp' =>
-    match s.read_word addr (width / 8) with
-    | none     => throw "arg_lval.to_value': no bytes at addr" 
-    | (some w) => value.type_check nenv (bv (8 * (width / 8))) w tp'
+def arg_lval.to_value' : arg_lval -> ∀(tp : type), system_m system_config.os_state (value nenv tp)
+  | (@arg_lval.reg tp r), tp' => do
+    s <- get;
+    value.type_check nenv tp (concrete_reg.from_state nenv r s.machine_state) tp'
+  | (arg_lval.memloc width addr), tp' => do
+    w <- system_m.read_memory_at system_config addr width;
+    value.type_check nenv (bv width) w tp'
 
 def arg_lval.to_value : arg_lval -> ∀(tp : type), evaluator system_config nenv (value nenv tp)
   | (@arg_lval.reg tp r), tp' => do v <- concrete_reg.read system_config nenv r;
@@ -983,12 +1004,10 @@ def action.eval : action -> evaluator system_config nenv Unit
   | (action.event e) => event.eval system_config nenv e
 
 -- FIXME: check pattern.context |- environment
-def pattern.eval (p : pattern) (e : environment nenv) (s : system_state system_config.os_state) 
-    : IO (Except String (system_state system_config.os_state)) :=
-  -- only machine_state is preserved across instructions
-  let st := { evaluator_state.init system_config nenv s with environment := e };
-  do r <- evaluator.run system_config nenv (List.mmap (action.eval system_config nenv) p.actions >>= fun _ => pure ()) st;
-     pure ((fun (v : Unit × evaluator_state system_config nenv) => v.snd.system_state) <$> r)
+def pattern.eval (p : pattern) (e : environment nenv)
+    : system_m system_config.os_state Unit :=
+    evaluator.run' system_config nenv (List.mmap (action.eval system_config nenv) p.actions >>= fun _ => pure ()) e
+    -- pure ((fun (v : Unit × evaluator_state system_config nenv) => v.snd.system_state) <$> r)
 
 end with_nat_env
 
