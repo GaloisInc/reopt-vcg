@@ -162,11 +162,17 @@ define dso_local void @write_hex_number_to_stdout(i64) #0 {
 declare dso_local i32 @putchar(i32) #1
 
 ; Function Attrs: noinline nounwind optnone uwtable
+define dso_local void @run_test() #0 {
+  call void @quicksort(i32 0, i32 9)
+  ret void
+}
+
+; Function Attrs: noinline nounwind optnone uwtable
 define dso_local i32 @main() #0 {
   %1 = alloca i32, align 4
   %2 = alloca i32, align 4
   store i32 0, i32* %1, align 4
-  call void @quicksort(i32 0, i32 9)
+  call void @run_test()
   store i32 0, i32* %2, align 4
   br label %3
 

@@ -64,10 +64,16 @@ write_hex_number_to_stdout(uint64_t num)
     putchar('\n');
 }
 
+void
+run_test(void)
+{
+    quicksort(0, NELEMS-1);
+}
+
 int
 main(void)
 {
-    quicksort(0, NELEMS-1);
+    run_test();
     for (unsigned int i = 0; i < NELEMS; i++)
         write_hex_number_to_stdout(arr[i]);
     
