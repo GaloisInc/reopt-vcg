@@ -132,8 +132,9 @@ int main(int argc, char **argv)
         } 
 
         std::cout << "Got an instruction, " << insn.length << " bytes." << std::endl;
-        printf("Address size: aS: %d, hasAdSize: %d, hasOpSize: %d, immediateSize: %d, noperands: %ld\n",
-               insn.addressSize, insn.hasAdSize, insn.hasOpSize, insn.immediateSize, insn.operands.size());
+        printf("Address size: aS: %d, hasAdSize: %d, hasOpSize: %d, immediateSize: %d, noperands: %ld, displacement: %d, displacement': %llx\n",
+               insn.addressSize, insn.hasAdSize, insn.hasOpSize, insn.immediateSize, insn.operands.size(),
+               insn.displacement, (uint64_t) (insn.displacement) );
         for (const auto &Op : insn.operands)
             printf("op: '%s' '%s'\n", encArr[Op.encoding], typesArr[Op.type]);
 

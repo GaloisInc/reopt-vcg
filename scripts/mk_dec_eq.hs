@@ -6,7 +6,7 @@ import Data.List
 type Type = [ (String, [Bool]) ]
 
 -- (ctore_name, args (True == is recursive))
-ctors =
+ctors_type =
   [ ("bv", [False])
   , ("bit", [])
   , ("float", [])
@@ -15,6 +15,24 @@ ctors =
   , ("vec", [False, True])
   , ("pair", [True, True])
   , ("fn"  , [True, True]) ]
+
+
+--  | lit : Nat → nat_expr
+--  | var : arg_index → nat_expr
+--  | add : nat_expr → nat_expr → nat_expr
+--  | sub : nat_expr → nat_expr → nat_expr
+--  | mul : nat_expr → nat_expr → nat_expr
+--  -- div x y is floor (x / y)
+--  | div : nat_expr → nat_expr → nat_expr
+
+ctors_nat_expr =
+  [ ("lit", [False])
+  , ("var", [False])
+  , ("add", [True, True])
+  , ("sub", [True, True])
+  , ("mul", [True, True])
+  , ("div", [True, True])
+  ]
 
 -- We need to produce two types of equation --- recursive and mismatch.  The mismatch cases are simple,
 -- if tedious, while the recursive cases are a bit trickier
@@ -26,16 +44,16 @@ mismatch tname cons = [ doOne x y | x <- cons, y <- cons, x /= y ]
     underscores c 0 = c
     underscores c n = "(" ++ c ++ " " ++ intercalate " " (replicate n "_") ++ ")"
     doOne (c1, args1) (c2, args2) = "| "   ++ underscores c1 (length args1)
-                                    ++ " " ++ underscores c2 (length args2)
-                                    ++ " := " ++ noConf
+                                    ++ ", " ++ underscores c2 (length args2)
+                                    ++ " => " ++ noConf
 
 recursive :: String -> Type -> String -> [String]
 recursive tname cons recName = map doOne cons
   where
     ctor (c, [])   _   = c -- never called, included for completeness
     ctor (c, args) sfx = "(" ++ c ++ " " ++ intercalate " " (map (\n -> "c" ++ show n ++ sfx) [1 .. length args]) ++ ")"
-    doOne (n, [])      = "| " ++ n ++ " " ++ n ++ " := isTrue rfl"
-    doOne c@(_, args)  = "| " ++ ctor c "" ++ " " ++ ctor c "'" ++ " := "
+    doOne (n, [])      = "| " ++ n ++ ", " ++ n ++ " => isTrue rfl"
+    doOne c@(_, args)  = "| " ++ ctor c "" ++ ", " ++ ctor c "'" ++ " => "
                          ++ "\n (" ++ match c ++ "\n"
                          ++ trueMatch (length args) ++ "\n"
                          ++ intercalate "\n" (map (falseMatch (length args)) [1 .. length args]) ++ ")"

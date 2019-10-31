@@ -32,29 +32,32 @@ getInstruction(vadd::instruction_t &Instr, uint64_t &Size, llvm::ArrayRef<uint8_
 // -----------------------------------------------------------------------------
 // Imported (from instruction.lean)
 
-namespace decodex86 {
-namespace exported {
+// namespace decodex86 {
+// namespace exported {
 
-extern object* mk_reg(object* x_0, object* x_1, object* x_2, object* x_3);
-extern object* mk_some_reg(object* x_0);
-extern object* mk_none_reg;
 
-extern object* mk_operand_register(object* x_0, object* x_1);
-extern object* mk_operand_segment(object* x_0, object* x_1, object* x_2);
-extern object* mk_operand_immediate(object* x_0, object* x_1, object* x_2);
-extern object* mk_operand_rel_immediate(object* x_0, object* x_1, object* x_2, object* x_3);
-extern object* mk_operand_memloc(object* x_0, object* x_1, object* x_2, object* x_3, object* x_4, object* x_5);
+extern "C" {
+    
+extern object* decodex86_exported_mk_reg(object* x_0, object* x_1, object* x_2, object* x_3);
+extern object* decodex86_exported_mk_some_reg(object* x_0);
+extern object* decodex86_exported_mk_none_reg;
 
-extern object* mk_instruction_0(object *nbytes, object *m);
-extern object* mk_instruction_1(object *nbytes, object *m, object *o1);
-extern object* mk_instruction_2(object *nbytes, object *m, object *o1, object *o2);
-extern object* mk_instruction_3(object *nbytes, object *m, object *o1, object *o2, object *o3);
+extern object* decodex86_exported_mk_operand_register(object* x_0, object* x_1);
+extern object* decodex86_exported_mk_operand_segment(object* x_0, object* x_1, object* x_2);
+extern object* decodex86_exported_mk_operand_immediate(object* x_0, object* x_1, object* x_2);
+extern object* decodex86_exported_mk_operand_rel_immediate(object* x_0, object* x_1, object* x_2, object* x_3);
+extern object* decodex86_exported_mk_operand_memloc(object* x_0, object* x_1, object* x_2, object* x_3, object* x_4, object* x_5);
 
-extern object* mk_decode_success(object *i);
-extern object* mk_decode_failure(object *n);
-
+extern object* decodex86_exported_mk_instruction_0(object *nbytes, object *m);
+extern object* decodex86_exported_mk_instruction_1(object *nbytes, object *m, object *o1);
+extern object* decodex86_exported_mk_instruction_2(object *nbytes, object *m, object *o1, object *o2);
+extern object* decodex86_exported_mk_instruction_3(object *nbytes, object *m, object *o1, object *o2, object *o3);
+extern object* decodex86_exported_mk_decode_success(object *i);
+extern object* decodex86_exported_mk_decode_failure(object *n);
 }
-}
+
+// }
+// }
 
 namespace vadd {
 
@@ -118,10 +121,10 @@ public:
         object *reg = reg_cache[r];
         if (reg) {
             inc(reg);
-            return decodex86::exported::mk_some_reg(reg);
+            return decodex86_exported_mk_some_reg(reg);
         } else {
-            inc(decodex86::exported::mk_none_reg);
-            return decodex86::exported::mk_none_reg;
+            inc(decodex86_exported_mk_none_reg);
+            return decodex86_exported_mk_none_reg;
         }
     }
 
@@ -168,7 +171,7 @@ private:
             reg_idx_off = mk_nat_obj(reginfo->getSubRegIdxOffset(subidx));
         }
         
-        reg_cache[reg] = decodex86::exported::mk_reg(topN, regN, reg_idx_sz, reg_idx_off);
+        reg_cache[reg] = decodex86_exported_mk_reg(topN, regN, reg_idx_sz, reg_idx_off);
     }
 };
 
@@ -189,7 +192,7 @@ mk_operand_register(const std::string &type, reg_t r) {
     object *reg_obj  = llvmMeta().get_reg(r);
     assert(reg_obj);
 
-    return decodex86::exported::mk_operand_register(type_obj, reg_obj);
+    return decodex86_exported_mk_operand_register(type_obj, reg_obj);
 }
     
 operand_t
@@ -199,7 +202,7 @@ mk_operand_segment(const std::string &type, reg_t m_s, reg_t r) {
     object *reg_obj  = llvmMeta().get_reg(r);
     assert(reg_obj);
 
-    return decodex86::exported::mk_operand_segment(type_obj, seg_obj, reg_obj);
+    return decodex86_exported_mk_operand_segment(type_obj, seg_obj, reg_obj);
 }
 
 operand_t
@@ -208,7 +211,7 @@ mk_operand_immediate(const std::string &type, uint64_t n, uint64_t v) {
     object *n_obj  = mk_nat_obj(n);
     object *v_obj  = mk_nat_obj(v);
 
-    return decodex86::exported::mk_operand_immediate(type_obj, n_obj, v_obj);
+    return decodex86_exported_mk_operand_immediate(type_obj, n_obj, v_obj);
 }
 
 operand_t
@@ -218,7 +221,7 @@ mk_operand_rel_immediate(const std::string &type, uint64_t off, uint64_t n, uint
     object *n_obj  = mk_nat_obj(n);
     object *v_obj  = mk_nat_obj(v);
 
-    return decodex86::exported::mk_operand_rel_immediate(type_obj, off_obj, n_obj, v_obj);
+    return decodex86_exported_mk_operand_rel_immediate(type_obj, off_obj, n_obj, v_obj);
 }
 
 operand_t
@@ -228,19 +231,19 @@ mk_operand_memloc(const std::string &type, reg_t seg, reg_t b, uint64_t s, reg_t
     object *b_obj    = llvmMeta().get_option_reg(b);
     object *s_obj    = mk_nat_obj(s);
     object *i_obj    = llvmMeta().get_option_reg(i);
-    object *d_obj    = mk_nat_obj(d);
-    return decodex86::exported::mk_operand_memloc(type_obj, seg_obj, b_obj, s_obj, i_obj, d_obj);
+    object *d_obj    = uint64_to_nat(d);
+    return decodex86_exported_mk_operand_memloc(type_obj, seg_obj, b_obj, s_obj, i_obj, d_obj);
 }
 
 // -----------------------------------------------------------------------------
 // Exported (to lean)
 
 // byte_array -> N -> Option instruction
-obj_res
-decode(b_obj_arg buffer_o, b_obj_arg offset_o)
+extern "C" obj_res
+vadd_decode(b_obj_arg buffer_o, b_obj_arg offset_o)
 {
     size_t nbytes      = sarray_size(buffer_o);
-    uint8_t *raw_bytes = sarray_cptr<uint8_t>(buffer_o);
+    uint8_t *raw_bytes = sarray_cptr(buffer_o);
     uint64_t offset    = unbox(offset_o);
     
     llvm::ArrayRef<uint8_t> bytes_array(raw_bytes, nbytes);
@@ -254,30 +257,30 @@ decode(b_obj_arg buffer_o, b_obj_arg offset_o)
     object *nbytes_o = mk_nat_obj(size);
     if (ret) {
         // Failed to decode.
-        return decodex86::exported::mk_decode_failure(nbytes_o);
+        return decodex86_exported_mk_decode_failure(nbytes_o);
     } else {
         object *mnemonic_o = llvmMeta().get_mnemonic(inst.instructionID);
         object *inst_o = NULL;
         
         switch (inst.noperands) {
-        case 0: inst_o = decodex86::exported::mk_instruction_0(nbytes_o, mnemonic_o); break;
+        case 0: inst_o = decodex86_exported_mk_instruction_0(nbytes_o, mnemonic_o); break;
         case 1:
-            inst_o = decodex86::exported::mk_instruction_1(nbytes_o, mnemonic_o
+            inst_o = decodex86_exported_mk_instruction_1(nbytes_o, mnemonic_o
                                                            , inst.operands[0]);
             break;
         case 2:
-            inst_o = decodex86::exported::mk_instruction_2(nbytes_o, mnemonic_o
+            inst_o = decodex86_exported_mk_instruction_2(nbytes_o, mnemonic_o
                                                            , inst.operands[0], inst.operands[1]);
             break;
         case 3:
-            inst_o = decodex86::exported::mk_instruction_3(nbytes_o, mnemonic_o
+            inst_o = decodex86_exported_mk_instruction_3(nbytes_o, mnemonic_o
                                                            , inst.operands[0]
                                                            , inst.operands[1]
                                                            , inst.operands[2]);
             break;
         default: lean_unreachable();
         }
-        return decodex86::exported::mk_decode_success(inst_o);
+        return decodex86_exported_mk_decode_success(inst_o);
     }
 }
 

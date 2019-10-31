@@ -55,8 +55,8 @@ def store_bytes (m : memory) (addr : memaddr) (bs : List byte) : memory :=
  
 -- [0 ..< x]
 def upto0_lt_helper : ∀(m : Nat), List Nat -> List Nat
-  | 0            acc := acc
-  | (Nat.succ n) acc := upto0_lt_helper n (n :: acc)
+  | 0,            acc => acc
+  | (Nat.succ n), acc => upto0_lt_helper n (n :: acc)
 
 def upto0_lt (m : Nat) : List Nat := upto0_lt_helper m []
 

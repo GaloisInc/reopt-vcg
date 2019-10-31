@@ -5,3 +5,5 @@ LOCAL_CXX  := src/Metadata.cpp src/lean_support.cpp src/X86Disassembler.cpp
 
 LEANFILES += $(patsubst %,${HERE}%,${LOCAL_LLVM})
 EXTRACXXFILES += $(patsubst %,${HERE}%,${LOCAL_CXX})
+LEAN_PATH := ${LEAN_PATH}:${HERE}lean/
+

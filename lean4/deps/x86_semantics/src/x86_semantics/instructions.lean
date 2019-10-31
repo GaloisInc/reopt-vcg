@@ -31,7 +31,7 @@ abbreviation ℕ := nat_expr
 
 infix `.=`:20 := set
 
---notation d `.=` a `|` s :20 := set_aligned d s a
+--notation d `.=` a `|` s :20 => set_aligned d s a
 
 ------------------------------------------------------------------------
 -- bitvector functions
@@ -228,6 +228,16 @@ def movaps : instruction := do
    pat_end
 
 ------------------------------------------------------------------------
+-- movups definition
+-- Move Aligned Packed Single-Precision Floating-Point Values
+
+def movups : instruction := do
+ definst "movups" $ do
+   pattern fun (n : one_of [4, 8, 16]) (dest : lhs (vec n (bv 32))) (src : vec n (bv 32)) => do
+     set dest src
+   pat_end
+
+------------------------------------------------------------------------
 -- xchg definition
 -- Exchange Register/Memory with Register
 def xchg : instruction := do
@@ -240,15 +250,26 @@ def xchg : instruction := do
 -- cmp definition
 -- Compare Two Operands
 
-def cmp : instruction := do
- definst "cmp" $ do
-   pattern fun (u v : one_of [8, 16,32,64]) (x : bv u) (src2 : bv v) => do
+def do_cmp {u v : nat_expr} (x : bv u) (src2 : bv v) := do
      y ← eval (sext src2 u);
      of .= ssub_overflows x y;
      af .= usub4_overflows x y;
      cf .= usub_overflows x y;
      set_result_flags (x - y)
-   pat_end
+
+def cmp : instruction := do
+ definst "cmp" $ do
+   
+   pattern fun (u v : one_of [8,16,32,64]) (x : bv u) (src2 : bv v) => do_cmp x src2
+   pat_end;
+   pattern fun (x : imm (bv 8))  => do_cmp ⇑al  (expression.imm x) pat_end;
+   pattern fun (x : imm (bv 16)) => do_cmp ⇑ax  (expression.imm x) pat_end;
+   pattern fun (x : imm (bv 32)) => do_cmp ⇑eax (expression.imm x) pat_end;
+   pattern fun (x : imm (bv 64)) => do_cmp ⇑rax (expression.imm x) pat_end
+ 
+--   pattern (u : one_of [8,16,32,64]) (x : imm (bv u)) := do
+     
+
 
 ------------------------------------------------------------------------
 -- cmpxchg definition
@@ -779,13 +800,13 @@ def condition_codes : List (List String × expression bit)  :=
 -- Conditional jumps
 
 def mk_jcc_instruction : String × expression bit → instruction
- | (name, cc) := definst ("j" ++ name) $ do
+ | (name, cc) => definst ("j" ++ name) $ do
  pattern fun (addr : bv 64) => do
    record_event (event.branch cc addr)
  pat_end
 
 def mk_jcc_instruction_aliases : List String × expression bit → List instruction
- | (names, cc) := List.map (fun n => mk_jcc_instruction (n, cc)) names
+ | (names, cc) => List.map (fun n => mk_jcc_instruction (n, cc)) names
 
 -- Conditional jump instructions, some of these have multiple names. They only vary
 -- in the condition checked so we use helper functions to associate mnemonics with
@@ -800,13 +821,13 @@ def jcc_instructions : List instruction :=
 -- Conditional sets
 
 def mk_setcc_instruction : String × expression bit → instruction
- | (name, cc) := definst ("set" ++ name) $ do
+ | (name, cc) => definst ("set" ++ name) $ do
  pattern fun (dest : lhs (bv 8)) => do
    dest .= mux cc 0 1
  pat_end
 
 def mk_setcc_instruction_aliases : List String × expression bit → List instruction
- | (names, cc) := List.map (fun n => mk_setcc_instruction (n, cc)) names
+ | (names, cc) => List.map (fun n => mk_setcc_instruction (n, cc)) names
 
 -- Conditional jump instructions, some of these have multiple names. They only vary
 -- in the condition checked so we use helper functions to associate mnemonics with
@@ -815,6 +836,22 @@ def mk_setcc_instruction_aliases : List String × expression bit → List instru
 -- so it might suffice to find out what the decoder will pick as the canonical mnemonic.
 def setcc_instructions : List instruction := 
   List.join $ List.map mk_setcc_instruction_aliases condition_codes
+
+------------------------------------------------------------------------
+-- CMOVcc definition
+-- Conditional moves
+
+def mk_cmovcc_instruction : String × expression bit → instruction
+ | (name, cc) => definst ("cmov" ++ name) $ do
+   pattern fun (w : one_of [8,16,32,64]) (dest : lhs (bv w)) (src : bv w) => do
+     set_cond dest cc src
+   pat_end
+
+def mk_cmovcc_instruction_aliases : List String × expression bit → List instruction
+ | (names, cc) => List.map (fun n => mk_cmovcc_instruction (n, cc)) names
+
+def cmovcc_instructions : List instruction := 
+  List.join $ List.map mk_cmovcc_instruction_aliases condition_codes
 
 ------------------------------------------------------------------------
 -- leave definition
@@ -884,7 +921,7 @@ def cbw : instruction :=
 def cdq : instruction :=
  definst "cdq" $ do
    pattern do
-     let quadword := sext ⇑eax 64 in do
+     let quadword := sext ⇑eax 64; do
      edx .= quadword[[63..32]]
    pat_end
 
@@ -921,7 +958,7 @@ def cld : instruction :=
 def cqo : instruction :=
  definst "cqo" $ do
    pattern do
-     let octword := sext ⇑rax 128 in do
+     let octword := sext ⇑rax 128; do
      rdx .= octword[[127..64]]
    pat_end
 
@@ -931,7 +968,7 @@ def cqo : instruction :=
 def cwd : instruction :=
  definst "cwd" $ do
    pattern do
-     let doubleword := sext ⇑ax 32 in do
+     let doubleword := sext ⇑ax 32; do
      dx .= doubleword[[31..16]]
    pat_end
 
@@ -1006,6 +1043,13 @@ def shift_def (nm:String) (o : shift_op) : instruction :=
     pat_end;
     pattern fun (value: lhs (bv 64)) (count: bv 8) => do
       do_sh o value count (64-1)
+    pat_end;
+    -- CL version
+    pattern fun (w : one_of [8, 16, 32]) (value: lhs (bv w)) => do
+      do_sh o value cl (32 - 1)
+    pat_end;
+    pattern fun (value: lhs (bv 64)) => do
+      do_sh o value cl (64 - 1)
     pat_end
 
 -- Shift logical right
@@ -1055,11 +1099,13 @@ def all_instructions :=
   , imul
   , inc
   ] ++
-  jcc_instructions ++ setcc_instructions ++
+  jcc_instructions ++ setcc_instructions ++ cmovcc_instructions ++
   [ jmp
   , lea
   , leave
   , mov
+  , movaps
+  , movups
   , movsx
   -- , movsxd
   , movzx
