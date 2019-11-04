@@ -346,6 +346,13 @@ def nop : instruction := do
      (pure () : semantics Unit)
    pat_end
 
+def noopl : instruction := do
+ definst "noopl" $ do
+   pattern fun (_ : lhs (bv 32)) => do
+     (pure () : semantics Unit)
+   pat_end
+
+
 ------------------------------------------------------------------------
 -- pause definition
 -- Spin Loop Hint
@@ -1112,6 +1119,7 @@ def all_instructions :=
   , mul
   , neg
   , nop
+  , noopl
   , not
   , or_def
   , pause
