@@ -18,19 +18,19 @@ namespace Prim
 
 open Fs
 
-@[extern 4 cpp "galois::io::prim::handle::mk"]
+@[extern 4 "galois_io_prim_handle_mk"]
 constant handle.mk (s : @& String) (m : Mode) (bin : Bool := false) : IO handle := default _
--- @[extern 2 cpp "galois::io::prim::handle::do_is_eof"]
+-- @[extern 2 cpp "galois_io_prim_handle_do_is_eof"]
 -- constant handle.isEof (h : @& handle) : IO Bool := default _
--- @[extern 2 cpp "galois::io::prim::handle::do_flush"]
+-- @[extern 2 cpp "galois_io_prim_handle_do_flush"]
 -- constant handle.flush (h : @& handle) : IO Unit := default _
-@[extern 2 cpp "galois::io::prim::handle::do_close"]
+@[extern 2 "galois_io_prim_handle_do_close"]
 constant handle.close (h : @& handle) : IO Unit := default _
-@[extern 3 cpp "galois::io::prim::handle::do_read"]
+@[extern 3 "galois_io_prim_handle_do_read"]
 constant handle.read (h : @& handle) (len : Nat) : IO ByteArray := default _
-@[extern 3 cpp "galois::io::prim::handle::do_write"]
+@[extern 3 "galois_io_prim_handle_do_write"]
 constant handle.write (h : @& handle) (data : @& ByteArray) : IO Unit := default _
-@[extern 4 cpp "galois::io::prim::handle::do_lseek"]
+@[extern 4 "galois_io_prim_handle_do_lseek"]
 constant handle.lseek (h : @& handle) (off : Int) (whence : Whence): IO Nat := default _
 
 end Prim

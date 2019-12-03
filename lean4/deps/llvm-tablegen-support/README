@@ -1,0 +1,17 @@
+
+There are a number of files that rely closely on the exact version of LLVM being used.  These
+are included in the llvm-files directory.  To refresh these for a new version of LLVM, do
+
+for i in *; do find $LLVMSRC -name $i -exec cp {} . ';'; done
+for i in *; do find $LLVMBUILD -name $i -exec cp {} . ';'; done
+
+The tblgen files need to be reconstructed as well, so run (it will take a while)
+
+$LLVMBUILD/bin/llvm-tblgen -dump-json -I $LLVMSRC/include -I $LLVMSRC/lib/Target/X86 $LLVMSRC/lib/Target/X86/X86.td > /tmp/X86.json
+
+and then
+
+(cd hs && cabal v2-build && cabal v2-run exe:tblgen-json -- ../src/operand_table.inc /tmp/X86.json)
+
+and then go get a cup of tea (takes about 4 min)
+

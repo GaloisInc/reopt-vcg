@@ -28,8 +28,8 @@ def entry_idx (key : k) (e : entry k) : Option (Fin e.value.size) :=
 
 protected
 def lookup' : List (buffer_map.entry k) -> k -> Option UInt8
-  | [] _         := none
-  | (e :: m) key := 
+  | [], _         => none
+  | (e :: m), key => 
     match @entry_idx k distance key e with
     | none       => lookup' m key
     | (some idx) => some (e.value.get idx.val)
@@ -38,8 +38,8 @@ def lookup (m : buffer_map k distance) := @buffer_map.lookup' k distance m.entri
 
 protected
 def lookup_buffer' : List (buffer_map.entry k) -> k -> Option (k × ByteArray)
-  | [] _         := none
-  | (e :: m) key := 
+  | [], _         => none
+  | (e :: m), key => 
     match @entry_idx k distance key e with
     | none       => lookup_buffer' m key
     | (some idx) => some (e.start, e.value)

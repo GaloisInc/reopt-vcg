@@ -11,9 +11,7 @@
 #include "X86MCTargetDesc.h"
 #include "llvm/MC/MCRegisterInfo.h"
 
-namespace lean {
-struct object;
-}
+#include "object.h" // to get lean::object
 
 namespace vadd {
 using operand_t = lean::object *;
