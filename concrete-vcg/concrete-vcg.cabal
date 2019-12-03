@@ -41,6 +41,7 @@ executable concrete-vcg
                      , bytestring  
                      , elf-edit
                      , vector
+                     , pretty
                      
   hs-source-dirs:      exe
   default-language:    Haskell2010

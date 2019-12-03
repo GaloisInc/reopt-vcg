@@ -48,10 +48,10 @@ test_%_mindiet_lld.exe : test_%.o $(mindiet_libs)
 	$(llvm-dis) -o $@ $<
 
 %.bc : %.c
-	$(clang) $(cpp_flags) --target=x86_64-pc-none-elf -I/usr/include/x86_64-linux-gnu -emit-llvm -o $@ -c $<
+	$(clang) $(cpp_flags) $(CFLAGS) --target=x86_64-pc-none-elf -I/usr/include/x86_64-linux-gnu -emit-llvm -o $@ -c $<
 
 %.o : %.c
-	$(clang) --target=x86_64-pc-linux-elf -I/usr/include/x86_64-linux-gnu -o $@ -c $<
+	$(clang) $(CFLAGS) --target=x86_64-pc-linux-elf -I/usr/include/x86_64-linux-gnu -o $@ -c $<
 
 clean :
 	rm -rf *.dis *.o *.ll
