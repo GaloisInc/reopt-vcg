@@ -20,7 +20,7 @@ BUILDDIR=$(cd $RELBUILDDIR && pwd)
 
 pushd $BUILDDIR > /dev/null
 
-cmake $SRCDIR/src -G Ninja -DCMAKE_BUILD_TYPE=debug -DCMAKE_INSTALL_PREFIX=$INSTALLDIR             
+cmake $SRCDIR/src -G Ninja -DCMAKE_BUILD_TYPE=debug -DCMAKE_INSTALL_PREFIX=$INSTALLDIR -DLLVM=ON
 ninja
 ninja install
 popd
