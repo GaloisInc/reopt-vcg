@@ -21,8 +21,12 @@ LEAN_PATH := ${LEANDIR}/lib/lean/library
 LEANFILES := 
 EXTRACXXFILES :=
 
+# FIXME
+CXXFLAGS := -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk -I /usr/local/include
+
 include deps/galois_stdlib/Makefile.include
-include deps/llvm-tablegen-support/Makefile.include
+# include deps/llvm-tablegen-support/Makefile.include
+include deps/llvm-mcinst-support/Makefile.include
 include deps/x86_semantics/Makefile.include
 include simulator/Makefile.include
 
@@ -74,6 +78,9 @@ $(BUILDDIR)/%.o: %.cpp
 $(BUILDDIR)/deps/galois_stdlib/src/galois/init/%: CXXFLAGS += -I${LEANDIR}/include -std=c++14
 
 $(BUILDDIR)/deps/llvm-tablegen-support/src/%: CXXFLAGS += -g -O3 -I deps/llvm-tablegen-support/src/ -I deps/llvm-tablegen-support/llvm-files/ `${LLVM_CONFIG} --cxxflags` -I${LEANDIR}/include/ -I${LEANDIR}/include/runtime -std=c++14 -fexceptions
+
+$(BUILDDIR)/deps/llvm-mcinst-support/src/%: CXXFLAGS += -g -O3 `${LLVM_CONFIG} --cxxflags` -I${LEANDIR}/include/ -I${LEANDIR}/include/runtime -std=c++14 -fexceptions
+
 
 # %.olean %.cpp : %.lean %.d
 # 	@mkdir -p $(@D);

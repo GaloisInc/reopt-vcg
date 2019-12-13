@@ -232,9 +232,6 @@ def doit (elffile : String) : IO Unit := do
                 | none        => throw "No text region"
                 | some (_, b) => pure b);
   let entry := ehdr.entry.toNat;
-  IO.println ("Entry is " ++ repr entry ++ " imm:" ++ repr (18446744073709551616 : Nat) 
-                          ++ " exp:"    ++ repr (2 ^ 64)
-                          ++ " mul:"  ++ repr (9223372036854775808 * 2) );
   let d := decodex86.mk_decoder text_bytes text_phdr.vaddr.toNat;
   let init_state := 
       system_state.mk { machine_state.empty with 

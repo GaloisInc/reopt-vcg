@@ -1,0 +1,8 @@
+
+HERE := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
+LOCAL_LLVM := lean/mcinst/basic.lean lean/mcinst/default.lean lean/mcinst/instparser.lean
+LOCAL_CXX  := src/lean_support.cpp
+
+LEANFILES += $(patsubst %,${HERE}%,${LOCAL_LLVM})
+EXTRACXXFILES += $(patsubst %,${HERE}%,${LOCAL_CXX})
+LEAN_PATH := ${LEAN_PATH}:${HERE}lean/
