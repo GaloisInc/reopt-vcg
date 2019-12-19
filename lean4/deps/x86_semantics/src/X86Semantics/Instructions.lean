@@ -1,4 +1,4 @@
-import .common
+import X86Semantics.Common
 -- import system.io
 
 namespace x86
@@ -371,7 +371,7 @@ def pair_fst {x y : type} (e:pair x y) : x := prim.pair_fst x y e
 def pair_snd {x y : type} (e:pair x y) : y := prim.pair_snd x y e
 
 def set_undef (l:List (lhs bit)) : semantics Unit := do
-  _ <- l.mmap (fun r => r .= undef); pure ()
+  _ <- l.mapM (fun r => r .= undef); pure ()
 
 
 def div : instruction := do

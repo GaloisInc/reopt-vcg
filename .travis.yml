@@ -28,7 +28,6 @@ before_install:
   - sudo apt install -y llvm-8
   - sudo apt install -y llvm-8-dev
   - sudo apt install -y clang-8
-  - sudo apt install -y ninja-build
 
 install:
   # Setup elan so we can use it to install lean
@@ -39,7 +38,7 @@ install:
   - elan install 3.4.1
 
   # Install lean4
-  - ./scripts/build-lean4.sh lean4/deps/lean4 build/lean4 local
+  - ./scripts/build-lean4.sh lean4/deps/lean4 build/lean4 local llvm-config-8 -DCMAKE_C_COMPILER=clang-8 -DCMAKE_CXX_COMPILER=clang++-8
 
 # Here starts the actual work to be performed for the package under test;
 # any command which exits with a non-zero exit code causes the build to fail.
