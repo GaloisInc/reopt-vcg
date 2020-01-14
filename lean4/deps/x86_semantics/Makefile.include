@@ -1,5 +1,5 @@
 
 HERE := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
-LOCALFILES := src/x86_semantics/buffer_map.lean src/x86_semantics/common.lean src/x86_semantics/evaluator.lean src/x86_semantics/instructions.lean src/x86_semantics/machine_memory.lean
+LOCALFILES := src/X86Semantics/BufferMap.lean src/X86Semantics/Common.lean src/X86Semantics/Evaluator.lean src/X86Semantics/Instructions.lean src/X86Semantics/MachineMemory.lean
 LEANFILES += $(patsubst %,${HERE}%,${LOCALFILES})
-LEAN_PATH := ${LEAN_PATH}:${HERE}/src/
+LEAN_PATH := ${LEAN_PATH}:X86Semantics=${HERE}src/X86Semantics

@@ -1,7 +1,8 @@
 -- Evaluates actions in an environment.
-import galois.data.bitvec
-import .common
-import .machine_memory
+import Galois.Data.Bitvec
+import X86Semantics.Common
+import X86Semantics.MachineMemory
+
 -- import .sexpr
 
 axiom I_am_really_sorry : ∀(P : Prop),  P 
@@ -25,7 +26,7 @@ namespace nat_expr
 @[reducible]
 def eval (e : nat_env) : nat_expr -> Option Nat 
   | (lit n)     => some n
-  | (var idx)   => mjoin (List.getOpt idx e)
+  | (var idx)   => joinM (List.get? idx e)
   | (add e1 e2) => (fun x y => x + y) <$> (eval e1) <*> (eval e2) 
   | (sub e1 e2) => (fun x y => x - y) <$> (eval e1) <*> (eval e2) 
   | (mul e1 e2) => (fun x y => x * y) <$> (eval e1) <*> (eval e2) 
@@ -33,7 +34,7 @@ def eval (e : nat_env) : nat_expr -> Option Nat
 
 def wf_nat_expr (nenv : nat_env) : nat_expr -> Prop 
   | (lit _)     => true
-  | (var idx)   => Option.isSome (mjoin (List.getOpt idx nenv))
+  | (var idx)   => Option.isSome (joinM (List.get? idx nenv))
   | (add e1 e2) => wf_nat_expr e1 ∧ wf_nat_expr e2
   | (sub e1 e2) => wf_nat_expr e1 ∧ wf_nat_expr e2
   | (mul e1 e2) => wf_nat_expr e1 ∧ wf_nat_expr e2
@@ -51,7 +52,7 @@ def wf_nat_expr (nenv : nat_env) : nat_expr -> Prop
 @[reducible]
 def eval_default (e : nat_env) : nat_expr -> Nat 
   | (lit n)     => n
-  | (var idx)   => match List.getOpt idx e with | (some (some n)) => n | _ => 0 
+  | (var idx)   => match List.get? idx e with | (some (some n)) => n | _ => 0 
   | (add e1 e2) => (eval_default e1) + (eval_default e2) 
   | (sub e1 e2) => (eval_default e1) - (eval_default e2) 
   | (mul e1 e2) => (eval_default e1) * (eval_default e2) 
@@ -164,23 +165,23 @@ def empty : machine_state :=
 def get_gpreg  (s : machine_state) (idx : Fin 16) : machine_word := 
   -- FIXME
   if h : 16 = s.gpregs.size
-  then Array.fget s.gpregs (Eq.recOn h idx) else 0
+  then Array.get s.gpregs (Eq.recOn h idx) else 0
 
 
 
 def update_gpreg (idx : Fin 16) (f : machine_word -> machine_word) (s : machine_state) : machine_state :=
   -- FIXME
   if h : 16 = s.gpregs.size 
-  then { s with gpregs := Array.fset s.gpregs (Eq.recOn h idx) (f (get_gpreg s idx)) }
+  then { s with gpregs := Array.set s.gpregs (Eq.recOn h idx) (f (get_gpreg s idx)) }
   else s 
 
 def get_flag  (s : machine_state) (idx : Fin 32) : Bool := 
   if h : 32 = s.flags.size
-  then Array.fget s.flags (Eq.recOn h idx) else false
+  then Array.get s.flags (Eq.recOn h idx) else false
 
 def update_flag (idx : Fin 32) (f : Bool -> Bool) (s : machine_state) : machine_state :=
   if h : 32 = s.flags.size
-  then { s with flags := Array.fset s.flags (Eq.recOn h idx) (f (get_flag s idx)) }
+  then { s with flags := Array.set s.flags (Eq.recOn h idx) (f (get_flag s idx)) }
   else s 
 
 -- def store_bytes (addr : machine_word) (bs : List (bitvec 8)) (s : machine_state) : machine_state := 
@@ -323,7 +324,7 @@ instance (ε): MonadExcept ε (Except ε) :=
   { throw := fun α e => Except.error e, catch := fun α m f => match m with | (Except.error e) => f e | _ => m }
 
 instance (ε) [Inhabited ε] : Alternative (Except ε) := 
-  { failure := fun α => Except.error (default ε)
+  { failure := fun α => Except.error (arbitrary ε)
   , orelse  := fun α => MonadExcept.orelse }
 
 instance MonadExcept_ExceptT (ε) (m)  [Monad m]: MonadExcept ε (ExceptT ε m) := 
@@ -333,7 +334,7 @@ instance MonadExcept_ExceptT (ε) (m)  [Monad m]: MonadExcept ε (ExceptT ε m) 
           match v with | (Except.error e) => (f e).run | _ => ExceptT.mk (pure v) )}
 
 instance Alternative_ExceptT (ε) (m) [Inhabited ε] [Monad m] : Alternative (ExceptT ε m) := 
-  { failure := fun α => throw (default ε)
+  { failure := fun α => throw (arbitrary ε)
   , orelse  := fun α => MonadExcept.orelse }
 
 
@@ -446,7 +447,7 @@ def evaluator.write_memory_at {tp : type} (addr : machine_word) (bytes : value n
 
 def evaluator.arg_at_idx (idx : Nat) : evaluator system_config nenv (arg_value nenv) :=
   do s <- get;
-     match s.environment.getOpt idx with
+     match s.environment.get? idx with
        | (some a) => pure a
        | none     => throw "evaluator.arg_at_idx: no arg at idx"
 
@@ -1006,7 +1007,7 @@ def action.eval : action -> evaluator system_config nenv Unit
 -- FIXME: check pattern.context |- environment
 def pattern.eval (p : pattern) (e : environment nenv)
     : system_m system_config.os_state Unit :=
-    evaluator.run' system_config nenv (List.mmap (action.eval system_config nenv) p.actions >>= fun _ => pure ()) e
+    evaluator.run' system_config nenv (List.mapM (action.eval system_config nenv) p.actions >>= fun _ => pure ()) e
     -- pure ((fun (v : Unit × evaluator_state system_config nenv) => v.snd.system_state) <$> r)
 
 end with_nat_env

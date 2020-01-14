@@ -15,7 +15,7 @@ LEANC ?= leanc
 
 LEANDIR := ${dir ${shell which ${LEAN}}}../
 
-LEAN_PATH := ${LEANDIR}/lib/lean/library
+LEAN_PATH := Init=${LEANDIR}/lib/lean/Init
 
 # This forces LEANFILES to be strict
 LEANFILES := 
@@ -71,7 +71,7 @@ $(BUILDDIR)/%.o: %.cpp
 	@mkdir -p $(@D)
 	$(CXX) $(CXXFLAGS) -o $@ -c $^
 
-$(BUILDDIR)/deps/galois_stdlib/src/galois/init/%: CXXFLAGS += -I${LEANDIR}/include -std=c++14
+$(BUILDDIR)/deps/galois_stdlib/src/Galois/Init/%: CXXFLAGS += -I${LEANDIR}/include -std=c++14
 
 $(BUILDDIR)/deps/llvm-tablegen-support/src/%: CXXFLAGS += -g -O3 -I deps/llvm-tablegen-support/src/ -I deps/llvm-tablegen-support/llvm-files/ `${LLVM_CONFIG} --cxxflags` -I${LEANDIR}/include/ -I${LEANDIR}/include/runtime -std=c++14 -fexceptions
 

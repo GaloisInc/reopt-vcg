@@ -4,19 +4,19 @@ Elf
 -/
 -- import system.io
 -- import init.category.reader
-import init.control.state
-import x86_semantics.machine_memory
-import x86_semantics.buffer_map
+import Init.Control.State
+import X86Semantics.MachineMemory
+import X86Semantics.BufferMap
 -- import .file_input
-import galois.init.io
-import galois.init.nat
+import Galois.Init.Io
+import Galois.Init.Nat
 
 def repeat {α : Type} {m : Type → Type} [Applicative m] : Nat → m α → m (List α)
 | 0, m => pure []
 | (Nat.succ n),  m => List.cons <$> m <*> repeat n m
 
 def forM' {m : Type → Type} [Monad m] {α : Type} {β:Type} (l:List α) (f:α → m β) : m Unit :=
-  List.mmap f l >>= fun _ => pure ()
+  List.mapM f l >>= fun _ => pure ()
 
 def bracket {α β:Type} (c:IO α) (d:α → IO Unit) (f:α → IO β) : IO β := do
   x ← c;
@@ -42,7 +42,7 @@ namespace ByteArray
 protected
 def toBytesPartialAux (bs : ByteArray) (off : Nat) : Nat -> List UInt8 -> List UInt8
   | 0,            acc => acc
-  | (Nat.succ n), acc => toBytesPartialAux n (bs.get (off + n)  :: acc)
+  | (Nat.succ n), acc => toBytesPartialAux n (bs.get! (off + n)  :: acc)
 
 def toBytesPartial (bs : ByteArray) (off : Nat) (n : Nat) : List UInt8 := 
   ByteArray.toBytesPartialAux bs off n []
@@ -56,7 +56,7 @@ end ByteArray
 namespace buffer
 
 @[reducible]
-def reader := EState String (ByteArray × Nat)
+def reader := EStateM String (ByteArray × Nat)
 
 namespace reader
 
@@ -81,8 +81,8 @@ def read_UInt8 : reader UInt8 := do
 def from_handle {α} (h:Galois.Fs.handle) (n:Nat) (r:reader α) : IO α := do
   b ← Galois.IO.Prim.handle.read h n;
   match r.run (b, 0) with
-  | (EState.Result.ok r _)    => pure r
-  | (EState.Result.error e _) => throw e
+  | (EStateM.Result.ok r _)    => pure r
+  | (EStateM.Result.error e _) => throw e
 
 end reader
 end buffer
@@ -192,8 +192,8 @@ protected
 def from_handle {α:Type} (i:info) (h:Galois.Fs.handle) (n:Nat) (r:file_reader α) : IO α := do
   b ← Galois.IO.Prim.handle.read h n;
   match (r.run i).run (b, 0) with
-  | (EState.Result.ok r _)    => pure r
-  | (EState.Result.error e _) => throw e
+  | (EStateM.Result.ok r _)    => pure r
+  | (EStateM.Result.error e _) => throw e
 
 def read_u8  : file_reader UInt8  :=
   ReaderT.lift $ buffer.reader.read_UInt8
@@ -590,7 +590,7 @@ def read_one_elfmem (h : Galois.Fs.handle) {c : elf_class} (m : elfmem) (ph : ph
   else pure m
 
 def read_elfmem {c : elf_class} (h : Galois.Fs.handle) (phdrs : List (phdr c)) : IO elfmem  := do
-    List.mfoldl (read_one_elfmem h) buffer_map.empty phdrs
+    List.foldlM (read_one_elfmem h) buffer_map.empty phdrs
 
 /---
 Read the elf file from the given path, and print out ehdr and

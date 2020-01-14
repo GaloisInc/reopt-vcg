@@ -1,6 +1,6 @@
 
 HERE := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
-LOCALFILES := elf.lean runelf.lean translate.lean
+LOCALFILES := Elf.lean Runelf.lean Translate.lean
 LEANFILES += $(patsubst %,${HERE}%,${LOCALFILES})
-LEAN_PATH := ${LEAN_PATH}:${HERE}/
+LEAN_PATH := ${LEAN_PATH}:Main=${HERE}/
 

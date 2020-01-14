@@ -32,7 +32,7 @@ def lookup' : List (buffer_map.entry k) -> k -> Option UInt8
   | (e :: m), key => 
     match @entry_idx k distance key e with
     | none       => lookup' m key
-    | (some idx) => some (e.value.get idx.val)
+    | (some idx) => some (e.value.get! idx.val)
 
 def lookup (m : buffer_map k distance) := @buffer_map.lookup' k distance m.entries
 
