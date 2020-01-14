@@ -1,7 +1,7 @@
 /-
 This module defines the core datatypes used to represent x86 instruction semantics.
 -/
-import galois.category.coe1
+import Galois.Category.Coe1
 -- import galois.sexpr
 
 namespace mc_semantics
@@ -147,7 +147,7 @@ protected def hasDecEq : ∀(e e' : nat_expr), Decidable (e = e')
 | (div _ _), (mul _ _) => isFalse (fun h => nat_expr.noConfusion h)
   
 instance decidable_eq_nat_expr : DecidableEq nat_expr := -- by tactic.mk_dec_eq_instance
-  { decEq := nat_expr.hasDecEq }
+  nat_expr.hasDecEq
 
 def pp : nat_expr -> String
 | (lit n) => repr n
@@ -277,7 +277,7 @@ protected def hasDecEq : ∀(e e' : type), Decidable (e = e')
 | (fn _ _), (pair _ _) => isFalse (fun h => type.noConfusion h)
 
 instance decidable_eq_type : DecidableEq type := -- by tactic.mk_dec_eq_instance
-  { decEq := type.hasDecEq }
+  type.hasDecEq
 
 end type
 
@@ -390,14 +390,14 @@ protected
 def repr : ∀{tp:type}, concrete_reg tp → String
 | ._, (gpreg idx tp) => "$" ++
   (match tp with
-  | gpreg_type.reg8l => List.get idx.val reg.r8l_names
-  | gpreg_type.reg8h => List.get idx.val reg.r8h_names
-  | gpreg_type.reg16 => List.get idx.val reg.r16_names
-  | gpreg_type.reg32 => List.get idx.val reg.r32_names
-  | gpreg_type.reg64 => List.get idx.val reg.r64_names)
+  | gpreg_type.reg8l => List.get! idx.val reg.r8l_names
+  | gpreg_type.reg8h => List.get! idx.val reg.r8h_names
+  | gpreg_type.reg16 => List.get! idx.val reg.r16_names
+  | gpreg_type.reg32 => List.get! idx.val reg.r32_names
+  | gpreg_type.reg64 => List.get! idx.val reg.r64_names)
  
 | ._, (flagreg idx) => "$" ++
-   (match List.getOpt idx.val reg.flag_names with
+   (match List.get? idx.val reg.flag_names with
    | (Option.some nm) => nm
    | Option.none      => "RESERVED_" ++ idx.val.repr)
 
@@ -1031,7 +1031,7 @@ def init : semantics_state :=
 end semantics_state
 
 structure semantics (α:Type) :=
-(monad : State semantics_state α)
+(monad : StateM semantics_state α)
 
 instance : Monad semantics :=
 { pure := fun _ x => { monad := pure x }
@@ -1062,7 +1062,7 @@ def next_local_index : semantics Nat :=
 --- Add an action to the List of actions.
 protected
 def add_action (e:action) : semantics Unit :=
-  { monad := StateT.modify (fun s => { s with actions := e :: s.actions}) }
+  { monad := modify (fun s => { s with actions := e :: s.actions}) }
 
 def record_event (e:event) : semantics Unit :=
   semantics.add_action (action.event e)
@@ -1124,10 +1124,13 @@ instance pi_is_pattern_def
 
 -- Contains a List of patten matches defined using a monadic syntax.
 -- @[derive Monad]
-def pattern_list : Type → Type := State (List pattern)
+def pattern_list : Type → Type := StateM (List pattern)
 
 instance pattern_list_is_monad : Monad pattern_list
-  := inferInstanceAs (Monad (State (List pattern)))
+  := inferInstanceAs (Monad (StateM (List pattern)))
+
+instance pattern_list_is_monad_state : MonadState (List pattern) pattern_list
+  := inferInstanceAs (MonadState (List pattern) (StateM (List pattern)))
 
 -- instance pattern_list_is_monad : Monad pattern_list :=
 -- begin
@@ -1137,7 +1140,7 @@ instance pattern_list_is_monad : Monad pattern_list
 
 -- Record pattern in current instruction
 def mk_pattern {α:Type} [h : pattern_def ∅ α] (x:α) : pattern_list Unit := do
-  StateT.modify (List.cons (pattern_def.define ∅ x))
+  modify (List.cons (pattern_def.define ∅ x))
 
 ------------------------------------------------------------------------
 -- definst

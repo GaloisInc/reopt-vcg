@@ -1,4 +1,4 @@
-import galois.init.nat
+import Galois.Init.Nat
 
 namespace Int
 

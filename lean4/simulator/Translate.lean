@@ -1,8 +1,8 @@
 
 
-import x86_semantics.instructions
-import x86_semantics.evaluator
-import decodex86
+import X86Semantics.Instructions
+import X86Semantics.Evaluator
+import DecodeX86.DecodeX86
 
 open mc_semantics
 open mc_semantics.type

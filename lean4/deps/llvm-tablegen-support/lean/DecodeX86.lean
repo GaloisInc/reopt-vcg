@@ -339,7 +339,7 @@ namespace prim
 
 -- Imported (FFI) functions
 @[extern "vadd_decode"]
-def decode ( b : @& ByteArray ) (offset : @& Nat) : decode_result := default _
+def decode ( b : @& ByteArray ) (offset : @& Nat) : decode_result := arbitrary _
 
 end prim
 

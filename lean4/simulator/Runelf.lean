@@ -1,11 +1,11 @@
 /- This file ties together the evaluator,  elf support, and the decoder -/
 
 -- import system.io
-import galois.init.io
-import x86_semantics.machine_memory
-import .elf
-import .translate
-import decodex86
+import Galois.Init.Io
+import X86Semantics.MachineMemory
+import Main.Elf
+import Main.Translate
+import DecodeX86.DecodeX86
 
 open x86
  
@@ -219,7 +219,7 @@ def decode_loop (d : decodex86.decoder) : Nat -> system_state linux.x86_64.os_st
            i;
     (match r with
     | (Except.error e) => 
-      do s.os_state.trace.reverse.mmap (fun (e : (machine_word × linux.x86_64.trace_event)) => IO.println (e.fst.pp_hex ++ " " ++ repr e.snd));
+      do s.os_state.trace.reverse.mapM (fun (e : (machine_word × linux.x86_64.trace_event)) => IO.println (e.fst.pp_hex ++ " " ++ repr e.snd));
          throwS ("Eval failed: (" ++ repr i ++ ") at " ++  s.machine_state.ip.pp_hex ++ " "  ++ e)
     | (Except.ok s')   => decode_loop n s')
 

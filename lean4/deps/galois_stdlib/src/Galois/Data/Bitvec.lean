@@ -16,8 +16,8 @@ This is a work-in-progress, and contains additions to other theories.
 -- (to_nat : ℕ)
 -- (property : to_nat < (2 ^ sz))
 
-import galois.init.nat
-import galois.init.int
+import Galois.Init.Nat
+import Galois.Init.Int
 
 -- FIXME: obviously this needs to be replaced by actual proofs
 axiom power_hack (n : Nat) (e : Nat) : n < 2 ^ e

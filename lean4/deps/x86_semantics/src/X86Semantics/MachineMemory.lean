@@ -1,6 +1,6 @@
 
-import galois.data.bitvec
-import .buffer_map
+import Galois.Data.Bitvec
+import X86Semantics.BufferMap
 
 @[reducible]
 def memaddr  := bitvec 64
@@ -109,7 +109,7 @@ def read_byte (m : memory) (addr : memaddr) : Option byte :=
   m.mem.find addr <|> m.init.lookup addr
 
 def read_bytes (m : memory) (addr : memaddr) (n : Nat) : Option (List byte) :=
-   List.mmap (fun n => read_byte m (addr + bitvec.of_nat 64 n)) (upto0_lt n)
+   List.mapM (fun n => read_byte m (addr + bitvec.of_nat 64 n)) (upto0_lt n)
 
 -- lemma read_bytes_length {mem : memory} {addr : memaddr} {n : Nat} {bs : list (bitvec 8)}
 --   : read_bytes mem addr n = some bs -> bs.length = n :=
