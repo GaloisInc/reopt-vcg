@@ -9,9 +9,9 @@
 -- offset OR offset?(base_reg,scale_reg?,scale_imm?)
 
 -- import .common
-import init.control.state
-import init.control.id
-import init.control.option
+import Init.Control.State
+import Init.Control.Id
+import Init.Control.Option
 
 -- Single-valued, backtracking on failure
 structure Parser (tok : Type) (a : Type) :=
@@ -32,7 +32,7 @@ instance : Monad (Parser tok) :=
 instance : MonadState (List tok) (Parser tok) :=
   { set := fun s => Parser.mk (set s)
   , get := Parser.mk get
-  , modify := fun f => Parser.mk (modify f)
+  , modifyGet := fun _ f => Parser.mk (modifyGet f)
   }
 
 instance : MonadExcept Unit (Parser tok) :=
@@ -178,7 +178,7 @@ def instructionP : OpParser instruction :=
 end instparser
 
 def parse (s : String) : Option instruction :=
-  x86.mcinst.instparser.instructionP.runParser s.toList
+  instparser.instructionP.runParser s.toList
 
 end mcinst
 end x86

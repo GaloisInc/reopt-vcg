@@ -1,5 +1,5 @@
 
-import .instparser
+import MCInst.InstParser
 
 namespace x86
 namespace mcinst
@@ -18,7 +18,7 @@ namespace prim
 
 -- Imported (FFI) functions
 @[extern "vadd_mcinst_decode"]
-def decode ( b : @& ByteArray ) (offset : @& Nat) (vaddr : @& Nat) : decode_result := default _
+def decode ( b : @& ByteArray ) (offset : @& Nat) (vaddr : @& Nat) : decode_result := arbitrary _
 
 end prim
 
