@@ -1,0 +1,6 @@
+# This file contains a list of the supported instructions (from k-semantics/)
+# When we support all instructions, this may be generated from the names of the files in that dir.
+# comment lines (startin with '#') and blank lines are ignored
+
+addq
+addl

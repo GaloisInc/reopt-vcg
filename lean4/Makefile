@@ -24,11 +24,15 @@ EXTRACXXFILES :=
 # FIXME
 CXXFLAGS := -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk -I /usr/local/include
 
-include deps/galois_stdlib/Makefile.include
+# Supporting functions
+relsrcpath = $(patsubst ${SRCROOT}%,%,$(1))
+
+#include deps/galois_stdlib/Makefile.include
 # include deps/llvm-tablegen-support/Makefile.include
-include deps/llvm-mcinst-support/Makefile.include
-include deps/x86_semantics/Makefile.include
-include simulator/Makefile.include
+#include deps/llvm-mcinst-support/Makefile.include
+#include deps/x86_semantics/Makefile.include
+#include simulator/Makefile.include
+include deps/k-x86-semantics/Makefile.include
 
 #LEANFILES are absolute, we need them to be relative to the root dir for the rest to work.
 LEANFILES_REL := ${patsubst ${SRCROOT}%,%,${LEANFILES}}
@@ -52,6 +56,10 @@ export LEAN_PATH
 MAKEDEPEND = $(LEAN) --deps $< | sed 's@${LCSRCROOT}@@p' | xargs echo "$(BUILDDIR)/$*.cpp $*.olean:" > $@
 
 # depend: ${DEPENDS}
+
+test: $(LEANFILES)
+	@echo $(LEANFILES)
+
 
 all: $(TARGET)
 
