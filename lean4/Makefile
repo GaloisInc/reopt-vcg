@@ -24,14 +24,19 @@ EXTRACXXFILES :=
 # FIXME
 CXXFLAGS := -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk -I /usr/local/include
 
+TARGET  := $(BUILDDIR)/sim
+
+all: $(TARGET)
+
+
 # Supporting functions
 relsrcpath = $(patsubst ${SRCROOT}%,%,$(1))
 
-#include deps/galois_stdlib/Makefile.include
+include deps/galois_stdlib/Makefile.include
 # include deps/llvm-tablegen-support/Makefile.include
-#include deps/llvm-mcinst-support/Makefile.include
-#include deps/x86_semantics/Makefile.include
-#include simulator/Makefile.include
+include deps/llvm-mcinst-support/Makefile.include
+include deps/x86_semantics/Makefile.include
+include simulator/Makefile.include
 include deps/k-x86-semantics/Makefile.include
 
 #LEANFILES are absolute, we need them to be relative to the root dir for the rest to work.
@@ -42,8 +47,6 @@ DEPENDS := ${patsubst %.lean,%.d,${LEANFILES_REL}}
 OLEAN   := ${patsubst %.lean,%.olean,${LEANFILES_REL}}
 CPPLEAN := ${patsubst %.lean,$(BUILDDIR)/%.cpp,${LEANFILES_REL}}
 
-TARGET  := $(BUILDDIR)/sim
-
 # FIXME: move to llvm-tablegen-support submake
 # LLVM_BUILD_ROOT ?= ${HOME}/galois/vadds/llvm-stuff/llvm-build
 # LLVM_CONFIG = ${LLVM_BUILD_ROOT}/bin/llvm-config
@@ -53,28 +56,27 @@ CXXFLAGS += -fPIC -ggdb3
 
 export LEAN_PATH
 
-MAKEDEPEND = $(LEAN) --deps $< | sed 's@${LCSRCROOT}@@p' | xargs echo "$(BUILDDIR)/$*.cpp $*.olean:" > $@
+MAKEDEPEND = $(LEAN) --deps $< | sed -n 's@${SRCROOT}@@p' | xargs echo "$(BUILDDIR)/$*.cpp $*.olean: " > $@
+#MAKEDEPEND = $(LEAN) --deps $< 
 
 # depend: ${DEPENDS}
 
-test: $(LEANFILES)
-	@echo $(LEANFILES)
-
-
-all: $(TARGET)
+# test: $(LEANFILES)
+# 	@echo $(LEANFILES)
 
 $(TARGET): ${CPPLEAN} ${EXTRAOBJ}
 	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cxxflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86` ${LDFLAGS} -lstdc++
 
 %.d: %.lean
-	$(MAKEDEPEND)
+	@$(MAKEDEPEND)
+	@echo "DEPEND $*.lean" 
 
 # The olean have to be in the same directory :/
 # %.olean : %.lean
 # 	$(LEAN) --make $<
 
 # could do this when making the olean
-$(BUILDDIR)/%.cpp %.olean: %.lean 
+$(BUILDDIR)/%.cpp %.olean: %.lean
 	@mkdir -p ${dir $(BUILDDIR)/$*.cpp}
 	$(LEAN) --cpp="$(BUILDDIR)/$*.cpp.tmp" --make $<
 	mv $(BUILDDIR)/$*.cpp.tmp $(BUILDDIR)/$*.cpp

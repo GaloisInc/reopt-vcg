@@ -5,7 +5,7 @@ namespace x86
 
 ------------------------------------------------------------------------
 -- Notation
-
+  
 open mc_semantics
 open mc_semantics.type
 open reg
@@ -31,7 +31,6 @@ def undef {tp:type} : expression tp := expression.undef tp
 
 def mux {tp:type} (c:bit) (t f : tp) : tp := prim.mux tp c t f
 def notBool_ (e : bit) : bit := eq e bit_zero
-
 
 instance reg_lhs_coe {t : type}: HasCoe (reg t) (lhs t) := ⟨fun r => lhs.of_reg r⟩
 

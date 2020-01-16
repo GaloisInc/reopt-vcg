@@ -179,6 +179,7 @@ end one_of
 
 inductive type
 | bv (w:nat_expr) : type
+| int : type -- Only really needed for immediates, can maybe remove with enough smarts for the K semantics
 | bit : type
 | float  : type
 | double : type
@@ -200,6 +201,7 @@ protected def hasDecEq : ∀(e e' : type), Decidable (e = e')
  (match decEq c1 c1' with 
   | (isTrue h1) => isTrue (h1 ▸ rfl)
   | (isFalse nh) => isFalse (fun h => type.noConfusion h $ fun h1' => absurd h1' nh))
+| int, int => isTrue rfl
 | bit, bit => isTrue rfl
 | float, float => isTrue rfl
 | double, double => isTrue rfl
@@ -219,6 +221,7 @@ protected def hasDecEq : ∀(e e' : type), Decidable (e = e')
   | (isTrue h1), (isTrue h2) => isTrue (h1 ▸ h2 ▸ rfl)
   | (isFalse nh), _ => isFalse (fun h => type.noConfusion h $ fun h1' h2' => absurd h1' nh)
   | (isTrue _), (isFalse nh) => isFalse (fun h => type.noConfusion h $ fun h1' h2' => absurd h2' nh))
+| (bv _), int => isFalse (fun h => type.noConfusion h)
 | (bv _), bit => isFalse (fun h => type.noConfusion h)
 | (bv _), float => isFalse (fun h => type.noConfusion h)
 | (bv _), double => isFalse (fun h => type.noConfusion h)
@@ -226,7 +229,16 @@ protected def hasDecEq : ∀(e e' : type), Decidable (e = e')
 | (bv _), (vec _ _) => isFalse (fun h => type.noConfusion h)
 | (bv _), (pair _ _) => isFalse (fun h => type.noConfusion h)
 | (bv _), (fn _ _) => isFalse (fun h => type.noConfusion h)
+| int, (bv _) => isFalse (fun h => type.noConfusion h)
+| int, bit => isFalse (fun h => type.noConfusion h)
+| int, float => isFalse (fun h => type.noConfusion h)
+| int, double => isFalse (fun h => type.noConfusion h)
+| int, x86_80 => isFalse (fun h => type.noConfusion h)
+| int, (vec _ _) => isFalse (fun h => type.noConfusion h)
+| int, (pair _ _) => isFalse (fun h => type.noConfusion h)
+| int, (fn _ _) => isFalse (fun h => type.noConfusion h)
 | bit, (bv _) => isFalse (fun h => type.noConfusion h)
+| bit, int => isFalse (fun h => type.noConfusion h)
 | bit, float => isFalse (fun h => type.noConfusion h)
 | bit, double => isFalse (fun h => type.noConfusion h)
 | bit, x86_80 => isFalse (fun h => type.noConfusion h)
@@ -234,6 +246,7 @@ protected def hasDecEq : ∀(e e' : type), Decidable (e = e')
 | bit, (pair _ _) => isFalse (fun h => type.noConfusion h)
 | bit, (fn _ _) => isFalse (fun h => type.noConfusion h)
 | float, (bv _) => isFalse (fun h => type.noConfusion h)
+| float, int => isFalse (fun h => type.noConfusion h)
 | float, bit => isFalse (fun h => type.noConfusion h)
 | float, double => isFalse (fun h => type.noConfusion h)
 | float, x86_80 => isFalse (fun h => type.noConfusion h)
@@ -241,6 +254,7 @@ protected def hasDecEq : ∀(e e' : type), Decidable (e = e')
 | float, (pair _ _) => isFalse (fun h => type.noConfusion h)
 | float, (fn _ _) => isFalse (fun h => type.noConfusion h)
 | double, (bv _) => isFalse (fun h => type.noConfusion h)
+| double, int => isFalse (fun h => type.noConfusion h)
 | double, bit => isFalse (fun h => type.noConfusion h)
 | double, float => isFalse (fun h => type.noConfusion h)
 | double, x86_80 => isFalse (fun h => type.noConfusion h)
@@ -248,6 +262,7 @@ protected def hasDecEq : ∀(e e' : type), Decidable (e = e')
 | double, (pair _ _) => isFalse (fun h => type.noConfusion h)
 | double, (fn _ _) => isFalse (fun h => type.noConfusion h)
 | x86_80, (bv _) => isFalse (fun h => type.noConfusion h)
+| x86_80, int => isFalse (fun h => type.noConfusion h)
 | x86_80, bit => isFalse (fun h => type.noConfusion h)
 | x86_80, float => isFalse (fun h => type.noConfusion h)
 | x86_80, double => isFalse (fun h => type.noConfusion h)
@@ -255,6 +270,7 @@ protected def hasDecEq : ∀(e e' : type), Decidable (e = e')
 | x86_80, (pair _ _) => isFalse (fun h => type.noConfusion h)
 | x86_80, (fn _ _) => isFalse (fun h => type.noConfusion h)
 | (vec _ _), (bv _) => isFalse (fun h => type.noConfusion h)
+| (vec _ _), int => isFalse (fun h => type.noConfusion h)
 | (vec _ _), bit => isFalse (fun h => type.noConfusion h)
 | (vec _ _), float => isFalse (fun h => type.noConfusion h)
 | (vec _ _), double => isFalse (fun h => type.noConfusion h)
@@ -262,6 +278,7 @@ protected def hasDecEq : ∀(e e' : type), Decidable (e = e')
 | (vec _ _), (pair _ _) => isFalse (fun h => type.noConfusion h)
 | (vec _ _), (fn _ _) => isFalse (fun h => type.noConfusion h)
 | (pair _ _), (bv _) => isFalse (fun h => type.noConfusion h)
+| (pair _ _), int => isFalse (fun h => type.noConfusion h)
 | (pair _ _), bit => isFalse (fun h => type.noConfusion h)
 | (pair _ _), float => isFalse (fun h => type.noConfusion h)
 | (pair _ _), double => isFalse (fun h => type.noConfusion h)
@@ -269,6 +286,7 @@ protected def hasDecEq : ∀(e e' : type), Decidable (e = e')
 | (pair _ _), (vec _ _) => isFalse (fun h => type.noConfusion h)
 | (pair _ _), (fn _ _) => isFalse (fun h => type.noConfusion h)
 | (fn _ _), (bv _) => isFalse (fun h => type.noConfusion h)
+| (fn _ _), int => isFalse (fun h => type.noConfusion h)
 | (fn _ _), bit => isFalse (fun h => type.noConfusion h)
 | (fn _ _), float => isFalse (fun h => type.noConfusion h)
 | (fn _ _), double => isFalse (fun h => type.noConfusion h)
@@ -462,6 +480,10 @@ inductive prim : type → Type
 -- Bit vector operations
 -- `bv_nat` constructs a bit vector from a natural number.
 | bv_nat (w:nat_expr) : nat_expr → prim (bv w)
+
+-- Turns an int into a bv
+| bv_int_sext (w : nat_expr) : prim (int .→ bv w)
+
 -- `(add i)` returns the sum of two i-bit numbers.
 | add (i:nat_expr) : prim (bv i .→ bv i .→ bv i)
 -- `(adc i)` returns the sum of two i-bit numbers and a carry bit.
@@ -506,8 +528,8 @@ inductive prim : type → Type
 | uext  (i:nat_expr) (o:nat_expr) : prim (bv i .→ bv o)
 -- `(trunc i o)` truncates an `i`-bit number to a `o`-bit number.
 | trunc (i:nat_expr) (o:nat_expr) : prim (bv i .→ bv o)
--- `(cat i) x y` returns the bitvector `uext i (2*i) x << i | uext _ (2*i) y`
-| cat (i:nat_expr) : prim (bv i .→ bv i .→ bv (2*i))
+-- `(cat i j) x y` returns the bitvector `uext i (i + j) x << i | uext _ (i + j) y`
+| cat (i j:nat_expr) : prim (bv i .→ bv j .→ bv (i + j))
 -- Return the most-significant bit in the bitvector.
 | msb (i:nat_expr) : prim (bv i .→ bit)
 
