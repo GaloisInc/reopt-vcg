@@ -14,7 +14,7 @@ open x86
 --   | (n, sum.inr inst) := eval_instruction {s with ip => s.ip + bitvec.of_nat _ n} inst
 
 def get_text_segment (e : elf.ehdr) (phdrs : List (elf.phdr e.elf_class)) : Option (elf.phdr e.elf_class) :=
-    phdrs.find (fun p => p.flags.has_X)
+    phdrs.find? (fun p => p.flags.has_X)
 
 def throwS { a : Type} (e : String) : IO a := throw (IO.userError e)
 
@@ -205,12 +205,12 @@ def dump_state (s : system_state linux.x86_64.os_state) : IO Unit := do
   IO.println line
 
 def decode_loop (d : decodex86.decoder) : Nat -> system_state linux.x86_64.os_state -> IO Unit
-  | Nat.zero,    _   => throw "Out of fuel"
+  | Nat.zero,    _   => throwS "Out of fuel"
   | (Nat.succ n), s  => do
   -- dump_state s;
   let inst := decodex86.decode d s.machine_state.ip.to_nat;
   match inst with 
-  | (Sum.inl b) => throw ("Unknown byte")
+  | (Sum.inl b) => throwS "Unknown byte"
   | (Sum.inr i) => do
     -- IO.println (repr i);
     r <- eval_instruction linux.x86_64.system_config 
@@ -226,10 +226,10 @@ def decode_loop (d : decodex86.decoder) : Nat -> system_state linux.x86_64.os_st
 def doit (elffile : String) : IO Unit := do
   ((Sigma.mk ehdr phdrs), init_mem) <- elf.read_info_from_file elffile;
   text_phdr <- (match get_text_segment ehdr phdrs with
-                | none     => throw "No executable segment"
+                | none     => throwS "No executable segment"
                 | (some p) => pure p);
   text_bytes <- (match init_mem.lookup_buffer (bitvec.of_nat 64 text_phdr.vaddr.toNat) with
-                | none        => throw "No text region"
+                | none        => throwS "No text region"
                 | some (_, b) => pure b);
   let entry := ehdr.entry.toNat;
   let d := decodex86.mk_decoder text_bytes text_phdr.vaddr.toNat;
@@ -244,7 +244,7 @@ def doit (elffile : String) : IO Unit := do
 def main (xs : List String) : IO UInt32 :=
   match xs with 
   | [f] => do doit f; pure 0
-  | _   => throw "Expected a file"
+  | _   => throwS "Expected a file"
 
 -- set_option profiler true
 -- #eval doit ("../testfiles/two", "../llvm-tablegen-support/llvm-tablegen-support", 1530, 1544)
