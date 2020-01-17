@@ -82,7 +82,7 @@ def from_handle {α} (h:Galois.Fs.handle) (n:Nat) (r:reader α) : IO α := do
   b ← Galois.IO.Prim.handle.read h n;
   match r.run (b, 0) with
   | (EStateM.Result.ok r _)    => pure r
-  | (EStateM.Result.error e _) => throw e
+  | (EStateM.Result.error e _) => throw (IO.userError e)
 
 end reader
 end buffer
@@ -193,7 +193,7 @@ def from_handle {α:Type} (i:info) (h:Galois.Fs.handle) (n:Nat) (r:file_reader �
   b ← Galois.IO.Prim.handle.read h n;
   match (r.run i).run (b, 0) with
   | (EStateM.Result.ok r _)    => pure r
-  | (EStateM.Result.error e _) => throw e
+  | (EStateM.Result.error e _) => throw (IO.userError e)
 
 def read_u8  : file_reader UInt8  :=
   ReaderT.lift $ buffer.reader.read_UInt8
