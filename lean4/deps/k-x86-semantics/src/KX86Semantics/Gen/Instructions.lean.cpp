@@ -2,11 +2,15 @@
 #include "InstructionsImports.lean.inc"
 
 namespace x86
-namespace k-x86-semantics
+namespace k_x86_semantics
 
-def all_instructions := [
+open gen
+
+def dummyInstruction := instruction.mk "DUMMY" []
+
+def all_instructions := [ dummyInstruction
 #include "InstructionsList.lean.inc"
                        ]
     
-end k-x86-semantics
+end k_x86_semantics
 end x86

@@ -51,6 +51,7 @@ def overflowFlag {n : nat_expr} (e1 : bv n) (e2 : bv n) (r : bv n) : bit :=
 def parityFlag { n : nat_expr } (e : bv n) : bit := even_parity e
 def zeroFlag { n : nat_expr } (e : bv n) : bit := eq e 0
 def concat {i j:nat_expr} (x: bv i) (y : bv j) : bv (i + j) := prim.cat i j x y
+def undef {tp:type} : expression tp := expression.undef tp
 
 -- This is substantially different than the handwritten semantics, as we have untyped pointers.
 @[reducible]
@@ -61,8 +62,8 @@ def evaluateAddress (m : Mem) : semantics (bv 64) := eval m
 -- x is an immediate usually
 def handleImmediateWithSignExtend (x : int) (n m : nat_expr) := prim.bv_int_sext n x
 
-def extract {w:nat_expr} (x: bv w) (u:nat_expr) (l:nat_expr)
-  : bv ((w - u - 1) + 1 - (w - l)) := slice x (w - u - 1) (w - l)
+def extract {w:Nat} (x: expression (bv (nat_expr.lit w))) (u:Nat) (l:Nat)
+  : expression (bv (nat_expr.lit ((w - u - 1) + 1 - (w - l)))) := slice x (w - u - 1) (w - l)
 
 notation `pattern` body `pat_end` := mk_pattern body
 

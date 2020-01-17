@@ -257,6 +257,7 @@ def eval_type : type -> type := type.eval_default nenv
 @[reducible]
 def value : type -> Type
   | (bv e) => bitvec (eval_nat_expr nenv e) -- We use the _normalised_ value here.
+  | int    => Int
   | bit    => Bool
   | float  => Unit -- FIXME
   | double => Unit -- FIXME
@@ -582,6 +583,7 @@ def bit_to_bitvec (n : Nat) (b : Bool) : bitvec n :=
 
 def type.has_eq : type -> Prop
   | (bv _)     => True
+  | int        => True
   | bit        => True
   | float      => True 
   | double     => True 
@@ -593,6 +595,7 @@ def type.has_eq : type -> Prop
 @[reducible]
 def type.has_eq_dec : ∀(tp : type), Decidable (type.has_eq tp) 
   | (bv _)     => isTrue True.intro
+  | int        => isTrue True.intro
   | bit        => isTrue True.intro  
   | float      => isTrue True.intro  
   | double     => isTrue True.intro  
@@ -618,6 +621,7 @@ instance decidable_pred_type_has_eq: DecidablePred type.has_eq := type.has_eq_de
 
 def value.partial_eq : ∀{tp : type}, type.has_eq tp -> value nenv tp -> value nenv tp -> Bool
   | (bv _), _, v1, v2      => (v1 - v2 = 0) -- FIXME: bug in the eqn compiler?
+  | int,    _, v1, v2      => (v1 = v2)
   | bit,    _, v1, v2      => (v1 = v2)
   | float,  _, v1, v2      => (v1 = v2)
   | double, _, v1, v2     => (v1 = v2)
@@ -662,6 +666,8 @@ def prim.eval : ∀{tp : type}, prim tp -> evaluator system_config nenv (value n
 
   -- `bvnat` constructs a bit vector from a natural number.
   | ._, (prim.bv_nat w n) => pure (bitvec.of_nat (eval_nat_expr nenv w) (eval_nat_expr nenv n))
+  | ._, (prim.bv_int_sext w) => pure (bitvec.of_int (eval_nat_expr nenv w))
+
   -- `(add i)` returns the sum of two i-bit numbers.
   | ._, (prim.add i)        => pure bitvec.add
   -- `(adc i)` returns the sum of two i-bit numbers and a carry bit.
@@ -729,9 +735,11 @@ def prim.eval : ∀{tp : type}, prim tp -> evaluator system_config nenv (value n
   | ._, (prim.trunc i o) => do H <- annotate' "trunc" (assert (eval_nat_expr nenv o ≤ eval_nat_expr nenv i));
                               pure (bitvec.trunc (eval_nat_expr nenv o) H.default)
 
-  | ._, (prim.cat i) => pure (fun x y => 
-       let prf : eval_nat_expr nenv i + eval_nat_expr nenv i = eval_nat_expr nenv (2 * i) := I_am_really_sorry _;
-       bitvec.cong prf (bitvec.append x y))
+  | ._, (prim.cat i j) => pure (fun x y =>
+        let prf : eval_nat_expr nenv i + eval_nat_expr nenv j = eval_nat_expr nenv (i + j) := I_am_really_sorry _;
+        bitvec.cong prf (bitvec.append x y))
+
+
   --(begin simp [eval_nat_expr, nat_expr.eval_default_mul_eq, nat_expr.eval, eval_default_2, two_mul], 
   --end)
 
@@ -834,6 +842,7 @@ def prim.eval : ∀{tp : type}, prim tp -> evaluator system_config nenv (value n
 
 def value.make_undef : ∀(tp : type), value nenv tp 
   | (bv e) => bitvec.of_nat (eval_nat_expr nenv e) 0
+  | int    => 0
   | bit    => false
   | float  => ()
   | double => ()

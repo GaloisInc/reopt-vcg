@@ -8,7 +8,7 @@ K_GEN_PFX  := $(HERE)src/KX86Semantics/Gen/
 K_PROCESS_ALLINSTS = sed '/^\#/d;/^[[:space:]]*$$/d'
 
 ALL := $(shell $(K_PROCESS_ALLINSTS) $(K_ALLINSTS))
-INSTR_LEAN := $(patsubst %,$(K_GEN_PFX)I-%.lean,$(ALL))
+INSTR_LEAN := $(patsubst %,$(K_GEN_PFX)I_%.lean,$(ALL))
 OTHER_LEAN := $(patsubst %,$(K_GEN_PFX)%,Instructions.lean)
 NONGEN_LEAN := $(patsubst %,$(HERE)%,src/KX86Semantics/Compat.lean)
 
@@ -21,7 +21,7 @@ LEAN_PATH := ${LEAN_PATH}:KX86Semantics=${ABSHERE}src/KX86Semantics
 K_PREPROCESS = sed 's/INSTRUCTION/$*/g'
 
 $(K_GEN_PFX)InstructionsImports.lean.inc: $(K_ALLINSTS)
-	($(K_PROCESS_ALLINSTS) $(K_ALLINSTS) | while read a; do echo "import KX86Semantics.Gen.I-$$a"; done) > $@
+	($(K_PROCESS_ALLINSTS) $(K_ALLINSTS) | while read a; do echo "import KX86Semantics.Gen.I_$$a"; done) > $@
 
 $(K_GEN_PFX)InstructionsList.lean.inc: $(K_ALLINSTS)
 	($(K_PROCESS_ALLINSTS) $(K_ALLINSTS) | while read a; do echo "\t, $$a"1 ; done) > $@
@@ -29,6 +29,8 @@ $(K_GEN_PFX)InstructionsList.lean.inc: $(K_ALLINSTS)
 $(K_GEN_PFX)Instructions.lean: $(HERE)src/KX86Semantics/Gen/Instructions.lean.cpp $(K_ALLINSTS) $(K_GEN_PFX)InstructionsImports.lean.inc $(K_GEN_PFX)InstructionsList.lean.inc
 	cpp -P -I$(K_GEN_PFX) $< > $@
 
-$(K_GEN_PFX)I-%.lean: $(HERE)src/KX86Semantics/Gen/I.lean.cpp $(HERE)k-semantics/%.lean
+$(K_GEN_PFX)I_%.lean: $(HERE)src/KX86Semantics/Gen/I.lean.cpp $(HERE)k-semantics/%.lean
 	@$(CC) -DINSTRUCTION=$* -P -E -undef -I$(HERE)k-semantics $< > $@
 	@echo "Generating lean file for instruction $*"
+
+.PRECIOUS: $(INSTR_LEAN) $(OTHER_LEAN)
