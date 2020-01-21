@@ -1,15 +1,15 @@
-def vmovlps1 : instruction :=
+def vmovlps : instruction :=
   definst "vmovlps" $ do
-    pattern fun (v_2937 : Mem) (v_2938 : reg (bv 128)) (v_2939 : reg (bv 128)) => do
-      v_10222 <- getRegister v_2938;
-      v_10224 <- evaluateAddress v_2937;
-      v_10225 <- load v_10224 8;
-      setRegister (lhs.of_reg v_2939) (concat (extract v_10222 0 64) v_10225);
+    pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) (xmm_2 : reg (bv 128)) => do
+      v_3 <- getRegister (lhs.of_reg xmm_1);
+      v_4 <- evaluateAddress mem_0;
+      v_5 <- load v_4 8;
+      setRegister (lhs.of_reg xmm_2) (concat (extract v_3 0 64) v_5);
       pure ()
     pat_end;
-    pattern fun (v_2934 : reg (bv 128)) (v_2933 : Mem) => do
-      v_12459 <- evaluateAddress v_2933;
-      v_12460 <- getRegister v_2934;
-      store v_12459 (extract v_12460 64 128) 8;
+    pattern fun (xmm_0 : reg (bv 128)) (mem_1 : Mem) => do
+      v_2 <- evaluateAddress mem_1;
+      v_3 <- getRegister (lhs.of_reg xmm_0);
+      store v_2 (extract v_3 64 128) 8;
       pure ()
     pat_end

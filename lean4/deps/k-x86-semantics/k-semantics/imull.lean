@@ -1,4 +1,4 @@
-def imull1 : instruction :=
+def imull : instruction :=
   definst "imull" $ do
     pattern fun (imm_0 : imm int) (mem_1 : Mem) (r32_2 : reg (bv 32)) => do
       v_3 <- evaluateAddress mem_1;
@@ -16,7 +16,7 @@ def imull1 : instruction :=
       pure ()
     pat_end;
     pattern fun (imm_0 : imm int) (r32_1 : reg (bv 32)) (r32_2 : reg (bv 32)) => do
-      v_3 <- getRegister r32_1;
+      v_3 <- getRegister (lhs.of_reg r32_1);
       v_4 <- eval (mul (sext v_3 64) (sext (handleImmediateWithSignExtend imm_0 32 32) 64));
       v_5 <- eval (extract v_4 32 64);
       v_6 <- eval (notBool_ (eq v_4 (sext v_5 64)));
@@ -30,7 +30,7 @@ def imull1 : instruction :=
       pure ()
     pat_end;
     pattern fun (mem_0 : Mem) (r32_1 : reg (bv 32)) => do
-      v_2 <- getRegister r32_1;
+      v_2 <- getRegister (lhs.of_reg r32_1);
       v_3 <- evaluateAddress mem_0;
       v_4 <- load v_3 4;
       v_5 <- eval (mul (sext v_2 64) (sext v_4 64));
@@ -63,8 +63,8 @@ def imull1 : instruction :=
       pure ()
     pat_end;
     pattern fun (r32_0 : reg (bv 32)) (r32_1 : reg (bv 32)) => do
-      v_2 <- getRegister r32_1;
-      v_3 <- getRegister r32_0;
+      v_2 <- getRegister (lhs.of_reg r32_1);
+      v_3 <- getRegister (lhs.of_reg r32_0);
       v_4 <- eval (mul (sext v_2 64) (sext v_3 64));
       v_5 <- eval (extract v_4 32 64);
       v_6 <- eval (notBool_ (eq v_4 (sext v_5 64)));
@@ -78,7 +78,7 @@ def imull1 : instruction :=
       pure ()
     pat_end;
     pattern fun (r32_0 : reg (bv 32)) => do
-      v_1 <- getRegister r32_0;
+      v_1 <- getRegister (lhs.of_reg r32_0);
       v_2 <- getRegister rax;
       v_3 <- eval (mul (sext v_1 64) (sext (extract v_2 32 64) 64));
       v_4 <- eval (extract v_3 32 64);

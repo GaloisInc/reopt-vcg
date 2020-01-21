@@ -1,4 +1,4 @@
-def divl1 : instruction :=
+def divl : instruction :=
   definst "divl" $ do
     pattern fun (mem_0 : Mem) => do
       v_1 <- getRegister rdx;
@@ -20,7 +20,7 @@ def divl1 : instruction :=
       v_1 <- getRegister rdx;
       v_2 <- getRegister rax;
       v_3 <- eval (concat (extract v_1 32 64) (extract v_2 32 64));
-      v_4 <- getRegister r32_0;
+      v_4 <- getRegister (lhs.of_reg r32_0);
       setRegister eax (_(_,_)_MINT-WRAPPER-SYNTAX div_quotient_int32 v_3 v_4);
       setRegister edx (_(_,_)_MINT-WRAPPER-SYNTAX div_remainder_int32 v_3 v_4);
       setRegister af undef;

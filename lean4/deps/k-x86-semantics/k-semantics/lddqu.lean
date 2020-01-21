@@ -1,4 +1,4 @@
-def lddqu1 : instruction :=
+def lddqu : instruction :=
   definst "lddqu" $ do
     pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) => do
       v_2 <- evaluateAddress mem_0;

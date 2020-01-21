@@ -1,17 +1,17 @@
-def vfmsub213sd1 : instruction :=
+def vfmsub213sd : instruction :=
   definst "vfmsub213sd" $ do
-    pattern fun (v_2947 : reg (bv 128)) (v_2948 : reg (bv 128)) (v_2949 : reg (bv 128)) => do
-      v_5955 <- getRegister v_2949;
-      v_5957 <- getRegister v_2948;
-      v_5963 <- getRegister v_2947;
-      setRegister (lhs.of_reg v_2949) (concat (extract v_5955 0 64) (Float2MInt (_-Float__FLOAT (_*Float__FLOAT (MInt2Float (extract v_5957 64 128) 53 11) (MInt2Float (extract v_5955 64 128) 53 11)) (MInt2Float (extract v_5963 64 128) 53 11)) 64));
+    pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) (xmm_2 : reg (bv 128)) => do
+      v_3 <- getRegister (lhs.of_reg xmm_2);
+      v_4 <- getRegister (lhs.of_reg xmm_1);
+      v_5 <- evaluateAddress mem_0;
+      v_6 <- load v_5 8;
+      setRegister (lhs.of_reg xmm_2) (concat (extract v_3 0 64) (Float2MInt (_-Float__FLOAT (_*Float__FLOAT (MInt2Float (extract v_4 64 128) 53 11) (MInt2Float (extract v_3 64 128) 53 11)) (MInt2Float v_6 53 11)) 64));
       pure ()
     pat_end;
-    pattern fun (v_2944 : Mem) (v_2942 : reg (bv 128)) (v_2943 : reg (bv 128)) => do
-      v_11821 <- getRegister v_2943;
-      v_11823 <- getRegister v_2942;
-      v_11829 <- evaluateAddress v_2944;
-      v_11830 <- load v_11829 8;
-      setRegister (lhs.of_reg v_2943) (concat (extract v_11821 0 64) (Float2MInt (_-Float__FLOAT (_*Float__FLOAT (MInt2Float (extract v_11823 64 128) 53 11) (MInt2Float (extract v_11821 64 128) 53 11)) (MInt2Float v_11830 53 11)) 64));
+    pattern fun (xmm_0 : reg (bv 128)) (xmm_1 : reg (bv 128)) (xmm_2 : reg (bv 128)) => do
+      v_3 <- getRegister (lhs.of_reg xmm_2);
+      v_4 <- getRegister (lhs.of_reg xmm_1);
+      v_5 <- getRegister (lhs.of_reg xmm_0);
+      setRegister (lhs.of_reg xmm_2) (concat (extract v_3 0 64) (Float2MInt (_-Float__FLOAT (_*Float__FLOAT (MInt2Float (extract v_4 64 128) 53 11) (MInt2Float (extract v_3 64 128) 53 11)) (MInt2Float (extract v_5 64 128) 53 11)) 64));
       pure ()
     pat_end

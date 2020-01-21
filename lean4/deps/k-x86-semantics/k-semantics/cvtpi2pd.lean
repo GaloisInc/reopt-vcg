@@ -1,4 +1,4 @@
-def cvtpi2pd1 : instruction :=
+def cvtpi2pd : instruction :=
   definst "cvtpi2pd" $ do
     pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) => do
       v_2 <- evaluateAddress mem_0;

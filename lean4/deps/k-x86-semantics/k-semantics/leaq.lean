@@ -1,4 +1,4 @@
-def leaq1 : instruction :=
+def leaq : instruction :=
   definst "leaq" $ do
     pattern fun (mem_0 : Mem) (r64_1 : reg (bv 64)) => do
       v_2 <- evaluateAddress mem_0;

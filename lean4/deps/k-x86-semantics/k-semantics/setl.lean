@@ -1,4 +1,4 @@
-def setl1 : instruction :=
+def setl : instruction :=
   definst "setl" $ do
     pattern fun (mem_0 : Mem) => do
       v_1 <- evaluateAddress mem_0;

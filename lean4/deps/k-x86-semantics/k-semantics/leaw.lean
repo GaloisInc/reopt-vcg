@@ -1,4 +1,4 @@
-def leaw1 : instruction :=
+def leaw : instruction :=
   definst "leaw" $ do
     pattern fun (mem_0 : Mem) (r16_1 : reg (bv 16)) => do
       v_2 <- evaluateAddress mem_0;

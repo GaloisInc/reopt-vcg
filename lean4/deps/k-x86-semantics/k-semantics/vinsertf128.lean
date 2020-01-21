@@ -1,15 +1,15 @@
-def vinsertf1281 : instruction :=
+def vinsertf128 : instruction :=
   definst "vinsertf128" $ do
-    pattern fun (v_2541 : imm int) (v_2544 : reg (bv 128)) (v_2542 : reg (bv 256)) (v_2543 : reg (bv 256)) => do
-      v_4277 <- getRegister v_2542;
-      v_4279 <- getRegister v_2544;
-      setRegister (lhs.of_reg v_2543) (mux (isBitClear (handleImmediateWithSignExtend v_2541 8 8) 7) (concat (extract v_4277 0 128) v_4279) (concat v_4279 (extract v_4277 128 256)));
+    pattern fun (imm_0 : imm int) (mem_1 : Mem) (ymm_2 : reg (bv 256)) (ymm_3 : reg (bv 256)) => do
+      v_4 <- getRegister (lhs.of_reg ymm_2);
+      v_5 <- evaluateAddress mem_1;
+      v_6 <- load v_5 16;
+      setRegister (lhs.of_reg ymm_3) (mux (isBitClear (handleImmediateWithSignExtend imm_0 8 8) 7) (concat (extract v_4 0 128) v_6) (concat v_6 (extract v_4 128 256)));
       pure ()
     pat_end;
-    pattern fun (v_2535 : imm int) (v_2536 : Mem) (v_2537 : reg (bv 256)) (v_2538 : reg (bv 256)) => do
-      v_9724 <- getRegister v_2537;
-      v_9726 <- evaluateAddress v_2536;
-      v_9727 <- load v_9726 16;
-      setRegister (lhs.of_reg v_2538) (mux (isBitClear (handleImmediateWithSignExtend v_2535 8 8) 7) (concat (extract v_9724 0 128) v_9727) (concat v_9727 (extract v_9724 128 256)));
+    pattern fun (imm_0 : imm int) (xmm_1 : reg (bv 128)) (ymm_2 : reg (bv 256)) (ymm_3 : reg (bv 256)) => do
+      v_4 <- getRegister (lhs.of_reg ymm_2);
+      v_5 <- getRegister (lhs.of_reg xmm_1);
+      setRegister (lhs.of_reg ymm_3) (mux (isBitClear (handleImmediateWithSignExtend imm_0 8 8) 7) (concat (extract v_4 0 128) v_5) (concat v_5 (extract v_4 128 256)));
       pure ()
     pat_end

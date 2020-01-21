@@ -1,8 +1,8 @@
-def vdpps1 : instruction :=
+def vdpps : instruction :=
   definst "vdpps" $ do
     pattern fun (imm_0 : imm int) (mem_1 : Mem) (xmm_2 : reg (bv 128)) (xmm_3 : reg (bv 128)) => do
       v_4 <- eval (handleImmediateWithSignExtend imm_0 8 8);
-      v_5 <- getRegister xmm_2;
+      v_5 <- getRegister (lhs.of_reg xmm_2);
       v_6 <- evaluateAddress mem_1;
       v_7 <- load v_6 16;
       v_8 <- eval (Float2MInt (_+Float__FLOAT (MInt2Float (Float2MInt (_+Float__FLOAT (MInt2Float (mux (isBitSet v_4 3) (Float2MInt (_*Float__FLOAT (MInt2Float (extract v_5 96 128) 24 8) (MInt2Float (extract v_7 96 128) 24 8)) 32) (expression.bv_nat 32 0)) 24 8) (MInt2Float (mux (isBitSet v_4 2) (Float2MInt (_*Float__FLOAT (MInt2Float (extract v_5 64 96) 24 8) (MInt2Float (extract v_7 64 96) 24 8)) 32) (expression.bv_nat 32 0)) 24 8)) 32) 24 8) (MInt2Float (Float2MInt (_+Float__FLOAT (MInt2Float (mux (isBitSet v_4 1) (Float2MInt (_*Float__FLOAT (MInt2Float (extract v_5 32 64) 24 8) (MInt2Float (extract v_7 32 64) 24 8)) 32) (expression.bv_nat 32 0)) 24 8) (MInt2Float (mux (isBitSet v_4 0) (Float2MInt (_*Float__FLOAT (MInt2Float (extract v_5 0 32) 24 8) (MInt2Float (extract v_7 0 32) 24 8)) 32) (expression.bv_nat 32 0)) 24 8)) 32) 24 8)) 32);
@@ -13,7 +13,7 @@ def vdpps1 : instruction :=
       v_4 <- eval (handleImmediateWithSignExtend imm_0 8 8);
       v_5 <- eval (isBitSet v_4 4);
       v_6 <- eval (isBitSet v_4 3);
-      v_7 <- getRegister ymm_2;
+      v_7 <- getRegister (lhs.of_reg ymm_2);
       v_8 <- evaluateAddress mem_1;
       v_9 <- load v_8 32;
       v_10 <- eval (isBitSet v_4 2);
@@ -29,8 +29,8 @@ def vdpps1 : instruction :=
     pat_end;
     pattern fun (imm_0 : imm int) (xmm_1 : reg (bv 128)) (xmm_2 : reg (bv 128)) (xmm_3 : reg (bv 128)) => do
       v_4 <- eval (handleImmediateWithSignExtend imm_0 8 8);
-      v_5 <- getRegister xmm_2;
-      v_6 <- getRegister xmm_1;
+      v_5 <- getRegister (lhs.of_reg xmm_2);
+      v_6 <- getRegister (lhs.of_reg xmm_1);
       v_7 <- eval (Float2MInt (_+Float__FLOAT (MInt2Float (Float2MInt (_+Float__FLOAT (MInt2Float (mux (isBitSet v_4 3) (Float2MInt (_*Float__FLOAT (MInt2Float (extract v_5 96 128) 24 8) (MInt2Float (extract v_6 96 128) 24 8)) 32) (expression.bv_nat 32 0)) 24 8) (MInt2Float (mux (isBitSet v_4 2) (Float2MInt (_*Float__FLOAT (MInt2Float (extract v_5 64 96) 24 8) (MInt2Float (extract v_6 64 96) 24 8)) 32) (expression.bv_nat 32 0)) 24 8)) 32) 24 8) (MInt2Float (Float2MInt (_+Float__FLOAT (MInt2Float (mux (isBitSet v_4 1) (Float2MInt (_*Float__FLOAT (MInt2Float (extract v_5 32 64) 24 8) (MInt2Float (extract v_6 32 64) 24 8)) 32) (expression.bv_nat 32 0)) 24 8) (MInt2Float (mux (isBitSet v_4 0) (Float2MInt (_*Float__FLOAT (MInt2Float (extract v_5 0 32) 24 8) (MInt2Float (extract v_6 0 32) 24 8)) 32) (expression.bv_nat 32 0)) 24 8)) 32) 24 8)) 32);
       setRegister (lhs.of_reg xmm_3) (concat (concat (concat (mux (isBitSet v_4 4) v_7 (expression.bv_nat 32 0)) (mux (isBitSet v_4 5) v_7 (expression.bv_nat 32 0))) (mux (isBitSet v_4 6) v_7 (expression.bv_nat 32 0))) (mux (isBitSet v_4 7) v_7 (expression.bv_nat 32 0)));
       pure ()
@@ -39,8 +39,8 @@ def vdpps1 : instruction :=
       v_4 <- eval (handleImmediateWithSignExtend imm_0 8 8);
       v_5 <- eval (isBitSet v_4 4);
       v_6 <- eval (isBitSet v_4 3);
-      v_7 <- getRegister ymm_2;
-      v_8 <- getRegister ymm_1;
+      v_7 <- getRegister (lhs.of_reg ymm_2);
+      v_8 <- getRegister (lhs.of_reg ymm_1);
       v_9 <- eval (isBitSet v_4 2);
       v_10 <- eval (isBitSet v_4 1);
       v_11 <- eval (isBitSet v_4 0);

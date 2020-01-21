@@ -1,4 +1,4 @@
-def pmovsxbw1 : instruction :=
+def pmovsxbw : instruction :=
   definst "pmovsxbw" $ do
     pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) => do
       v_2 <- evaluateAddress mem_0;
@@ -7,7 +7,7 @@ def pmovsxbw1 : instruction :=
       pure ()
     pat_end;
     pattern fun (xmm_0 : reg (bv 128)) (xmm_1 : reg (bv 128)) => do
-      v_2 <- getRegister xmm_0;
+      v_2 <- getRegister (lhs.of_reg xmm_0);
       setRegister (lhs.of_reg xmm_1) (concat (sext (extract v_2 64 72) 16) (concat (sext (extract v_2 72 80) 16) (concat (sext (extract v_2 80 88) 16) (concat (sext (extract v_2 88 96) 16) (concat (sext (extract v_2 96 104) 16) (concat (sext (extract v_2 104 112) 16) (concat (sext (extract v_2 112 120) 16) (sext (extract v_2 120 128) 16))))))));
       pure ()
     pat_end

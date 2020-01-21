@@ -1,15 +1,15 @@
-def vpermq1 : instruction :=
+def vpermq : instruction :=
   definst "vpermq" $ do
-    pattern fun (v_3173 : imm int) (v_3174 : reg (bv 256)) (v_3175 : reg (bv 256)) => do
-      v_8577 <- getRegister v_3174;
-      v_8578 <- eval (handleImmediateWithSignExtend v_3173 8 8);
-      setRegister (lhs.of_reg v_3175) (concat (extract (lshr v_8577 (extract (shl (concat (expression.bv_nat 254 0) (extract v_8578 0 2)) (expression.bv_nat 256 6)) 0 256)) 192 256) (concat (extract (lshr v_8577 (extract (shl (concat (expression.bv_nat 254 0) (extract v_8578 2 4)) (expression.bv_nat 256 6)) 0 256)) 192 256) (concat (extract (lshr v_8577 (extract (shl (concat (expression.bv_nat 254 0) (extract v_8578 4 6)) (expression.bv_nat 256 6)) 0 256)) 192 256) (extract (lshr v_8577 (extract (shl (concat (expression.bv_nat 254 0) (extract v_8578 6 8)) (expression.bv_nat 256 6)) 0 256)) 192 256))));
+    pattern fun (imm_0 : imm int) (mem_1 : Mem) (ymm_2 : reg (bv 256)) => do
+      v_3 <- evaluateAddress mem_1;
+      v_4 <- load v_3 32;
+      v_5 <- eval (handleImmediateWithSignExtend imm_0 8 8);
+      setRegister (lhs.of_reg ymm_2) (concat (extract (lshr v_4 (extract (shl (concat (expression.bv_nat 254 0) (extract v_5 0 2)) (expression.bv_nat 256 6)) 0 256)) 192 256) (concat (extract (lshr v_4 (extract (shl (concat (expression.bv_nat 254 0) (extract v_5 2 4)) (expression.bv_nat 256 6)) 0 256)) 192 256) (concat (extract (lshr v_4 (extract (shl (concat (expression.bv_nat 254 0) (extract v_5 4 6)) (expression.bv_nat 256 6)) 0 256)) 192 256) (extract (lshr v_4 (extract (shl (concat (expression.bv_nat 254 0) (extract v_5 6 8)) (expression.bv_nat 256 6)) 0 256)) 192 256))));
       pure ()
     pat_end;
-    pattern fun (v_3169 : imm int) (v_3168 : Mem) (v_3170 : reg (bv 256)) => do
-      v_17075 <- evaluateAddress v_3168;
-      v_17076 <- load v_17075 32;
-      v_17077 <- eval (handleImmediateWithSignExtend v_3169 8 8);
-      setRegister (lhs.of_reg v_3170) (concat (extract (lshr v_17076 (extract (shl (concat (expression.bv_nat 254 0) (extract v_17077 0 2)) (expression.bv_nat 256 6)) 0 256)) 192 256) (concat (extract (lshr v_17076 (extract (shl (concat (expression.bv_nat 254 0) (extract v_17077 2 4)) (expression.bv_nat 256 6)) 0 256)) 192 256) (concat (extract (lshr v_17076 (extract (shl (concat (expression.bv_nat 254 0) (extract v_17077 4 6)) (expression.bv_nat 256 6)) 0 256)) 192 256) (extract (lshr v_17076 (extract (shl (concat (expression.bv_nat 254 0) (extract v_17077 6 8)) (expression.bv_nat 256 6)) 0 256)) 192 256))));
+    pattern fun (imm_0 : imm int) (ymm_1 : reg (bv 256)) (ymm_2 : reg (bv 256)) => do
+      v_3 <- getRegister (lhs.of_reg ymm_1);
+      v_4 <- eval (handleImmediateWithSignExtend imm_0 8 8);
+      setRegister (lhs.of_reg ymm_2) (concat (extract (lshr v_3 (extract (shl (concat (expression.bv_nat 254 0) (extract v_4 0 2)) (expression.bv_nat 256 6)) 0 256)) 192 256) (concat (extract (lshr v_3 (extract (shl (concat (expression.bv_nat 254 0) (extract v_4 2 4)) (expression.bv_nat 256 6)) 0 256)) 192 256) (concat (extract (lshr v_3 (extract (shl (concat (expression.bv_nat 254 0) (extract v_4 4 6)) (expression.bv_nat 256 6)) 0 256)) 192 256) (extract (lshr v_3 (extract (shl (concat (expression.bv_nat 254 0) (extract v_4 6 8)) (expression.bv_nat 256 6)) 0 256)) 192 256))));
       pure ()
     pat_end

@@ -1,4 +1,4 @@
-def sarw1 : instruction :=
+def sarw : instruction :=
   definst "sarw" $ do
     pattern fun (_ : clReg) (mem_0 : Mem) => do
       v_1 <- evaluateAddress mem_0;
@@ -28,7 +28,7 @@ def sarw1 : instruction :=
       v_2 <- eval (bv_and (extract v_1 56 64) (expression.bv_nat 8 31));
       v_3 <- eval (eq v_2 (expression.bv_nat 8 0));
       v_4 <- getRegister zf;
-      v_5 <- getRegister r16_0;
+      v_5 <- getRegister (lhs.of_reg r16_0);
       v_6 <- eval (ashr (concat v_5 (expression.bv_nat 1 0)) (concat (expression.bv_nat 9 0) v_2));
       v_7 <- eval (extract v_6 0 16);
       v_8 <- getRegister sf;
@@ -71,7 +71,7 @@ def sarw1 : instruction :=
       v_2 <- eval (bv_and (handleImmediateWithSignExtend imm_0 8 8) (expression.bv_nat 8 31));
       v_3 <- eval (eq v_2 (expression.bv_nat 8 0));
       v_4 <- getRegister zf;
-      v_5 <- getRegister r16_1;
+      v_5 <- getRegister (lhs.of_reg r16_1);
       v_6 <- eval (ashr (concat v_5 (expression.bv_nat 1 0)) (concat (expression.bv_nat 9 0) v_2));
       v_7 <- eval (extract v_6 0 16);
       v_8 <- getRegister sf;
@@ -103,7 +103,7 @@ def sarw1 : instruction :=
       pure ()
     pat_end;
     pattern fun (r16_0 : reg (bv 16)) => do
-      v_1 <- getRegister r16_0;
+      v_1 <- getRegister (lhs.of_reg r16_0);
       v_2 <- eval (ashr (concat v_1 (expression.bv_nat 1 0)) (expression.bv_nat 17 1));
       v_3 <- eval (extract v_2 0 16);
       setRegister (lhs.of_reg r16_0) v_3;

@@ -1,4 +1,4 @@
-def notq1 : instruction :=
+def notq : instruction :=
   definst "notq" $ do
     pattern fun (mem_0 : Mem) => do
       v_1 <- evaluateAddress mem_0;
@@ -7,7 +7,7 @@ def notq1 : instruction :=
       pure ()
     pat_end;
     pattern fun (r64_0 : reg (bv 64)) => do
-      v_1 <- getRegister r64_0;
+      v_1 <- getRegister (lhs.of_reg r64_0);
       setRegister (lhs.of_reg r64_0) (bv_xor v_1 (expression.bv_nat 64 18446744073709551615));
       pure ()
     pat_end

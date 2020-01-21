@@ -1,26 +1,26 @@
-def vpbroadcastw1 : instruction :=
+def vpbroadcastw : instruction :=
   definst "vpbroadcastw" $ do
-    pattern fun (v_2831 : reg (bv 128)) (v_2832 : reg (bv 128)) => do
-      v_7013 <- getRegister v_2831;
-      v_7014 <- eval (extract v_7013 112 128);
-      setRegister (lhs.of_reg v_2832) (concat v_7014 (concat v_7014 (concat v_7014 (concat v_7014 (concat v_7014 (concat v_7014 (concat v_7014 v_7014)))))));
+    pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) => do
+      v_2 <- evaluateAddress mem_0;
+      v_3 <- load v_2 2;
+      setRegister (lhs.of_reg xmm_1) (concat v_3 (concat v_3 (concat v_3 (concat v_3 (concat v_3 (concat v_3 (concat v_3 v_3)))))));
       pure ()
     pat_end;
-    pattern fun (v_2841 : reg (bv 128)) (v_2840 : reg (bv 256)) => do
-      v_7027 <- getRegister v_2841;
-      v_7028 <- eval (extract v_7027 112 128);
-      setRegister (lhs.of_reg v_2840) (concat v_7028 (concat v_7028 (concat v_7028 (concat v_7028 (concat v_7028 (concat v_7028 (concat v_7028 (concat v_7028 (concat v_7028 (concat v_7028 (concat v_7028 (concat v_7028 (concat v_7028 (concat v_7028 (concat v_7028 v_7028)))))))))))))));
+    pattern fun (mem_0 : Mem) (ymm_1 : reg (bv 256)) => do
+      v_2 <- evaluateAddress mem_0;
+      v_3 <- load v_2 2;
+      setRegister (lhs.of_reg ymm_1) (concat v_3 (concat v_3 (concat v_3 (concat v_3 (concat v_3 (concat v_3 (concat v_3 (concat v_3 (concat v_3 (concat v_3 (concat v_3 (concat v_3 (concat v_3 (concat v_3 (concat v_3 v_3)))))))))))))));
       pure ()
     pat_end;
-    pattern fun (v_2827 : Mem) (v_2828 : reg (bv 128)) => do
-      v_15638 <- evaluateAddress v_2827;
-      v_15639 <- load v_15638 2;
-      setRegister (lhs.of_reg v_2828) (concat v_15639 (concat v_15639 (concat v_15639 (concat v_15639 (concat v_15639 (concat v_15639 (concat v_15639 v_15639)))))));
+    pattern fun (xmm_0 : reg (bv 128)) (xmm_1 : reg (bv 128)) => do
+      v_2 <- getRegister (lhs.of_reg xmm_0);
+      v_3 <- eval (extract v_2 112 128);
+      setRegister (lhs.of_reg xmm_1) (concat v_3 (concat v_3 (concat v_3 (concat v_3 (concat v_3 (concat v_3 (concat v_3 v_3)))))));
       pure ()
     pat_end;
-    pattern fun (v_2836 : Mem) (v_2837 : reg (bv 256)) => do
-      v_15648 <- evaluateAddress v_2836;
-      v_15649 <- load v_15648 2;
-      setRegister (lhs.of_reg v_2837) (concat v_15649 (concat v_15649 (concat v_15649 (concat v_15649 (concat v_15649 (concat v_15649 (concat v_15649 (concat v_15649 (concat v_15649 (concat v_15649 (concat v_15649 (concat v_15649 (concat v_15649 (concat v_15649 (concat v_15649 v_15649)))))))))))))));
+    pattern fun (xmm_0 : reg (bv 128)) (ymm_1 : reg (bv 256)) => do
+      v_2 <- getRegister (lhs.of_reg xmm_0);
+      v_3 <- eval (extract v_2 112 128);
+      setRegister (lhs.of_reg ymm_1) (concat v_3 (concat v_3 (concat v_3 (concat v_3 (concat v_3 (concat v_3 (concat v_3 (concat v_3 (concat v_3 (concat v_3 (concat v_3 (concat v_3 (concat v_3 (concat v_3 (concat v_3 v_3)))))))))))))));
       pure ()
     pat_end

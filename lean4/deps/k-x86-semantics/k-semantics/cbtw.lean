@@ -1,4 +1,4 @@
-def cbtw1 : instruction :=
+def cbtw : instruction :=
   definst "cbtw" $ do
     pattern fun => do
       v_0 <- getRegister rax;

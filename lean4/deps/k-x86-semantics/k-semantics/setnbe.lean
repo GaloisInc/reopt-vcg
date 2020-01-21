@@ -1,4 +1,4 @@
-def setnbe1 : instruction :=
+def setnbe : instruction :=
   definst "setnbe" $ do
     pattern fun (mem_0 : Mem) => do
       v_1 <- evaluateAddress mem_0;

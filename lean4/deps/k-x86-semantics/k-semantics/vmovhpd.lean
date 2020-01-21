@@ -1,15 +1,15 @@
-def vmovhpd1 : instruction :=
+def vmovhpd : instruction :=
   definst "vmovhpd" $ do
-    pattern fun (v_2904 : Mem) (v_2905 : reg (bv 128)) (v_2906 : reg (bv 128)) => do
-      v_10201 <- evaluateAddress v_2904;
-      v_10202 <- load v_10201 8;
-      v_10203 <- getRegister v_2905;
-      setRegister (lhs.of_reg v_2906) (concat v_10202 (extract v_10203 64 128));
+    pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) (xmm_2 : reg (bv 128)) => do
+      v_3 <- evaluateAddress mem_0;
+      v_4 <- load v_3 8;
+      v_5 <- getRegister (lhs.of_reg xmm_1);
+      setRegister (lhs.of_reg xmm_2) (concat v_4 (extract v_5 64 128));
       pure ()
     pat_end;
-    pattern fun (v_2901 : reg (bv 128)) (v_2900 : Mem) => do
-      v_12447 <- evaluateAddress v_2900;
-      v_12448 <- getRegister v_2901;
-      store v_12447 (extract v_12448 0 64) 8;
+    pattern fun (xmm_0 : reg (bv 128)) (mem_1 : Mem) => do
+      v_2 <- evaluateAddress mem_1;
+      v_3 <- getRegister (lhs.of_reg xmm_0);
+      store v_2 (extract v_3 0 64) 8;
       pure ()
     pat_end

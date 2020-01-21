@@ -1,4 +1,4 @@
-def subl1 : instruction :=
+def subl : instruction :=
   definst "subl" $ do
     pattern fun (imm_0 : imm int) (mem_1 : Mem) => do
       v_2 <- evaluateAddress mem_1;
@@ -19,7 +19,7 @@ def subl1 : instruction :=
     pat_end;
     pattern fun (imm_0 : imm int) (r32_1 : reg (bv 32)) => do
       v_2 <- eval (handleImmediateWithSignExtend imm_0 32 32);
-      v_3 <- getRegister r32_1;
+      v_3 <- getRegister (lhs.of_reg r32_1);
       v_4 <- eval (add (add (concat (expression.bv_nat 1 0) (bv_xor v_2 (expression.bv_nat 32 4294967295))) (expression.bv_nat 33 1)) (concat (expression.bv_nat 1 0) v_3));
       v_5 <- eval (extract v_4 1 33);
       v_6 <- eval (isBitSet v_4 1);
@@ -36,7 +36,7 @@ def subl1 : instruction :=
     pattern fun (mem_0 : Mem) (r32_1 : reg (bv 32)) => do
       v_2 <- evaluateAddress mem_0;
       v_3 <- load v_2 4;
-      v_4 <- getRegister r32_1;
+      v_4 <- getRegister (lhs.of_reg r32_1);
       v_5 <- eval (add (add (concat (expression.bv_nat 1 0) (bv_xor v_3 (expression.bv_nat 32 4294967295))) (expression.bv_nat 33 1)) (concat (expression.bv_nat 1 0) v_4));
       v_6 <- eval (extract v_5 1 33);
       v_7 <- eval (isBitSet v_5 1);
@@ -52,7 +52,7 @@ def subl1 : instruction :=
     pat_end;
     pattern fun (r32_0 : reg (bv 32)) (mem_1 : Mem) => do
       v_2 <- evaluateAddress mem_1;
-      v_3 <- getRegister r32_0;
+      v_3 <- getRegister (lhs.of_reg r32_0);
       v_4 <- load v_2 4;
       v_5 <- eval (add (add (concat (expression.bv_nat 1 0) (bv_xor v_3 (expression.bv_nat 32 4294967295))) (expression.bv_nat 33 1)) (concat (expression.bv_nat 1 0) v_4));
       v_6 <- eval (extract v_5 1 33);
@@ -68,8 +68,8 @@ def subl1 : instruction :=
       pure ()
     pat_end;
     pattern fun (r32_0 : reg (bv 32)) (r32_1 : reg (bv 32)) => do
-      v_2 <- getRegister r32_0;
-      v_3 <- getRegister r32_1;
+      v_2 <- getRegister (lhs.of_reg r32_0);
+      v_3 <- getRegister (lhs.of_reg r32_1);
       v_4 <- eval (add (add (concat (expression.bv_nat 1 0) (bv_xor v_2 (expression.bv_nat 32 4294967295))) (expression.bv_nat 33 1)) (concat (expression.bv_nat 1 0) v_3));
       v_5 <- eval (extract v_4 1 33);
       v_6 <- eval (isBitSet v_4 1);

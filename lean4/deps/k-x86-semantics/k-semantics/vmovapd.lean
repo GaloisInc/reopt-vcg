@@ -1,26 +1,26 @@
-def vmovapd1 : instruction :=
+def vmovapd : instruction :=
   definst "vmovapd" $ do
-    pattern fun (v_2762 : Mem) (v_2763 : reg (bv 128)) => do
-      v_10153 <- evaluateAddress v_2762;
-      v_10154 <- load v_10153 16;
-      setRegister (lhs.of_reg v_2763) v_10154;
+    pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) => do
+      v_2 <- evaluateAddress mem_0;
+      v_3 <- load v_2 16;
+      setRegister (lhs.of_reg xmm_1) v_3;
       pure ()
     pat_end;
-    pattern fun (v_2771 : Mem) (v_2772 : reg (bv 256)) => do
-      v_10156 <- evaluateAddress v_2771;
-      v_10157 <- load v_10156 32;
-      setRegister (lhs.of_reg v_2772) v_10157;
+    pattern fun (mem_0 : Mem) (ymm_1 : reg (bv 256)) => do
+      v_2 <- evaluateAddress mem_0;
+      v_3 <- load v_2 32;
+      setRegister (lhs.of_reg ymm_1) v_3;
       pure ()
     pat_end;
-    pattern fun (v_2755 : reg (bv 128)) (v_2754 : Mem) => do
-      v_12429 <- evaluateAddress v_2754;
-      v_12430 <- getRegister v_2755;
-      store v_12429 v_12430 16;
+    pattern fun (xmm_0 : reg (bv 128)) (mem_1 : Mem) => do
+      v_2 <- evaluateAddress mem_1;
+      v_3 <- getRegister (lhs.of_reg xmm_0);
+      store v_2 v_3 16;
       pure ()
     pat_end;
-    pattern fun (v_2759 : reg (bv 256)) (v_2758 : Mem) => do
-      v_12432 <- evaluateAddress v_2758;
-      v_12433 <- getRegister v_2759;
-      store v_12432 v_12433 32;
+    pattern fun (ymm_0 : reg (bv 256)) (mem_1 : Mem) => do
+      v_2 <- evaluateAddress mem_1;
+      v_3 <- getRegister (lhs.of_reg ymm_0);
+      store v_2 v_3 32;
       pure ()
     pat_end

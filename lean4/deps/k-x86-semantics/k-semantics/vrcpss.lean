@@ -1,15 +1,15 @@
-def vrcpss1 : instruction :=
+def vrcpss : instruction :=
   definst "vrcpss" $ do
-    pattern fun (v_2887 : reg (bv 128)) (v_2888 : reg (bv 128)) (v_2889 : reg (bv 128)) => do
-      v_6656 <- getRegister v_2888;
-      v_6658 <- getRegister v_2887;
-      setRegister (lhs.of_reg v_2889) (concat (extract v_6656 0 96) (Float2MInt (_/Float__FLOAT 1e+00 (MInt2Float (extract v_6658 96 128) 24 8)) 32));
+    pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) (xmm_2 : reg (bv 128)) => do
+      v_3 <- getRegister (lhs.of_reg xmm_1);
+      v_4 <- evaluateAddress mem_0;
+      v_5 <- load v_4 4;
+      setRegister (lhs.of_reg xmm_2) (concat (extract v_3 0 96) (Float2MInt (_/Float__FLOAT 1e+00 (MInt2Float v_5 24 8)) 32));
       pure ()
     pat_end;
-    pattern fun (v_2881 : Mem) (v_2882 : reg (bv 128)) (v_2883 : reg (bv 128)) => do
-      v_12668 <- getRegister v_2882;
-      v_12670 <- evaluateAddress v_2881;
-      v_12671 <- load v_12670 4;
-      setRegister (lhs.of_reg v_2883) (concat (extract v_12668 0 96) (Float2MInt (_/Float__FLOAT 1e+00 (MInt2Float v_12671 24 8)) 32));
+    pattern fun (xmm_0 : reg (bv 128)) (xmm_1 : reg (bv 128)) (xmm_2 : reg (bv 128)) => do
+      v_3 <- getRegister (lhs.of_reg xmm_1);
+      v_4 <- getRegister (lhs.of_reg xmm_0);
+      setRegister (lhs.of_reg xmm_2) (concat (extract v_3 0 96) (Float2MInt (_/Float__FLOAT 1e+00 (MInt2Float (extract v_4 96 128) 24 8)) 32));
       pure ()
     pat_end

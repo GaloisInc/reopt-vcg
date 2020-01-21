@@ -1,4 +1,4 @@
-def imulb1 : instruction :=
+def imulb : instruction :=
   definst "imulb" $ do
     pattern fun (mem_0 : Mem) => do
       v_1 <- evaluateAddress mem_0;
@@ -16,7 +16,7 @@ def imulb1 : instruction :=
       pure ()
     pat_end;
     pattern fun (rh_0 : reg (bv 8)) => do
-      v_1 <- getRegister rh_0;
+      v_1 <- getRegister (lhs.of_reg rh_0);
       v_2 <- getRegister rax;
       v_3 <- eval (mul (sext v_1 16) (sext (extract v_2 56 64) 16));
       v_4 <- eval (notBool_ (eq v_3 (sext (extract v_3 8 16) 16)));

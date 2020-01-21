@@ -1,4 +1,4 @@
-def rcrq1 : instruction :=
+def rcrq : instruction :=
   definst "rcrq" $ do
     pattern fun (_ : clReg) (mem_0 : Mem) => do
       v_1 <- evaluateAddress mem_0;
@@ -19,7 +19,7 @@ def rcrq1 : instruction :=
       v_2 <- eval (urem (concat (expression.bv_nat 57 0) (bv_and (extract v_1 56 64) (expression.bv_nat 8 63))) (expression.bv_nat 65 65));
       v_3 <- eval (extract v_2 57 65);
       v_4 <- getRegister cf;
-      v_5 <- getRegister r64_0;
+      v_5 <- getRegister (lhs.of_reg r64_0);
       v_6 <- eval (ror (concat (mux v_4 (expression.bv_nat 1 1) (expression.bv_nat 1 0)) v_5) v_2);
       v_7 <- getRegister of;
       setRegister (lhs.of_reg r64_0) (extract v_6 1 65);
@@ -44,7 +44,7 @@ def rcrq1 : instruction :=
       v_2 <- eval (urem (concat (expression.bv_nat 57 0) (bv_and (handleImmediateWithSignExtend imm_0 8 8) (expression.bv_nat 8 63))) (expression.bv_nat 65 65));
       v_3 <- eval (extract v_2 57 65);
       v_4 <- getRegister cf;
-      v_5 <- getRegister r64_1;
+      v_5 <- getRegister (lhs.of_reg r64_1);
       v_6 <- eval (ror (concat (mux v_4 (expression.bv_nat 1 1) (expression.bv_nat 1 0)) v_5) v_2);
       v_7 <- getRegister of;
       setRegister (lhs.of_reg r64_1) (extract v_6 1 65);

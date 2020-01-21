@@ -1,26 +1,26 @@
-def vmovaps1 : instruction :=
+def vmovaps : instruction :=
   definst "vmovaps" $ do
-    pattern fun (v_2788 : Mem) (v_2789 : reg (bv 128)) => do
-      v_10161 <- evaluateAddress v_2788;
-      v_10162 <- load v_10161 16;
-      setRegister (lhs.of_reg v_2789) v_10162;
+    pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) => do
+      v_2 <- evaluateAddress mem_0;
+      v_3 <- load v_2 16;
+      setRegister (lhs.of_reg xmm_1) v_3;
       pure ()
     pat_end;
-    pattern fun (v_2797 : Mem) (v_2798 : reg (bv 256)) => do
-      v_10164 <- evaluateAddress v_2797;
-      v_10165 <- load v_10164 32;
-      setRegister (lhs.of_reg v_2798) v_10165;
+    pattern fun (mem_0 : Mem) (ymm_1 : reg (bv 256)) => do
+      v_2 <- evaluateAddress mem_0;
+      v_3 <- load v_2 32;
+      setRegister (lhs.of_reg ymm_1) v_3;
       pure ()
     pat_end;
-    pattern fun (v_2781 : reg (bv 128)) (v_2780 : Mem) => do
-      v_12435 <- evaluateAddress v_2780;
-      v_12436 <- getRegister v_2781;
-      store v_12435 v_12436 16;
+    pattern fun (xmm_0 : reg (bv 128)) (mem_1 : Mem) => do
+      v_2 <- evaluateAddress mem_1;
+      v_3 <- getRegister (lhs.of_reg xmm_0);
+      store v_2 v_3 16;
       pure ()
     pat_end;
-    pattern fun (v_2785 : reg (bv 256)) (v_2784 : Mem) => do
-      v_12438 <- evaluateAddress v_2784;
-      v_12439 <- getRegister v_2785;
-      store v_12438 v_12439 32;
+    pattern fun (ymm_0 : reg (bv 256)) (mem_1 : Mem) => do
+      v_2 <- evaluateAddress mem_1;
+      v_3 <- getRegister (lhs.of_reg ymm_0);
+      store v_2 v_3 32;
       pure ()
     pat_end

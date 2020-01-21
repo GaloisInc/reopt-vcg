@@ -1,4 +1,4 @@
-def vcvtpd2dqx1 : instruction :=
+def vcvtpd2dqx : instruction :=
   definst "vcvtpd2dqx" $ do
     pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) => do
       v_2 <- evaluateAddress mem_0;

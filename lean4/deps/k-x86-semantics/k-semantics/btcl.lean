@@ -1,4 +1,4 @@
-def btcl1 : instruction :=
+def btcl : instruction :=
   definst "btcl" $ do
     pattern fun (imm_0 : imm int) (mem_1 : Mem) => do
       v_2 <- evaluateAddress mem_1;
@@ -15,7 +15,7 @@ def btcl1 : instruction :=
       pure ()
     pat_end;
     pattern fun (imm_0 : imm int) (r32_1 : reg (bv 32)) => do
-      v_2 <- getRegister r32_1;
+      v_2 <- getRegister (lhs.of_reg r32_1);
       v_3 <- eval (sext (bv_and (handleImmediateWithSignExtend imm_0 8 8) (expression.bv_nat 8 31)) 32);
       setRegister (lhs.of_reg r32_1) (bv_xor v_2 (extract (shl (expression.bv_nat 32 1) v_3) 0 32));
       setRegister af undef;
@@ -27,7 +27,7 @@ def btcl1 : instruction :=
     pat_end;
     pattern fun (r32_0 : reg (bv 32)) (mem_1 : Mem) => do
       v_2 <- evaluateAddress mem_1;
-      v_3 <- getRegister r32_0;
+      v_3 <- getRegister (lhs.of_reg r32_0);
       v_4 <- eval (add v_2 (concat (expression.bv_nat 3 0) (extract (sext v_3 64) 0 61)));
       v_5 <- load v_4 1;
       v_6 <- eval (concat (expression.bv_nat 5 0) (extract v_3 29 32));
@@ -40,8 +40,8 @@ def btcl1 : instruction :=
       pure ()
     pat_end;
     pattern fun (r32_0 : reg (bv 32)) (r32_1 : reg (bv 32)) => do
-      v_2 <- getRegister r32_1;
-      v_3 <- getRegister r32_0;
+      v_2 <- getRegister (lhs.of_reg r32_1);
+      v_3 <- getRegister (lhs.of_reg r32_0);
       v_4 <- eval (bv_and v_3 (expression.bv_nat 32 31));
       setRegister (lhs.of_reg r32_1) (bv_xor v_2 (extract (shl (expression.bv_nat 32 1) v_4) 0 32));
       setRegister af undef;

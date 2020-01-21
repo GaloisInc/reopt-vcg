@@ -1,4 +1,4 @@
-def cmpxchg16b1 : instruction :=
+def cmpxchg16b : instruction :=
   definst "cmpxchg16b" $ do
     pattern fun (mem_0 : Mem) => do
       v_1 <- evaluateAddress mem_0;

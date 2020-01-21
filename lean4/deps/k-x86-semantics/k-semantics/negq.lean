@@ -1,4 +1,4 @@
-def negq1 : instruction :=
+def negq : instruction :=
   definst "negq" $ do
     pattern fun (mem_0 : Mem) => do
       v_1 <- evaluateAddress mem_0;
@@ -15,7 +15,7 @@ def negq1 : instruction :=
       pure ()
     pat_end;
     pattern fun (r64_0 : reg (bv 64)) => do
-      v_1 <- getRegister r64_0;
+      v_1 <- getRegister (lhs.of_reg r64_0);
       v_2 <- eval (add (expression.bv_nat 64 1) (bv_xor v_1 (expression.bv_nat 64 18446744073709551615)));
       v_3 <- eval (isBitSet v_2 0);
       setRegister (lhs.of_reg r64_0) v_2;

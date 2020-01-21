@@ -1,3 +1,3 @@
-def nopl1 : instruction :=
+def nopl : instruction :=
   definst "nopl" $ do
 

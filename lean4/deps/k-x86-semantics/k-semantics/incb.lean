@@ -1,4 +1,4 @@
-def incb1 : instruction :=
+def incb : instruction :=
   definst "incb" $ do
     pattern fun (mem_0 : Mem) => do
       v_1 <- evaluateAddress mem_0;
@@ -13,7 +13,7 @@ def incb1 : instruction :=
       pure ()
     pat_end;
     pattern fun (rh_0 : reg (bv 8)) => do
-      v_1 <- getRegister rh_0;
+      v_1 <- getRegister (lhs.of_reg rh_0);
       v_2 <- eval (add v_1 (expression.bv_nat 8 1));
       setRegister (lhs.of_reg rh_0) v_2;
       setRegister af (eq (extract v_1 4 8) (expression.bv_nat 4 15));

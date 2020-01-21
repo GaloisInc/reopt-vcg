@@ -1,4 +1,4 @@
-def idivq1 : instruction :=
+def idivq : instruction :=
   definst "idivq" $ do
     pattern fun (mem_0 : Mem) => do
       v_1 <- getRegister rdx;
@@ -20,7 +20,7 @@ def idivq1 : instruction :=
       v_1 <- getRegister rdx;
       v_2 <- getRegister rax;
       v_3 <- eval (concat v_1 v_2);
-      v_4 <- getRegister r64_0;
+      v_4 <- getRegister (lhs.of_reg r64_0);
       setRegister rax (_(_,_)_MINT-WRAPPER-SYNTAX idiv_quotient_int64 v_3 v_4);
       setRegister rdx (_(_,_)_MINT-WRAPPER-SYNTAX idiv_remainder_int64 v_3 v_4);
       setRegister af undef;

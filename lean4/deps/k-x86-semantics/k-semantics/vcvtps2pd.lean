@@ -1,4 +1,4 @@
-def vcvtps2pd1 : instruction :=
+def vcvtps2pd : instruction :=
   definst "vcvtps2pd" $ do
     pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) => do
       v_2 <- evaluateAddress mem_0;
@@ -13,12 +13,12 @@ def vcvtps2pd1 : instruction :=
       pure ()
     pat_end;
     pattern fun (xmm_0 : reg (bv 128)) (xmm_1 : reg (bv 128)) => do
-      v_2 <- getRegister xmm_0;
+      v_2 <- getRegister (lhs.of_reg xmm_0);
       setRegister (lhs.of_reg xmm_1) (concat (Float2MInt (roundFloat (MInt2Float (extract v_2 64 96) 24 8) 53 11) 64) (Float2MInt (roundFloat (MInt2Float (extract v_2 96 128) 24 8) 53 11) 64));
       pure ()
     pat_end;
     pattern fun (xmm_0 : reg (bv 128)) (ymm_1 : reg (bv 256)) => do
-      v_2 <- getRegister xmm_0;
+      v_2 <- getRegister (lhs.of_reg xmm_0);
       setRegister (lhs.of_reg ymm_1) (concat (Float2MInt (roundFloat (MInt2Float (extract v_2 0 32) 24 8) 53 11) 64) (concat (Float2MInt (roundFloat (MInt2Float (extract v_2 32 64) 24 8) 53 11) 64) (concat (Float2MInt (roundFloat (MInt2Float (extract v_2 64 96) 24 8) 53 11) 64) (Float2MInt (roundFloat (MInt2Float (extract v_2 96 128) 24 8) 53 11) 64))));
       pure ()
     pat_end

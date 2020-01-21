@@ -1,10 +1,10 @@
-def insertps1 : instruction :=
+def insertps : instruction :=
   definst "insertps" $ do
     pattern fun (imm_0 : imm int) (mem_1 : Mem) (xmm_2 : reg (bv 128)) => do
       v_3 <- eval (handleImmediateWithSignExtend imm_0 8 8);
       v_4 <- eval (extract v_3 2 4);
       v_5 <- eval (eq v_4 (expression.bv_nat 2 0));
-      v_6 <- getRegister xmm_2;
+      v_6 <- getRegister (lhs.of_reg xmm_2);
       v_7 <- eval (extract v_6 0 32);
       v_8 <- eval (eq v_4 (expression.bv_nat 2 1));
       v_9 <- eval (eq v_4 (expression.bv_nat 2 2));
@@ -19,12 +19,12 @@ def insertps1 : instruction :=
       v_3 <- eval (handleImmediateWithSignExtend imm_0 8 8);
       v_4 <- eval (extract v_3 2 4);
       v_5 <- eval (eq v_4 (expression.bv_nat 2 0));
-      v_6 <- getRegister xmm_2;
+      v_6 <- getRegister (lhs.of_reg xmm_2);
       v_7 <- eval (extract v_6 0 32);
       v_8 <- eval (eq v_4 (expression.bv_nat 2 1));
       v_9 <- eval (eq v_4 (expression.bv_nat 2 2));
       v_10 <- eval (extract v_3 0 2);
-      v_11 <- getRegister xmm_1;
+      v_11 <- getRegister (lhs.of_reg xmm_1);
       v_12 <- eval (mux (eq v_10 (expression.bv_nat 2 0)) (extract v_11 96 128) (mux (eq v_10 (expression.bv_nat 2 1)) (extract v_11 64 96) (mux (eq v_10 (expression.bv_nat 2 2)) (extract v_11 32 64) (extract v_11 0 32))));
       v_13 <- eval (extract v_6 32 64);
       v_14 <- eval (extract v_6 64 96);

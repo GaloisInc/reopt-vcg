@@ -33,6 +33,16 @@ skip_opcode_prefixes = [
   'xchgb',
   'xchgw',
 
+  # Causes the K lean translator to crash
+
+  'vfmadd231ps',
+  'vfnmadd213ps',
+  'vfnmadd231pd',
+  
+  'vfnmadd213os',
+  'vfnmadd213od',
+  'vfnmadd213pd',
+  
   # conditions
   'lods', # string operation
   'movs', # string operation

@@ -1,4 +1,4 @@
-def pushw1 : instruction :=
+def pushw : instruction :=
   definst "pushw" $ do
     pattern fun (mem_0 : Mem) => do
       v_1 <- getRegister rsp;

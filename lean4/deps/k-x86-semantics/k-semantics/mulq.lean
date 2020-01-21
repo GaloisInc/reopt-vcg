@@ -1,4 +1,4 @@
-def mulq1 : instruction :=
+def mulq : instruction :=
   definst "mulq" $ do
     pattern fun (mem_0 : Mem) => do
       v_1 <- evaluateAddress mem_0;
@@ -18,7 +18,7 @@ def mulq1 : instruction :=
       pure ()
     pat_end;
     pattern fun (r64_0 : reg (bv 64)) => do
-      v_1 <- getRegister r64_0;
+      v_1 <- getRegister (lhs.of_reg r64_0);
       v_2 <- getRegister rax;
       v_3 <- eval (mul (concat (expression.bv_nat 64 0) v_1) (concat (expression.bv_nat 64 0) v_2));
       v_4 <- eval (extract v_3 0 64);

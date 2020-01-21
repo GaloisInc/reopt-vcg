@@ -1,4 +1,4 @@
-def vzeroall1 : instruction :=
+def vzeroall : instruction :=
   definst "vzeroall" $ do
     pattern fun => do
       setRegister ymm0 (expression.bv_nat 256 0);

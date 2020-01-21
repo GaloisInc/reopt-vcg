@@ -1,4 +1,4 @@
-def rorq1 : instruction :=
+def rorq : instruction :=
   definst "rorq" $ do
     pattern fun (_ : clReg) (mem_0 : Mem) => do
       v_1 <- evaluateAddress mem_0;
@@ -18,7 +18,7 @@ def rorq1 : instruction :=
     pattern fun (_ : clReg) (r64_0 : reg (bv 64)) => do
       v_1 <- getRegister rcx;
       v_2 <- eval (bv_and (extract v_1 56 64) (expression.bv_nat 8 63));
-      v_3 <- getRegister r64_0;
+      v_3 <- getRegister (lhs.of_reg r64_0);
       v_4 <- eval (ror v_3 (concat (expression.bv_nat 56 0) v_2));
       v_5 <- eval (isBitSet v_4 0);
       v_6 <- eval (eq v_2 (expression.bv_nat 8 0));
@@ -45,7 +45,7 @@ def rorq1 : instruction :=
     pat_end;
     pattern fun (imm_0 : imm int) (r64_1 : reg (bv 64)) => do
       v_2 <- eval (bv_and (handleImmediateWithSignExtend imm_0 8 8) (expression.bv_nat 8 63));
-      v_3 <- getRegister r64_1;
+      v_3 <- getRegister (lhs.of_reg r64_1);
       v_4 <- eval (ror v_3 (concat (expression.bv_nat 56 0) v_2));
       v_5 <- eval (isBitSet v_4 0);
       v_6 <- eval (eq v_2 (expression.bv_nat 8 0));

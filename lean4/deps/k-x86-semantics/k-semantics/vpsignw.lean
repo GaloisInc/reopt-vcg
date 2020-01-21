@@ -1,47 +1,47 @@
-def vpsignw1 : instruction :=
+def vpsignw : instruction :=
   definst "vpsignw" $ do
-    pattern fun (v_3120 : reg (bv 128)) (v_3121 : reg (bv 128)) (v_3122 : reg (bv 128)) => do
-      v_7602 <- getRegister v_3120;
-      v_7603 <- eval (extract v_7602 0 16);
-      v_7605 <- getRegister v_3121;
-      v_7606 <- eval (extract v_7605 0 16);
-      v_7612 <- eval (extract v_7602 16 32);
-      v_7614 <- eval (extract v_7605 16 32);
-      v_7620 <- eval (extract v_7602 32 48);
-      v_7622 <- eval (extract v_7605 32 48);
-      v_7628 <- eval (extract v_7602 48 64);
-      v_7630 <- eval (extract v_7605 48 64);
-      v_7636 <- eval (extract v_7602 64 80);
-      v_7638 <- eval (extract v_7605 64 80);
-      v_7644 <- eval (extract v_7602 80 96);
-      v_7646 <- eval (extract v_7605 80 96);
-      v_7652 <- eval (extract v_7602 96 112);
-      v_7654 <- eval (extract v_7605 96 112);
-      v_7660 <- eval (extract v_7602 112 128);
-      v_7662 <- eval (extract v_7605 112 128);
-      setRegister (lhs.of_reg v_3122) (concat (mux (sgt v_7603 (expression.bv_nat 16 0)) v_7606 (mux (eq v_7603 (expression.bv_nat 16 0)) (expression.bv_nat 16 0) (add (expression.bv_nat 16 1) (bv_xor v_7606 (expression.bv_nat 16 65535))))) (concat (mux (sgt v_7612 (expression.bv_nat 16 0)) v_7614 (mux (eq v_7612 (expression.bv_nat 16 0)) (expression.bv_nat 16 0) (add (expression.bv_nat 16 1) (bv_xor v_7614 (expression.bv_nat 16 65535))))) (concat (mux (sgt v_7620 (expression.bv_nat 16 0)) v_7622 (mux (eq v_7620 (expression.bv_nat 16 0)) (expression.bv_nat 16 0) (add (expression.bv_nat 16 1) (bv_xor v_7622 (expression.bv_nat 16 65535))))) (concat (mux (sgt v_7628 (expression.bv_nat 16 0)) v_7630 (mux (eq v_7628 (expression.bv_nat 16 0)) (expression.bv_nat 16 0) (add (expression.bv_nat 16 1) (bv_xor v_7630 (expression.bv_nat 16 65535))))) (concat (mux (sgt v_7636 (expression.bv_nat 16 0)) v_7638 (mux (eq v_7636 (expression.bv_nat 16 0)) (expression.bv_nat 16 0) (add (expression.bv_nat 16 1) (bv_xor v_7638 (expression.bv_nat 16 65535))))) (concat (mux (sgt v_7644 (expression.bv_nat 16 0)) v_7646 (mux (eq v_7644 (expression.bv_nat 16 0)) (expression.bv_nat 16 0) (add (expression.bv_nat 16 1) (bv_xor v_7646 (expression.bv_nat 16 65535))))) (concat (mux (sgt v_7652 (expression.bv_nat 16 0)) v_7654 (mux (eq v_7652 (expression.bv_nat 16 0)) (expression.bv_nat 16 0) (add (expression.bv_nat 16 1) (bv_xor v_7654 (expression.bv_nat 16 65535))))) (mux (sgt v_7660 (expression.bv_nat 16 0)) v_7662 (mux (eq v_7660 (expression.bv_nat 16 0)) (expression.bv_nat 16 0) (add (expression.bv_nat 16 1) (bv_xor v_7662 (expression.bv_nat 16 65535))))))))))));
+    pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) (xmm_2 : reg (bv 128)) => do
+      v_3 <- evaluateAddress mem_0;
+      v_4 <- load v_3 16;
+      v_5 <- eval (extract v_4 0 16);
+      v_6 <- getRegister (lhs.of_reg xmm_1);
+      v_7 <- eval (extract v_6 0 16);
+      v_8 <- eval (extract v_4 16 32);
+      v_9 <- eval (extract v_6 16 32);
+      v_10 <- eval (extract v_4 32 48);
+      v_11 <- eval (extract v_6 32 48);
+      v_12 <- eval (extract v_4 48 64);
+      v_13 <- eval (extract v_6 48 64);
+      v_14 <- eval (extract v_4 64 80);
+      v_15 <- eval (extract v_6 64 80);
+      v_16 <- eval (extract v_4 80 96);
+      v_17 <- eval (extract v_6 80 96);
+      v_18 <- eval (extract v_4 96 112);
+      v_19 <- eval (extract v_6 96 112);
+      v_20 <- eval (extract v_4 112 128);
+      v_21 <- eval (extract v_6 112 128);
+      setRegister (lhs.of_reg xmm_2) (concat (mux (sgt v_5 (expression.bv_nat 16 0)) v_7 (mux (eq v_5 (expression.bv_nat 16 0)) (expression.bv_nat 16 0) (add (expression.bv_nat 16 1) (bv_xor v_7 (expression.bv_nat 16 65535))))) (concat (mux (sgt v_8 (expression.bv_nat 16 0)) v_9 (mux (eq v_8 (expression.bv_nat 16 0)) (expression.bv_nat 16 0) (add (expression.bv_nat 16 1) (bv_xor v_9 (expression.bv_nat 16 65535))))) (concat (mux (sgt v_10 (expression.bv_nat 16 0)) v_11 (mux (eq v_10 (expression.bv_nat 16 0)) (expression.bv_nat 16 0) (add (expression.bv_nat 16 1) (bv_xor v_11 (expression.bv_nat 16 65535))))) (concat (mux (sgt v_12 (expression.bv_nat 16 0)) v_13 (mux (eq v_12 (expression.bv_nat 16 0)) (expression.bv_nat 16 0) (add (expression.bv_nat 16 1) (bv_xor v_13 (expression.bv_nat 16 65535))))) (concat (mux (sgt v_14 (expression.bv_nat 16 0)) v_15 (mux (eq v_14 (expression.bv_nat 16 0)) (expression.bv_nat 16 0) (add (expression.bv_nat 16 1) (bv_xor v_15 (expression.bv_nat 16 65535))))) (concat (mux (sgt v_16 (expression.bv_nat 16 0)) v_17 (mux (eq v_16 (expression.bv_nat 16 0)) (expression.bv_nat 16 0) (add (expression.bv_nat 16 1) (bv_xor v_17 (expression.bv_nat 16 65535))))) (concat (mux (sgt v_18 (expression.bv_nat 16 0)) v_19 (mux (eq v_18 (expression.bv_nat 16 0)) (expression.bv_nat 16 0) (add (expression.bv_nat 16 1) (bv_xor v_19 (expression.bv_nat 16 65535))))) (mux (sgt v_20 (expression.bv_nat 16 0)) v_21 (mux (eq v_20 (expression.bv_nat 16 0)) (expression.bv_nat 16 0) (add (expression.bv_nat 16 1) (bv_xor v_21 (expression.bv_nat 16 65535))))))))))));
       pure ()
     pat_end;
-    pattern fun (v_3114 : Mem) (v_3115 : reg (bv 128)) (v_3116 : reg (bv 128)) => do
-      v_13880 <- evaluateAddress v_3114;
-      v_13881 <- load v_13880 16;
-      v_13882 <- eval (extract v_13881 0 16);
-      v_13884 <- getRegister v_3115;
-      v_13885 <- eval (extract v_13884 0 16);
-      v_13891 <- eval (extract v_13881 16 32);
-      v_13893 <- eval (extract v_13884 16 32);
-      v_13899 <- eval (extract v_13881 32 48);
-      v_13901 <- eval (extract v_13884 32 48);
-      v_13907 <- eval (extract v_13881 48 64);
-      v_13909 <- eval (extract v_13884 48 64);
-      v_13915 <- eval (extract v_13881 64 80);
-      v_13917 <- eval (extract v_13884 64 80);
-      v_13923 <- eval (extract v_13881 80 96);
-      v_13925 <- eval (extract v_13884 80 96);
-      v_13931 <- eval (extract v_13881 96 112);
-      v_13933 <- eval (extract v_13884 96 112);
-      v_13939 <- eval (extract v_13881 112 128);
-      v_13941 <- eval (extract v_13884 112 128);
-      setRegister (lhs.of_reg v_3116) (concat (mux (sgt v_13882 (expression.bv_nat 16 0)) v_13885 (mux (eq v_13882 (expression.bv_nat 16 0)) (expression.bv_nat 16 0) (add (expression.bv_nat 16 1) (bv_xor v_13885 (expression.bv_nat 16 65535))))) (concat (mux (sgt v_13891 (expression.bv_nat 16 0)) v_13893 (mux (eq v_13891 (expression.bv_nat 16 0)) (expression.bv_nat 16 0) (add (expression.bv_nat 16 1) (bv_xor v_13893 (expression.bv_nat 16 65535))))) (concat (mux (sgt v_13899 (expression.bv_nat 16 0)) v_13901 (mux (eq v_13899 (expression.bv_nat 16 0)) (expression.bv_nat 16 0) (add (expression.bv_nat 16 1) (bv_xor v_13901 (expression.bv_nat 16 65535))))) (concat (mux (sgt v_13907 (expression.bv_nat 16 0)) v_13909 (mux (eq v_13907 (expression.bv_nat 16 0)) (expression.bv_nat 16 0) (add (expression.bv_nat 16 1) (bv_xor v_13909 (expression.bv_nat 16 65535))))) (concat (mux (sgt v_13915 (expression.bv_nat 16 0)) v_13917 (mux (eq v_13915 (expression.bv_nat 16 0)) (expression.bv_nat 16 0) (add (expression.bv_nat 16 1) (bv_xor v_13917 (expression.bv_nat 16 65535))))) (concat (mux (sgt v_13923 (expression.bv_nat 16 0)) v_13925 (mux (eq v_13923 (expression.bv_nat 16 0)) (expression.bv_nat 16 0) (add (expression.bv_nat 16 1) (bv_xor v_13925 (expression.bv_nat 16 65535))))) (concat (mux (sgt v_13931 (expression.bv_nat 16 0)) v_13933 (mux (eq v_13931 (expression.bv_nat 16 0)) (expression.bv_nat 16 0) (add (expression.bv_nat 16 1) (bv_xor v_13933 (expression.bv_nat 16 65535))))) (mux (sgt v_13939 (expression.bv_nat 16 0)) v_13941 (mux (eq v_13939 (expression.bv_nat 16 0)) (expression.bv_nat 16 0) (add (expression.bv_nat 16 1) (bv_xor v_13941 (expression.bv_nat 16 65535))))))))))));
+    pattern fun (xmm_0 : reg (bv 128)) (xmm_1 : reg (bv 128)) (xmm_2 : reg (bv 128)) => do
+      v_3 <- getRegister (lhs.of_reg xmm_0);
+      v_4 <- eval (extract v_3 0 16);
+      v_5 <- getRegister (lhs.of_reg xmm_1);
+      v_6 <- eval (extract v_5 0 16);
+      v_7 <- eval (extract v_3 16 32);
+      v_8 <- eval (extract v_5 16 32);
+      v_9 <- eval (extract v_3 32 48);
+      v_10 <- eval (extract v_5 32 48);
+      v_11 <- eval (extract v_3 48 64);
+      v_12 <- eval (extract v_5 48 64);
+      v_13 <- eval (extract v_3 64 80);
+      v_14 <- eval (extract v_5 64 80);
+      v_15 <- eval (extract v_3 80 96);
+      v_16 <- eval (extract v_5 80 96);
+      v_17 <- eval (extract v_3 96 112);
+      v_18 <- eval (extract v_5 96 112);
+      v_19 <- eval (extract v_3 112 128);
+      v_20 <- eval (extract v_5 112 128);
+      setRegister (lhs.of_reg xmm_2) (concat (mux (sgt v_4 (expression.bv_nat 16 0)) v_6 (mux (eq v_4 (expression.bv_nat 16 0)) (expression.bv_nat 16 0) (add (expression.bv_nat 16 1) (bv_xor v_6 (expression.bv_nat 16 65535))))) (concat (mux (sgt v_7 (expression.bv_nat 16 0)) v_8 (mux (eq v_7 (expression.bv_nat 16 0)) (expression.bv_nat 16 0) (add (expression.bv_nat 16 1) (bv_xor v_8 (expression.bv_nat 16 65535))))) (concat (mux (sgt v_9 (expression.bv_nat 16 0)) v_10 (mux (eq v_9 (expression.bv_nat 16 0)) (expression.bv_nat 16 0) (add (expression.bv_nat 16 1) (bv_xor v_10 (expression.bv_nat 16 65535))))) (concat (mux (sgt v_11 (expression.bv_nat 16 0)) v_12 (mux (eq v_11 (expression.bv_nat 16 0)) (expression.bv_nat 16 0) (add (expression.bv_nat 16 1) (bv_xor v_12 (expression.bv_nat 16 65535))))) (concat (mux (sgt v_13 (expression.bv_nat 16 0)) v_14 (mux (eq v_13 (expression.bv_nat 16 0)) (expression.bv_nat 16 0) (add (expression.bv_nat 16 1) (bv_xor v_14 (expression.bv_nat 16 65535))))) (concat (mux (sgt v_15 (expression.bv_nat 16 0)) v_16 (mux (eq v_15 (expression.bv_nat 16 0)) (expression.bv_nat 16 0) (add (expression.bv_nat 16 1) (bv_xor v_16 (expression.bv_nat 16 65535))))) (concat (mux (sgt v_17 (expression.bv_nat 16 0)) v_18 (mux (eq v_17 (expression.bv_nat 16 0)) (expression.bv_nat 16 0) (add (expression.bv_nat 16 1) (bv_xor v_18 (expression.bv_nat 16 65535))))) (mux (sgt v_19 (expression.bv_nat 16 0)) v_20 (mux (eq v_19 (expression.bv_nat 16 0)) (expression.bv_nat 16 0) (add (expression.bv_nat 16 1) (bv_xor v_20 (expression.bv_nat 16 65535))))))))))));
       pure ()
     pat_end

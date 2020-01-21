@@ -1,3 +1,3 @@
-def blendvpd1 : instruction :=
+def blendvpd : instruction :=
   definst "blendvpd" $ do
 

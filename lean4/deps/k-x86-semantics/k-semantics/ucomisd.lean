@@ -1,7 +1,7 @@
-def ucomisd1 : instruction :=
+def ucomisd : instruction :=
   definst "ucomisd" $ do
     pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) => do
-      v_2 <- getRegister xmm_1;
+      v_2 <- getRegister (lhs.of_reg xmm_1);
       v_3 <- evaluateAddress mem_0;
       v_4 <- load v_3 8;
       v_5 <- eval (_(_,_)_MINT-WRAPPER-SYNTAX comisd (extract v_2 64 128) v_4);
@@ -15,8 +15,8 @@ def ucomisd1 : instruction :=
       pure ()
     pat_end;
     pattern fun (xmm_0 : reg (bv 128)) (xmm_1 : reg (bv 128)) => do
-      v_2 <- getRegister xmm_1;
-      v_3 <- getRegister xmm_0;
+      v_2 <- getRegister (lhs.of_reg xmm_1);
+      v_3 <- getRegister (lhs.of_reg xmm_0);
       v_4 <- eval (_(_,_)_MINT-WRAPPER-SYNTAX comisd (extract v_2 64 128) (extract v_3 64 128));
       v_5 <- eval (eq v_4 (expression.bv_nat 2 0));
       setRegister af bit_zero;

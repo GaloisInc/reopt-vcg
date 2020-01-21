@@ -31,6 +31,7 @@ def sadd_overflows  {w:nat_expr} (dest : bv w) (src : bv w)               : bit 
 
 def bv_xor {w:nat_expr} (x : bv w) (y : bv w) : bv w := prim.bv_xor w x y
 def add    {w:nat_expr} (x : bv w) (y : bv w) : bv w := prim.bv_xor w x y
+def bv_and {w:nat_expr} (x : bv w) (y : bv w) : bv w := prim.bv_and w x y
 
 -- WARNING: the K semantics uses bit 0 as the MSB!
 
@@ -38,7 +39,8 @@ def load (ptr : expression (bv 64)) (n : Nat) : semantics (expression (bv (n * 8
 def store (ptr : expression (bv 64)) {tp : type} (v : expression tp) (n : Nat) : semantics Unit :=
   set (lhs.write_addr ptr tp) v
 
-def getRegister {t : type} (r : reg t) : semantics t := eval (expression.of_reg r)
+-- def getRegister {t : type} (r : reg t) : semantics t := eval (expression.of_reg r)
+def getRegister {t : type} (r : lhs t) : semantics t := eval (expression.of_lhs r)
 def setRegister {t : type} (r : lhs t) (e : expression t) : semantics Unit := (set r e)
 def notBool_ (e : bit) : bit := eq e bit_zero
 
@@ -52,6 +54,16 @@ def parityFlag { n : nat_expr } (e : bv n) : bit := even_parity e
 def zeroFlag { n : nat_expr } (e : bv n) : bit := eq e 0
 def concat {i j:nat_expr} (x: bv i) (y : bv j) : bv (i + j) := prim.cat i j x y
 def undef {tp:type} : expression tp := expression.undef tp
+def isBitClear {n : nat_expr} (e : expression (bv n)) (b : Nat) : expression bit := 
+    eq (isBitSet e b) bit_zero
+
+-- Always called with the literal 1, but we don't assume ...
+def bv1ToBool (e : bv 1) : bit := expression.bit_test e (expression.bv_nat 1 0)
+
+--FIXME?
+def bit_and := expression.bit_and 
+
+def mux {tp:type} (c:bit) (t f : tp) : tp := prim.mux tp c t f
 
 -- This is substantially different than the handwritten semantics, as we have untyped pointers.
 @[reducible]

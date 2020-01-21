@@ -1,17 +1,17 @@
-def vfnmadd231sd1 : instruction :=
+def vfnmadd231sd : instruction :=
   definst "vfnmadd231sd" $ do
-    pattern fun (v_3343 : reg (bv 128)) (v_3344 : reg (bv 128)) (v_3345 : reg (bv 128)) => do
-      v_7304 <- getRegister v_3345;
-      v_7307 <- getRegister v_3344;
-      v_7309 <- getRegister v_3343;
-      setRegister (lhs.of_reg v_3345) (concat (extract v_7304 0 64) (_(_,_,_)_MINT-WRAPPER-SYNTAX vfnmadd231_double (extract v_7304 64 128) (extract v_7307 64 128) (extract v_7309 64 128)));
+    pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) (xmm_2 : reg (bv 128)) => do
+      v_3 <- getRegister (lhs.of_reg xmm_2);
+      v_4 <- getRegister (lhs.of_reg xmm_1);
+      v_5 <- evaluateAddress mem_0;
+      v_6 <- load v_5 8;
+      setRegister (lhs.of_reg xmm_2) (concat (extract v_3 0 64) (_(_,_,_)_MINT-WRAPPER-SYNTAX vfnmadd231_double (extract v_3 64 128) (extract v_4 64 128) v_6));
       pure ()
     pat_end;
-    pattern fun (v_3340 : Mem) (v_3338 : reg (bv 128)) (v_3339 : reg (bv 128)) => do
-      v_13018 <- getRegister v_3339;
-      v_13021 <- getRegister v_3338;
-      v_13023 <- evaluateAddress v_3340;
-      v_13024 <- load v_13023 8;
-      setRegister (lhs.of_reg v_3339) (concat (extract v_13018 0 64) (_(_,_,_)_MINT-WRAPPER-SYNTAX vfnmadd231_double (extract v_13018 64 128) (extract v_13021 64 128) v_13024));
+    pattern fun (xmm_0 : reg (bv 128)) (xmm_1 : reg (bv 128)) (xmm_2 : reg (bv 128)) => do
+      v_3 <- getRegister (lhs.of_reg xmm_2);
+      v_4 <- getRegister (lhs.of_reg xmm_1);
+      v_5 <- getRegister (lhs.of_reg xmm_0);
+      setRegister (lhs.of_reg xmm_2) (concat (extract v_3 0 64) (_(_,_,_)_MINT-WRAPPER-SYNTAX vfnmadd231_double (extract v_3 64 128) (extract v_4 64 128) (extract v_5 64 128)));
       pure ()
     pat_end

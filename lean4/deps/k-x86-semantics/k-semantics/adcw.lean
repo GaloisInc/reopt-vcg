@@ -1,4 +1,4 @@
-def adcw1 : instruction :=
+def adcw : instruction :=
   definst "adcw" $ do
     pattern fun (imm_0 : imm int) (mem_1 : Mem) => do
       v_2 <- evaluateAddress mem_1;
@@ -21,7 +21,7 @@ def adcw1 : instruction :=
       v_2 <- getRegister cf;
       v_3 <- eval (handleImmediateWithSignExtend imm_0 16 16);
       v_4 <- eval (concat (expression.bv_nat 1 0) v_3);
-      v_5 <- getRegister r16_1;
+      v_5 <- getRegister (lhs.of_reg r16_1);
       v_6 <- eval (add (mux v_2 (add v_4 (expression.bv_nat 17 1)) v_4) (concat (expression.bv_nat 1 0) v_5));
       v_7 <- eval (extract v_6 1 17);
       setRegister (lhs.of_reg r16_1) v_7;
@@ -38,7 +38,7 @@ def adcw1 : instruction :=
       v_3 <- evaluateAddress mem_0;
       v_4 <- load v_3 2;
       v_5 <- eval (concat (expression.bv_nat 1 0) v_4);
-      v_6 <- getRegister r16_1;
+      v_6 <- getRegister (lhs.of_reg r16_1);
       v_7 <- eval (add (mux v_2 (add v_5 (expression.bv_nat 17 1)) v_5) (concat (expression.bv_nat 1 0) v_6));
       v_8 <- eval (extract v_7 1 17);
       setRegister (lhs.of_reg r16_1) v_8;
@@ -53,7 +53,7 @@ def adcw1 : instruction :=
     pattern fun (r16_0 : reg (bv 16)) (mem_1 : Mem) => do
       v_2 <- evaluateAddress mem_1;
       v_3 <- getRegister cf;
-      v_4 <- getRegister r16_0;
+      v_4 <- getRegister (lhs.of_reg r16_0);
       v_5 <- eval (concat (expression.bv_nat 1 0) v_4);
       v_6 <- load v_2 2;
       v_7 <- eval (add (mux v_3 (add v_5 (expression.bv_nat 17 1)) v_5) (concat (expression.bv_nat 1 0) v_6));
@@ -69,9 +69,9 @@ def adcw1 : instruction :=
     pat_end;
     pattern fun (r16_0 : reg (bv 16)) (r16_1 : reg (bv 16)) => do
       v_2 <- getRegister cf;
-      v_3 <- getRegister r16_0;
+      v_3 <- getRegister (lhs.of_reg r16_0);
       v_4 <- eval (concat (expression.bv_nat 1 0) v_3);
-      v_5 <- getRegister r16_1;
+      v_5 <- getRegister (lhs.of_reg r16_1);
       v_6 <- eval (add (mux v_2 (add v_4 (expression.bv_nat 17 1)) v_4) (concat (expression.bv_nat 1 0) v_5));
       v_7 <- eval (extract v_6 1 17);
       setRegister (lhs.of_reg r16_1) v_7;

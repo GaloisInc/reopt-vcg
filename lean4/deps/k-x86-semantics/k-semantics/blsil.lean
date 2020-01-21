@@ -1,4 +1,4 @@
-def blsil1 : instruction :=
+def blsil : instruction :=
   definst "blsil" $ do
     pattern fun (mem_0 : Mem) (r32_1 : reg (bv 32)) => do
       v_2 <- evaluateAddress mem_0;
@@ -14,7 +14,7 @@ def blsil1 : instruction :=
       pure ()
     pat_end;
     pattern fun (r32_0 : reg (bv 32)) (r32_1 : reg (bv 32)) => do
-      v_2 <- getRegister r32_0;
+      v_2 <- getRegister (lhs.of_reg r32_0);
       v_3 <- eval (bv_and (add (expression.bv_nat 32 1) (bv_xor v_2 (expression.bv_nat 32 4294967295))) v_2);
       setRegister (lhs.of_reg r32_1) v_3;
       setRegister af undef;

@@ -1,4 +1,4 @@
-def cwtd1 : instruction :=
+def cwtd : instruction :=
   definst "cwtd" $ do
     pattern fun => do
       v_0 <- getRegister rdx;

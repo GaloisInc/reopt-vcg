@@ -1,24 +1,24 @@
-def vmovshdup1 : instruction :=
+def vmovshdup : instruction :=
   definst "vmovshdup" $ do
-    pattern fun (v_3055 : reg (bv 128)) (v_3056 : reg (bv 128)) => do
-      v_5070 <- getRegister v_3055;
-      setRegister (lhs.of_reg v_3056) (concat (concat (extract v_5070 0 32) (extract v_5070 0 32)) (concat (extract v_5070 64 96) (extract v_5070 64 96)));
+    pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) => do
+      v_2 <- evaluateAddress mem_0;
+      v_3 <- load v_2 16;
+      setRegister (lhs.of_reg xmm_1) (concat (concat (extract v_3 0 32) (extract v_3 0 32)) (concat (extract v_3 64 96) (extract v_3 64 96)));
       pure ()
     pat_end;
-    pattern fun (v_3064 : reg (bv 256)) (v_3065 : reg (bv 256)) => do
-      v_5081 <- getRegister v_3064;
-      setRegister (lhs.of_reg v_3065) (concat (concat (concat (extract v_5081 0 32) (extract v_5081 0 32)) (concat (extract v_5081 64 96) (extract v_5081 64 96))) (concat (concat (extract v_5081 128 160) (extract v_5081 128 160)) (concat (extract v_5081 192 224) (extract v_5081 192 224))));
+    pattern fun (mem_0 : Mem) (ymm_1 : reg (bv 256)) => do
+      v_2 <- evaluateAddress mem_0;
+      v_3 <- load v_2 32;
+      setRegister (lhs.of_reg ymm_1) (concat (concat (concat (extract v_3 0 32) (extract v_3 0 32)) (concat (extract v_3 64 96) (extract v_3 64 96))) (concat (concat (extract v_3 128 160) (extract v_3 128 160)) (concat (extract v_3 192 224) (extract v_3 192 224))));
       pure ()
     pat_end;
-    pattern fun (v_3051 : Mem) (v_3052 : reg (bv 128)) => do
-      v_10248 <- evaluateAddress v_3051;
-      v_10249 <- load v_10248 16;
-      setRegister (lhs.of_reg v_3052) (concat (concat (extract v_10249 0 32) (extract v_10249 0 32)) (concat (extract v_10249 64 96) (extract v_10249 64 96)));
+    pattern fun (xmm_0 : reg (bv 128)) (xmm_1 : reg (bv 128)) => do
+      v_2 <- getRegister (lhs.of_reg xmm_0);
+      setRegister (lhs.of_reg xmm_1) (concat (concat (extract v_2 0 32) (extract v_2 0 32)) (concat (extract v_2 64 96) (extract v_2 64 96)));
       pure ()
     pat_end;
-    pattern fun (v_3060 : Mem) (v_3061 : reg (bv 256)) => do
-      v_10256 <- evaluateAddress v_3060;
-      v_10257 <- load v_10256 32;
-      setRegister (lhs.of_reg v_3061) (concat (concat (concat (extract v_10257 0 32) (extract v_10257 0 32)) (concat (extract v_10257 64 96) (extract v_10257 64 96))) (concat (concat (extract v_10257 128 160) (extract v_10257 128 160)) (concat (extract v_10257 192 224) (extract v_10257 192 224))));
+    pattern fun (ymm_0 : reg (bv 256)) (ymm_1 : reg (bv 256)) => do
+      v_2 <- getRegister (lhs.of_reg ymm_0);
+      setRegister (lhs.of_reg ymm_1) (concat (concat (concat (extract v_2 0 32) (extract v_2 0 32)) (concat (extract v_2 64 96) (extract v_2 64 96))) (concat (concat (extract v_2 128 160) (extract v_2 128 160)) (concat (extract v_2 192 224) (extract v_2 192 224))));
       pure ()
     pat_end

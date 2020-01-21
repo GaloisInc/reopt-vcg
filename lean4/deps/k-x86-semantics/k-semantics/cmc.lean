@@ -1,4 +1,4 @@
-def cmc1 : instruction :=
+def cmc : instruction :=
   definst "cmc" $ do
     pattern fun => do
       v_0 <- getRegister cf;

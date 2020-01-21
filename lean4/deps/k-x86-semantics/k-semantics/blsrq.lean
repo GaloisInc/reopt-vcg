@@ -1,4 +1,4 @@
-def blsrq1 : instruction :=
+def blsrq : instruction :=
   definst "blsrq" $ do
     pattern fun (mem_0 : Mem) (r64_1 : reg (bv 64)) => do
       v_2 <- evaluateAddress mem_0;
@@ -14,7 +14,7 @@ def blsrq1 : instruction :=
       pure ()
     pat_end;
     pattern fun (r64_0 : reg (bv 64)) (r64_1 : reg (bv 64)) => do
-      v_2 <- getRegister r64_0;
+      v_2 <- getRegister (lhs.of_reg r64_0);
       v_3 <- eval (bv_and (sub v_2 (expression.bv_nat 64 1)) v_2);
       setRegister (lhs.of_reg r64_1) v_3;
       setRegister af undef;

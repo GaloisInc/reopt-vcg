@@ -1,4 +1,4 @@
-def vbroadcasti1281 : instruction :=
+def vbroadcasti128 : instruction :=
   definst "vbroadcasti128" $ do
     pattern fun (mem_0 : Mem) (ymm_1 : reg (bv 256)) => do
       v_2 <- evaluateAddress mem_0;

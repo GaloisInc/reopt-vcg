@@ -1,4 +1,4 @@
-def andb1 : instruction :=
+def andb : instruction :=
   definst "andb" $ do
     pattern fun (imm_0 : imm int) (mem_1 : Mem) => do
       v_2 <- evaluateAddress mem_1;
@@ -14,7 +14,7 @@ def andb1 : instruction :=
       pure ()
     pat_end;
     pattern fun (imm_0 : imm int) (rh_1 : reg (bv 8)) => do
-      v_2 <- getRegister rh_1;
+      v_2 <- getRegister (lhs.of_reg rh_1);
       v_3 <- eval (bv_and v_2 (handleImmediateWithSignExtend imm_0 8 8));
       setRegister (lhs.of_reg rh_1) v_3;
       setRegister af undef;
@@ -26,7 +26,7 @@ def andb1 : instruction :=
       pure ()
     pat_end;
     pattern fun (mem_0 : Mem) (rh_1 : reg (bv 8)) => do
-      v_2 <- getRegister rh_1;
+      v_2 <- getRegister (lhs.of_reg rh_1);
       v_3 <- evaluateAddress mem_0;
       v_4 <- load v_3 1;
       v_5 <- eval (bv_and v_2 v_4);
@@ -42,7 +42,7 @@ def andb1 : instruction :=
     pattern fun (rh_0 : reg (bv 8)) (mem_1 : Mem) => do
       v_2 <- evaluateAddress mem_1;
       v_3 <- load v_2 1;
-      v_4 <- getRegister rh_0;
+      v_4 <- getRegister (lhs.of_reg rh_0);
       v_5 <- eval (bv_and v_3 v_4);
       store v_2 v_5 1;
       setRegister af undef;
@@ -54,8 +54,8 @@ def andb1 : instruction :=
       pure ()
     pat_end;
     pattern fun (rh_0 : reg (bv 8)) (rh_1 : reg (bv 8)) => do
-      v_2 <- getRegister rh_1;
-      v_3 <- getRegister rh_0;
+      v_2 <- getRegister (lhs.of_reg rh_1);
+      v_3 <- getRegister (lhs.of_reg rh_0);
       v_4 <- eval (bv_and v_2 v_3);
       setRegister (lhs.of_reg rh_1) v_4;
       setRegister af undef;

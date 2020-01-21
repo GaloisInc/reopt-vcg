@@ -1,7 +1,7 @@
-def psubsb1 : instruction :=
+def psubsb : instruction :=
   definst "psubsb" $ do
     pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) => do
-      v_2 <- getRegister xmm_1;
+      v_2 <- getRegister (lhs.of_reg xmm_1);
       v_3 <- evaluateAddress mem_0;
       v_4 <- load v_3 16;
       v_5 <- eval (sub (sext (extract v_2 0 8) 10) (sext (extract v_4 0 8) 10));
@@ -24,8 +24,8 @@ def psubsb1 : instruction :=
       pure ()
     pat_end;
     pattern fun (xmm_0 : reg (bv 128)) (xmm_1 : reg (bv 128)) => do
-      v_2 <- getRegister xmm_1;
-      v_3 <- getRegister xmm_0;
+      v_2 <- getRegister (lhs.of_reg xmm_1);
+      v_3 <- getRegister (lhs.of_reg xmm_0);
       v_4 <- eval (sub (sext (extract v_2 0 8) 10) (sext (extract v_3 0 8) 10));
       v_5 <- eval (sub (sext (extract v_2 8 16) 10) (sext (extract v_3 8 16) 10));
       v_6 <- eval (sub (sext (extract v_2 16 24) 10) (sext (extract v_3 16 24) 10));

@@ -1,4 +1,4 @@
-def rolb1 : instruction :=
+def rolb : instruction :=
   definst "rolb" $ do
     pattern fun (_ : clReg) (mem_0 : Mem) => do
       v_1 <- evaluateAddress mem_0;
@@ -18,7 +18,7 @@ def rolb1 : instruction :=
     pattern fun (_ : clReg) (rh_0 : reg (bv 8)) => do
       v_1 <- getRegister rcx;
       v_2 <- eval (bv_and (extract v_1 56 64) (expression.bv_nat 8 31));
-      v_3 <- getRegister rh_0;
+      v_3 <- getRegister (lhs.of_reg rh_0);
       v_4 <- eval (rol v_3 v_2);
       v_5 <- eval (isBitSet v_4 7);
       v_6 <- eval (eq v_2 (expression.bv_nat 8 0));
@@ -45,7 +45,7 @@ def rolb1 : instruction :=
     pat_end;
     pattern fun (imm_0 : imm int) (rh_1 : reg (bv 8)) => do
       v_2 <- eval (bv_and (handleImmediateWithSignExtend imm_0 8 8) (expression.bv_nat 8 31));
-      v_3 <- getRegister rh_1;
+      v_3 <- getRegister (lhs.of_reg rh_1);
       v_4 <- eval (rol v_3 v_2);
       v_5 <- eval (isBitSet v_4 7);
       v_6 <- eval (eq v_2 (expression.bv_nat 8 0));

@@ -1,4 +1,4 @@
-def movntdqa1 : instruction :=
+def movntdqa : instruction :=
   definst "movntdqa" $ do
     pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) => do
       v_2 <- evaluateAddress mem_0;

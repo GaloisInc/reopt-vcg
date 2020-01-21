@@ -1,4 +1,4 @@
-def std1 : instruction :=
+def std : instruction :=
   definst "std" $ do
     pattern fun => do
       setRegister df bit_one;

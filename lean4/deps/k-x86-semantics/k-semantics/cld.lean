@@ -1,4 +1,4 @@
-def cld1 : instruction :=
+def cld : instruction :=
   definst "cld" $ do
     pattern fun => do
       setRegister df bit_zero;

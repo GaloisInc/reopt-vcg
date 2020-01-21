@@ -1,4 +1,4 @@
-def popw1 : instruction :=
+def popw : instruction :=
   definst "popw" $ do
     pattern fun (mem_0 : Mem) => do
       v_1 <- getRegister rsp;

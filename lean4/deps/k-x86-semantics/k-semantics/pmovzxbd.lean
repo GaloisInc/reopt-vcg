@@ -1,4 +1,4 @@
-def pmovzxbd1 : instruction :=
+def pmovzxbd : instruction :=
   definst "pmovzxbd" $ do
     pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) => do
       v_2 <- evaluateAddress mem_0;
@@ -7,7 +7,7 @@ def pmovzxbd1 : instruction :=
       pure ()
     pat_end;
     pattern fun (xmm_0 : reg (bv 128)) (xmm_1 : reg (bv 128)) => do
-      v_2 <- getRegister xmm_0;
+      v_2 <- getRegister (lhs.of_reg xmm_0);
       setRegister (lhs.of_reg xmm_1) (concat (expression.bv_nat 24 0) (concat (extract v_2 96 104) (concat (expression.bv_nat 24 0) (concat (extract v_2 104 112) (concat (expression.bv_nat 24 0) (concat (extract v_2 112 120) (concat (expression.bv_nat 24 0) (extract v_2 120 128))))))));
       pure ()
     pat_end

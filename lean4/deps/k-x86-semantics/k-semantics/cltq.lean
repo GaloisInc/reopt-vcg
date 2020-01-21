@@ -1,4 +1,4 @@
-def cltq1 : instruction :=
+def cltq : instruction :=
   definst "cltq" $ do
     pattern fun => do
       v_0 <- getRegister rax;

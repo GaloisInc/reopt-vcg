@@ -1,8 +1,8 @@
-def vmovhlps1 : instruction :=
+def vmovhlps : instruction :=
   definst "vmovhlps" $ do
-    pattern fun (v_2894 : reg (bv 128)) (v_2895 : reg (bv 128)) (v_2896 : reg (bv 128)) => do
-      v_4846 <- getRegister v_2895;
-      v_4848 <- getRegister v_2894;
-      setRegister (lhs.of_reg v_2896) (concat (extract v_4846 0 64) (extract v_4848 0 64));
+    pattern fun (xmm_0 : reg (bv 128)) (xmm_1 : reg (bv 128)) (xmm_2 : reg (bv 128)) => do
+      v_3 <- getRegister (lhs.of_reg xmm_1);
+      v_4 <- getRegister (lhs.of_reg xmm_0);
+      setRegister (lhs.of_reg xmm_2) (concat (extract v_3 0 64) (extract v_4 0 64));
       pure ()
     pat_end

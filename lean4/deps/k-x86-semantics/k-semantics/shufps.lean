@@ -1,4 +1,4 @@
-def shufps1 : instruction :=
+def shufps : instruction :=
   definst "shufps" $ do
     pattern fun (imm_0 : imm int) (mem_1 : Mem) (xmm_2 : reg (bv 128)) => do
       v_3 <- eval (handleImmediateWithSignExtend imm_0 8 8);
@@ -11,7 +11,7 @@ def shufps1 : instruction :=
       v_10 <- eval (extract v_6 96 128);
       v_11 <- eval (isBitSet v_3 2);
       v_12 <- eval (isBitSet v_3 4);
-      v_13 <- getRegister xmm_2;
+      v_13 <- getRegister (lhs.of_reg xmm_2);
       v_14 <- eval (extract v_13 0 32);
       v_15 <- eval (extract v_13 64 96);
       v_16 <- eval (extract v_13 32 64);
@@ -23,14 +23,14 @@ def shufps1 : instruction :=
     pattern fun (imm_0 : imm int) (xmm_1 : reg (bv 128)) (xmm_2 : reg (bv 128)) => do
       v_3 <- eval (handleImmediateWithSignExtend imm_0 8 8);
       v_4 <- eval (isBitSet v_3 0);
-      v_5 <- getRegister xmm_1;
+      v_5 <- getRegister (lhs.of_reg xmm_1);
       v_6 <- eval (extract v_5 0 32);
       v_7 <- eval (extract v_5 64 96);
       v_8 <- eval (extract v_5 32 64);
       v_9 <- eval (extract v_5 96 128);
       v_10 <- eval (isBitSet v_3 2);
       v_11 <- eval (isBitSet v_3 4);
-      v_12 <- getRegister xmm_2;
+      v_12 <- getRegister (lhs.of_reg xmm_2);
       v_13 <- eval (extract v_12 0 32);
       v_14 <- eval (extract v_12 64 96);
       v_15 <- eval (extract v_12 32 64);

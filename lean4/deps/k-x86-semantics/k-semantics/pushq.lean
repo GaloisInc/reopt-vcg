@@ -1,4 +1,4 @@
-def pushq1 : instruction :=
+def pushq : instruction :=
   definst "pushq" $ do
     pattern fun (imm_0 : imm int) => do
       v_1 <- getRegister rsp;

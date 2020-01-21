@@ -1,4 +1,4 @@
-def nop1 : instruction :=
+def nop : instruction :=
   definst "nop" $ do
     pattern fun => do
       pure ()

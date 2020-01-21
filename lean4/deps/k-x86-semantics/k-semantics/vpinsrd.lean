@@ -1,19 +1,19 @@
-def vpinsrd1 : instruction :=
+def vpinsrd : instruction :=
   definst "vpinsrd" $ do
-    pattern fun (v_3395 : imm int) (v_3398 : reg (bv 32)) (v_3396 : reg (bv 128)) (v_3397 : reg (bv 128)) => do
-      v_9650 <- getRegister v_3396;
-      v_9655 <- eval (extract (shl (concat (expression.bv_nat 126 0) (extract (handleImmediateWithSignExtend v_3395 8 8) 6 8)) (expression.bv_nat 128 5)) 0 128);
-      v_9656 <- eval (shl (expression.bv_nat 128 4294967295) v_9655);
-      v_9660 <- getRegister v_3398;
-      setRegister (lhs.of_reg v_3397) (bv_or (bv_and v_9650 (bv_xor (extract v_9656 0 128) (expression.bv_nat 128 340282366920938463463374607431768211455))) (extract (bv_and (shl (concat (expression.bv_nat 96 0) v_9660) v_9655) v_9656) 0 128));
+    pattern fun (imm_0 : imm int) (mem_1 : Mem) (xmm_2 : reg (bv 128)) (xmm_3 : reg (bv 128)) => do
+      v_4 <- getRegister (lhs.of_reg xmm_2);
+      v_5 <- eval (extract (shl (concat (expression.bv_nat 126 0) (extract (handleImmediateWithSignExtend imm_0 8 8) 6 8)) (expression.bv_nat 128 5)) 0 128);
+      v_6 <- eval (shl (expression.bv_nat 128 4294967295) v_5);
+      v_7 <- evaluateAddress mem_1;
+      v_8 <- load v_7 4;
+      setRegister (lhs.of_reg xmm_3) (bv_or (bv_and v_4 (bv_xor (extract v_6 0 128) (expression.bv_nat 128 340282366920938463463374607431768211455))) (extract (bv_and (shl (concat (expression.bv_nat 96 0) v_8) v_5) v_6) 0 128));
       pure ()
     pat_end;
-    pattern fun (v_3390 : imm int) (v_3389 : Mem) (v_3391 : reg (bv 128)) (v_3392 : reg (bv 128)) => do
-      v_18013 <- getRegister v_3391;
-      v_18018 <- eval (extract (shl (concat (expression.bv_nat 126 0) (extract (handleImmediateWithSignExtend v_3390 8 8) 6 8)) (expression.bv_nat 128 5)) 0 128);
-      v_18019 <- eval (shl (expression.bv_nat 128 4294967295) v_18018);
-      v_18023 <- evaluateAddress v_3389;
-      v_18024 <- load v_18023 4;
-      setRegister (lhs.of_reg v_3392) (bv_or (bv_and v_18013 (bv_xor (extract v_18019 0 128) (expression.bv_nat 128 340282366920938463463374607431768211455))) (extract (bv_and (shl (concat (expression.bv_nat 96 0) v_18024) v_18018) v_18019) 0 128));
+    pattern fun (imm_0 : imm int) (r32_1 : reg (bv 32)) (xmm_2 : reg (bv 128)) (xmm_3 : reg (bv 128)) => do
+      v_4 <- getRegister (lhs.of_reg xmm_2);
+      v_5 <- eval (extract (shl (concat (expression.bv_nat 126 0) (extract (handleImmediateWithSignExtend imm_0 8 8) 6 8)) (expression.bv_nat 128 5)) 0 128);
+      v_6 <- eval (shl (expression.bv_nat 128 4294967295) v_5);
+      v_7 <- getRegister (lhs.of_reg r32_1);
+      setRegister (lhs.of_reg xmm_3) (bv_or (bv_and v_4 (bv_xor (extract v_6 0 128) (expression.bv_nat 128 340282366920938463463374607431768211455))) (extract (bv_and (shl (concat (expression.bv_nat 96 0) v_7) v_5) v_6) 0 128));
       pure ()
     pat_end

@@ -1,4 +1,4 @@
-def movw1 : instruction :=
+def movw : instruction :=
   definst "movw" $ do
     pattern fun (imm_0 : imm int) (mem_1 : Mem) => do
       v_2 <- evaluateAddress mem_1;
@@ -17,12 +17,12 @@ def movw1 : instruction :=
     pat_end;
     pattern fun (r16_0 : reg (bv 16)) (mem_1 : Mem) => do
       v_2 <- evaluateAddress mem_1;
-      v_3 <- getRegister r16_0;
+      v_3 <- getRegister (lhs.of_reg r16_0);
       store v_2 v_3 2;
       pure ()
     pat_end;
     pattern fun (r16_0 : reg (bv 16)) (r16_1 : reg (bv 16)) => do
-      v_2 <- getRegister r16_0;
+      v_2 <- getRegister (lhs.of_reg r16_0);
       setRegister (lhs.of_reg r16_1) v_2;
       pure ()
     pat_end

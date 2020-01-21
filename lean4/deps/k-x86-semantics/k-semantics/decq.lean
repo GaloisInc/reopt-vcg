@@ -1,4 +1,4 @@
-def decq1 : instruction :=
+def decq : instruction :=
   definst "decq" $ do
     pattern fun (mem_0 : Mem) => do
       v_1 <- evaluateAddress mem_0;
@@ -13,7 +13,7 @@ def decq1 : instruction :=
       pure ()
     pat_end;
     pattern fun (r64_0 : reg (bv 64)) => do
-      v_1 <- getRegister r64_0;
+      v_1 <- getRegister (lhs.of_reg r64_0);
       v_2 <- eval (sub v_1 (expression.bv_nat 64 1));
       setRegister (lhs.of_reg r64_0) v_2;
       setRegister af (eq (extract v_1 60 64) (expression.bv_nat 4 0));

@@ -1,4 +1,4 @@
-def shlq1 : instruction :=
+def shlq : instruction :=
   definst "shlq" $ do
     pattern fun (_ : clReg) (mem_0 : Mem) => do
       v_1 <- evaluateAddress mem_0;
@@ -30,7 +30,7 @@ def shlq1 : instruction :=
       v_2 <- eval (bv_and (extract v_1 56 64) (expression.bv_nat 8 63));
       v_3 <- eval (eq v_2 (expression.bv_nat 8 0));
       v_4 <- getRegister zf;
-      v_5 <- getRegister r64_0;
+      v_5 <- getRegister (lhs.of_reg r64_0);
       v_6 <- eval (extract (shl (concat (expression.bv_nat 1 0) v_5) (concat (expression.bv_nat 57 0) v_2)) 0 65);
       v_7 <- eval (extract v_6 1 65);
       v_8 <- getRegister sf;
@@ -77,7 +77,7 @@ def shlq1 : instruction :=
       v_2 <- eval (bv_and (handleImmediateWithSignExtend imm_0 8 8) (expression.bv_nat 8 63));
       v_3 <- eval (eq v_2 (expression.bv_nat 8 0));
       v_4 <- getRegister zf;
-      v_5 <- getRegister r64_1;
+      v_5 <- getRegister (lhs.of_reg r64_1);
       v_6 <- eval (extract (shl (concat (expression.bv_nat 1 0) v_5) (concat (expression.bv_nat 57 0) v_2)) 0 65);
       v_7 <- eval (extract v_6 1 65);
       v_8 <- getRegister sf;

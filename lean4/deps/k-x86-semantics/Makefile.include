@@ -24,7 +24,7 @@ $(K_GEN_PFX)InstructionsImports.lean.inc: $(K_ALLINSTS)
 	($(K_PROCESS_ALLINSTS) $(K_ALLINSTS) | while read a; do echo "import KX86Semantics.Gen.I_$$a"; done) > $@
 
 $(K_GEN_PFX)InstructionsList.lean.inc: $(K_ALLINSTS)
-	($(K_PROCESS_ALLINSTS) $(K_ALLINSTS) | while read a; do echo "\t, $$a"1 ; done) > $@
+	($(K_PROCESS_ALLINSTS) $(K_ALLINSTS) | while read a; do echo "\t, $$a" ; done) > $@
 
 $(K_GEN_PFX)Instructions.lean: $(HERE)src/KX86Semantics/Gen/Instructions.lean.cpp $(K_ALLINSTS) $(K_GEN_PFX)InstructionsImports.lean.inc $(K_GEN_PFX)InstructionsList.lean.inc
 	cpp -P -I$(K_GEN_PFX) $< > $@

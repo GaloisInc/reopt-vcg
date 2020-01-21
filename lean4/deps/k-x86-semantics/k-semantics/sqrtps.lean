@@ -1,4 +1,4 @@
-def sqrtps1 : instruction :=
+def sqrtps : instruction :=
   definst "sqrtps" $ do
     pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) => do
       v_2 <- evaluateAddress mem_0;
@@ -7,7 +7,7 @@ def sqrtps1 : instruction :=
       pure ()
     pat_end;
     pattern fun (xmm_0 : reg (bv 128)) (xmm_1 : reg (bv 128)) => do
-      v_2 <- getRegister xmm_0;
+      v_2 <- getRegister (lhs.of_reg xmm_0);
       setRegister (lhs.of_reg xmm_1) (concat (_(_)_MINT-WRAPPER-SYNTAX sqrt_single (extract v_2 0 32)) (concat (_(_)_MINT-WRAPPER-SYNTAX sqrt_single (extract v_2 32 64)) (concat (_(_)_MINT-WRAPPER-SYNTAX sqrt_single (extract v_2 64 96)) (_(_)_MINT-WRAPPER-SYNTAX sqrt_single (extract v_2 96 128)))));
       pure ()
     pat_end

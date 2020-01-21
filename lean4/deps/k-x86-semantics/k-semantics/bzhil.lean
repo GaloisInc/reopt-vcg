@@ -1,7 +1,7 @@
-def bzhil1 : instruction :=
+def bzhil : instruction :=
   definst "bzhil" $ do
     pattern fun (r32_0 : reg (bv 32)) (mem_1 : Mem) (r32_2 : reg (bv 32)) => do
-      v_3 <- getRegister r32_0;
+      v_3 <- getRegister (lhs.of_reg r32_0);
       v_4 <- eval (extract v_3 24 32);
       v_5 <- eval (ult v_4 (expression.bv_nat 8 32));
       v_6 <- evaluateAddress mem_1;
@@ -17,10 +17,10 @@ def bzhil1 : instruction :=
       pure ()
     pat_end;
     pattern fun (r32_0 : reg (bv 32)) (r32_1 : reg (bv 32)) (r32_2 : reg (bv 32)) => do
-      v_3 <- getRegister r32_0;
+      v_3 <- getRegister (lhs.of_reg r32_0);
       v_4 <- eval (extract v_3 24 32);
       v_5 <- eval (ult v_4 (expression.bv_nat 8 32));
-      v_6 <- getRegister r32_1;
+      v_6 <- getRegister (lhs.of_reg r32_1);
       v_7 <- eval (mux v_5 (mux (eq v_4 (expression.bv_nat 8 31)) (concat (expression.bv_nat 1 0) (extract v_6 1 32)) (mux (eq v_4 (expression.bv_nat 8 30)) (concat (expression.bv_nat 2 0) (extract v_6 2 32)) (mux (eq v_4 (expression.bv_nat 8 29)) (concat (expression.bv_nat 3 0) (extract v_6 3 32)) (mux (eq v_4 (expression.bv_nat 8 28)) (concat (expression.bv_nat 4 0) (extract v_6 4 32)) (mux (eq v_4 (expression.bv_nat 8 27)) (concat (expression.bv_nat 5 0) (extract v_6 5 32)) (mux (eq v_4 (expression.bv_nat 8 26)) (concat (expression.bv_nat 6 0) (extract v_6 6 32)) (mux (eq v_4 (expression.bv_nat 8 25)) (concat (expression.bv_nat 7 0) (extract v_6 7 32)) (mux (eq v_4 (expression.bv_nat 8 24)) (concat (expression.bv_nat 8 0) (extract v_6 8 32)) (mux (eq v_4 (expression.bv_nat 8 23)) (concat (expression.bv_nat 9 0) (extract v_6 9 32)) (mux (eq v_4 (expression.bv_nat 8 22)) (concat (expression.bv_nat 10 0) (extract v_6 10 32)) (mux (eq v_4 (expression.bv_nat 8 21)) (concat (expression.bv_nat 11 0) (extract v_6 11 32)) (mux (eq v_4 (expression.bv_nat 8 20)) (concat (expression.bv_nat 12 0) (extract v_6 12 32)) (mux (eq v_4 (expression.bv_nat 8 19)) (concat (expression.bv_nat 13 0) (extract v_6 13 32)) (mux (eq v_4 (expression.bv_nat 8 18)) (concat (expression.bv_nat 14 0) (extract v_6 14 32)) (mux (eq v_4 (expression.bv_nat 8 17)) (concat (expression.bv_nat 15 0) (extract v_6 15 32)) (mux (eq v_4 (expression.bv_nat 8 16)) (concat (expression.bv_nat 16 0) (extract v_6 16 32)) (mux (eq v_4 (expression.bv_nat 8 15)) (concat (expression.bv_nat 17 0) (extract v_6 17 32)) (mux (eq v_4 (expression.bv_nat 8 14)) (concat (expression.bv_nat 18 0) (extract v_6 18 32)) (mux (eq v_4 (expression.bv_nat 8 13)) (concat (expression.bv_nat 19 0) (extract v_6 19 32)) (mux (eq v_4 (expression.bv_nat 8 12)) (concat (expression.bv_nat 20 0) (extract v_6 20 32)) (mux (eq v_4 (expression.bv_nat 8 11)) (concat (expression.bv_nat 21 0) (extract v_6 21 32)) (mux (eq v_4 (expression.bv_nat 8 10)) (concat (expression.bv_nat 22 0) (extract v_6 22 32)) (mux (eq v_4 (expression.bv_nat 8 9)) (concat (expression.bv_nat 23 0) (extract v_6 23 32)) (mux (eq v_4 (expression.bv_nat 8 8)) (concat (expression.bv_nat 24 0) (extract v_6 24 32)) (mux (eq v_4 (expression.bv_nat 8 7)) (concat (expression.bv_nat 25 0) (extract v_6 25 32)) (mux (eq v_4 (expression.bv_nat 8 6)) (concat (expression.bv_nat 26 0) (extract v_6 26 32)) (mux (eq v_4 (expression.bv_nat 8 5)) (concat (expression.bv_nat 27 0) (extract v_6 27 32)) (mux (eq v_4 (expression.bv_nat 8 4)) (concat (expression.bv_nat 28 0) (extract v_6 28 32)) (mux (eq v_4 (expression.bv_nat 8 3)) (concat (expression.bv_nat 29 0) (extract v_6 29 32)) (mux (eq v_4 (expression.bv_nat 8 2)) (concat (expression.bv_nat 30 0) (extract v_6 30 32)) (concat (expression.bv_nat 31 0) (mux (eq v_4 (expression.bv_nat 8 1)) (extract v_6 31 32) (expression.bv_nat 1 0))))))))))))))))))))))))))))))))) v_6);
       setRegister (lhs.of_reg r32_2) v_7;
       setRegister af undef;

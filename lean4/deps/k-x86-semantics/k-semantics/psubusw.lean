@@ -1,7 +1,7 @@
-def psubusw1 : instruction :=
+def psubusw : instruction :=
   definst "psubusw" $ do
     pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) => do
-      v_2 <- getRegister xmm_1;
+      v_2 <- getRegister (lhs.of_reg xmm_1);
       v_3 <- evaluateAddress mem_0;
       v_4 <- load v_3 16;
       v_5 <- eval (sub (concat (expression.bv_nat 2 0) (extract v_2 0 16)) (concat (expression.bv_nat 2 0) (extract v_4 0 16)));
@@ -16,8 +16,8 @@ def psubusw1 : instruction :=
       pure ()
     pat_end;
     pattern fun (xmm_0 : reg (bv 128)) (xmm_1 : reg (bv 128)) => do
-      v_2 <- getRegister xmm_1;
-      v_3 <- getRegister xmm_0;
+      v_2 <- getRegister (lhs.of_reg xmm_1);
+      v_3 <- getRegister (lhs.of_reg xmm_0);
       v_4 <- eval (sub (concat (expression.bv_nat 2 0) (extract v_2 0 16)) (concat (expression.bv_nat 2 0) (extract v_3 0 16)));
       v_5 <- eval (sub (concat (expression.bv_nat 2 0) (extract v_2 16 32)) (concat (expression.bv_nat 2 0) (extract v_3 16 32)));
       v_6 <- eval (sub (concat (expression.bv_nat 2 0) (extract v_2 32 48)) (concat (expression.bv_nat 2 0) (extract v_3 32 48)));

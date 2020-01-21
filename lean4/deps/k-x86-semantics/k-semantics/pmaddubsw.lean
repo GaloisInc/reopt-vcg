@@ -1,9 +1,9 @@
-def pmaddubsw1 : instruction :=
+def pmaddubsw : instruction :=
   definst "pmaddubsw" $ do
     pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) => do
       v_2 <- evaluateAddress mem_0;
       v_3 <- load v_2 16;
-      v_4 <- getRegister xmm_1;
+      v_4 <- getRegister (lhs.of_reg xmm_1);
       v_5 <- eval (add (sext (mul (sext (extract v_3 8 16) 16) (concat (expression.bv_nat 8 0) (extract v_4 8 16))) 32) (sext (mul (sext (extract v_3 0 8) 16) (concat (expression.bv_nat 8 0) (extract v_4 0 8))) 32));
       v_6 <- eval (add (sext (mul (sext (extract v_3 24 32) 16) (concat (expression.bv_nat 8 0) (extract v_4 24 32))) 32) (sext (mul (sext (extract v_3 16 24) 16) (concat (expression.bv_nat 8 0) (extract v_4 16 24))) 32));
       v_7 <- eval (add (sext (mul (sext (extract v_3 40 48) 16) (concat (expression.bv_nat 8 0) (extract v_4 40 48))) 32) (sext (mul (sext (extract v_3 32 40) 16) (concat (expression.bv_nat 8 0) (extract v_4 32 40))) 32));
@@ -16,8 +16,8 @@ def pmaddubsw1 : instruction :=
       pure ()
     pat_end;
     pattern fun (xmm_0 : reg (bv 128)) (xmm_1 : reg (bv 128)) => do
-      v_2 <- getRegister xmm_0;
-      v_3 <- getRegister xmm_1;
+      v_2 <- getRegister (lhs.of_reg xmm_0);
+      v_3 <- getRegister (lhs.of_reg xmm_1);
       v_4 <- eval (add (sext (mul (sext (extract v_2 8 16) 16) (concat (expression.bv_nat 8 0) (extract v_3 8 16))) 32) (sext (mul (sext (extract v_2 0 8) 16) (concat (expression.bv_nat 8 0) (extract v_3 0 8))) 32));
       v_5 <- eval (add (sext (mul (sext (extract v_2 24 32) 16) (concat (expression.bv_nat 8 0) (extract v_3 24 32))) 32) (sext (mul (sext (extract v_2 16 24) 16) (concat (expression.bv_nat 8 0) (extract v_3 16 24))) 32));
       v_6 <- eval (add (sext (mul (sext (extract v_2 40 48) 16) (concat (expression.bv_nat 8 0) (extract v_3 40 48))) 32) (sext (mul (sext (extract v_2 32 40) 16) (concat (expression.bv_nat 8 0) (extract v_3 32 40))) 32));
