@@ -6,8 +6,8 @@ def divl : instruction :=
       v_3 <- eval (concat (extract v_1 32 64) (extract v_2 32 64));
       v_4 <- evaluateAddress mem_0;
       v_5 <- load v_4 4;
-      setRegister eax (_(_,_)_MINT-WRAPPER-SYNTAX div_quotient_int32 v_3 v_5);
-      setRegister edx (_(_,_)_MINT-WRAPPER-SYNTAX div_remainder_int32 v_3 v_5);
+      setRegister eax (/- (_,_) -/  div_quotient_int32 v_3 v_5);
+      setRegister edx (/- (_,_) -/  div_remainder_int32 v_3 v_5);
       setRegister af undef;
       setRegister cf undef;
       setRegister of undef;
@@ -21,8 +21,8 @@ def divl : instruction :=
       v_2 <- getRegister rax;
       v_3 <- eval (concat (extract v_1 32 64) (extract v_2 32 64));
       v_4 <- getRegister (lhs.of_reg r32_0);
-      setRegister eax (_(_,_)_MINT-WRAPPER-SYNTAX div_quotient_int32 v_3 v_4);
-      setRegister edx (_(_,_)_MINT-WRAPPER-SYNTAX div_remainder_int32 v_3 v_4);
+      setRegister eax (/- (_,_) -/  div_quotient_int32 v_3 v_4);
+      setRegister edx (/- (_,_) -/  div_remainder_int32 v_3 v_4);
       setRegister af undef;
       setRegister cf undef;
       setRegister of undef;

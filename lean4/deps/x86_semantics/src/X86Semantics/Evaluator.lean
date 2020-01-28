@@ -259,8 +259,7 @@ def value : type -> Type
   | (bv e) => bitvec (eval_nat_expr nenv e) -- We use the _normalised_ value here.
   | int    => Int
   | bit    => Bool
-  | float  => Unit -- FIXME
-  | double => Unit -- FIXME
+  | (float fc) => Unit -- FIXME
   | x86_80 => Unit -- FIXME  
   | (vec w tp) => Array /- (eval_nat_expr w) -/ (value tp) -- FIXME
   | (pair tp tp') => value tp × value tp'
@@ -585,8 +584,7 @@ def type.has_eq : type -> Prop
   | (bv _)     => True
   | int        => True
   | bit        => True
-  | float      => True 
-  | double     => True 
+  | (float fc) => True 
   | x86_80     => True
   | (vec _ tp) => type.has_eq tp 
   | (pair tp tp') => type.has_eq tp ∧ type.has_eq tp'
@@ -597,8 +595,7 @@ def type.has_eq_dec : ∀(tp : type), Decidable (type.has_eq tp)
   | (bv _)     => isTrue True.intro
   | int        => isTrue True.intro
   | bit        => isTrue True.intro  
-  | float      => isTrue True.intro  
-  | double     => isTrue True.intro  
+  | (float fc) => isTrue True.intro  
   | x86_80     => isTrue True.intro  
   | (vec _ tp) => type.has_eq_dec tp
   | (pair tp tp') => @And.Decidable _ _ (type.has_eq_dec tp) (type.has_eq_dec tp')
@@ -623,8 +620,7 @@ def value.partial_eq : ∀{tp : type}, type.has_eq tp -> value nenv tp -> value 
   | (bv _), _, v1, v2      => (v1 - v2 = 0) -- FIXME: bug in the eqn compiler?
   | int,    _, v1, v2      => (v1 = v2)
   | bit,    _, v1, v2      => (v1 = v2)
-  | float,  _, v1, v2      => (v1 = v2)
-  | double, _, v1, v2     => (v1 = v2)
+  | float _,  _, v1, v2      => (v1 = v2)
   | x86_80, _, v1, v2     => (v1 = v2)
   | (vec _ tp), pf, v1, v2 => 
      let pf' : type.has_eq tp := pf;
@@ -706,6 +702,8 @@ def prim.eval : ∀{tp : type}, prim tp -> evaluator system_config nenv (value n
 
   | ._, (prim.ule i) => pure (fun x y => bitvec.ule x y)
   | ._, (prim.ult i) => pure (fun x y => bitvec.ult x y)
+  | ._, (prim.sle i) => pure (fun x y => bitvec.sle x y)
+  | ._, (prim.slt i) => pure (fun x y => bitvec.slt x y)
 
   -- `(slice w u l)` takes bits `u` through `l` out of a `w`-bit number.
   --  prim (bv w .→ bv (u+1-l))
@@ -749,14 +747,14 @@ def prim.eval : ∀{tp : type}, prim tp -> evaluator system_config nenv (value n
   | ._, (prim.bv_or i)  => pure bitvec.or
   | ._, (prim.bv_xor i) => pure bitvec.xor
   | ._, (prim.bv_complement i) => pure bitvec.not
-  | ._, (prim.shl i)    => pure (fun x (y : bitvec 8) => bitvec.shl x y.to_nat)
+  | ._, (prim.shl i j)    => pure (fun x (y : bitvec (eval_nat_expr nenv j)) => bitvec.shl x y.to_nat)
   --- `(shl_carry w) c b i` returns the `i`th bit
   --- in the bitvector [c]++b where `i` is treated as an unsigned
   --- number with `0` as the most-significant bit.
   -- e.g., If `i` is `0`, then this returns `c`.  If `i`
   -- exceeds the number of bits in `[c] ++ b` (i.e., i >= w+1),
   -- the the result is false.
-  | ._, (prim.shl_carry w) => pure (fun c b (i : bitvec 8) => 
+  | ._, (prim.shl_carry w j) => pure (fun c b (i : bitvec (eval_nat_expr nenv j)) => 
        match i.to_nat with
        | Nat.zero        => c
        -- FIXME: is this the intended behaviour?
@@ -766,14 +764,14 @@ def prim.eval : ∀{tp : type}, prim tp -> evaluator system_config nenv (value n
    --- `(shr i) x y` shifts the bits in `x` to the right by
    --- `y` bits where `y` is treated as an unsigned integer.
    --- The new bits shifted in from the right are all zero.
-   | ._, (prim.shr i) => pure (fun x (y : bitvec 8) => bitvec.ushr x y.to_nat)
+   | ._, (prim.shr i j) => pure (fun x (y : bitvec (eval_nat_expr nenv j)) => bitvec.ushr x y.to_nat)
    --- `(shr_carry w) b c i` returns the `i`th bit
    --- in the bitvector b++[c] where `i` is treated as an unsigned
    --- number with `0` as the least-significant bit.
    -- e.g., If `i` is `0`, then this returns `c`.  If `i`
    -- exceeds the number of bits in `b++[c]` (i.e., i >= w+1),
    -- the the result is false.
-  | ._, (prim.shr_carry w) => pure (fun b c (i : bitvec 8) => 
+  | ._, (prim.shr_carry w j) => pure (fun b c (i : bitvec (eval_nat_expr nenv j)) => 
        match i.to_nat with
        | Nat.zero     => c
        | (Nat.succ n) => @ite (n < eval_nat_expr nenv w) (Nat.decLt _ _) _ (bitvec.nth b n) false
@@ -784,14 +782,14 @@ def prim.eval : ∀{tp : type}, prim tp -> evaluator system_config nenv (value n
    --- `(sar i) x y` arithmetically shifts the bits in `x` to
    --- the left by `y` bits where `y` is treated as an unsigned integer.
    --- The new bits shifted in all match the most-significant bit in y.
-   | ._, (prim.sar i) => pure (fun x (y : bitvec 8) => bitvec.sshr x y.to_nat)
+   | ._, (prim.sar i j) => pure (fun x (y : bitvec (eval_nat_expr nenv j)) => bitvec.sshr x y.to_nat)
    --- `(sar_carry w) b c i` returns the `i`th bit
    --- in the bitvector b++[c] where `i` is treated as an unsigned
    --- number with `0` as the least-significant bit.
    -- e.g., If `i` is `0`, then this returns `c`.  If `i`
    -- exceeds the number of bits in `b++[c]` (i.e., i >= w+1),
    -- the the result is equal to the most-signfiicant bit.
-   | ._, (prim.sar_carry w) => pure (fun b c (i : bitvec 8) => 
+   | ._, (prim.sar_carry w j) => pure (fun b c (i : bitvec (eval_nat_expr nenv j)) => 
        match i.to_nat with
        | Nat.zero     => c
        | (Nat.succ n) => 
@@ -826,6 +824,13 @@ def prim.eval : ∀{tp : type}, prim tp -> evaluator system_config nenv (value n
   -- The value `i` is `idx` as a unsigned integer modulo `w`.
   | ._, (prim.bts w j)         => throw "prim.eval.bts unimplemented"
 
+  | ._, prim.bv_bitcast_to_fp fc => throw "prim.eval.bv_bitcast_to_fp unimplemented"
+  | ._, prim.fp_bitcast_to_bv fc => throw "prim.eval.fp_bitcast_to_bv unimplemented"
+  | ._, prim.fp_add fc           => throw "prim.eval.fp_add unimplemented"
+  | ._, prim.fp_sub fc           => throw "prim.eval.fp_sub unimplemented"
+  | ._, prim.fp_mul fc           => throw "prim.eval.fp_mul unimplemented"
+  | ._, prim.fp_div fc           => throw "prim.eval.fp_div unimplemented"
+
   -- `bv_to_x86_80` converts a bitvector to an extended precision number (lossless)
   | ._, (prim.bv_to_x86_80 w)  => throw "prim.eval.bv_to_x86_80 unimplemented"
   -- `float_to_x86_80` converts a float to an extended precision number (lossless)
@@ -844,8 +849,7 @@ def value.make_undef : ∀(tp : type), value nenv tp
   | (bv e) => bitvec.of_nat (eval_nat_expr nenv e) 0
   | int    => 0
   | bit    => false
-  | float  => ()
-  | double => ()
+  | float _ => ()
   | x86_80 => ()
   | (vec w tp) => mkArray (eval_nat_expr nenv w) (value.make_undef tp)
   | (pair tp tp') => (value.make_undef tp, value.make_undef tp')

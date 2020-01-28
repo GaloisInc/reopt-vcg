@@ -10,13 +10,17 @@ ctors_type =
   [ ("bv", [False])
   , ("int", [])
   , ("bit", [])
-  , ("float", [])
-  , ("double", [])
-  , ("x86_80", [])
+  , ("float", [False])
+  , ("x87_80", [])
   , ("vec", [False, True])
   , ("pair", [True, True])
   , ("fn"  , [True, True]) ]
 
+ctors_float_class =
+  [ ("fp16", [])
+  , ("fp32", [])
+  , ("fp64", [])
+  ]
 
 --  | lit : Nat → nat_expr
 --  | var : arg_index → nat_expr
@@ -77,5 +81,10 @@ mkDecEq :: String -> Type -> String -> String
 mkDecEq tname cons recName =
   "protected def " ++ recName ++ " : ∀(e e' : " ++ tname ++ "), Decidable (e = e')\n"
   ++ intercalate "\n" (recursive tname cons recName ++ mismatch tname cons)
+
+mkDecEqs :: [(String, Type, String)] -> String
+mkDecEqs ts =
+  concatMap (\(tname, cons, recName) -> (mkDecEq tname cons recName) ++ "\n") ts
+
 
   

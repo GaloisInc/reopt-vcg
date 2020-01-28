@@ -1,6 +1,6 @@
 def vzeroall : instruction :=
   definst "vzeroall" $ do
-    pattern fun => do
+    pattern do
       setRegister ymm0 (expression.bv_nat 256 0);
       setRegister ymm1 (expression.bv_nat 256 0);
       setRegister ymm10 (expression.bv_nat 256 0);

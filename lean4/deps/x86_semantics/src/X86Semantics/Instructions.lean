@@ -8,6 +8,7 @@ namespace x86
 
 open mc_semantics
 open mc_semantics.type
+open mc_semantics.float_class
 open reg
 open semantics
 
@@ -662,10 +663,10 @@ def fadd : instruction := do
    pattern fun (dest : lhs x86_80) (src : lhs x86_80) => do
      dest .= x87_fadd dest src
    pat_end;
-   pattern fun (src : lhs float) => do
+   pattern fun (src : lhs (float fp32)) => do
      st0  .= x87_fadd st0 src
    pat_end;
-   pattern fun (src : lhs double) => do
+   pattern fun (src : lhs (float fp64)) => do
      st0  .= x87_fadd st0 src
    pat_end
 
@@ -1014,9 +1015,9 @@ def do_sh {w:ℕ}
   -- compute the result
   res ← eval $
         (match op with
-        | shift_op.shl => prim.shl w v low_count
-        | shift_op.shr => prim.shr w v low_count
-        | shift_op.sar => prim.sar w v low_count)
+        | shift_op.shl => prim.shl w 8 v low_count
+        | shift_op.shr => prim.shr w 8 v low_count
+        | shift_op.sar => prim.sar w 8 v low_count)
         ;
   -- When the count is zero, nothing happens, and no flags change
   let is_nonzero : expression bit := low_count ≠ 0;
@@ -1024,11 +1025,11 @@ def do_sh {w:ℕ}
   set_cond af is_nonzero undef;
   (match op with
   | shift_op.shl =>
-     cf .= prim.shl_carry w cf v low_count
+     cf .= prim.shl_carry w 8 cf v low_count
   | shift_op.shr => do
-     cf .= prim.shr_carry w v cf low_count
+     cf .= prim.shr_carry w 8 v cf low_count
   | shift_op.sar => do
-     cf .= prim.sar_carry w v cf low_count
+     cf .= prim.sar_carry w 8 v cf low_count
   );
   -- Compute value of of_flag if low_count is 1.
   let of_flag :=

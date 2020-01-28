@@ -6,8 +6,8 @@ def divq : instruction :=
       v_3 <- eval (concat v_1 v_2);
       v_4 <- evaluateAddress mem_0;
       v_5 <- load v_4 8;
-      setRegister rax (_(_,_)_MINT-WRAPPER-SYNTAX div_quotient_int64 v_3 v_5);
-      setRegister rdx (_(_,_)_MINT-WRAPPER-SYNTAX div_remainder_int64 v_3 v_5);
+      setRegister rax (/- (_,_) -/  div_quotient_int64 v_3 v_5);
+      setRegister rdx (/- (_,_) -/  div_remainder_int64 v_3 v_5);
       setRegister af undef;
       setRegister cf undef;
       setRegister of undef;
@@ -21,8 +21,8 @@ def divq : instruction :=
       v_2 <- getRegister rax;
       v_3 <- eval (concat v_1 v_2);
       v_4 <- getRegister (lhs.of_reg r64_0);
-      setRegister rax (_(_,_)_MINT-WRAPPER-SYNTAX div_quotient_int64 v_3 v_4);
-      setRegister rdx (_(_,_)_MINT-WRAPPER-SYNTAX div_remainder_int64 v_3 v_4);
+      setRegister rax (/- (_,_) -/  div_quotient_int64 v_3 v_4);
+      setRegister rdx (/- (_,_) -/  div_remainder_int64 v_3 v_4);
       setRegister af undef;
       setRegister cf undef;
       setRegister of undef;

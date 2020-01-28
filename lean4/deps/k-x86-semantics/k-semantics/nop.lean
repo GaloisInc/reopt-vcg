@@ -1,5 +1,5 @@
 def nop : instruction :=
   definst "nop" $ do
-    pattern fun => do
+    pattern do
       pure ()
     pat_end

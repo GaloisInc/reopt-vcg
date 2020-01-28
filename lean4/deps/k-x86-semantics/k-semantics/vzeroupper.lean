@@ -1,6 +1,6 @@
 def vzeroupper : instruction :=
   definst "vzeroupper" $ do
-    pattern fun => do
+    pattern do
       v_0 <- getRegister ymm9;
       v_1 <- getRegister ymm8;
       v_2 <- getRegister ymm7;

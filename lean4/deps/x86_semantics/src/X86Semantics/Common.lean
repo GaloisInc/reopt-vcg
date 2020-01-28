@@ -177,13 +177,45 @@ end one_of
 ------------------------------------------------------------------------
 -- Type
 
+inductive float_class 
+| fp16   : float_class
+| fp32   : float_class
+| fp64   : float_class
+
+namespace float_class
+
+-- c.f. scripts/mk_dec_eq.hs
+-- *MkDecEq> writeFile "typeDecEq" (mkDecEqs [("float_class", ctors_float_class, "hasDecEq"), ("type", ctors_type, "hasDecEq")])
+protected def hasDecEq : ∀(e e' : float_class), Decidable (e = e')
+| fp16, fp16 => isTrue rfl
+| fp32, fp32 => isTrue rfl
+| fp64, fp64 => isTrue rfl
+| fp16, fp32 => isFalse (fun h => float_class.noConfusion h)
+| fp16, fp64 => isFalse (fun h => float_class.noConfusion h)
+| fp32, fp16 => isFalse (fun h => float_class.noConfusion h)
+| fp32, fp64 => isFalse (fun h => float_class.noConfusion h)
+| fp64, fp16 => isFalse (fun h => float_class.noConfusion h)
+| fp64, fp32 => isFalse (fun h => float_class.noConfusion h)
+
+instance decidable_eq_float_class : DecidableEq float_class := -- by tactic.mk_dec_eq_instance
+  float_class.hasDecEq
+
+def width : float_class -> Nat
+| fp16   => 16
+| fp32   => 32
+| fp64   => 64
+
+end float_class
+
 inductive type
 | bv (w:nat_expr) : type
 | int : type -- Only really needed for immediates, can maybe remove with enough smarts for the K semantics
 | bit : type
-| float  : type
-| double : type
+
+-- These are either IEEE floats, or x87 floats
+| float (fc : float_class) : type
 | x86_80 : type
+
 | vec (w:nat_expr) (tp:type) : type
 -- A pair with fields of the given type.
 -- N.B. We use pairs rather than more general tuples for now, just for simplicity.
@@ -195,7 +227,7 @@ inductive type
 namespace type
 
 -- c.f. scripts/mk_dec_eq.hs
--- *MkDecEq> writeFile "typeDecEq" (mkDecEq "type" ctors_type "hasDecEq")
+-- *MkDecEq> writeFile "typeDecEq" (mkDecEqs [("float_class", ctors_float_class, "hasDecEq"), ("type", ctors_type, "hasDecEq")])
 protected def hasDecEq : ∀(e e' : type), Decidable (e = e')
 | (bv c1), (bv c1') => 
  (match decEq c1 c1' with 
@@ -203,8 +235,10 @@ protected def hasDecEq : ∀(e e' : type), Decidable (e = e')
   | (isFalse nh) => isFalse (fun h => type.noConfusion h $ fun h1' => absurd h1' nh))
 | int, int => isTrue rfl
 | bit, bit => isTrue rfl
-| float, float => isTrue rfl
-| double, double => isTrue rfl
+| (float c1), (float c1') => 
+ (match decEq c1 c1' with 
+  | (isTrue h1) => isTrue (h1 ▸ rfl)
+  | (isFalse nh) => isFalse (fun h => type.noConfusion h $ fun h1' => absurd h1' nh))
 | x86_80, x86_80 => isTrue rfl
 | (vec c1 c2), (vec c1' c2') => 
  (match decEq c1 c1', hasDecEq c2 c2' with 
@@ -223,73 +257,57 @@ protected def hasDecEq : ∀(e e' : type), Decidable (e = e')
   | (isTrue _), (isFalse nh) => isFalse (fun h => type.noConfusion h $ fun h1' h2' => absurd h2' nh))
 | (bv _), int => isFalse (fun h => type.noConfusion h)
 | (bv _), bit => isFalse (fun h => type.noConfusion h)
-| (bv _), float => isFalse (fun h => type.noConfusion h)
-| (bv _), double => isFalse (fun h => type.noConfusion h)
+| (bv _), (float _) => isFalse (fun h => type.noConfusion h)
 | (bv _), x86_80 => isFalse (fun h => type.noConfusion h)
 | (bv _), (vec _ _) => isFalse (fun h => type.noConfusion h)
 | (bv _), (pair _ _) => isFalse (fun h => type.noConfusion h)
 | (bv _), (fn _ _) => isFalse (fun h => type.noConfusion h)
 | int, (bv _) => isFalse (fun h => type.noConfusion h)
 | int, bit => isFalse (fun h => type.noConfusion h)
-| int, float => isFalse (fun h => type.noConfusion h)
-| int, double => isFalse (fun h => type.noConfusion h)
+| int, (float _) => isFalse (fun h => type.noConfusion h)
 | int, x86_80 => isFalse (fun h => type.noConfusion h)
 | int, (vec _ _) => isFalse (fun h => type.noConfusion h)
 | int, (pair _ _) => isFalse (fun h => type.noConfusion h)
 | int, (fn _ _) => isFalse (fun h => type.noConfusion h)
 | bit, (bv _) => isFalse (fun h => type.noConfusion h)
 | bit, int => isFalse (fun h => type.noConfusion h)
-| bit, float => isFalse (fun h => type.noConfusion h)
-| bit, double => isFalse (fun h => type.noConfusion h)
+| bit, (float _) => isFalse (fun h => type.noConfusion h)
 | bit, x86_80 => isFalse (fun h => type.noConfusion h)
 | bit, (vec _ _) => isFalse (fun h => type.noConfusion h)
 | bit, (pair _ _) => isFalse (fun h => type.noConfusion h)
 | bit, (fn _ _) => isFalse (fun h => type.noConfusion h)
-| float, (bv _) => isFalse (fun h => type.noConfusion h)
-| float, int => isFalse (fun h => type.noConfusion h)
-| float, bit => isFalse (fun h => type.noConfusion h)
-| float, double => isFalse (fun h => type.noConfusion h)
-| float, x86_80 => isFalse (fun h => type.noConfusion h)
-| float, (vec _ _) => isFalse (fun h => type.noConfusion h)
-| float, (pair _ _) => isFalse (fun h => type.noConfusion h)
-| float, (fn _ _) => isFalse (fun h => type.noConfusion h)
-| double, (bv _) => isFalse (fun h => type.noConfusion h)
-| double, int => isFalse (fun h => type.noConfusion h)
-| double, bit => isFalse (fun h => type.noConfusion h)
-| double, float => isFalse (fun h => type.noConfusion h)
-| double, x86_80 => isFalse (fun h => type.noConfusion h)
-| double, (vec _ _) => isFalse (fun h => type.noConfusion h)
-| double, (pair _ _) => isFalse (fun h => type.noConfusion h)
-| double, (fn _ _) => isFalse (fun h => type.noConfusion h)
+| (float _), (bv _) => isFalse (fun h => type.noConfusion h)
+| (float _), int => isFalse (fun h => type.noConfusion h)
+| (float _), bit => isFalse (fun h => type.noConfusion h)
+| (float _), x86_80 => isFalse (fun h => type.noConfusion h)
+| (float _), (vec _ _) => isFalse (fun h => type.noConfusion h)
+| (float _), (pair _ _) => isFalse (fun h => type.noConfusion h)
+| (float _), (fn _ _) => isFalse (fun h => type.noConfusion h)
 | x86_80, (bv _) => isFalse (fun h => type.noConfusion h)
 | x86_80, int => isFalse (fun h => type.noConfusion h)
 | x86_80, bit => isFalse (fun h => type.noConfusion h)
-| x86_80, float => isFalse (fun h => type.noConfusion h)
-| x86_80, double => isFalse (fun h => type.noConfusion h)
+| x86_80, (float _) => isFalse (fun h => type.noConfusion h)
 | x86_80, (vec _ _) => isFalse (fun h => type.noConfusion h)
 | x86_80, (pair _ _) => isFalse (fun h => type.noConfusion h)
 | x86_80, (fn _ _) => isFalse (fun h => type.noConfusion h)
 | (vec _ _), (bv _) => isFalse (fun h => type.noConfusion h)
 | (vec _ _), int => isFalse (fun h => type.noConfusion h)
 | (vec _ _), bit => isFalse (fun h => type.noConfusion h)
-| (vec _ _), float => isFalse (fun h => type.noConfusion h)
-| (vec _ _), double => isFalse (fun h => type.noConfusion h)
+| (vec _ _), (float _) => isFalse (fun h => type.noConfusion h)
 | (vec _ _), x86_80 => isFalse (fun h => type.noConfusion h)
 | (vec _ _), (pair _ _) => isFalse (fun h => type.noConfusion h)
 | (vec _ _), (fn _ _) => isFalse (fun h => type.noConfusion h)
 | (pair _ _), (bv _) => isFalse (fun h => type.noConfusion h)
 | (pair _ _), int => isFalse (fun h => type.noConfusion h)
 | (pair _ _), bit => isFalse (fun h => type.noConfusion h)
-| (pair _ _), float => isFalse (fun h => type.noConfusion h)
-| (pair _ _), double => isFalse (fun h => type.noConfusion h)
+| (pair _ _), (float _) => isFalse (fun h => type.noConfusion h)
 | (pair _ _), x86_80 => isFalse (fun h => type.noConfusion h)
 | (pair _ _), (vec _ _) => isFalse (fun h => type.noConfusion h)
 | (pair _ _), (fn _ _) => isFalse (fun h => type.noConfusion h)
 | (fn _ _), (bv _) => isFalse (fun h => type.noConfusion h)
 | (fn _ _), int => isFalse (fun h => type.noConfusion h)
 | (fn _ _), bit => isFalse (fun h => type.noConfusion h)
-| (fn _ _), float => isFalse (fun h => type.noConfusion h)
-| (fn _ _), double => isFalse (fun h => type.noConfusion h)
+| (fn _ _), (float _) => isFalse (fun h => type.noConfusion h)
 | (fn _ _), x86_80 => isFalse (fun h => type.noConfusion h)
 | (fn _ _), (vec _ _) => isFalse (fun h => type.noConfusion h)
 | (fn _ _), (pair _ _) => isFalse (fun h => type.noConfusion h)
@@ -519,6 +537,8 @@ inductive prim : type → Type
 
 | ule (i:nat_expr) : prim (bv i .→ bv i .→ bit)
 | ult (i:nat_expr) : prim (bv i .→ bv i .→ bit)
+| sle (i:nat_expr) : prim (bv i .→ bv i .→ bit)
+| slt (i:nat_expr) : prim (bv i .→ bv i .→ bit)
 
 -- `(slice w u l)` takes bits `u` through `l` out of a `w`-bit number.
 | slice (w:nat_expr) (u:nat_expr) (l:nat_expr) : prim (bv w .→ bv (u+1-l))
@@ -542,36 +562,36 @@ inductive prim : type → Type
 --- `(shl i) x y` shifts the bits in `x` to the left by
 --- `y` bits where `y` is treated as an unsigned integer.
 --- The new bits shifted in from the left are all zero.
-| shl (i:nat_expr) : prim (bv i .→ bv 8 .→ bv i)
+| shl (i j:nat_expr) : prim (bv i .→ bv j .→ bv i)
 --- `(shl_carry w) c b i` returns the `i`th bit
 --- in the bitvector [c]++b where `i` is treated as an unsigned
 --- number with `0` as the most-significant bit.
 -- e.g., If `i` is `0`, then this returns `c`.  If `i`
 -- exceeds the number of bits in `[c] ++ b` (i.e., i >= w+1),
 -- the the result is false.
-| shl_carry (w:nat_expr) : prim (bit .→ bv w .→ bv 8 .→ bit)
+| shl_carry (w j:nat_expr) : prim (bit .→ bv w .→ bv j .→ bit)
 --- `(shr i) x y` shifts the bits in `x` to the right by
 --- `y` bits where `y` is treated as an unsigned integer.
 --- The new bits shifted in from the right are all zero.
-| shr (i:nat_expr) : prim (bv i .→ bv 8 .→ bv i)
+| shr (i j:nat_expr) : prim (bv i .→ bv j .→ bv i)
 --- `(shr_carry w) b c i` returns the `i`th bit
 --- in the bitvector b++[c] where `i` is treated as an unsigned
 --- number with `0` as the least-significant bit.
 -- e.g., If `i` is `0`, then this returns `c`.  If `i`
 -- exceeds the number of bits in `b++[c]` (i.e., i >= w+1),
 -- the the result is false.
-| shr_carry (w:nat_expr) : prim (bv w .→ bit .→ bv 8 .→ bit)
+| shr_carry (w j:nat_expr) : prim (bv w .→ bit .→ bv j .→ bit)
 --- `(sar i) x y` arithmetically shifts the bits in `x` to
 --- the left by `y` bits where `y` is treated as an unsigned integer.
 --- The new bits shifted in all match the most-significant bit in y.
-| sar (i:nat_expr) : prim (bv i .→ bv 8 .→ bv i)
+| sar (i j:nat_expr) : prim (bv i .→ bv j .→ bv i)
 --- `(sar_carry w) b c i` returns the `i`th bit
 --- in the bitvector b++[c] where `i` is treated as an unsigned
 --- number with `0` as the least-significant bit.
 -- e.g., If `i` is `0`, then this returns `c`.  If `i`
 -- exceeds the number of bits in `b++[c]` (i.e., i >= w+1),
 -- the the result is equal to the most-signfiicant bit.
-| sar_carry (w:nat_expr) : prim (bv w .→ bit .→ bv 8 .→ bit)
+| sar_carry (w j:nat_expr) : prim (bv w .→ bit .→ bv j .→ bit)
 
 | even_parity (i:nat_expr) : prim (bv i .→ bit)
 -- `(bsf i)` returns the index of least-significant bit that is 1.
@@ -598,12 +618,20 @@ inductive prim : type → Type
 
 -- Floating point operations
 
+-- this does a direct cast, not a conversion
+| bv_bitcast_to_fp (fc : float_class) : prim (bv fc.width .→ float fc)
+| fp_bitcast_to_bv (fc : float_class) : prim (float fc .→ bv fc.width)
+| fp_add (fc : float_class) : prim (float fc .→ float fc .→ float fc)
+| fp_sub (fc : float_class) : prim (float fc .→ float fc .→ float fc)
+| fp_mul (fc : float_class) : prim (float fc .→ float fc .→ float fc)
+| fp_div (fc : float_class) : prim (float fc .→ float fc .→ float fc)
+
 -- `bv_to_x86_80` converts a bitvector to an extended precision number (lossless)
 | bv_to_x86_80  (w : one_of [16,32]) : prim (bv w .→ x86_80)
 -- `float_to_x86_80` converts a float to an extended precision number (lossless)
-| float_to_x86_80  : prim (float .→ x86_80)
+| float_to_x86_80  : prim (float float_class.fp32 .→ x86_80)
 -- `double_to_x86_80` converts a double to an extended precision number (lossless)
-| double_to_x86_80 : prim (double .→ x86_80)
+| double_to_x86_80 : prim (float float_class.fp64 .→ x86_80)
 -- `x87_fadd` adds two extended precision values using the flags in the x87 register.
 | x87_fadd : prim (x86_80 .→ x86_80 .→ x86_80)
 
@@ -617,7 +645,6 @@ inductive prim : type → Type
 --- Denotes an immediate value appearing in the instruction.
 inductive imm : type → Type
 | arg (idx:arg_index) {tp:type} : imm tp
-
 
 -- This is an expression that computes a value with some type given by
 -- the parameter.
@@ -761,8 +788,6 @@ def of_reg {tp:type} : reg tp → expression tp
 instance addr_is_expression (tp:type) : HasCoe (addr tp) (expression tp) :=
 ⟨ expression.read_addr ⟩
 
-
-
 instance type_is_sort     : HasCoeToSort type := ⟨Type, expression⟩
 instance all_reg_is_expression : has_coe1 reg expression := ⟨fun _ => expression.of_reg⟩
 
@@ -801,9 +826,9 @@ instance bv_has_mul (w:nat_expr) : HasMul (bv w) := ⟨fun x y => prim.mul w x y
 -- Add two 80-bit numbers using the current x87 floating point control.
 def x87_fadd (x y : x86_80) : x86_80 := prim.x87_fadd x y
 
-instance float_extends_to_80  : HasCoe float  x86_80 := ⟨prim.float_to_x86_80⟩
+instance float_extends_to_80  : HasCoe (float float_class.fp32) x86_80 := ⟨prim.float_to_x86_80⟩
 
-instance double_extends_to_80 : HasCoe double x86_80 := ⟨prim.double_to_x86_80⟩
+instance double_extends_to_80 : HasCoe (float float_class.fp64) x86_80 := ⟨prim.double_to_x86_80⟩
 
 -- These are lossless conversions.
 instance bv_to_x86_80  (w:one_of [16,32]) : HasCoe (bv w) x86_80 := ⟨prim.bv_to_x86_80 w⟩

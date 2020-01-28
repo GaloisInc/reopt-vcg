@@ -12,7 +12,7 @@ def minps : instruction :=
       v_10 <- eval (extract v_5 64 96);
       v_11 <- eval (extract v_2 96 128);
       v_12 <- eval (extract v_5 96 128);
-      setRegister (lhs.of_reg xmm_1) (concat (mux (eq (_(_,_)_MINT-WRAPPER-SYNTAX mincmp_single v_3 v_6) (expression.bv_nat 1 1)) v_3 v_6) (concat (mux (eq (_(_,_)_MINT-WRAPPER-SYNTAX mincmp_single v_7 v_8) (expression.bv_nat 1 1)) v_7 v_8) (concat (mux (eq (_(_,_)_MINT-WRAPPER-SYNTAX mincmp_single v_9 v_10) (expression.bv_nat 1 1)) v_9 v_10) (mux (eq (_(_,_)_MINT-WRAPPER-SYNTAX mincmp_single v_11 v_12) (expression.bv_nat 1 1)) v_11 v_12))));
+      setRegister (lhs.of_reg xmm_1) (concat (mux (eq (/- (_,_) -/  mincmp_single v_3 v_6) (expression.bv_nat 1 1)) v_3 v_6) (concat (mux (eq (/- (_,_) -/  mincmp_single v_7 v_8) (expression.bv_nat 1 1)) v_7 v_8) (concat (mux (eq (/- (_,_) -/  mincmp_single v_9 v_10) (expression.bv_nat 1 1)) v_9 v_10) (mux (eq (/- (_,_) -/  mincmp_single v_11 v_12) (expression.bv_nat 1 1)) v_11 v_12))));
       pure ()
     pat_end;
     pattern fun (xmm_0 : reg (bv 128)) (xmm_1 : reg (bv 128)) => do
@@ -26,6 +26,6 @@ def minps : instruction :=
       v_9 <- eval (extract v_4 64 96);
       v_10 <- eval (extract v_2 96 128);
       v_11 <- eval (extract v_4 96 128);
-      setRegister (lhs.of_reg xmm_1) (concat (mux (eq (_(_,_)_MINT-WRAPPER-SYNTAX mincmp_single v_3 v_5) (expression.bv_nat 1 1)) v_3 v_5) (concat (mux (eq (_(_,_)_MINT-WRAPPER-SYNTAX mincmp_single v_6 v_7) (expression.bv_nat 1 1)) v_6 v_7) (concat (mux (eq (_(_,_)_MINT-WRAPPER-SYNTAX mincmp_single v_8 v_9) (expression.bv_nat 1 1)) v_8 v_9) (mux (eq (_(_,_)_MINT-WRAPPER-SYNTAX mincmp_single v_10 v_11) (expression.bv_nat 1 1)) v_10 v_11))));
+      setRegister (lhs.of_reg xmm_1) (concat (mux (eq (/- (_,_) -/  mincmp_single v_3 v_5) (expression.bv_nat 1 1)) v_3 v_5) (concat (mux (eq (/- (_,_) -/  mincmp_single v_6 v_7) (expression.bv_nat 1 1)) v_6 v_7) (concat (mux (eq (/- (_,_) -/  mincmp_single v_8 v_9) (expression.bv_nat 1 1)) v_8 v_9) (mux (eq (/- (_,_) -/  mincmp_single v_10 v_11) (expression.bv_nat 1 1)) v_10 v_11))));
       pure ()
     pat_end

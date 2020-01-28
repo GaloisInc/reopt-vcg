@@ -29,9 +29,53 @@ def uadd4_overflows {w:nat_expr} (dest : bv w) (src : bv w)               : bit 
 def sadc_overflows  {w:nat_expr} (dest : bv w) (src : bv w) (carry : bit) : bit := prim.sadc_overflows w dest src carry
 def sadd_overflows  {w:nat_expr} (dest : bv w) (src : bv w)               : bit := sadc_overflows dest src bit_zero
 
+def pair_fst {x y : type} (e:pair x y) : x := prim.pair_fst x y e
+def pair_snd {x y : type} (e:pair x y) : y := prim.pair_snd x y e
+
 def bv_xor {w:nat_expr} (x : bv w) (y : bv w) : bv w := prim.bv_xor w x y
 def add    {w:nat_expr} (x : bv w) (y : bv w) : bv w := prim.bv_xor w x y
+def mul    {w:nat_expr} (x : bv w) (y : bv w) : bv w := prim.mul w x y
+def sub    {w:nat_expr} (x : bv w) (y : bv w) : bv w := prim.sub w x y
+
 def bv_and {w:nat_expr} (x : bv w) (y : bv w) : bv w := prim.bv_and w x y
+def bv_or  {w:nat_expr} (x : bv w) (y : bv w) : bv w := prim.bv_or w x y
+
+def bit_or (x : bit) (y : bit) : bit    := prim.bit_or x y
+
+def ashr   {w j:nat_expr} (x : bv w) (y : bv j) : bv w := prim.sar w j x y
+def lshr   {w j:nat_expr} (x : bv w) (y : bv j) : bv w := prim.shr w j x y
+def shl    {w j:nat_expr} (x : bv w) (y : bv j) : bv w := prim.shl w j x y
+
+
+def bv_bitcast_to_fp (fc : float_class) (x : bv fc.width) : float fc := prim.bv_bitcast_to_fp fc x
+def fp_bitcast_to_bv {fc : float_class} (x : float fc)    : bv fc.width := prim.fp_bitcast_to_bv fc x
+def fp_add           {fc : float_class} (x : float fc) (y : float fc) : float fc := prim.fp_add fc x y
+def fp_sub           {fc : float_class} (x : float fc) (y : float fc) : float fc := prim.fp_sub fc x y
+def fp_mul           {fc : float_class} (x : float fc) (y : float fc) : float fc := prim.fp_mul fc x y
+def fp_div           {fc : float_class} (x : float fc) (y : float fc) : float fc := prim.fp_div fc x y
+
+-- This will give strange results for counts greater than the size of
+-- the input word, so it is assumed that the semantics ensures the
+-- count is not too large.
+--
+-- rol x y = x << y | x >> (sizeof(x) - y)      a
+def rol {i j : nat_expr} (e : bv i) (count : bv j) : bv i :=
+  bv_or (shl e count) (lshr e (sub (expression.bv_nat j i) count))
+
+def ror {i j : nat_expr} (e : bv i) (count : bv j) : bv i :=
+  bv_or (lshr e count) (shl e (sub (expression.bv_nat j i) count))
+
+-- unknown identifier 'clReg'
+def slt {i : nat_expr} (x : bv i) (y : bv i) : bit := prim.slt i x y
+def sgt {i : nat_expr} (x : bv i) (y : bv i) : bit := slt y x
+
+def ult {i : nat_expr} (x : bv i) (y : bv i) : bit := prim.ult i x y
+def ugt {i : nat_expr} (x : bv i) (y : bv i) : bit := ult y x
+def ule {i : nat_expr} (x : bv i) (y : bv i) : bit := prim.ule i x y
+def uge {i : nat_expr} (x : bv i) (y : bv i) : bit := ule y x
+
+def urem {i : nat_expr} (x : bv i) (y : bv i) : bv i :=
+  pair_snd (prim.quotRem i (uext x (2 * i)) y)
 
 -- WARNING: the K semantics uses bit 0 as the MSB!
 
@@ -59,6 +103,59 @@ def isBitClear {n : nat_expr} (e : expression (bv n)) (b : Nat) : expression bit
 
 -- Always called with the literal 1, but we don't assume ...
 def bv1ToBool (e : bv 1) : bit := expression.bit_test e (expression.bv_nat 1 0)
+
+-- -- FIXME: we could maybe do this in the K backend?
+-- def div_quotient_int8 (num : bv 16) (denom : bv 8) : bv 8 :=
+--   pair_fst (prim.quotRem 8 num denom)
+
+-- def div_remainder_int8 (num : bv 16) (denom : bv 8) : bv 8 :=
+--   pair_snd (prim.quotRem 8 num denom)
+
+-- def div_quotient_int16 (num : bv 32) (denom : bv 16) : bv 16 :=
+--   pair_fst (prim.quotRem 16 num denom)
+
+-- def div_remainder_int16 (num : bv 32) (denom : bv 16) : bv 16 :=
+--   pair_snd (prim.quotRem 16 num denom)
+
+-- def div_quotient_int32 (num : bv 64) (denom : bv 32) : bv 32 :=
+--   pair_fst (prim.quotRem 32 num denom)
+
+-- def div_remainder_int32 (num : bv 64) (denom : bv 32) : bv 32 :=
+--   pair_snd (prim.quotRem 32 num denom)
+
+-- def div_quotient_int64 (num : bv 128) (denom : bv 64) : bv 64 :=
+--   pair_fst (prim.quotRem 64 num denom)
+
+-- def div_remainder_int64 (num : bv 128) (denom : bv 64) : bv 64 :=
+--   pair_snd (prim.quotRem 64 num denom)
+
+-- -- Signed
+-- def idiv_quotient_int8 (num : bv 16) (denom : bv 8) : bv 8 :=
+--   pair_fst (prim.squotRem 8 num denom)
+
+-- def idiv_remainder_int8 (num : bv 16) (denom : bv 8) : bv 8 :=
+--   pair_snd (prim.squotRem 8 num denom)
+
+-- def idiv_quotient_int16 (num : bv 32) (denom : bv 16) : bv 16 :=
+--   pair_fst (prim.squotRem 16 num denom)
+
+-- def idiv_remainder_int16 (num : bv 32) (denom : bv 16) : bv 16 :=
+--   pair_snd (prim.squotRem 16 num denom)
+
+-- def idiv_quotient_int32 (num : bv 64) (denom : bv 32) : bv 32 :=
+--   pair_fst (prim.squotRem 32 num denom)
+
+-- def idiv_remainder_int32 (num : bv 64) (denom : bv 32) : bv 32 :=
+--   pair_snd (prim.squotRem 32 num denom)
+
+-- def idiv_quotient_int64 (num : bv 128) (denom : bv 64) : bv 64 :=
+--   pair_fst (prim.squotRem 64 num denom)
+
+-- def idiv_remainder_int64 (num : bv 128) (denom : bv 64) : bv 64 :=
+--   pair_snd (prim.squotRem 64 num denom)
+
+-- def bv_to_fp (e : bv ) (mbits ebits : Nat) : fp c := 
+-- def fp_to_bv 
 
 --FIXME?
 def bit_and := expression.bit_and 
