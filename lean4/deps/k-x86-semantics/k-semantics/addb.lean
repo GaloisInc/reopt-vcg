@@ -5,7 +5,7 @@ def addb : instruction :=
       v_3 <- eval (handleImmediateWithSignExtend imm_0 8 8);
       v_4 <- load v_2 1;
       v_5 <- eval (add (concat (expression.bv_nat 1 0) v_3) (concat (expression.bv_nat 1 0) v_4));
-      v_6 <- eval (extract v_5 1 9);
+      (v_6 : expression (bv 8)) <- eval (extract v_5 1 9);
       store v_2 v_6 1;
       setRegister af (notBool_ (eq (isBitSet (bv_xor v_3 v_4) 3) (isBitSet v_5 4)));
       setRegister cf (isBitSet v_5 0);
@@ -19,7 +19,7 @@ def addb : instruction :=
       v_2 <- eval (handleImmediateWithSignExtend imm_0 8 8);
       v_3 <- getRegister (lhs.of_reg rh_1);
       v_4 <- eval (add (concat (expression.bv_nat 1 0) v_2) (concat (expression.bv_nat 1 0) v_3));
-      v_5 <- eval (extract v_4 1 9);
+      (v_5 : expression (bv 8)) <- eval (extract v_4 1 9);
       setRegister (lhs.of_reg rh_1) v_5;
       setRegister af (notBool_ (eq (isBitSet (bv_xor v_2 v_3) 3) (isBitSet v_4 4)));
       setRegister cf (isBitSet v_4 0);
@@ -34,7 +34,7 @@ def addb : instruction :=
       v_3 <- load v_2 1;
       v_4 <- getRegister (lhs.of_reg rh_1);
       v_5 <- eval (add (concat (expression.bv_nat 1 0) v_3) (concat (expression.bv_nat 1 0) v_4));
-      v_6 <- eval (extract v_5 1 9);
+      (v_6 : expression (bv 8)) <- eval (extract v_5 1 9);
       setRegister (lhs.of_reg rh_1) v_6;
       setRegister af (notBool_ (eq (isBitSet (bv_xor v_3 v_4) 3) (isBitSet v_5 4)));
       setRegister cf (isBitSet v_5 0);
@@ -49,7 +49,7 @@ def addb : instruction :=
       v_3 <- getRegister (lhs.of_reg rh_0);
       v_4 <- load v_2 1;
       v_5 <- eval (add (concat (expression.bv_nat 1 0) v_3) (concat (expression.bv_nat 1 0) v_4));
-      v_6 <- eval (extract v_5 1 9);
+      (v_6 : expression (bv 8)) <- eval (extract v_5 1 9);
       store v_2 v_6 1;
       setRegister af (notBool_ (eq (isBitSet (bv_xor v_3 v_4) 3) (isBitSet v_5 4)));
       setRegister cf (isBitSet v_5 0);
@@ -63,7 +63,7 @@ def addb : instruction :=
       v_2 <- getRegister (lhs.of_reg rh_0);
       v_3 <- getRegister (lhs.of_reg rh_1);
       v_4 <- eval (add (concat (expression.bv_nat 1 0) v_2) (concat (expression.bv_nat 1 0) v_3));
-      v_5 <- eval (extract v_4 1 9);
+      (v_5 : expression (bv 8)) <- eval (extract v_4 1 9);
       setRegister (lhs.of_reg rh_1) v_5;
       setRegister af (notBool_ (eq (isBitSet (bv_xor v_2 v_3) 3) (isBitSet v_4 4)));
       setRegister cf (isBitSet v_4 0);

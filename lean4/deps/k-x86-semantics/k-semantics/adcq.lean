@@ -8,12 +8,13 @@ def adcq : instruction :=
       v_6 <- eval (concat (expression.bv_nat 1 0) v_5);
       v_7 <- load v_2 8;
       v_8 <- eval (add (mux v_3 (add v_6 (expression.bv_nat 65 1)) v_6) (concat (expression.bv_nat 1 0) v_7));
-      v_9 <- eval (extract v_8 1 65);
+      (v_9 : expression (bv 64)) <- eval (extract v_8 1 65);
       store v_2 v_9 8;
+      (v_11 : expression (bv 8)) <- eval (extract v_8 57 65);
       setRegister af (notBool_ (eq (notBool_ (eq (isBitSet v_4 27) (isBitSet v_7 59))) (isBitSet v_8 60)));
       setRegister cf (isBitSet v_8 0);
       setRegister of (overflowFlag v_5 v_7 v_9);
-      setRegister pf (parityFlag (extract v_8 57 65));
+      setRegister pf (parityFlag v_11);
       setRegister sf (isBitSet v_8 1);
       setRegister zf (zeroFlag v_9);
       pure ()
@@ -25,12 +26,13 @@ def adcq : instruction :=
       v_5 <- eval (concat (expression.bv_nat 1 0) v_4);
       v_6 <- getRegister (lhs.of_reg r64_1);
       v_7 <- eval (add (mux v_2 (add v_5 (expression.bv_nat 65 1)) v_5) (concat (expression.bv_nat 1 0) v_6));
-      v_8 <- eval (extract v_7 1 65);
+      (v_8 : expression (bv 64)) <- eval (extract v_7 1 65);
+      (v_9 : expression (bv 8)) <- eval (extract v_7 57 65);
       setRegister (lhs.of_reg r64_1) v_8;
       setRegister af (notBool_ (eq (notBool_ (eq (isBitSet v_3 27) (isBitSet v_6 59))) (isBitSet v_7 60)));
       setRegister cf (isBitSet v_7 0);
       setRegister of (overflowFlag v_4 v_6 v_8);
-      setRegister pf (parityFlag (extract v_7 57 65));
+      setRegister pf (parityFlag v_9);
       setRegister sf (isBitSet v_7 1);
       setRegister zf (zeroFlag v_8);
       pure ()
@@ -42,12 +44,13 @@ def adcq : instruction :=
       v_5 <- eval (concat (expression.bv_nat 1 0) v_4);
       v_6 <- getRegister (lhs.of_reg r64_1);
       v_7 <- eval (add (mux v_2 (add v_5 (expression.bv_nat 65 1)) v_5) (concat (expression.bv_nat 1 0) v_6));
-      v_8 <- eval (extract v_7 1 65);
+      (v_8 : expression (bv 64)) <- eval (extract v_7 1 65);
+      (v_9 : expression (bv 8)) <- eval (extract v_7 57 65);
       setRegister (lhs.of_reg r64_1) v_8;
       setRegister af (notBool_ (eq (isBitSet (bv_xor v_4 v_6) 59) (isBitSet v_7 60)));
       setRegister cf (isBitSet v_7 0);
       setRegister of (overflowFlag v_4 v_6 v_8);
-      setRegister pf (parityFlag (extract v_7 57 65));
+      setRegister pf (parityFlag v_9);
       setRegister sf (isBitSet v_7 1);
       setRegister zf (zeroFlag v_8);
       pure ()
@@ -59,12 +62,13 @@ def adcq : instruction :=
       v_5 <- eval (concat (expression.bv_nat 1 0) v_4);
       v_6 <- load v_2 8;
       v_7 <- eval (add (mux v_3 (add v_5 (expression.bv_nat 65 1)) v_5) (concat (expression.bv_nat 1 0) v_6));
-      v_8 <- eval (extract v_7 1 65);
+      (v_8 : expression (bv 64)) <- eval (extract v_7 1 65);
       store v_2 v_8 8;
+      (v_10 : expression (bv 8)) <- eval (extract v_7 57 65);
       setRegister af (notBool_ (eq (isBitSet (bv_xor v_4 v_6) 59) (isBitSet v_7 60)));
       setRegister cf (isBitSet v_7 0);
       setRegister of (overflowFlag v_4 v_6 v_8);
-      setRegister pf (parityFlag (extract v_7 57 65));
+      setRegister pf (parityFlag v_10);
       setRegister sf (isBitSet v_7 1);
       setRegister zf (zeroFlag v_8);
       pure ()
@@ -75,12 +79,13 @@ def adcq : instruction :=
       v_4 <- eval (concat (expression.bv_nat 1 0) v_3);
       v_5 <- getRegister (lhs.of_reg r64_1);
       v_6 <- eval (add (mux v_2 (add v_4 (expression.bv_nat 65 1)) v_4) (concat (expression.bv_nat 1 0) v_5));
-      v_7 <- eval (extract v_6 1 65);
+      (v_7 : expression (bv 64)) <- eval (extract v_6 1 65);
+      (v_8 : expression (bv 8)) <- eval (extract v_6 57 65);
       setRegister (lhs.of_reg r64_1) v_7;
       setRegister af (notBool_ (eq (isBitSet (bv_xor v_3 v_5) 59) (isBitSet v_6 60)));
       setRegister cf (isBitSet v_6 0);
       setRegister of (overflowFlag v_3 v_5 v_7);
-      setRegister pf (parityFlag (extract v_6 57 65));
+      setRegister pf (parityFlag v_8);
       setRegister sf (isBitSet v_6 1);
       setRegister zf (zeroFlag v_7);
       pure ()

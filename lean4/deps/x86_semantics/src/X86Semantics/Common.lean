@@ -200,6 +200,7 @@ protected def hasDecEq : ∀(e e' : float_class), Decidable (e = e')
 instance decidable_eq_float_class : DecidableEq float_class := -- by tactic.mk_dec_eq_instance
   float_class.hasDecEq
 
+@[reducible]
 def width : float_class -> Nat
 | fp16   => 16
 | fp32   => 32
@@ -359,10 +360,29 @@ def width : gpreg_type → nat_expr
 
 end gpreg_type
 
+inductive avxreg_type : Type
+| xmm : avxreg_type -- 128 bit
+| ymm : avxreg_type -- 256 bit
+
+namespace avxreg_type
+
+@[reducible]
+def width' : avxreg_type → Nat
+| xmm => 128
+| ymm => 256
+
+@[reducible]
+def width : avxreg_type → nat_expr
+| xmm => 128
+| ymm => 256
+
+end avxreg_type
+
 -- Type for concrete x86 registers
 inductive concrete_reg : type → Type
 | gpreg   (idx:Fin 16) (tp:gpreg_type) : concrete_reg (bv (tp.width))
 | flagreg (idx:Fin 32) : concrete_reg bit
+| avxreg  (idx:Fin 16) (tp:avxreg_type) : concrete_reg (bv (tp.width))
 
 -- Type for x86 registers
 inductive reg (tp:type) : Type
@@ -437,6 +457,11 @@ def repr : ∀{tp:type}, concrete_reg tp → String
    | (Option.some nm) => nm
    | Option.none      => "RESERVED_" ++ idx.val.repr)
 
+| ._, (avxreg idx tp) => "$" ++ 
+  (match tp with
+  | avxreg_type.xmm => "xmm" ++ HasRepr.repr idx
+  | avxreg_type.ymm => "xmm" ++ HasRepr.repr idx
+  )
 
 end concrete_reg
 
@@ -936,6 +961,44 @@ def of  := flagreg 11
 
 def st0 : lhs x86_80 := lhs.streg 0
 
+def xmmreg (i:Fin 16) := lhs.set_reg $ concrete_reg.avxreg i avxreg_type.xmm
+
+def xmm0 := xmmreg 0
+def xmm1 := xmmreg 1
+def xmm2 := xmmreg 2
+def xmm3 := xmmreg 3
+def xmm4 := xmmreg 4
+def xmm5 := xmmreg 5
+def xmm6 := xmmreg 6
+def xmm7 := xmmreg 7
+def xmm8 := xmmreg 8
+def xmm9 := xmmreg 9
+def xmm10 := xmmreg 10
+def xmm11 := xmmreg 11
+def xmm12 := xmmreg 12
+def xmm13 := xmmreg 13
+def xmm14 := xmmreg 14
+def xmm15 := xmmreg 15
+
+def ymmreg (i:Fin 16) := lhs.set_reg $ concrete_reg.avxreg i avxreg_type.ymm
+
+def ymm0 := ymmreg 0
+def ymm1 := ymmreg 1
+def ymm2 := ymmreg 2
+def ymm3 := ymmreg 3
+def ymm4 := ymmreg 4
+def ymm5 := ymmreg 5
+def ymm6 := ymmreg 6
+def ymm7 := ymmreg 7
+def ymm8 := ymmreg 8
+def ymm9 := ymmreg 9
+def ymm10 := ymmreg 10
+def ymm11 := ymmreg 11
+def ymm12 := ymmreg 12
+def ymm13 := ymmreg 13
+def ymm14 := ymmreg 14
+def ymm15 := ymmreg 15
+
 end
 
 ------------------------------------------------------------------------
@@ -984,10 +1047,14 @@ def action.set_undef_cond {tp:type} (l:lhs tp) (c: expression bit) : action :=
 inductive binding
 | one_of : List Nat → binding
 | reg  : type → binding
+| exact_reg (tp : type) : concrete_reg tp -> binding
 | addr : type → binding
 | imm  : type → binding
 | lhs  : type → binding
 | expression : type → binding
+
+inductive exact_reg (tp : type) (r : concrete_reg tp) : Type
+| is_exact_reg : exact_reg
 
 ------------------------------------------------------------------------
 -- context
@@ -1057,6 +1124,11 @@ instance lhs_is_bound_var (tp:type) : is_bound_var (lhs tp) :=
 instance expression_is_bound_var (tp:type) : is_bound_var (expression tp) :=
 { to_binding := binding.expression tp
 , mk_arg := fun i => expression.read_arg i tp
+}
+
+instance exact_reg_is_bound_var (tp:type) (r : concrete_reg tp) : is_bound_var (exact_reg tp r) :=
+{ to_binding := binding.exact_reg tp r
+, mk_arg := fun _ => exact_reg.is_exact_reg r -- shouldn't every be actually used, as it doesn't carry any info.
 }
 
 ------------------------------------------------------------------------

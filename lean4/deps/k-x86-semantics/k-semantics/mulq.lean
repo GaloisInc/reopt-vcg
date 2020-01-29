@@ -5,9 +5,10 @@ def mulq : instruction :=
       v_2 <- load v_1 8;
       v_3 <- getRegister rax;
       v_4 <- eval (mul (concat (expression.bv_nat 64 0) v_2) (concat (expression.bv_nat 64 0) v_3));
-      v_5 <- eval (extract v_4 0 64);
+      (v_5 : expression (bv 64)) <- eval (extract v_4 0 64);
       v_6 <- eval (notBool_ (eq v_5 (expression.bv_nat 64 0)));
-      setRegister rax (extract v_4 64 128);
+      (v_7 : expression (bv 64)) <- eval (extract v_4 64 128);
+      setRegister rax v_7;
       setRegister rdx v_5;
       setRegister af undef;
       setRegister cf v_6;
@@ -21,9 +22,10 @@ def mulq : instruction :=
       v_1 <- getRegister (lhs.of_reg r64_0);
       v_2 <- getRegister rax;
       v_3 <- eval (mul (concat (expression.bv_nat 64 0) v_1) (concat (expression.bv_nat 64 0) v_2));
-      v_4 <- eval (extract v_3 0 64);
+      (v_4 : expression (bv 64)) <- eval (extract v_3 0 64);
       v_5 <- eval (notBool_ (eq v_4 (expression.bv_nat 64 0)));
-      setRegister rax (extract v_3 64 128);
+      (v_6 : expression (bv 64)) <- eval (extract v_3 64 128);
+      setRegister rax v_6;
       setRegister rdx v_4;
       setRegister af undef;
       setRegister cf v_5;

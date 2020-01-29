@@ -1,20 +1,17 @@
-# This file contains a list of the supported instructions (from k-semantics/)
-# When we support all instructions, this may be generated from the names of the files in that dir.
-# comment lines (startin with '#') and blank lines are ignored
-
+#  insns-2020-01-28-18:43:40.txt
 adcb
 adcl
 adcq
 adcw
 addb
 addl
-# addpd
+addpd
 # addps
 addq
-# addsd
+addsd
 # addss
-# addsubpd
-# addsubps
+addsubpd
+addsubps
 addw
 andb
 andl
@@ -28,17 +25,17 @@ andq
 andw
 bextrl
 bextrq
-# blendpd
+blendpd
 # blendps
 # blendvpd
 # blendvps
-# blsil
-# blsiq
-# blsmskl
-# blsmskq
-# blsrl
-# blsrq
-# bswap
+blsil
+blsiq
+blsmskl
+blsmskq
+blsrl
+blsrq
+bswap
 # btcl
 # btcq
 # btcw
@@ -54,117 +51,117 @@ bextrq
 # bzhil
 # bzhiq
 # cbtw
-# clc
-# cld
-# cltd
-# cltq
-# cmc
-# cmovael
-# cmovaeq
-# cmovaew
-# cmoval
-# cmovaq
-# cmovaw
-# cmovbe
-# cmovbel
-# cmovbeq
-# cmovbew
-# cmovbl
-# cmovbq
-# cmovbw
-# cmovcl
-# cmovcq
-# cmovcw
-# cmovel
-# cmoveq
-# cmovew
-# cmovge
-# cmovgel
-# cmovgeq
-# cmovgew
-# cmovgl
-# cmovgq
-# cmovgw
-# cmovle
-# cmovlel
-# cmovleq
-# cmovlew
-# cmovll
-# cmovlq
-# cmovlw
-# cmovnael
-# cmovnaeq
-# cmovnaew
-# cmovnal
-# cmovnaq
-# cmovnaw
-# cmovnbel
-# cmovnbeq
-# cmovnbew
-# cmovnbl
-# cmovnbq
-# cmovnbw
-# cmovncl
-# cmovncq
-# cmovncw
-# cmovnel
-# cmovneq
-# cmovnew
-# cmovngel
-# cmovngeq
-# cmovngew
-# cmovngl
-# cmovngq
-# cmovngw
-# cmovnlel
-# cmovnleq
-# cmovnlew
-# cmovnll
-# cmovnlq
-# cmovnlw
-# cmovnol
-# cmovnoq
-# cmovnow
-# cmovnpl
-# cmovnpq
-# cmovnpw
-# cmovns
-# cmovnsl
-# cmovnsq
-# cmovnsw
-# cmovnzl
-# cmovnzq
-# cmovnzw
-# cmovol
-# cmovoq
-# cmovow
-# cmovpel
-# cmovpeq
-# cmovpew
-# cmovpl
-# cmovpol
-# cmovpoq
-# cmovpow
-# cmovpq
-# cmovpw
-# cmovs
-# cmovsl
-# cmovsq
-# cmovsw
-# cmovzl
-# cmovzq
-# cmovzw
-# cmpb
-# cmpl
+clc
+cld
+cltd
+cltq
+cmc
+cmovael
+cmovaeq
+cmovaew
+cmoval
+cmovaq
+cmovaw
+cmovbe
+cmovbel
+cmovbeq
+cmovbew
+cmovbl
+cmovbq
+cmovbw
+cmovcl
+cmovcq
+cmovcw
+cmovel
+cmoveq
+cmovew
+cmovge
+cmovgel
+cmovgeq
+cmovgew
+cmovgl
+cmovgq
+cmovgw
+cmovle
+cmovlel
+cmovleq
+cmovlew
+cmovll
+cmovlq
+cmovlw
+cmovnael
+cmovnaeq
+cmovnaew
+cmovnal
+cmovnaq
+cmovnaw
+cmovnbel
+cmovnbeq
+cmovnbew
+cmovnbl
+cmovnbq
+cmovnbw
+cmovncl
+cmovncq
+cmovncw
+cmovnel
+cmovneq
+cmovnew
+cmovngel
+cmovngeq
+cmovngew
+cmovngl
+cmovngq
+cmovngw
+cmovnlel
+cmovnleq
+cmovnlew
+cmovnll
+cmovnlq
+cmovnlw
+cmovnol
+cmovnoq
+cmovnow
+cmovnpl
+cmovnpq
+cmovnpw
+cmovns
+cmovnsl
+cmovnsq
+cmovnsw
+cmovnzl
+cmovnzq
+cmovnzw
+cmovol
+cmovoq
+cmovow
+cmovpel
+cmovpeq
+cmovpew
+cmovpl
+cmovpol
+cmovpoq
+cmovpow
+cmovpq
+cmovpw
+cmovs
+cmovsl
+cmovsq
+cmovsw
+cmovzl
+cmovzq
+cmovzw
+cmpb
+cmpl
 # cmppd
 # cmpps
-# cmpq
-# cmpw
-# cmpxchg16b
-# cmpxchg8b
+cmpq
+cmpw
+cmpxchg16b
+cmpxchg8b
 # comisd
 # comiss
-# cqto
+cqto
 # cvtdq2pd
 # cvtdq2ps
 # cvtpd2dq
@@ -186,45 +183,45 @@ bextrq
 # cvttsd2si
 # cvttss2si
 # cwtd
-# cwtl
-# decb
-# decl
-# decq
-# decw
+cwtl
+decb
+decl
+decq
+decw
 # divb
 # divl
-# divpd
+divpd
 # divps
 # divq
-# divsd
+divsd
 # divss
 # divw
-# dppd
+dppd
 # dpps
-# extractps
-# haddpd
+extractps
+haddpd
 # haddps
-# hsubpd
+hsubpd
 # hsubps
 # idivb
 # idivl
 # idivq
 # idivw
 # imulb
-# imull
-# imulq
+imull
+imulq
 # imulw
-# incb
-# incl
-# incq
-# incw
+incb
+incl
+incq
+incw
 # insertps
-# lddqu
-# leal
-# leaq
-# leaw
-# lzcntq
-# lzcntw
+lddqu
+leal
+leaq
+leaw
+lzcntq
+lzcntw
 # maxpd
 # maxps
 # maxsd
@@ -233,68 +230,68 @@ bextrq
 # minps
 # minsd
 # minss
-# movapd
-# movaps
-# movb
-# movbe
+movapd
+movaps
+movb
+movbe
 # movbel
 # movbeq
-# movbew
+movbew
 # movd
-# movddup
-# movdqa
-# movdqu
-# movhlps
-# movhpd
-# movhps
-# movl
-# movlhps
-# movlpd
-# movlps
+movddup
+movdqa
+movdqu
+movhlps
+movhpd
+movhps
+movl
+movlhps
+movlpd
+movlps
 # movmskpd
 # movmskps
-# movntdq
-# movntdqa
-# movnti
-# movntpd
-# movntps
-# movq
-# movupd
-# movups
-# movw
+movntdq
+movntdqa
+movnti
+movntpd
+movntps
+movq
+movupd
+movups
+movw
 # movzbl
 # movzbq
-# movzbw
-# movzwl
+movzbw
+movzwl
 # movzwq
 # mulb
-# mull
-# mulpd
+mull
+mulpd
 # mulps
-# mulq
-# mulsd
+mulq
+mulsd
 # mulss
 # mulw
-# mulx
-# mulxl
-# mulxq
-# negb
-# negl
-# negq
-# negw
+mulx
+mulxl
+mulxq
+negb
+negl
+negq
+negw
 # nop
 # nopl
 # nopw
-# notb
-# notl
-# notq
-# notw
-# orb
-# orl
-# orpd
-# orps
-# orq
-# orw
+notb
+notl
+notq
+notw
+orb
+orl
+orpd
+orps
+orq
+orw
 # pabsb
 # pabsd
 # pabsw
@@ -304,26 +301,26 @@ bextrq
 # packuswb
 # paddb
 # paddd
-# paddq
+paddq
 # paddsb
 # paddsw
 # paddusb
 # paddusw
 # paddw
-# palignr
-# pand
-# pandn
+palignr
+pand
+pandn
 # pavgb
 # pavgw
 # pblendvb
 # pblendw
 # pcmpeqb
 # pcmpeqd
-# pcmpeqq
+pcmpeqq
 # pcmpeqw
 # pcmpgtb
 # pcmpgtd
-# pcmpgtq
+pcmpgtq
 # pcmpgtw
 # phaddd
 # phaddsw
@@ -332,10 +329,10 @@ bextrq
 # phsubd
 # phsubsw
 # phsubw
-# pinsrb
-# pinsrd
-# pinsrq
-# pinsrw
+pinsrb
+pinsrd
+pinsrq
+pinsrw
 # pmaddubsw
 # pmaddwd
 # pmaxsb
@@ -352,30 +349,30 @@ bextrq
 # pminuw
 # pmovmskb
 # pmovsxbd
-# pmovsxbq
+pmovsxbq
 # pmovsxbw
-# pmovsxdq
+pmovsxdq
 # pmovsxwd
-# pmovsxwq
+pmovsxwq
 # pmovzxbd
 # pmovzxbq
 # pmovzxbw
 # pmovzxdq
 # pmovzxwd
 # pmovzxwq
-# pmuldq
+pmuldq
 # pmulhrsw
 # pmulhuw
 # pmulhw
 # pmulld
 # pmullw
-# pmuludq
-# popcntl
-# popcntq
-# popcntw
-# popq
-# popw
-# por
+pmuludq
+popcntl
+popcntq
+popcntw
+popq
+popw
+por
 # psadbw
 # pshufb
 # pshufd
@@ -385,165 +382,165 @@ bextrq
 # psignd
 # psignw
 # pslld
-# pslldq
-# psllq
+pslldq
+psllq
 # psllw
 # psrad
 # psraw
 # psrld
-# psrldq
-# psrlq
+psrldq
+psrlq
 # psrlw
 # psubb
 # psubd
-# psubq
+psubq
 # psubsb
 # psubsw
 # psubusb
 # psubusw
 # psubw
-# ptest
+ptest
 # punpckhbw
-# punpckhdq
-# punpckhqdq
+punpckhdq
+punpckhqdq
 # punpckhwd
 # punpcklbw
-# punpckldq
-# punpcklqdq
+punpckldq
+punpcklqdq
 # punpcklwd
-# pushq
-# pushw
-# pxor
-# rclb
-# rcll
-# rclq
-# rclw
+pushq
+pushw
+pxor
+rclb
+rcll
+rclq
+rclw
 # rcpps
 # rcpss
-# rcrb
-# rcrl
-# rcrq
-# rcrw
-# rolb
-# roll
-# rolq
-# rolw
-# rorb
-# rorl
-# rorq
-# rorw
-# rorx
-# rorxl
-# rorxq
+rcrb
+rcrl
+rcrq
+rcrw
+rolb
+roll
+rolq
+rolw
+rorb
+rorl
+rorq
+rorw
+rorx
+rorxl
+rorxq
 # roundpd
 # roundps
 # roundsd
 # roundss
 # rsqrtps
 # rsqrtss
-# salb
-# sall
-# salq
-# salw
-# sarb
-# sarl
-# sarq
-# sarw
-# sarx
-# sarxl
-# sarxq
-# sbbb
-# sbbl
-# sbbq
-# sbbw
-# seta
-# setae
-# setb
-# setbe
-# setc
-# sete
-# setg
-# setge
-# setl
-# setle
-# setna
-# setnae
-# setnb
-# setnbe
-# setnc
-# setne
-# setng
-# setnge
-# setnl
-# setnle
-# setno
-# setnp
-# setns
-# setnz
-# seto
-# setp
-# setpe
-# setpo
-# sets
-# setz
-# shlb
-# shll
-# shlq
-# shlw
-# shlx
-# shlxl
-# shlxq
-# shrb
-# shrl
-# shrq
-# shrw
-# shrx
-# shrxl
-# shrxq
-# shufpd
+salb
+sall
+salq
+salw
+sarb
+sarl
+sarq
+sarw
+sarx
+sarxl
+sarxq
+sbbb
+sbbl
+sbbq
+sbbw
+seta
+setae
+setb
+setbe
+setc
+sete
+setg
+setge
+setl
+setle
+setna
+setnae
+setnb
+setnbe
+setnc
+setne
+setng
+setnge
+setnl
+setnle
+setno
+setnp
+setns
+setnz
+seto
+setp
+setpe
+setpo
+sets
+setz
+shlb
+shll
+shlq
+shlw
+shlx
+shlxl
+shlxq
+shrb
+shrl
+shrq
+shrw
+shrx
+shrxl
+shrxq
+shufpd
 # shufps
 # sqrtpd
 # sqrtps
 # sqrtsd
 # sqrtss
-# stc
-# std
-# subb
-# subl
-# subpd
+stc
+std
+subb
+subl
+subpd
 # subps
-# subq
-# subsd
+subq
+subsd
 # subss
-# subw
-# testb
-# testl
-# testq
-# testw
-# tzcntq
-# tzcntw
+subw
+testb
+testl
+testq
+testw
+tzcntq
+tzcntw
 # ucomisd
 # ucomiss
-# unpckhpd
+unpckhpd
 # unpckhps
-# unpcklpd
+unpcklpd
 # unpcklps
 # vaddpd
 # vaddps
-# vaddsd
+vaddsd
 # vaddss
-# vaddsubpd
+vaddsubpd
 # vaddsubps
-# vandnpd
-# vandnps
-# vandpd
-# vandps
+vandnpd
+vandnps
+vandpd
+vandps
 # vblendpd
 # vblendps
 # vblendvpd
 # vblendvps
-# vbroadcastf128
-# vbroadcasti128
+vbroadcastf128
+vbroadcasti128
 # vbroadcastsd
 # vbroadcastss
 # vcmppd
@@ -577,58 +574,54 @@ bextrq
 # vcvttss2si
 # vdivpd
 # vdivps
-# vdivsd
+vdivsd
 # vdivss
-# vdppd
+vdppd
 # vdpps
-# vextractf128
-# vextracti128
-# vextractps
+vextractf128
+vextracti128
+vextractps
 # vfmadd132pd
 # vfmadd132ps
 # vfmadd132sd
 # vfmadd132ss
 # vfmadd213pd
 # vfmadd213ps
-# vfmadd213sd
+vfmadd213sd
 # vfmadd213ss
 # vfmadd231pd
-# vfmadd231ps
 # vfmadd231sd
 # vfmadd231ss
 # vfmaddsub132pd
 # vfmaddsub132ps
-# vfmaddsub213pd
+vfmaddsub213pd
 # vfmaddsub213ps
-# vfmaddsub231pd
+vfmaddsub231pd
 # vfmaddsub231ps
 # vfmsub132pd
 # vfmsub132ps
-# vfmsub132sd
+vfmsub132sd
 # vfmsub132ss
 # vfmsub213pd
 # vfmsub213ps
-# vfmsub213sd
+vfmsub213sd
 # vfmsub213ss
-# vfmsub231pd
+vfmsub231pd
 # vfmsub231ps
-# vfmsub231sd
+vfmsub231sd
 # vfmsub231ss
 # vfmsubadd132pd
 # vfmsubadd132ps
-# vfmsubadd213pd
+vfmsubadd213pd
 # vfmsubadd213ps
-# vfmsubadd231pd
+vfmsubadd231pd
 # vfmsubadd231ps
 # vfnmadd132pd
 # vfnmadd132ps
 # vfnmadd132sd
 # vfnmadd132ss
-# vfnmadd213pd
-# vfnmadd213ps
 # vfnmadd213sd
 # vfnmadd213ss
-# vfnmadd231pd
 # vfnmadd231ps
 # vfnmadd231sd
 # vfnmadd231ss
@@ -644,14 +637,14 @@ bextrq
 # vfnmsub231ps
 # vfnmsub231sd
 # vfnmsub231ss
-# vhaddpd
+vhaddpd
 # vhaddps
-# vhsubpd
+vhsubpd
 # vhsubps
-# vinsertf128
-# vinserti128
+vinsertf128
+vinserti128
 # vinsertps
-# vlddqu
+vlddqu
 # vmaskmovpd
 # vmaskmovps
 # vmaxpd
@@ -662,37 +655,37 @@ bextrq
 # vminps
 # vminsd
 # vminss
-# vmovapd
-# vmovaps
+vmovapd
+vmovaps
 # vmovd
-# vmovddup
-# vmovdqa
-# vmovdqu
-# vmovhlps
-# vmovhpd
-# vmovhps
-# vmovlhps
-# vmovlpd
-# vmovlps
+vmovddup
+vmovdqa
+vmovdqu
+vmovhlps
+vmovhpd
+vmovhps
+vmovlhps
+vmovlpd
+vmovlps
 # vmovmskpd
 # vmovmskps
-# vmovntdq
-# vmovntdqa
-# vmovntpd
-# vmovntps
-# vmovq
-# vmovsd
-# vmovshdup
-# vmovsldup
+vmovntdq
+vmovntdqa
+vmovntpd
+vmovntps
+vmovq
+vmovsd
+vmovshdup
+vmovsldup
 # vmovss
-# vmovupd
-# vmovups
+vmovupd
+vmovups
 # vmulpd
 # vmulps
-# vmulsd
+vmulsd
 # vmulss
-# vorpd
-# vorps
+vorpd
+vorps
 # vpabsb
 # vpabsd
 # vpabsw
@@ -708,9 +701,9 @@ bextrq
 # vpaddusb
 # vpaddusw
 # vpaddw
-# vpalignr
-# vpand
-# vpandn
+vpalignr
+vpand
+vpandn
 # vpavgb
 # vpavgw
 # vpblendd
@@ -718,7 +711,7 @@ bextrq
 # vpblendw
 # vpbroadcastb
 # vpbroadcastd
-# vpbroadcastq
+vpbroadcastq
 # vpbroadcastw
 # vpcmpeqb
 # vpcmpeqd
@@ -728,8 +721,8 @@ bextrq
 # vpcmpgtd
 # vpcmpgtq
 # vpcmpgtw
-# vperm2f128
-# vperm2i128
+vperm2f128
+vperm2i128
 # vpermd
 # vpermilpd
 # vpermilps
@@ -737,8 +730,8 @@ bextrq
 # vpermps
 # vpermq
 # vpextrb
-# vpextrd
-# vpextrq
+vpextrd
+vpextrq
 # vpextrw
 # vphaddd
 # vphaddsw
@@ -747,10 +740,10 @@ bextrq
 # vphsubd
 # vphsubsw
 # vphsubw
-# vpinsrb
-# vpinsrd
-# vpinsrq
-# vpinsrw
+vpinsrb
+vpinsrd
+vpinsrq
+vpinsrw
 # vpmaddubsw
 # vpmaddwd
 # vpmaskmovd
@@ -787,13 +780,13 @@ bextrq
 # vpmulld
 # vpmullw
 # vpmuludq
-# vpor
+vpor
 # vpsadbw
 # vpsignb
 # vpsignd
 # vpsignw
 # vpslld
-# vpslldq
+vpslldq
 # vpsllq
 # vpsllvd
 # vpsllvq
@@ -802,7 +795,7 @@ bextrq
 # vpsravd
 # vpsraw
 # vpsrld
-# vpsrldq
+vpsrldq
 # vpsrlq
 # vpsrlvd
 # vpsrlvq
@@ -815,16 +808,16 @@ bextrq
 # vpsubusb
 # vpsubusw
 # vpsubw
-# vptest
+vptest
 # vpunpckhbw
 # vpunpckhdq
-# vpunpckhqdq
+vpunpckhqdq
 # vpunpckhwd
 # vpunpcklbw
 # vpunpckldq
-# vpunpcklqdq
+vpunpcklqdq
 # vpunpcklwd
-# vpxor
+vpxor
 # vrcpps
 # vrcpss
 # vroundpd
@@ -841,23 +834,23 @@ bextrq
 # vsqrtss
 # vsubpd
 # vsubps
-# vsubsd
+vsubsd
 # vsubss
-# vtestpd
-# vtestps
+vtestpd
+vtestps
 # vucomisd
 # vucomiss
-# vunpckhpd
+vunpckhpd
 # vunpckhps
-# vunpcklpd
+vunpcklpd
 # vunpcklps
-# vxorpd
-# vxorps
-# vzeroall
-# vzeroupper
-# xorb
-# xorl
-# xorpd
-# xorps
-# xorq
-# xorw
+vxorpd
+vxorps
+vzeroall
+vzeroupper
+xorb
+xorl
+xorpd
+xorps
+xorq
+xorw

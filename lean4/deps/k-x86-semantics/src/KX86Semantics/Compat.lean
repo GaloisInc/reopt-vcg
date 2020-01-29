@@ -48,7 +48,9 @@ def shl    {w j:nat_expr} (x : bv w) (y : bv j) : bv w := prim.shl w j x y
 
 
 def bv_bitcast_to_fp (fc : float_class) (x : bv fc.width) : float fc := prim.bv_bitcast_to_fp fc x
-def fp_bitcast_to_bv {fc : float_class} (x : float fc)    : bv fc.width := prim.fp_bitcast_to_bv fc x
+
+-- FIXME: check the nat is fc.width?
+def fp_bitcast_to_bv {fc : float_class} (x : float fc)    (_ : Nat) : bv fc.width := prim.fp_bitcast_to_bv fc x
 def fp_add           {fc : float_class} (x : float fc) (y : float fc) : float fc := prim.fp_add fc x y
 def fp_sub           {fc : float_class} (x : float fc) (y : float fc) : float fc := prim.fp_sub fc x y
 def fp_mul           {fc : float_class} (x : float fc) (y : float fc) : float fc := prim.fp_mul fc x y
@@ -96,7 +98,8 @@ def overflowFlag {n : nat_expr} (e1 : bv n) (e2 : bv n) (r : bv n) : bit :=
 
 def parityFlag { n : nat_expr } (e : bv n) : bit := even_parity e
 def zeroFlag { n : nat_expr } (e : bv n) : bit := eq e 0
-def concat {i j:nat_expr} (x: bv i) (y : bv j) : bv (i + j) := prim.cat i j x y
+
+def concat {i j:nat_expr} (x: expression (bv i)) (y : expression (bv j)) : expression (bv (i + j)) := prim.cat i j x y
 def undef {tp:type} : expression tp := expression.undef tp
 def isBitClear {n : nat_expr} (e : expression (bv n)) (b : Nat) : expression bit := 
     eq (isBitSet e b) bit_zero
@@ -104,24 +107,28 @@ def isBitClear {n : nat_expr} (e : expression (bv n)) (b : Nat) : expression bit
 -- Always called with the literal 1, but we don't assume ...
 def bv1ToBool (e : bv 1) : bit := expression.bit_test e (expression.bv_nat 1 0)
 
--- -- FIXME: we could maybe do this in the K backend?
--- def div_quotient_int8 (num : bv 16) (denom : bv 8) : bv 8 :=
---   pair_fst (prim.quotRem 8 num denom)
+-- FIXME: cl is a lhs in Common, not a concrete_reg
+@[reducible]
+def clReg := exact_reg _ (concrete_reg.gpreg 1 gpreg_type.reg8l)
 
--- def div_remainder_int8 (num : bv 16) (denom : bv 8) : bv 8 :=
---   pair_snd (prim.quotRem 8 num denom)
+-- FIXME: we could maybe do this in the K backend?
+def div_quotient_int8 (num : bv 16) (denom : bv 8) : bv 8 :=
+  pair_fst (prim.quotRem 8 num denom)
 
--- def div_quotient_int16 (num : bv 32) (denom : bv 16) : bv 16 :=
---   pair_fst (prim.quotRem 16 num denom)
+def div_remainder_int8 (num : bv 16) (denom : bv 8) : bv 8 :=
+  pair_snd (prim.quotRem 8 num denom)
 
--- def div_remainder_int16 (num : bv 32) (denom : bv 16) : bv 16 :=
---   pair_snd (prim.quotRem 16 num denom)
+def div_quotient_int16 (num : bv 32) (denom : bv 16) : bv 16 :=
+  pair_fst (prim.quotRem 16 num denom)
 
--- def div_quotient_int32 (num : bv 64) (denom : bv 32) : bv 32 :=
---   pair_fst (prim.quotRem 32 num denom)
+def div_remainder_int16 (num : bv 32) (denom : bv 16) : bv 16 :=
+  pair_snd (prim.quotRem 16 num denom)
 
--- def div_remainder_int32 (num : bv 64) (denom : bv 32) : bv 32 :=
---   pair_snd (prim.quotRem 32 num denom)
+def div_quotient_int32 (num : bv 64) (denom : bv 32) : bv 32 :=
+  pair_fst (prim.quotRem 32 num denom)
+
+def div_remainder_int32 (num : bv 64) (denom : bv 32) : bv 32 :=
+  pair_snd (prim.quotRem 32 num denom)
 
 -- def div_quotient_int64 (num : bv 128) (denom : bv 64) : bv 64 :=
 --   pair_fst (prim.quotRem 64 num denom)
@@ -129,24 +136,24 @@ def bv1ToBool (e : bv 1) : bit := expression.bit_test e (expression.bv_nat 1 0)
 -- def div_remainder_int64 (num : bv 128) (denom : bv 64) : bv 64 :=
 --   pair_snd (prim.quotRem 64 num denom)
 
--- -- Signed
--- def idiv_quotient_int8 (num : bv 16) (denom : bv 8) : bv 8 :=
---   pair_fst (prim.squotRem 8 num denom)
+-- Signed
+def idiv_quotient_int8 (num : bv 16) (denom : bv 8) : bv 8 :=
+  pair_fst (prim.squotRem 8 num denom)
 
--- def idiv_remainder_int8 (num : bv 16) (denom : bv 8) : bv 8 :=
---   pair_snd (prim.squotRem 8 num denom)
+def idiv_remainder_int8 (num : bv 16) (denom : bv 8) : bv 8 :=
+  pair_snd (prim.squotRem 8 num denom)
 
--- def idiv_quotient_int16 (num : bv 32) (denom : bv 16) : bv 16 :=
---   pair_fst (prim.squotRem 16 num denom)
+def idiv_quotient_int16 (num : bv 32) (denom : bv 16) : bv 16 :=
+  pair_fst (prim.squotRem 16 num denom)
 
--- def idiv_remainder_int16 (num : bv 32) (denom : bv 16) : bv 16 :=
---   pair_snd (prim.squotRem 16 num denom)
+def idiv_remainder_int16 (num : bv 32) (denom : bv 16) : bv 16 :=
+  pair_snd (prim.squotRem 16 num denom)
 
--- def idiv_quotient_int32 (num : bv 64) (denom : bv 32) : bv 32 :=
---   pair_fst (prim.squotRem 32 num denom)
+def idiv_quotient_int32 (num : bv 64) (denom : bv 32) : bv 32 :=
+  pair_fst (prim.squotRem 32 num denom)
 
--- def idiv_remainder_int32 (num : bv 64) (denom : bv 32) : bv 32 :=
---   pair_snd (prim.squotRem 32 num denom)
+def idiv_remainder_int32 (num : bv 64) (denom : bv 32) : bv 32 :=
+  pair_snd (prim.squotRem 32 num denom)
 
 -- def idiv_quotient_int64 (num : bv 128) (denom : bv 64) : bv 64 :=
 --   pair_fst (prim.squotRem 64 num denom)
@@ -171,6 +178,11 @@ def evaluateAddress (m : Mem) : semantics (bv 64) := eval m
 -- x is an immediate usually
 def handleImmediateWithSignExtend (x : int) (n m : nat_expr) := prim.bv_int_sext n x
 
+@[elabSimple]
+def extractMInt {w:Nat} (x: expression (bv (nat_expr.lit w))) (u:Nat) (l:Nat)
+  : expression (bv (nat_expr.lit ((w - u - 1) + 1 - (w - l)))) := slice x (w - u - 1) (w - l)
+
+@[elabSimple]
 def extract {w:Nat} (x: expression (bv (nat_expr.lit w))) (u:Nat) (l:Nat)
   : expression (bv (nat_expr.lit ((w - u - 1) + 1 - (w - l)))) := slice x (w - u - 1) (w - l)
 

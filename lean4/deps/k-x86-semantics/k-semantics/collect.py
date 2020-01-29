@@ -211,5 +211,5 @@ module X86-INSTRUCTIONS-SEMANTICS
     index = next_index
     chunk_id = chunk_id + 1
 
-generate_instructions_semantics_file()
+generate_instructions_semantics_file(prefix='cbtw')
 

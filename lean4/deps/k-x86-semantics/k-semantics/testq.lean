@@ -5,10 +5,26 @@ def testq : instruction :=
       v_3 <- load v_2 8;
       v_4 <- eval (handleImmediateWithSignExtend imm_0 32 32);
       v_5 <- eval (bv_and v_3 (sext v_4 64));
+      (v_6 : expression (bv 1)) <- eval (extract v_3 63 64);
+      (v_7 : expression (bv 1)) <- eval (extract v_4 31 32);
+      (v_8 : expression (bv 1)) <- eval (extract v_3 62 63);
+      (v_9 : expression (bv 1)) <- eval (extract v_4 30 31);
+      (v_10 : expression (bv 1)) <- eval (extract v_3 61 62);
+      (v_11 : expression (bv 1)) <- eval (extract v_4 29 30);
+      (v_12 : expression (bv 1)) <- eval (extract v_3 60 61);
+      (v_13 : expression (bv 1)) <- eval (extract v_4 28 29);
+      (v_14 : expression (bv 1)) <- eval (extract v_3 59 60);
+      (v_15 : expression (bv 1)) <- eval (extract v_4 27 28);
+      (v_16 : expression (bv 1)) <- eval (extract v_3 58 59);
+      (v_17 : expression (bv 1)) <- eval (extract v_4 26 27);
+      (v_18 : expression (bv 1)) <- eval (extract v_3 57 58);
+      (v_19 : expression (bv 1)) <- eval (extract v_4 25 26);
+      (v_20 : expression (bv 1)) <- eval (extract v_3 56 57);
+      (v_21 : expression (bv 1)) <- eval (extract v_4 24 25);
       setRegister af undef;
       setRegister cf bit_zero;
       setRegister of bit_zero;
-      setRegister pf (eq (notBool_ (eq (notBool_ (eq (notBool_ (eq (notBool_ (eq (notBool_ (eq (notBool_ (eq (eq (bv_and (extract v_3 63 64) (extract v_4 31 32)) (expression.bv_nat 1 1)) (eq (bv_and (extract v_3 62 63) (extract v_4 30 31)) (expression.bv_nat 1 1)))) (eq (bv_and (extract v_3 61 62) (extract v_4 29 30)) (expression.bv_nat 1 1)))) (eq (bv_and (extract v_3 60 61) (extract v_4 28 29)) (expression.bv_nat 1 1)))) (eq (bv_and (extract v_3 59 60) (extract v_4 27 28)) (expression.bv_nat 1 1)))) (eq (bv_and (extract v_3 58 59) (extract v_4 26 27)) (expression.bv_nat 1 1)))) (eq (bv_and (extract v_3 57 58) (extract v_4 25 26)) (expression.bv_nat 1 1)))) (eq (bv_and (extract v_3 56 57) (extract v_4 24 25)) (expression.bv_nat 1 1)));
+      setRegister pf (eq (notBool_ (eq (notBool_ (eq (notBool_ (eq (notBool_ (eq (notBool_ (eq (notBool_ (eq (eq (bv_and v_6 v_7) (expression.bv_nat 1 1)) (eq (bv_and v_8 v_9) (expression.bv_nat 1 1)))) (eq (bv_and v_10 v_11) (expression.bv_nat 1 1)))) (eq (bv_and v_12 v_13) (expression.bv_nat 1 1)))) (eq (bv_and v_14 v_15) (expression.bv_nat 1 1)))) (eq (bv_and v_16 v_17) (expression.bv_nat 1 1)))) (eq (bv_and v_18 v_19) (expression.bv_nat 1 1)))) (eq (bv_and v_20 v_21) (expression.bv_nat 1 1)));
       setRegister sf (isBitSet v_5 0);
       setRegister zf (zeroFlag v_5);
       pure ()
@@ -17,10 +33,26 @@ def testq : instruction :=
       v_2 <- getRegister (lhs.of_reg r64_1);
       v_3 <- eval (handleImmediateWithSignExtend imm_0 32 32);
       v_4 <- eval (bv_and v_2 (sext v_3 64));
+      (v_5 : expression (bv 1)) <- eval (extract v_2 63 64);
+      (v_6 : expression (bv 1)) <- eval (extract v_3 31 32);
+      (v_7 : expression (bv 1)) <- eval (extract v_2 62 63);
+      (v_8 : expression (bv 1)) <- eval (extract v_3 30 31);
+      (v_9 : expression (bv 1)) <- eval (extract v_2 61 62);
+      (v_10 : expression (bv 1)) <- eval (extract v_3 29 30);
+      (v_11 : expression (bv 1)) <- eval (extract v_2 60 61);
+      (v_12 : expression (bv 1)) <- eval (extract v_3 28 29);
+      (v_13 : expression (bv 1)) <- eval (extract v_2 59 60);
+      (v_14 : expression (bv 1)) <- eval (extract v_3 27 28);
+      (v_15 : expression (bv 1)) <- eval (extract v_2 58 59);
+      (v_16 : expression (bv 1)) <- eval (extract v_3 26 27);
+      (v_17 : expression (bv 1)) <- eval (extract v_2 57 58);
+      (v_18 : expression (bv 1)) <- eval (extract v_3 25 26);
+      (v_19 : expression (bv 1)) <- eval (extract v_2 56 57);
+      (v_20 : expression (bv 1)) <- eval (extract v_3 24 25);
       setRegister af undef;
       setRegister cf bit_zero;
       setRegister of bit_zero;
-      setRegister pf (eq (notBool_ (eq (notBool_ (eq (notBool_ (eq (notBool_ (eq (notBool_ (eq (notBool_ (eq (eq (bv_and (extract v_2 63 64) (extract v_3 31 32)) (expression.bv_nat 1 1)) (eq (bv_and (extract v_2 62 63) (extract v_3 30 31)) (expression.bv_nat 1 1)))) (eq (bv_and (extract v_2 61 62) (extract v_3 29 30)) (expression.bv_nat 1 1)))) (eq (bv_and (extract v_2 60 61) (extract v_3 28 29)) (expression.bv_nat 1 1)))) (eq (bv_and (extract v_2 59 60) (extract v_3 27 28)) (expression.bv_nat 1 1)))) (eq (bv_and (extract v_2 58 59) (extract v_3 26 27)) (expression.bv_nat 1 1)))) (eq (bv_and (extract v_2 57 58) (extract v_3 25 26)) (expression.bv_nat 1 1)))) (eq (bv_and (extract v_2 56 57) (extract v_3 24 25)) (expression.bv_nat 1 1)));
+      setRegister pf (eq (notBool_ (eq (notBool_ (eq (notBool_ (eq (notBool_ (eq (notBool_ (eq (notBool_ (eq (eq (bv_and v_5 v_6) (expression.bv_nat 1 1)) (eq (bv_and v_7 v_8) (expression.bv_nat 1 1)))) (eq (bv_and v_9 v_10) (expression.bv_nat 1 1)))) (eq (bv_and v_11 v_12) (expression.bv_nat 1 1)))) (eq (bv_and v_13 v_14) (expression.bv_nat 1 1)))) (eq (bv_and v_15 v_16) (expression.bv_nat 1 1)))) (eq (bv_and v_17 v_18) (expression.bv_nat 1 1)))) (eq (bv_and v_19 v_20) (expression.bv_nat 1 1)));
       setRegister sf (isBitSet v_4 0);
       setRegister zf (zeroFlag v_4);
       pure ()
@@ -30,10 +62,11 @@ def testq : instruction :=
       v_3 <- load v_2 8;
       v_4 <- getRegister (lhs.of_reg r64_0);
       v_5 <- eval (bv_and v_3 v_4);
+      (v_6 : expression (bv 8)) <- eval (extract v_5 56 64);
       setRegister af undef;
       setRegister cf bit_zero;
       setRegister of bit_zero;
-      setRegister pf (parityFlag (extract v_5 56 64));
+      setRegister pf (parityFlag v_6);
       setRegister sf (isBitSet v_5 0);
       setRegister zf (zeroFlag v_5);
       pure ()
@@ -42,10 +75,11 @@ def testq : instruction :=
       v_2 <- getRegister (lhs.of_reg r64_1);
       v_3 <- getRegister (lhs.of_reg r64_0);
       v_4 <- eval (bv_and v_2 v_3);
+      (v_5 : expression (bv 8)) <- eval (extract v_4 56 64);
       setRegister af undef;
       setRegister cf bit_zero;
       setRegister of bit_zero;
-      setRegister pf (parityFlag (extract v_4 56 64));
+      setRegister pf (parityFlag v_5);
       setRegister sf (isBitSet v_4 0);
       setRegister zf (zeroFlag v_4);
       pure ()

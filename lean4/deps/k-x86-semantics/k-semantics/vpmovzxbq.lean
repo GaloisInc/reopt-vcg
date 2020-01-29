@@ -3,22 +3,34 @@ def vpmovzxbq : instruction :=
     pattern fun (mem_0 : Mem) (xmm_1 : reg (bv 128)) => do
       v_2 <- evaluateAddress mem_0;
       v_3 <- load v_2 2;
-      setRegister (lhs.of_reg xmm_1) (concat (expression.bv_nat 56 0) (concat (extract v_3 0 8) (concat (expression.bv_nat 56 0) (extract v_3 8 16))));
+      (v_4 : expression (bv 8)) <- eval (extract v_3 0 8);
+      (v_5 : expression (bv 8)) <- eval (extract v_3 8 16);
+      setRegister (lhs.of_reg xmm_1) (concat (expression.bv_nat 56 0) (concat v_4 (concat (expression.bv_nat 56 0) v_5)));
       pure ()
     pat_end;
     pattern fun (mem_0 : Mem) (ymm_1 : reg (bv 256)) => do
       v_2 <- evaluateAddress mem_0;
       v_3 <- load v_2 4;
-      setRegister (lhs.of_reg ymm_1) (concat (expression.bv_nat 56 0) (concat (extract v_3 0 8) (concat (expression.bv_nat 56 0) (concat (extract v_3 8 16) (concat (expression.bv_nat 56 0) (concat (extract v_3 16 24) (concat (expression.bv_nat 56 0) (extract v_3 24 32))))))));
+      (v_4 : expression (bv 8)) <- eval (extract v_3 0 8);
+      (v_5 : expression (bv 8)) <- eval (extract v_3 8 16);
+      (v_6 : expression (bv 8)) <- eval (extract v_3 16 24);
+      (v_7 : expression (bv 8)) <- eval (extract v_3 24 32);
+      setRegister (lhs.of_reg ymm_1) (concat (expression.bv_nat 56 0) (concat v_4 (concat (expression.bv_nat 56 0) (concat v_5 (concat (expression.bv_nat 56 0) (concat v_6 (concat (expression.bv_nat 56 0) v_7)))))));
       pure ()
     pat_end;
     pattern fun (xmm_0 : reg (bv 128)) (xmm_1 : reg (bv 128)) => do
       v_2 <- getRegister (lhs.of_reg xmm_0);
-      setRegister (lhs.of_reg xmm_1) (concat (expression.bv_nat 56 0) (concat (extract v_2 112 120) (concat (expression.bv_nat 56 0) (extract v_2 120 128))));
+      (v_3 : expression (bv 8)) <- eval (extract v_2 112 120);
+      (v_4 : expression (bv 8)) <- eval (extract v_2 120 128);
+      setRegister (lhs.of_reg xmm_1) (concat (expression.bv_nat 56 0) (concat v_3 (concat (expression.bv_nat 56 0) v_4)));
       pure ()
     pat_end;
     pattern fun (xmm_0 : reg (bv 128)) (ymm_1 : reg (bv 256)) => do
       v_2 <- getRegister (lhs.of_reg xmm_0);
-      setRegister (lhs.of_reg ymm_1) (concat (expression.bv_nat 56 0) (concat (extract v_2 96 104) (concat (expression.bv_nat 56 0) (concat (extract v_2 104 112) (concat (expression.bv_nat 56 0) (concat (extract v_2 112 120) (concat (expression.bv_nat 56 0) (extract v_2 120 128))))))));
+      (v_3 : expression (bv 8)) <- eval (extract v_2 96 104);
+      (v_4 : expression (bv 8)) <- eval (extract v_2 104 112);
+      (v_5 : expression (bv 8)) <- eval (extract v_2 112 120);
+      (v_6 : expression (bv 8)) <- eval (extract v_2 120 128);
+      setRegister (lhs.of_reg ymm_1) (concat (expression.bv_nat 56 0) (concat v_3 (concat (expression.bv_nat 56 0) (concat v_4 (concat (expression.bv_nat 56 0) (concat v_5 (concat (expression.bv_nat 56 0) v_6)))))));
       pure ()
     pat_end

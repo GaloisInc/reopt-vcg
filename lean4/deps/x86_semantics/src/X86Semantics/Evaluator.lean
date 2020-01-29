@@ -130,10 +130,14 @@ open mc_semantics.type
 @[reducible]
 def machine_word := bitvec 64
 
+@[reducible]
+def avx_word := bitvec 256
+
 namespace reg
 
 axiom inject_ax0 : 8 + gpreg_type.width' gpreg_type.reg8h ≤ 64
 axiom inject_ax1 : ∀(rtp : gpreg_type), 0 + gpreg_type.width' rtp ≤ 64
+axiom avx_inject_ax1 : ∀(rtp : avxreg_type), 0 + avxreg_type.width' rtp ≤ 256
 
 def inject : ∀(rtp : gpreg_type), bitvec rtp.width' -> machine_word -> machine_word
   | gpreg_type.reg32, b, _   => bitvec.append (bitvec.zero 32) b
@@ -144,12 +148,20 @@ def project : ∀(rtp : gpreg_type), machine_word -> bitvec rtp.width'
   | gpreg_type.reg8h, b => b.get_bits 8 8 inject_ax0 -- (begin simp [gpreg_type.width'], exact dec_trivial end)
   | rtp,              b => b.get_bits 0 rtp.width' (inject_ax1 rtp) -- (begin cases rtp; simp end)
 
+-- FIXME: this depends on the mode, no? SSE instructions inject, while AVX clear upper bits
+def avx_inject : ∀(rtp : avxreg_type), bitvec rtp.width' -> avx_word -> avx_word
+  := fun rtp b old => old.set_bits 0 b (avx_inject_ax1 rtp) -- (begin cases rtp; simp end)
+
+def avx_project : ∀(rtp : avxreg_type), avx_word -> bitvec rtp.width'
+    := fun rtp b => b.get_bits 0 rtp.width' (avx_inject_ax1 rtp) -- (begin cases rtp; simp end)
+
 end reg
 
 structure machine_state : Type :=
   (mem    : memory)
   (gpregs : Array machine_word) -- 16
   (flags  : Array Bool) -- 32
+  (avxregs : Array avx_word)
   (ip     : machine_word)
 
 namespace machine_state
@@ -159,6 +171,7 @@ def empty : machine_state :=
   { mem    := memory.empty
   , gpregs := mkArray 16 0
   , flags  := mkArray 32 false
+  , avxregs := mkArray 16 0
   , ip     := 0
   }
 
@@ -166,8 +179,6 @@ def get_gpreg  (s : machine_state) (idx : Fin 16) : machine_word :=
   -- FIXME
   if h : 16 = s.gpregs.size
   then Array.get s.gpregs (Eq.recOn h idx) else 0
-
-
 
 def update_gpreg (idx : Fin 16) (f : machine_word -> machine_word) (s : machine_state) : machine_state :=
   -- FIXME
@@ -182,6 +193,17 @@ def get_flag  (s : machine_state) (idx : Fin 32) : Bool :=
 def update_flag (idx : Fin 32) (f : Bool -> Bool) (s : machine_state) : machine_state :=
   if h : 32 = s.flags.size
   then { s with flags := Array.set s.flags (Eq.recOn h idx) (f (get_flag s idx)) }
+  else s 
+
+def get_avxreg  (s : machine_state) (idx : Fin 16) : avx_word := 
+  -- FIXME
+  if h : 16 = s.avxregs.size
+  then Array.get s.avxregs (Eq.recOn h idx) else 0
+
+def update_avxreg (idx : Fin 16) (f : avx_word -> avx_word) (s : machine_state) : machine_state :=
+  -- FIXME
+  if h : 16 = s.avxregs.size 
+  then { s with avxregs := Array.set s.avxregs (Eq.recOn h idx) (f (get_avxreg s idx)) }
   else s 
 
 -- def store_bytes (addr : machine_word) (bs : List (bitvec 8)) (s : machine_state) : machine_state := 
@@ -462,12 +484,19 @@ def evaluator.local_at_idx (idx : Nat) (tp : type) : evaluator system_config nen
 theorem width_width' : ∀(rtp : gpreg_type), eval_nat_expr nenv rtp.width = rtp.width' :=
   I_am_really_sorry _
 
+theorem avx_width_width' : ∀(rtp : avxreg_type), eval_nat_expr nenv rtp.width = rtp.width' :=
+  I_am_really_sorry _
+
+
 def concrete_reg.set : ∀{tp : type}, concrete_reg tp -> value nenv tp -> evaluator system_config nenv Unit
   | ._, (concrete_reg.gpreg idx rtp), b => 
     let b' : bitvec rtp.width' := Eq.rec b (width_width' nenv rtp);
     evaluator.map_machine_state system_config nenv (machine_state.update_gpreg idx (reg.inject rtp b'))
   | ._, (concrete_reg.flagreg idx),   b => 
     evaluator.map_machine_state system_config nenv (machine_state.update_flag idx (fun _ => b))
+  | ._, (concrete_reg.avxreg idx rtp), b => 
+    let b' : bitvec rtp.width' := Eq.rec b (avx_width_width' nenv rtp);
+    evaluator.map_machine_state system_config nenv (machine_state.update_avxreg idx (reg.avx_inject rtp b'))
   
 def concrete_reg.from_state : ∀{tp : type}, concrete_reg tp -> machine_state 
   -> value nenv tp
@@ -477,6 +506,11 @@ def concrete_reg.from_state : ∀{tp : type}, concrete_reg tp -> machine_state
         := Eq.rec v (width_width' nenv rtp).symm;
     v'
   | _, (concrete_reg.flagreg idx),   s => s.get_flag idx
+  | _, (concrete_reg.avxreg idx rtp), s => 
+    let v := reg.avx_project rtp (s.get_avxreg idx);
+    let v' : bitvec (eval_nat_expr nenv rtp.width) 
+        := Eq.rec v (avx_width_width' nenv rtp).symm;
+    v'
 
 def concrete_reg.read {tp : type} (r : concrete_reg tp) : evaluator system_config nenv (value nenv tp) := 
     do s <- get;

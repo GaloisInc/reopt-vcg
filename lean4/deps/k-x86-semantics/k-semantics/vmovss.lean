@@ -9,12 +9,15 @@ def vmovss : instruction :=
     pattern fun (xmm_0 : reg (bv 128)) (mem_1 : Mem) => do
       v_2 <- evaluateAddress mem_1;
       v_3 <- getRegister (lhs.of_reg xmm_0);
-      store v_2 (extract v_3 96 128) 4;
+      (v_4 : expression (bv 32)) <- eval (extract v_3 96 128);
+      store v_2 v_4 4;
       pure ()
     pat_end;
     pattern fun (xmm_0 : reg (bv 128)) (xmm_1 : reg (bv 128)) (xmm_2 : reg (bv 128)) => do
       v_3 <- getRegister (lhs.of_reg xmm_1);
-      v_4 <- getRegister (lhs.of_reg xmm_0);
-      setRegister (lhs.of_reg xmm_2) (concat (extract v_3 0 96) (extract v_4 96 128));
+      (v_4 : expression (bv 96)) <- eval (extract v_3 0 96);
+      v_5 <- getRegister (lhs.of_reg xmm_0);
+      (v_6 : expression (bv 32)) <- eval (extract v_5 96 128);
+      setRegister (lhs.of_reg xmm_2) (concat v_4 v_6);
       pure ()
     pat_end
