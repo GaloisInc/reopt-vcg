@@ -358,6 +358,36 @@ def width : gpreg_type → nat_expr
 | reg32 => 32
 | reg64 => 64
 
+protected def hasDecEq : ∀(e e' : gpreg_type), Decidable (e = e')
+| reg8l, reg8l => isTrue rfl
+| reg8h, reg8h => isTrue rfl
+| reg16, reg16 => isTrue rfl
+| reg32, reg32 => isTrue rfl
+| reg64, reg64 => isTrue rfl
+| reg8l, reg8h => isFalse (fun h => gpreg_type.noConfusion h)
+| reg8l, reg16 => isFalse (fun h => gpreg_type.noConfusion h)
+| reg8l, reg32 => isFalse (fun h => gpreg_type.noConfusion h)
+| reg8l, reg64 => isFalse (fun h => gpreg_type.noConfusion h)
+| reg8h, reg8l => isFalse (fun h => gpreg_type.noConfusion h)
+| reg8h, reg16 => isFalse (fun h => gpreg_type.noConfusion h)
+| reg8h, reg32 => isFalse (fun h => gpreg_type.noConfusion h)
+| reg8h, reg64 => isFalse (fun h => gpreg_type.noConfusion h)
+| reg16, reg8l => isFalse (fun h => gpreg_type.noConfusion h)
+| reg16, reg8h => isFalse (fun h => gpreg_type.noConfusion h)
+| reg16, reg32 => isFalse (fun h => gpreg_type.noConfusion h)
+| reg16, reg64 => isFalse (fun h => gpreg_type.noConfusion h)
+| reg32, reg8l => isFalse (fun h => gpreg_type.noConfusion h)
+| reg32, reg8h => isFalse (fun h => gpreg_type.noConfusion h)
+| reg32, reg16 => isFalse (fun h => gpreg_type.noConfusion h)
+| reg32, reg64 => isFalse (fun h => gpreg_type.noConfusion h)
+| reg64, reg8l => isFalse (fun h => gpreg_type.noConfusion h)
+| reg64, reg8h => isFalse (fun h => gpreg_type.noConfusion h)
+| reg64, reg16 => isFalse (fun h => gpreg_type.noConfusion h)
+| reg64, reg32 => isFalse (fun h => gpreg_type.noConfusion h)
+
+instance decidable_eq_gpreg_type : DecidableEq gpreg_type := -- by tactic.mk_dec_eq_instance
+  gpreg_type.hasDecEq
+
 end gpreg_type
 
 inductive avxreg_type : Type
@@ -376,6 +406,16 @@ def width : avxreg_type → nat_expr
 | xmm => 128
 | ymm => 256
 
+
+protected def hasDecEq : ∀(e e' : avxreg_type), Decidable (e = e')
+| xmm, xmm => isTrue rfl
+| ymm, ymm => isTrue rfl
+| xmm, ymm => isFalse (fun h => avxreg_type.noConfusion h)
+| ymm, xmm => isFalse (fun h => avxreg_type.noConfusion h)
+
+instance decidable_eq_avxreg_type : DecidableEq avxreg_type := -- by tactic.mk_dec_eq_instance
+  avxreg_type.hasDecEq
+
 end avxreg_type
 
 -- Type for concrete x86 registers
@@ -383,6 +423,53 @@ inductive concrete_reg : type → Type
 | gpreg   (idx:Fin 16) (tp:gpreg_type) : concrete_reg (bv (tp.width))
 | flagreg (idx:Fin 32) : concrete_reg bit
 | avxreg  (idx:Fin 16) (tp:avxreg_type) : concrete_reg (bv (tp.width))
+
+namespace concrete_reg
+
+-- protected def hasDecEq  : ∀(tp : type) (e e' : concrete_reg tp), Decidable (e = e')
+-- | _, (gpreg c1 c2), (gpreg c1' c2') => 
+--  (match decEq c1 c1', decEq c2 c2' with 
+--   | (isTrue h1), (isTrue h2) => isTrue (h1 ▸ h2 ▸ rfl)
+--   | (isFalse nh), _ => isFalse (fun h => concrete_reg.noConfusion h $ fun h1' h2' => absurd h1' nh)
+--   | (isTrue _), (isFalse nh) => isFalse (fun h => concrete_reg.noConfusion h $ fun h1' h2' => absurd h2' nh))
+-- | _, (flagreg c1), (flagreg c1') => 
+--  (match decEq c1 c1' with 
+--   | (isTrue h1) => isTrue (h1 ▸ rfl)
+--   | (isFalse nh) => isFalse (fun h => concrete_reg.noConfusion h $ fun h1' => absurd h1' nh))
+-- | _, (avxreg c1 c2), (avxreg c1' c2') => 
+--  (match decEq c1 c1', decEq c2 c2' with 
+--   | (isTrue h1), (isTrue h2) => isTrue (h1 ▸ h2 ▸ rfl)
+--   | (isFalse nh), _ => isFalse (fun h => concrete_reg.noConfusion h $ fun h1' h2' => absurd h1' nh)
+--   | (isTrue _), (isFalse nh) => isFalse (fun h => concrete_reg.noConfusion h $ fun h1' h2' => absurd h2' nh))
+-- --| _, (gpreg _ _), (flagreg _) => isFalse (fun h => concrete_reg.noConfusion h)
+-- | _, (gpreg _ _), (avxreg _ _) => isFalse (fun h => concrete_reg.noConfusion h)
+-- --| _, (flagreg _), (gpreg _ _) => isFalse (fun h => concrete_reg.noConfusion h)
+-- --| _, (flagreg _), (avxreg _ _) => isFalse (fun h => concrete_reg.noConfusion h)
+-- | _, (avxreg _ _), (gpreg _ _) => isFalse (fun h => concrete_reg.noConfusion h)
+-- --| _, (avxreg _ _), (flagreg _) => isFalse (fun h => concrete_reg.noConfusion h)
+
+-- instance decidable_eq_concrete_reg (tp : type) : DecidableEq (concrete_reg tp)  := -- by tactic.mk_dec_eq_instance
+--   concrete_reg.hasDecEq tp
+
+def nondepEq : ∀(tp tp' : type) (e : concrete_reg tp) (e' : concrete_reg tp'), Bool
+| ._, ._, (gpreg c1 c2), (gpreg c1' c2') => 
+ (match decEq c1 c1', decEq c2 c2' with 
+  | (isTrue h1), (isTrue h2) => true
+  | _, _                     => false )
+| ._, ._, (flagreg c1), (flagreg c1') => if c1 = c1' then true else false
+| ._, ._, (avxreg c1 c2), (avxreg c1' c2') => 
+ (match decEq c1 c1', decEq c2 c2' with 
+  | (isTrue h1), (isTrue h2) => true
+  | _,_                      => false)
+| ._, ._, (gpreg _ _), (flagreg _)  => false
+| ._, ._, (gpreg _ _), (avxreg _ _) => false
+| ._, ._, (flagreg _), (gpreg _ _)  => false
+| ._, ._, (flagreg _), (avxreg _ _) => false
+| ._, ._, (avxreg _ _), (gpreg _ _) => false
+| ._, ._, (avxreg _ _), (flagreg _) => false
+
+
+end concrete_reg
 
 -- Type for x86 registers
 inductive reg (tp:type) : Type
@@ -695,6 +782,7 @@ inductive expression : type → Type
 | app {rtp:type} {tp:type} (f : expression (type.fn tp rtp)) (a : expression tp) : expression rtp
 -- Get the value of the expression associated with the register.
 | get_reg {tp:type} (r:concrete_reg tp) : expression tp
+| get_rip : expression (bv 64)
 -- Read the address
 | read (tp:type) (a : expression (bv 64)) : expression tp
 -- Denotes the current value of a register as identified by an offset relative to the current stack top value.

@@ -1,4 +1,3 @@
-#  insns-2020-01-28-18:43:40.txt
 adcb
 adcl
 adcq
@@ -189,7 +188,7 @@ decl
 decq
 decw
 # divb
-# divl
+divl
 divpd
 # divps
 # divq
@@ -204,7 +203,7 @@ haddpd
 hsubpd
 # hsubps
 # idivb
-# idivl
+idivl
 # idivq
 # idivw
 # imulb
@@ -367,11 +366,6 @@ pmuldq
 # pmulld
 # pmullw
 pmuludq
-popcntl
-popcntq
-popcntw
-popq
-popw
 por
 # psadbw
 # pshufb

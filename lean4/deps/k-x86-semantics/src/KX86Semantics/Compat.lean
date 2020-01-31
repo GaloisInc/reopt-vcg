@@ -33,7 +33,7 @@ def pair_fst {x y : type} (e:pair x y) : x := prim.pair_fst x y e
 def pair_snd {x y : type} (e:pair x y) : y := prim.pair_snd x y e
 
 def bv_xor {w:nat_expr} (x : bv w) (y : bv w) : bv w := prim.bv_xor w x y
-def add    {w:nat_expr} (x : bv w) (y : bv w) : bv w := prim.bv_xor w x y
+def add    {w:nat_expr} (x : bv w) (y : bv w) : bv w := prim.add w x y
 def mul    {w:nat_expr} (x : bv w) (y : bv w) : bv w := prim.mul w x y
 def sub    {w:nat_expr} (x : bv w) (y : bv w) : bv w := prim.sub w x y
 
@@ -171,12 +171,13 @@ def mux {tp:type} (c:bit) (t f : tp) : tp := prim.mux tp c t f
 
 -- This is substantially different than the handwritten semantics, as we have untyped pointers.
 @[reducible]
-def Mem : Type := expression (bv 64)
+def Mem : Type := addr (bv 64)
 
-def evaluateAddress (m : Mem) : semantics (bv 64) := eval m
+def evaluateAddress (m : Mem) : semantics (bv 64) := eval (expression.of_addr m)
  
 -- x is an immediate usually
-def handleImmediateWithSignExtend (x : int) (n m : nat_expr) := prim.bv_int_sext n x
+-- assume that the int is n bits, extend to m bits.  The K here might be a bit broken?
+def handleImmediateWithSignExtend (x : expression int) (n m : nat_expr) := prim.bv_int_sext m x
 
 @[elabSimple]
 def extractMInt {w:Nat} (x: expression (bv (nat_expr.lit w))) (u:Nat) (l:Nat)

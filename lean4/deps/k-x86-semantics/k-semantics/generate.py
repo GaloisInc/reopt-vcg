@@ -54,7 +54,7 @@ def generate_lean(suffix):
 
 def generate_lean_all(start=0, stop=14):
   for suffix in range(start, stop):
-    print('Looking at ' + str(suffix))
+    print('Looking at ' + str(suffix), flush=True)    
     generate_lean(suffix)
 
 generate_lean_all()

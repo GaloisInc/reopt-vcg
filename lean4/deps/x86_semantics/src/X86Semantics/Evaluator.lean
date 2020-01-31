@@ -287,17 +287,18 @@ def value : type -> Type
   | (pair tp tp') => value tp × value tp'
   | (fn arg res) => (value arg) -> (value res)
 
--- namespace value
 
--- def value.repr : ∀{tp : type}, value tp -> String
---   | (bv e) b                => has_repr.repr b
---   | (fn _ _ ) _             => "<function>"
---   | _ _                     => "Unsupported type"
-
+def value.repr (nenv : nat_env) : ∀{tp : type}, value nenv tp -> String
+  | (bv e), b => repr b
+  | int, v    => repr v
+  | bit, b    => repr b
+  | (float fc), _ => "<float>"
+  | x86_80, _     => "<x86_80>"
+  | (vec w tp), v => "<array>"
+  | (pair tp tp'), (x, y) => "(" ++ value.repr x ++ ", " ++ value.repr y ++ ")"
+  | (fn arg res), _ => "<function>"
 
 -- instance value_repr {tp : type} : has_repr (value tp) := ⟨value.repr⟩
-
--- end value
 
 -- Corresponding to the binder type, more or less.
 inductive arg_value 
@@ -480,6 +481,11 @@ def evaluator.local_at_idx (idx : Nat) (tp : type) : evaluator system_config nen
      (match s.locals.find idx with
      | (some (Sigma.mk tp' v)) => value.type_check nenv _ v tp
      | none                    => throw "local_at_idx: no arg at idx")
+
+
+def evaluator.dlog (s : String) : evaluator system_config nenv Unit := 
+  @monadLift _  (StateT (evaluator_state system_config nenv) (ExceptT String IO)) _ _
+         (@monadLift IO (ExceptT String IO) _ _ (IO.println ("DEBUG: " ++ s)))
 
 theorem width_width' : ∀(rtp : gpreg_type), eval_nat_expr nenv rtp.width = rtp.width' :=
   I_am_really_sorry _
@@ -902,7 +908,15 @@ def expression.eval : ∀{tp : type}, expression tp -> evaluator system_config n
   | ._, (expression.quotc m xe) => throw "expression.eval.quotc unimplemented"
   | ._, (expression.undef tp)   => pure (value.make_undef nenv tp)
   | ._, (expression.app f a) => (expression.eval f) <*> (expression.eval a)
+    -- do
+    -- vf <- expression.eval f; 
+    -- ve <- expression.eval a;
+    -- vr <- pure (vf ve);
+    -- evaluator.dlog system_config nenv ("APP " ++ value.repr nenv ve ++ " ---> " ++  value.repr nenv vr);
+    -- pure vr
+      
   | ._, (expression.get_reg r) => concrete_reg.read system_config nenv r
+  | ._, (expression.get_rip)   => do s <- get; pure s.system_state.machine_state.ip
   | ._, (expression.read tp addre) => do
     addr   <- expression.eval addre;
     (match tp with

@@ -58,6 +58,46 @@ skip_opcode_prefixes = [
   'xaddw', # convSubRegsToRegs
   'xchgl', # convSubRegsToRegs
   'xchgq', # convSubRegsToRegs
+
+  # sjw -- apparently control flow causes issues
+  'popq', # this is in the systemIn
+  'popq', # this is in the systemIn  
+  # 'leave',
+  # 'ja',
+  # 'jae',
+  # 'jb',
+  # 'jbe',
+  # 'jc',
+  # 'je',
+  # 'jecxz',
+  # 'jg',
+  # 'jge',
+  # 'jl',
+  # 'jle',
+  # 'jmp',
+  # 'jna',
+  # 'jnae',
+  # 'jnb',
+  # 'jnbe',
+  # 'jnc',
+  # 'jne',
+  # 'jng',
+  # 'jnge',
+  # 'jnl',
+  # 'jnle',
+  # 'jno',
+  # 'jnp',
+  # 'jns',
+  # 'jnz',
+  # 'jo',
+  # 'jp',
+  # 'jpe',
+  # 'jpo',
+  # 'jrcxz',
+  # 'js',
+  # 'jz',
+  # 'loop',
+  
 ]
 
 submodules_dir_path = os.path.join(
@@ -137,6 +177,8 @@ def generate_instructions_semantics_file(chunk_size=200, prefix=''):
 
         require_paths.append(k_file_path)
 
+  # Most of these are problematic.
+  # add_semantics('systemInstructions')
   add_semantics('registerInstructions')
   add_semantics('memoryInstructions')
   add_semantics('immediateInstructions')
@@ -211,5 +253,5 @@ module X86-INSTRUCTIONS-SEMANTICS
     index = next_index
     chunk_id = chunk_id + 1
 
-generate_instructions_semantics_file(prefix='cbtw')
+generate_instructions_semantics_file()
 

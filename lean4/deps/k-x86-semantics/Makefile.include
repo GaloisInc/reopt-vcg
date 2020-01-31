@@ -10,7 +10,7 @@ K_PROCESS_ALLINSTS = sed '/^\#/d;/^[[:space:]]*$$/d'
 ALL := $(shell $(K_PROCESS_ALLINSTS) $(K_ALLINSTS))
 INSTR_LEAN := $(patsubst %,$(K_GEN_PFX)I_%.lean,$(ALL))
 OTHER_LEAN := $(patsubst %,$(K_GEN_PFX)%,Instructions.lean)
-NONGEN_LEAN := $(patsubst %,$(HERE)%,src/KX86Semantics/Compat.lean)
+NONGEN_LEAN := $(patsubst %,$(HERE)%,src/KX86Semantics/Compat.lean src/KX86Semantics/ManualInstructions.lean)
 
 LEANFILES += $(INSTR_LEAN) $(OTHER_LEAN) $(NONGEN_LEAN)
 

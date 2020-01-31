@@ -39,6 +39,25 @@ ctors_nat_expr =
   , ("div", [True, True])
   ]
 
+ctors_concrete_reg =
+  [ ("gpreg", [False, False])
+  , ("flagreg", [False])
+  , ("avxreg", [False, False])
+  ]
+
+ctors_gpreg_type =
+  [ ("reg8l", [])
+  , ("reg8h", [])
+  , ("reg16", [])
+  , ("reg32", [])
+  , ("reg64", [])
+  ]
+
+ctors_avxreg_type =
+  [ ("xmm", [])
+  , ("ymm", [])
+  ]
+
 -- We need to produce two types of equation --- recursive and mismatch.  The mismatch cases are simple,
 -- if tedious, while the recursive cases are a bit trickier
 

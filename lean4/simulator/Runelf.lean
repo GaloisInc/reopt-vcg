@@ -4,8 +4,10 @@
 import Galois.Init.Io
 import X86Semantics.MachineMemory
 import Main.Elf
-import Main.Translate
-import DecodeX86.DecodeX86
+--import Main.Translate
+import Main.KTranslate
+--import DecodeX86.DecodeX86
+import MCInst.Basic
 
 open x86
  
@@ -204,18 +206,18 @@ def dump_state (s : system_state linux.x86_64.os_state) : IO Unit := do
   let line := s.machine_state.ip.pp_hex ++ ": " ++ s.machine_state.print_regs ++ " " ++ s.machine_state.print_set_flags;
   IO.println line
 
-def decode_loop (d : decodex86.decoder) : Nat -> system_state linux.x86_64.os_state -> IO Unit
+def decode_loop (d : mcinst.decoder) : Nat -> system_state linux.x86_64.os_state -> IO Unit
   | Nat.zero,    _   => throwS "Out of fuel"
   | (Nat.succ n), s  => do
   -- dump_state s;
-  let inst := decodex86.decode d s.machine_state.ip.to_nat;
+  let inst := mcinst.decode d s.machine_state.ip.to_nat;
   match inst with 
-  | (Sum.inl b) => throwS "Unknown byte"
-  | (Sum.inr i) => do
-    -- IO.println (repr i);
-    r <- eval_instruction linux.x86_64.system_config 
-           { machine_state := { ip := s.machine_state.ip + bitvec.of_nat _ i.nbytes, .. s.machine_state}, 
-             os_state      := { current_ip := s.machine_state.ip, .. s.os_state } } 
+  | (Sum.inl b) => throwS (s.machine_state.ip.pp_hex ++ ": Unknown byte " ++ repr b)
+  | (Sum.inr (i, nbytes)) => do
+    -- IO.println (repr nbytes ++ " " ++ repr i);
+    r <- mcinst.eval_instruction linux.x86_64.system_config 
+           { machine_state := { ip := s.machine_state.ip + bitvec.of_nat _ nbytes, .. s.machine_state}, 
+             os_state      := { current_ip := s.machine_state.ip, .. s.os_state } }
            i;
     (match r with
     | (Except.error e) => 
@@ -232,7 +234,7 @@ def doit (elffile : String) : IO Unit := do
                 | none        => throwS "No text region"
                 | some (_, b) => pure b);
   let entry := ehdr.entry.toNat;
-  let d := decodex86.mk_decoder text_bytes text_phdr.vaddr.toNat;
+  let d := mcinst.mk_decoder text_bytes text_phdr.vaddr.toNat;
   let init_state := 
       system_state.mk { machine_state.empty with 
                       ip := bitvec.of_nat _ ehdr.entry.toNat
