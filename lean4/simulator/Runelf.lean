@@ -243,11 +243,6 @@ def doit (elffile : String) : IO Unit := do
                       linux.x86_64.os_state.empty;
     let init_state_abi := sysv_abi.x86_64.initialise init_state;
     let fuel : Nat := 100000; decode_loop d fuel init_state_abi
-    
-def main (xs : List String) : IO UInt32 :=
-  match xs with 
-  | [f] => do doit f; pure 0
-  | _   => throwS "Expected a file"
 
 -- set_option profiler true
 -- #eval doit ("../testfiles/two", "../llvm-tablegen-support/llvm-tablegen-support", 1530, 1544)
