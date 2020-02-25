@@ -478,7 +478,7 @@ def evaluator.arg_at_idx (idx : Nat) : evaluator system_config nenv (arg_value n
 -- the functor (value in this case) if we generalise equality
 def evaluator.local_at_idx (idx : Nat) (tp : type) : evaluator system_config nenv (value nenv tp) :=
   do s <- get;
-     (match s.locals.find idx with
+     (match s.locals.find? idx with
      | (some (Sigma.mk tp' v)) => value.type_check nenv _ v tp
      | none                    => throw "local_at_idx: no arg at idx")
 
@@ -814,10 +814,10 @@ def prim.eval : ∀{tp : type}, prim tp -> evaluator system_config nenv (value n
   | ._, (prim.shr_carry w j) => pure (fun b c (i : bitvec (eval_nat_expr nenv j)) => 
        match i.to_nat with
        | Nat.zero     => c
-       | (Nat.succ n) => @ite (n < eval_nat_expr nenv w) (Nat.decLt _ _) _ (bitvec.nth b n) false
--- if n < eval_nat_expr nenv w 
--- then bitvec.nth b n
--- else ff 
+       | (Nat.succ n) => -- @ite _ (n < eval_nat_expr nenv w) (Nat.decLt _ _) _ (bitvec.nth b n) false
+if n < eval_nat_expr nenv w 
+then bitvec.nth b n
+else false
        )
    --- `(sar i) x y` arithmetically shifts the bits in `x` to
    --- the left by `y` bits where `y` is treated as an unsigned integer.
@@ -832,13 +832,13 @@ def prim.eval : ∀{tp : type}, prim tp -> evaluator system_config nenv (value n
    | ._, (prim.sar_carry w j) => pure (fun b c (i : bitvec (eval_nat_expr nenv j)) => 
        match i.to_nat with
        | Nat.zero     => c
-       | (Nat.succ n) => 
-         @ite (n < eval_nat_expr nenv w) (Nat.decLt _ _) _ 
-              (bitvec.nth b n)
-              (bitvec.msb b)
--- (if n < eval_nat_expr nenv w 
---                           then bitvec.nth b n
---                           else bitvec.msb b)
+       | (Nat.succ n) =>
+         -- @ite _ (n < eval_nat_expr nenv w) (Nat.decLt _ _) _ 
+         --      (bitvec.nth b n)
+         --      (bitvec.msb b)
+       (if n < eval_nat_expr nenv w 
+                          then bitvec.nth b n
+                          else bitvec.msb b)
          )
    
   | ._, (prim.even_parity i) => pure (fun b => bitvec.parity b = false)
@@ -1004,7 +1004,7 @@ def read_cpuid : evaluator system_config nenv Unit :=
                     , (2147483656, (0x3027, 0x0, 0x0, 0x0))
                     ] (fun x y => decide (x < y)); -- FIXME: we need to look at rcx sometimes as well
     let cpuid_fn (n : Nat) : (bitvec 32 × bitvec 32 × bitvec 32 × bitvec 32) :=
-      match cpuid_values.find n with
+      match cpuid_values.find? n with
       | none     => (0, 0, 0, 0)
       | (some r) => r;
     do 

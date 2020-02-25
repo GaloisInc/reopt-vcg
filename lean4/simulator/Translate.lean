@@ -260,7 +260,7 @@ def instruction_map : RBMap String instruction (fun x y => decide (x < y)) :=
 
 def eval_instruction' ( cfg : SystemConfig ) (i : decodex86.instruction) 
   : system_m cfg.os_state Unit :=
-  match instruction_map.find (instruction_family i) with               
+  match instruction_map.find? (instruction_family i) with               
   | none        => throw ("Unknown instruction: " ++ i.mnemonic)
   | (some inst) => do (Sigma.mk nenv env, p) <- annotate' "pattern" (instantiate_pattern cfg inst i);
                       annotate' "pattern.eval" (pattern.eval cfg nenv p env)

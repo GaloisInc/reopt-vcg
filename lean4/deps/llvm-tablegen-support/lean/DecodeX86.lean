@@ -274,7 +274,7 @@ def operand_memtyp_map : RBMap String Nat (fun s1 s2 => decide (s1 < s2)) :=
        ]
 
 def operand_memtyp (tp : String) : operand_type :=
-  match operand_memtyp_map.find tp with 
+  match operand_memtyp_map.find? tp with 
   | (some n) => operand_type.mem n
   | none     => operand_type.other
 

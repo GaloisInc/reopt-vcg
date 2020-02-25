@@ -188,7 +188,7 @@ def syscalls : RBMap Nat syscall_t (fun x y => decide (x < y)) :=
 def syscall_handler : system_m os_state Unit := do
   s <- get;
   let syscall_no := (s.machine_state.get_gpreg rax_idx).to_nat;
-  match syscalls.find syscall_no with
+  match syscalls.find? syscall_no with
      | none     => throw ("Unknown syscall: " ++ repr syscall_no)
      | (some m) => m syscall_no
 
