@@ -97,14 +97,18 @@ def operand_to_String : operand -> String
   | (operand.immediate v)  => repr v -- ++ "[" ++ repr n ++ "]"
   -- | (operand.rel_immediate off n v) => "(" ++ repr v ++ " + " ++ repr off ++ ")[" ++ repr n ++ "]"
   | (operand.memloc d seg b s i) => 
-  (if d = 0 then "" else repr d)
-  ++ (match b with 
+  let oneR (r : Option register) : String :=
+    (match r with 
      | none => "" -- maybe assert everything else is none?
-     | some r => 
-       parens ("%" ++ repr r ++
-       (match i with
-        | none => "" 
-        | some r' => ",%" ++ repr r' ++ (if s = 1 then "" else "," ++ repr s))))
+     | some rr => "%" ++ repr rr);
+   (if d = 0 then "" else repr d)
+   ++ "(" ++ oneR b ++ "," ++ oneR i ++ "," ++ repr s ++ ")"
+     -- | none => "" -- maybe assert everything else is none?
+     -- | some r => 
+     --   parens ("%" ++ repr r ++
+     --   (match i with
+     --    | none => "" 
+     --    | some r' => ",%" ++ repr r' ++ (if s = 1 then "" else "," ++ repr s))))
 
 instance operand_has_repr : HasRepr operand := ⟨operand_to_String⟩
 
@@ -167,11 +171,39 @@ def operandP : OpParser operand :=
   <|> operand.immediate <$> (exact '$' *> intP)
   <|> memlocP
 
+
+-- For control instructions
+def altOperandP : OpParser operand :=
+  operand.immediate <$> intP
+  <|> (exact '*' *> (operand.register <$> registerP <|> memlocP))
+
+-- AT&T syntax (which is what is used by K) uses different
+-- representations for branch targets and other operands.  For example,
+--
+-- movq $100, %rax
+-- movq %rax, $rbx
+-- 
+-- vs
+--
+-- jmpq 100
+-- jmpq *%rax
+
+-- FIXME: this is a pretty ugly hack :(
+def usesAlternateOperandSyntax :=
+  ["ja","jnbe","jae","jnb","jnc","jb","jc","jnae","jbe"
+  ,"jcxz","jecxz","jrcxz","je","jz","jg","jnle","jge","jnl"
+  ,"jl","jnge","jle","jng","jna","jne","jnz","jno","jnp","jpo"
+  ,"jns","jo","jp","jpe","js"] ++ 
+  ["callq", "jmpq"]
+
 def instructionP : OpParser instruction :=
   do exact '\t';
      mn <- string1P Char.isAlphanum;
-     args <- (exact '\t'*>
-              sepBy (do exact ','; exact ' '; pure ()) operandP)
+     let opP := if usesAlternateOperandSyntax.elem mn 
+                then altOperandP 
+                else operandP;
+     args <- (exact '\t' *>
+              sepBy (do exact ','; exact ' '; pure ()) opP)
              <|> pure [];
      pure (instruction.mk mn args)
      
