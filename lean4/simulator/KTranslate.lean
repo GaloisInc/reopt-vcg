@@ -58,7 +58,7 @@ def reg_name_map : RBMap String some_reg (fun x y => decide (x < y)) :=
   RBMap.fromList reg_names (fun x y => decide (x < y))
 
 def register_to_reg (r : mcinst.register) : Option some_reg :=
-  reg_name_map.find r
+  reg_name_map.find? r
 
 def throw_if {m} {ε} [Monad m] [MonadExcept ε m] (P : Prop) [Decidable P] (what : ε) : m Unit :=
   if P then throw what else pure ()
@@ -220,7 +220,7 @@ def instruction_map : RBMap String x86.instruction (fun x y => decide (x < y)) :
 
 def eval_instruction' ( cfg : SystemConfig ) (i : mcinst.instruction) 
   : system_m cfg.os_state Unit :=
-  match instruction_map.find i.mnemonic with               
+  match instruction_map.find? i.mnemonic with               
   | none        => throw ("Unknown instruction: " ++ i.mnemonic)
   | (some inst) => do (Sigma.mk nenv env, p) <- annotate' "pattern" (instantiate_pattern cfg inst i);
                       annotate' "pattern.eval" (pattern.eval cfg nenv p env)
