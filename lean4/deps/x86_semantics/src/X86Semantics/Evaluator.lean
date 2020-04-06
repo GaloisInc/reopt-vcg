@@ -223,26 +223,15 @@ instance arg_lval_repr : HasRepr arg_lval := ⟨repr⟩
 
 end arg_lval
 
+-- This also needs to be a StateMonad machine_state (it owns that)
+class SystemM (m : Type -> Type) extends Monad m, MonadState machine_state m, MonadExcept String m :=
+  (os_transition    {} : m Unit )
+  (emit_read_event  {} : machine_word -> ∀(n : Nat), bitvec n -> m Unit)
+  (emit_write_event {}  : machine_word -> ∀(n : Nat), bitvec n -> m Unit)
+
 section with_nat_env
 
-structure system_state (ost : Type) : Type := 
-  (machine_state : machine_state)
-  (os_state      : ost)
-
-@[reducible]
-def system_m (os_state : Type) := StateT (system_state os_state) (ExceptT String IO)
-
-def system_m.run {a : Type} {os_state : Type} (m : system_m os_state a) (s : system_state os_state) : 
-  IO (Except String (a × system_state os_state)) :=
-  (m.run s).run
-
-structure SystemConfig : Type 1 := 
-  (os_state         : Type)
-  (os_transition    : system_m os_state Unit)
-  (emit_read_event  : machine_word -> ∀(n : Nat), bitvec n -> system_m os_state Unit)
-  (emit_write_event : machine_word -> ∀(n : Nat), bitvec n -> system_m os_state Unit)
-
-variables (system_config : SystemConfig) (nenv : nat_env)
+variables (system_m : Type -> Type) [SystemM system_m] (nenv : nat_env)
 
 @[reducible]
 def eval_nat_expr (e : nat_expr) : Nat
@@ -300,16 +289,15 @@ inductive arg_value
 @[reducible]
 def environment := List (arg_value nenv)
 
+-- machine state is stored in the underlying monad
 structure evaluator_state : Type :=
-  (system_state : system_state system_config.os_state)
-  (environment  : environment nenv) -- read only, but reading can fail
-  (locals       : RBMap Nat (Sigma (value nenv)) (fun (n n' : Nat) => decide (n < n')))
+  (environment   : environment nenv) -- read only, but reading can fail
+  (locals        : RBMap Nat (Sigma (value nenv)) (fun (n n' : Nat) => decide (n < n')))
 
 -- namespace evaluator_state
 
-def evaluator_state.init (sst : system_state system_config.os_state) : evaluator_state system_config nenv := 
-  { system_state  := sst
-  , environment   := []
+def evaluator_state.init : evaluator_state nenv := 
+  { environment   := []
   , locals        := {}
   }
 
@@ -317,7 +305,7 @@ def evaluator_state.init (sst : system_state system_config.os_state) : evaluator
 
 -- Monad for evaluating with failure.  This nesting might be useful to get the ip where things break?
 @[reducible]
-def evaluator := StateT (evaluator_state system_config nenv) (ExceptT String IO)
+def evaluator := StateT (evaluator_state nenv) (ExceptT String system_m)
 
 -- FIXME: this is repeated from the stdlib, not sure why it needs to be
 instance (ε): MonadExcept ε (Except ε) := 
@@ -387,65 +375,76 @@ def value.type_check {m} [Monad m] [MonadExcept String m] (tp : type) (v : value
   else throw "type_check: arg type mismatch"
 
 -- end value
-def system_m.map_machine_state (f : machine_state → machine_state) : system_m system_config.os_state Unit :=
-  modify (fun (s : system_state system_config.os_state) => { s with machine_state := f s.machine_state })
+-- def system_m.map_machine_state (f : machine_state → machine_state) : system_m system_config.os_state Unit :=
+--   modify (fun (s : system_state system_config.os_state) => { s with machine_state := f s.machine_state })
+
+section SystemM
+open SystemM
 
 -- system_m stuff
-def system_m.read_memory_at (addr : machine_word) (n : Nat) : system_m system_config.os_state (bitvec n) := do
+def SystemM.read_memory_at (addr : machine_word) (n : Nat) : system_m (bitvec n) := do
     s <- get;
-    match s.machine_state.read_word addr (n / 8) with
+    match s.read_word addr (n / 8) with
     | none     => throw "read_memory_at: no bytes at addr" 
     | (some w) => 
       if H : 8 * (n / 8) = n
       then do let res := bitvec.cong H w;
-              system_config.emit_read_event addr n res;
+              emit_read_event addr n res;
               pure res
       else throw "read_memory_at: width not a multiple of 8"
 
-def system_m.write_memory_at : ∀{tp : type} (addr : machine_word) (bytes : value nenv tp)
-  , system_m system_config.os_state Unit
+def SystemM.write_memory_at : ∀{tp : type} (addr : machine_word) (bytes : value nenv tp)
+  , system_m Unit
   | (bv e), addr, bytes =>
     let width := eval_nat_expr nenv e;
     (if H : width = 8 * (width / 8)
-        then do 
-                system_m.map_machine_state system_config (fun (s : machine_state) => s.store_word addr (bitvec.cong H bytes));
-                system_config.emit_write_event addr width bytes
+        then do modify (fun (s : machine_state) => s.store_word addr (bitvec.cong H bytes));
+                emit_write_event addr width bytes
         else throw "write_memory_at: width not a multiple of 8")
   | _, _, _ => throw "write_memory_at not a bv"
 
+end SystemM
 -- namespace evaluator
-
-def evaluator.run {a : Type} (m : evaluator system_config nenv a) 
-                             (s : evaluator_state system_config nenv) : IO (Except String (a × evaluator_state system_config nenv)) :=
+def evaluator.run {a : Type} (m : evaluator system_m nenv a) 
+                             (s : evaluator_state nenv) : system_m (Except String (a × evaluator_state nenv)) :=
   (m.run s).run
 
-def evaluator.run' {a : Type} (m : evaluator system_config nenv a) (e : environment nenv)
-                              : system_m system_config.os_state a :=
-    adaptState' (fun (s : system_state system_config.os_state) => 
-                     { evaluator_state . 
-                       system_state  := s
-                     , environment   := e
-                     , locals        := {}
-                     })
-                (fun (s : evaluator_state system_config nenv) => s.system_state)
-                m
+def evaluator.run' {a : Type} (m : evaluator system_m nenv a) (e : environment nenv) : system_m a :=
+  do r <- evaluator.run system_m nenv m { evaluator_state . environment := e, locals := {} };
+     match r with
+     | Except.ok v    => pure v.fst
+     | Except.error e => throw e
 
-def evaluator.map_machine_state (f : machine_state → machine_state) : evaluator system_config nenv Unit :=
-  modify (fun (s : evaluator_state system_config nenv) => { s with system_state := { s.system_state with machine_state := f s.system_state.machine_state } })
+-- def evaluator.run' {a : Type} (m : evaluator system_m nenv a) (e : environment nenv) : system_m a :=
+--     adaptState' (fun (s : system_state system_config.os_state) => 
+--                      { evaluator_state . 
+--                        system_state  := s
+--                      , environment   := e
+--                      , locals        := {}
+--                      })
+--                 (fun (s : evaluator_state nenv) => s.system_state)
+--                 m
 
-def evaluator.run_system_m {a : Type} (m : system_m system_config.os_state a) : evaluator system_config nenv a :=
-  adaptState (fun (s : evaluator_state system_config nenv) => (s.system_state, s))
-             (fun s s' => { s' with system_state := s })
-             m
+def evaluator.run_system_m {a : Type} (m : system_m a) : evaluator system_m nenv a :=
+    monadLift m
+    -- adaptState (fun (s : evaluator_state nenv) => (s.system_state, s))
+    --          (fun s s' => { s' with system_state := s })
+    --          m
 
-def evaluator.read_memory_at (addr : machine_word) (n : Nat) : evaluator system_config nenv (bitvec n) := do
-  evaluator.run_system_m system_config nenv (system_m.read_memory_at system_config addr n)
+def evaluator.map_machine_state (f : machine_state → machine_state) : evaluator system_m nenv Unit :=
+    monadLift (modify f : system_m Unit)
+
+def evaluator.with_machine_state {a : Type} (f : machine_state → a) : evaluator system_m nenv a :=
+    monadLift (f <$> (get : system_m machine_state))
+
+def evaluator.read_memory_at (addr : machine_word) (n : Nat) : evaluator system_m nenv (bitvec n) := do
+  evaluator.run_system_m system_m nenv (SystemM.read_memory_at system_m addr n)
 
 def evaluator.write_memory_at {tp : type} (addr : machine_word) (bytes : value nenv tp) :
-  evaluator system_config nenv Unit :=
-  evaluator.run_system_m system_config nenv (system_m.write_memory_at system_config nenv addr bytes)
+  evaluator system_m nenv Unit :=
+  evaluator.run_system_m system_m nenv (SystemM.write_memory_at system_m nenv addr bytes)
 
-def evaluator.arg_at_idx (idx : Nat) : evaluator system_config nenv (arg_value nenv) :=
+def evaluator.arg_at_idx (idx : Nat) : evaluator system_m nenv (arg_value nenv) :=
   do s <- get;
      match s.environment.get? idx with
        | (some a) => pure a
@@ -453,7 +452,7 @@ def evaluator.arg_at_idx (idx : Nat) : evaluator system_config nenv (arg_value n
 
 -- We should factor out the type check, although it might depend on
 -- the functor (value in this case) if we generalise equality
-def evaluator.local_at_idx (idx : Nat) (tp : type) : evaluator system_config nenv (value nenv tp) :=
+def evaluator.local_at_idx (idx : Nat) (tp : type) : evaluator system_m nenv (value nenv tp) :=
   do s <- get;
      (match s.locals.find? idx with
      | (some (Sigma.mk tp' v)) => value.type_check nenv _ v tp
@@ -462,12 +461,12 @@ def evaluator.local_at_idx (idx : Nat) (tp : type) : evaluator system_config nen
 theorem width_width' : ∀(rtp : gpreg_type), eval_nat_expr nenv rtp.width = rtp.width' :=
   I_am_really_sorry _
 
-def concrete_reg.set : ∀{tp : type}, concrete_reg tp -> value nenv tp -> evaluator system_config nenv Unit
+def concrete_reg.set : ∀{tp : type}, concrete_reg tp -> value nenv tp -> evaluator system_m nenv Unit
   | ._, (concrete_reg.gpreg idx rtp), b => 
     let b' : bitvec rtp.width' := Eq.rec b (width_width' nenv rtp);
-    evaluator.map_machine_state system_config nenv (machine_state.update_gpreg idx (reg.inject rtp b'))
+    evaluator.map_machine_state system_m nenv (machine_state.update_gpreg idx (reg.inject rtp b'))
   | ._, (concrete_reg.flagreg idx),   b => 
-    evaluator.map_machine_state system_config nenv (machine_state.update_flag idx (fun _ => b))
+    evaluator.map_machine_state system_m nenv (machine_state.update_flag idx (fun _ => b))
   
 def concrete_reg.from_state : ∀{tp : type}, concrete_reg tp -> machine_state 
   -> value nenv tp
@@ -478,33 +477,32 @@ def concrete_reg.from_state : ∀{tp : type}, concrete_reg tp -> machine_state
     v'
   | _, (concrete_reg.flagreg idx),   s => s.get_flag idx
 
-def concrete_reg.read {tp : type} (r : concrete_reg tp) : evaluator system_config nenv (value nenv tp) := 
-    do s <- get;
-       pure (concrete_reg.from_state nenv r s.system_state.machine_state)
+def concrete_reg.read {tp : type} (r : concrete_reg tp) : evaluator system_m nenv (value nenv tp) := 
+    evaluator.with_machine_state system_m nenv (concrete_reg.from_state nenv r)
 
 -- namespace arg_lval 
 
-def arg_lval.to_value' : arg_lval -> ∀(tp : type), system_m system_config.os_state (value nenv tp)
+def arg_lval.to_value' : arg_lval -> ∀(tp : type), system_m (value nenv tp)
   | (@arg_lval.reg tp r), tp' => do
     s <- get;
-    value.type_check nenv tp (concrete_reg.from_state nenv r s.machine_state) tp'
+    value.type_check nenv tp (concrete_reg.from_state nenv r s) tp'
   | (arg_lval.memloc width addr), tp' => do
-    w <- system_m.read_memory_at system_config addr width;
+    w <- SystemM.read_memory_at system_m addr width;
     value.type_check nenv (bv width) w tp'
 
-def arg_lval.to_value : arg_lval -> ∀(tp : type), evaluator system_config nenv (value nenv tp)
-  | (@arg_lval.reg tp r), tp' => do v <- concrete_reg.read system_config nenv r;
+def arg_lval.to_value : arg_lval -> ∀(tp : type), evaluator system_m nenv (value nenv tp)
+  | (@arg_lval.reg tp r), tp' => do v <- concrete_reg.read system_m nenv r;
                                    value.type_check nenv tp v tp'
   | (arg_lval.memloc width addr), tp' => do
-    v <- evaluator.read_memory_at system_config nenv addr width;
+    v <- evaluator.read_memory_at system_m nenv addr width;
     value.type_check nenv (bv width) v tp'
 
 def arg_lval.set_value : arg_lval -> ∀{tp : type}, value nenv tp 
-  -> evaluator system_config nenv  Unit
+  -> evaluator system_m nenv  Unit
   | (@arg_lval.reg tp r), tp', v => do v' <- value.type_check nenv _ v tp;
-                                     concrete_reg.set system_config nenv r v'
+                                       concrete_reg.set system_m nenv r v'
   | (arg_lval.memloc _width addr), tp, v => do
-    evaluator.write_memory_at system_config nenv addr v
+    evaluator.write_memory_at system_m nenv addr v
 
 -- def read_memory_at (av : arg_value) (n : Nat) : evaluator trace_event (bitvec (8 * n)) :=
 --   match av with 
@@ -513,26 +511,26 @@ def arg_lval.set_value : arg_lval -> ∀{tp : type}, value nenv tp
 --   end
 
 -- Can fail if types mismatch
-def arg_value.to_value : arg_value nenv -> ∀(tp : type), evaluator system_config nenv (value nenv tp)
+def arg_value.to_value : arg_value nenv -> ∀(tp : type), evaluator system_m nenv (value nenv tp)
   | (arg_value.natv _ _),  _ => throw "arg_value.to_value: saw a natv"
-  | (arg_value.lval _ l), tp => arg_lval.to_value system_config nenv l tp
+  | (arg_value.lval _ l), tp => arg_lval.to_value system_m nenv l tp
   | (arg_value.rval v), tp => value.type_check nenv _ v tp
 
-def arg_value.set_value : arg_value nenv -> ∀{tp : type}, value nenv tp -> evaluator system_config nenv Unit
-  | (arg_value.lval _ l), tp, v => arg_lval.set_value system_config nenv l v
+def arg_value.set_value : arg_value nenv -> ∀{tp : type}, value nenv tp -> evaluator system_m nenv Unit
+  | (arg_value.lval _ l), tp, v => arg_lval.set_value system_m nenv l v
   | _, _, _ => throw "arg_value.set_value: not an lvalue"
 
-def addr.read : ∀{tp : type}, addr tp -> evaluator system_config nenv (value nenv tp)
+def addr.read : ∀{tp : type}, addr tp -> evaluator system_m nenv (value nenv tp)
   | tp, (addr.arg idx) => do 
-      av <- evaluator.arg_at_idx system_config nenv idx;
-      arg_value.to_value system_config nenv av tp -- FIXME: we should really check if this is a memloc first.
+      av <- evaluator.arg_at_idx system_m nenv idx;
+      arg_value.to_value system_m nenv av tp -- FIXME: we should really check if this is a memloc first.
       -- w  <- av.read_memory_at n,
       -- return (value.bv w)
 
-def addr.set : ∀{tp : type}, addr tp -> value nenv tp -> evaluator system_config nenv Unit
+def addr.set : ∀{tp : type}, addr tp -> value nenv tp -> evaluator system_m nenv Unit
   | tp, (addr.arg idx), v => do 
-      av <- evaluator.arg_at_idx system_config nenv idx; -- FIXME: we should really check if this is a memloc first.
-      arg_value.set_value system_config nenv av v
+      av <- evaluator.arg_at_idx system_m nenv idx; -- FIXME: we should really check if this is a memloc first.
+      arg_value.set_value system_m nenv av v
 
 -- This is the least-worst option.  The other alternative is to have a
 -- value constructor for functions, which we only need here.
@@ -635,7 +633,7 @@ def bitvec.parity {n : Nat} (b : bitvec n) : Bool :=
 -- example : bitvec.parity (3 : bitvec 4) = false := by refl
 -- example : bitvec.parity (7 : bitvec 4) = true := by refl
 
-def prim.eval : ∀{tp : type}, prim tp -> evaluator system_config nenv (value nenv tp)
+def prim.eval : ∀{tp : type}, prim tp -> evaluator system_m nenv (value nenv tp)
   -- `(eq tp)` returns `true` if two values are equal.
   | ._, (prim.eq tp) => 
     if pf : type.has_eq tp 
@@ -842,8 +840,8 @@ def value.make_undef : ∀(tp : type), value nenv tp
   | (pair tp tp') => (value.make_undef tp, value.make_undef tp')
   | (fn arg res) => fun _ => value.make_undef res
 
-def expression.eval : ∀{tp : type}, expression tp -> evaluator system_config nenv (value nenv tp)
-  | ._, (expression.primitive p) => prim.eval system_config nenv p
+def expression.eval : ∀{tp : type}, expression tp -> evaluator system_m nenv (value nenv tp)
+  | ._, (expression.primitive p) => prim.eval system_m nenv p
   | ._, (@expression.bit_test wr wi re idxe) => do
     r   <- expression.eval re;
     idx <- expression.eval idxe;
@@ -855,66 +853,66 @@ def expression.eval : ∀{tp : type}, expression tp -> evaluator system_config n
   | ._, (expression.quotc m xe) => throw "expression.eval.quotc unimplemented"
   | ._, (expression.undef tp)   => pure (value.make_undef nenv tp)
   | ._, (expression.app f a) => (expression.eval f) <*> (expression.eval a)
-  | ._, (expression.get_reg r) => concrete_reg.read system_config nenv r
+  | ._, (expression.get_reg r) => concrete_reg.read system_m nenv r
   | ._, (expression.read tp addre) => do
     addr   <- expression.eval addre;
     (match tp with
-      | (bv we) => evaluator.read_memory_at system_config nenv  addr (eval_nat_expr nenv we)
+      | (bv we) => evaluator.read_memory_at system_m nenv  addr (eval_nat_expr nenv we)
       | _ => throw "expression.eval.read Trying to store non-bitvector")
 
   | ._, (expression.streg idx) => throw "expression.eval.streg unimplemented"
-  | ._, (expression.get_local idx tp) => evaluator.local_at_idx system_config nenv idx tp
+  | ._, (expression.get_local idx tp) => evaluator.local_at_idx system_m nenv idx tp
   -- This is overly general, we might not know that av here is an rval
   | ._, (expression.imm_arg idx tp) => do
-    av <- evaluator.arg_at_idx system_config nenv idx;
+    av <- evaluator.arg_at_idx system_m nenv idx;
     (match av with
     | (arg_value.rval v) => value.type_check nenv _ v tp
     | _ => throw "expression.eval.imm_arg Not an rval")
 
   | ._, (expression.addr_arg idx) => do
-    av <- evaluator.arg_at_idx system_config nenv idx;
+    av <- evaluator.arg_at_idx system_m nenv idx;
     (match av with
     | (arg_value.lval _ (arg_lval.memloc _ addr)) => pure addr
     | _ => throw "expression.eval.addr_arg Not an memloc lval")
   -- FIXME: isn't specific to arg_lval
   | ._, (expression.read_arg idx tp) => do
-    av <- evaluator.arg_at_idx system_config nenv idx;
-    arg_value.to_value system_config nenv av tp
+    av <- evaluator.arg_at_idx system_m nenv idx;
+    arg_value.to_value system_m nenv av tp
 
-def evaluator.set_ip (new_ip : bitvec 64) : evaluator system_config nenv Unit :=
-  evaluator.map_machine_state system_config nenv (fun (s : machine_state) => { s with ip := new_ip })
+def evaluator.set_ip (new_ip : bitvec 64) : evaluator system_m nenv Unit :=
+  evaluator.map_machine_state system_m nenv (fun (s : machine_state) => { s with ip := new_ip })
 
-def lhs.set : ∀{tp : type}, lhs tp -> value nenv tp -> evaluator system_config nenv Unit
-  | ._, (lhs.set_reg r), v        => concrete_reg.set system_config nenv  r v
+def lhs.set : ∀{tp : type}, lhs tp -> value nenv tp -> evaluator system_m nenv Unit
+  | ._, (lhs.set_reg r), v        => concrete_reg.set system_m nenv  r v
   | ._, (lhs.write_addr ae tp), v => do
-    a <- expression.eval system_config nenv ae;
-    evaluator.write_memory_at system_config nenv a v
+    a <- expression.eval system_m nenv ae;
+    evaluator.write_memory_at system_m nenv a v
   | ._, (lhs.write_arg idx _tp), v => do
-    av <- evaluator.arg_at_idx system_config nenv idx;
+    av <- evaluator.arg_at_idx system_m nenv idx;
     -- fixme: we ignore tp here?
-    arg_value.set_value system_config nenv av v
+    arg_value.set_value system_m nenv av v
   | ._, (lhs.streg idx), v  => throw "lhs.set: unsupported FP write"
 
-def lhs.read : ∀{tp : type}, lhs tp -> evaluator system_config nenv (value nenv tp)
-  | ._, (lhs.set_reg r)        => concrete_reg.read system_config nenv r
+def lhs.read : ∀{tp : type}, lhs tp -> evaluator system_m nenv (value nenv tp)
+  | ._, (lhs.set_reg r)        => concrete_reg.read system_m nenv r
   | ._, (lhs.write_addr ae tp) => do
-    addr <- expression.eval system_config nenv ae;
+    addr <- expression.eval system_m nenv ae;
    (match tp with
-     | (bv we) => evaluator.read_memory_at system_config nenv addr (eval_nat_expr nenv we)
+     | (bv we) => evaluator.read_memory_at system_m nenv addr (eval_nat_expr nenv we)
      | _ => throw "lhs.read Trying to store non-bitvector")
   | ._, (lhs.write_arg idx tp) => do
-    av <- evaluator.arg_at_idx system_config nenv idx;
+    av <- evaluator.arg_at_idx system_m nenv idx;
     -- fixme: we ignore tp here?
-    arg_value.to_value system_config nenv av tp
+    arg_value.to_value system_m nenv av tp
   | ._, (lhs.streg idx) => throw "lhs.set: unsupported FP write"
 
-def evaluator.push64 (v : value nenv (bv 64)) : evaluator system_config nenv Unit := do
-  sp <- lhs.read system_config nenv rsp;
+def evaluator.push64 (v : value nenv (bv 64)) : evaluator system_m nenv Unit := do
+  sp <- lhs.read system_m nenv rsp;
   let sp' := sp - 8; do
-    lhs.set system_config nenv rsp sp';
-    evaluator.write_memory_at system_config nenv sp' v
+    lhs.set system_m nenv rsp sp';
+    evaluator.write_memory_at system_m nenv sp' v
 
-def read_cpuid : evaluator system_config nenv Unit :=
+def read_cpuid : evaluator system_m nenv Unit :=
   -- Copied from the cpuid results from my macbook
   -- Note: CPUID is allowed to return 0s 
   let cpuid_values : RBMap Nat (bitvec 32 × bitvec 32 × bitvec 32 × bitvec 32) (fun x y => decide (x < y)) :=
@@ -947,37 +945,37 @@ def read_cpuid : evaluator system_config nenv Unit :=
       | none     => (0, 0, 0, 0)
       | (some r) => r;
     do 
-      raxv <- lhs.read system_config nenv rax;
+      raxv <- lhs.read system_m nenv rax;
       match cpuid_fn raxv.to_nat with 
       | (axv, bxv, cxv, dxv) => do 
-        lhs.set system_config nenv eax axv;
-        lhs.set system_config nenv ebx bxv;
-        lhs.set system_config nenv ecx cxv;
-        lhs.set system_config nenv edx dxv
+        lhs.set system_m nenv eax axv;
+        lhs.set system_m nenv ebx bxv;
+        lhs.set system_m nenv ecx cxv;
+        lhs.set system_m nenv edx dxv
 
-def event.eval : event -> evaluator system_config nenv Unit
-  | event.syscall =>
-    adaptState (fun (s : evaluator_state system_config nenv) => (s.system_state, s))
-               (fun s s' => { s' with system_state := s })
-               (system_config.os_transition)
+def event.eval : event -> evaluator system_m nenv Unit
+  | event.syscall => monadLift (SystemM.os_transition : system_m Unit)
+    -- adaptState (fun (s : evaluator_state nenv) => (s.system_state, s))
+    --            (fun s s' => { s' with system_state := s })
+    --            (system_m.os_transition)
   | (event.unsupported msg) => throw ("event.eval: unsupported: " ++ msg)
   | event.pop_x87_register_stack => throw "pop_x87_register_stack"
   | (event.call addr) => do
-    new_ip <- expression.eval system_config nenv addr;
-    s <- get;
-    evaluator.push64 system_config nenv s.system_state.machine_state.ip;
-    evaluator.set_ip  system_config nenv new_ip
+    new_ip <- expression.eval system_m nenv addr;
+    old_ip <- evaluator.with_machine_state system_m nenv (fun s => s.ip);
+    evaluator.push64 system_m nenv old_ip;
+    evaluator.set_ip system_m nenv new_ip
 
   | (event.jmp addr) => do
-    new_ip <- expression.eval system_config nenv addr;
-    evaluator.set_ip system_config nenv new_ip
+    new_ip <- expression.eval system_m nenv addr;
+    evaluator.set_ip system_m nenv new_ip
   | (event.branch c addr) => do
-    new_ip <- expression.eval system_config nenv addr;
-    b      <- expression.eval system_config nenv c;
-    when b (evaluator.set_ip system_config nenv new_ip)
+    new_ip <- expression.eval system_m nenv addr;
+    b      <- expression.eval system_m nenv c;
+    when b (evaluator.set_ip system_m nenv new_ip)
   | event.hlt => throw "halt"
   | (event.xchg addr1 addr2) => throw "xchg"
-  | event.cpuid => read_cpuid system_config nenv
+  | event.cpuid => read_cpuid system_m nenv
 
 -- def lhs.read : ∀{tp : type}, lhs tp -> evaluator trace_event (value tp)
 --   | ._ (lhs.reg r)       => reg.read r
@@ -986,13 +984,13 @@ def event.eval : event -> evaluator system_config nenv Unit
 --                                   arg_value.to_value av tp
 --   | ._ (lhs.streg idx)   => throw "lhs.read: unsupported FP read"
 
-def action.eval : action -> evaluator system_config nenv Unit
-  | (action.set l e) => do v <- expression.eval system_config nenv e;
-                           lhs.set system_config nenv l v
+def action.eval : action -> evaluator system_m nenv Unit
+  | (action.set l e) => do v <- expression.eval system_m nenv e;
+                           lhs.set system_m nenv l v
   | (action.set_cond l c e) => do
-    b <- expression.eval system_config nenv c;
-    v <- expression.eval system_config nenv e;
-    when b (lhs.set system_config nenv l v)
+    b <- expression.eval system_m nenv c;
+    v <- expression.eval system_m nenv e;
+    when b (lhs.set system_m nenv l v)
   | (@action.set_aligned (bv _) l e align) => throw "set_aligned: buggy case" -- FIXME: compiler bug
     -- v <- expression.eval os_state nenv e,
     -- if v.to_nat % eval_nat_expr nenv align = 0
@@ -1000,15 +998,15 @@ def action.eval : action -> evaluator system_config nenv Unit
     -- else throw "Unaligned set_aligned"
   | (@action.set_aligned _ l e align) => throw "set_aligned: not a bv"
   | (@action.local_def tp idx e) => do 
-    v <- expression.eval system_config nenv e;
+    v <- expression.eval system_m nenv e;
     modify (fun s => { s with locals := s.locals.insert idx (Sigma.mk tp v)})
-  | (action.event e) => event.eval system_config nenv e
+  | (action.event e) => event.eval system_m nenv e
 
 -- FIXME: check pattern.context |- environment
 def pattern.eval (p : pattern) (e : environment nenv)
-    : system_m system_config.os_state Unit :=
-    evaluator.run' system_config nenv (List.mapM (action.eval system_config nenv) p.actions >>= fun _ => pure ()) e
-    -- pure ((fun (v : Unit × evaluator_state system_config nenv) => v.snd.system_state) <$> r)
+    : system_m Unit :=
+    evaluator.run' system_m nenv (List.mapM (action.eval system_m nenv) p.actions >>= fun _ => pure ()) e
+    -- pure ((fun (v : Unit × evaluator_state nenv) => v.snd.system_state) <$> r)
 
 end with_nat_env
 
