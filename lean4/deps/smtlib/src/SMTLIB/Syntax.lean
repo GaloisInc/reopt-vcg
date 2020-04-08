@@ -2,16 +2,84 @@
 
 import Galois.Init.Nat
 
+namespace SExpr
+
+def SExpr := String
+def atom : String -> SExpr := id
+
+protected
+def SExpr.empty := "()"
+
+class HasToSExpr (a : Type) := (toSExpr : a -> String)
+open HasToSExpr
+
+
+instance SExpr.HasToSExpr : HasToSExpr SExpr := ⟨id⟩
+
+instance List.HasToSExpr {a : Type} [HasToSExpr a] : HasToSExpr (List a) :=
+  ⟨fun ss => "(" ++ ss.foldr (fun a s => HasToSExpr.toSExpr a ++ " " ++ s ) ")"⟩
+
+instance Nat.HasToSExpr : HasToSExpr Nat := ⟨toString⟩
+
+instance String.HasToSExpr : HasToSExpr String := ⟨fun s => "\"" ++ s ++ "\""⟩
+
+protected
+def app (f : SExpr) (args : List SExpr) : SExpr := toSExpr (f :: args)
+
+end SExpr
+
 namespace SMTLIB
+
+open SExpr
+open SExpr.HasToSExpr
+
+-- SMTLIB specific sexpr stuff
+def indexed (f : SExpr) (args : List SExpr) : SExpr :=
+  SExpr.app (atom "_") (f :: args)
 
 inductive sort : Type
 | smt_bool : sort
 | bitvec : Nat -> sort
 
+-- Basically a list.
+inductive funsort : Type 
+| base  : sort -> funsort
+| fsort : sort -> funsort -> funsort
+
+open sort
+
+namespace sort
+
+protected
+def to_sexpr : sort -> SExpr
+| smt_bool => atom "Bool"
+| bitvec n => indexed (atom "BitVec") [toSExpr n]
+
+instance : HasToSExpr sort := ⟨sort.to_sexpr⟩
+          
+end sort
+
+structure const_sort :=
+  (args : List sort)
+  (result : sort) 
+
+namespace const_sort 
+
+def smt_bool := const_sort.mk [] sort.smt_bool
+def bitvec (n : Nat) := const_sort.mk [] (sort.bitvec n)
+
+end const_sort
+
 namespace Raw
 -- We use lowercase names for types to avoid clashing with Lean
 
 def symbol := String
+
+namespace symbol
+
+instance : HasToSExpr symbol := ⟨atom⟩ -- maybe should quote?
+
+end symbol
 
 -- S3.2
 inductive spec_constant : Type 
@@ -38,180 +106,159 @@ def pp_hex (n : Nat) (v : Nat) : String :=
 end to_hex
 
 protected
-def to_string : spec_constant -> String
-| numeral n   => toString n
-| decimal n f => toString n ++ "." ++ toString f
-| binary n v  => pp_hex n v
-| string s    => "\"" ++ toString s ++ "\""
+def to_sexpr : spec_constant -> SExpr
+| numeral n   => toSExpr n
+| decimal n f => atom (toString n ++ "." ++ toString f)
+| binary n v  => atom (pp_hex n v)
+| string s    => toSExpr s
 
-instance : HasToString spec_constant := ⟨spec_constant.to_string⟩
+instance : HasToSExpr spec_constant := ⟨spec_constant.to_sexpr⟩
 
 end spec_constant
 
-inductive identifier : Type 
-| symbol : symbol -> identifier
--- indexed symbols  
+-- distinct is a term as it has arbitrary arity
+inductive builtin_identifier : const_sort -> Type
+-- * Core theory
+| true                : builtin_identifier const_sort.smt_bool
+| false               : builtin_identifier const_sort.smt_bool
+| not                 : builtin_identifier (const_sort.mk [smt_bool] smt_bool)
+| impl                : builtin_identifier (const_sort.mk [smt_bool, smt_bool] smt_bool)
+| and                 : builtin_identifier (const_sort.mk [smt_bool, smt_bool] smt_bool)
+| or                  : builtin_identifier (const_sort.mk [smt_bool, smt_bool] smt_bool)
+| xor                 : builtin_identifier (const_sort.mk [smt_bool, smt_bool] smt_bool)
+| eq       (s : sort) : builtin_identifier (const_sort.mk [s, s] smt_bool)
+| smt_ite  (s : sort) : builtin_identifier (const_sort.mk [smt_bool, s, s] s)
+| distinct (s : sort) (arity : Nat)
+                      : builtin_identifier (const_sort.mk (List.replicate arity s) smt_bool
+)-- * BitVecs
+-- hex/binary literals
+| concat  (n : Nat) (m : Nat) : builtin_identifier (const_sort.mk [bitvec n, bitvec m] (bitvec (n + m)))
+| extract (n : Nat) (i : Nat) (j : Nat) : builtin_identifier (const_sort.mk [bitvec n] (bitvec (i - j + 1)))
+-- -- unops
+| bvnot   (n : Nat) : builtin_identifier (const_sort.mk [bitvec n] (bitvec n))
+| bvneg   (n : Nat) : builtin_identifier (const_sort.mk [bitvec n] (bitvec n))
+-- -- binops
+| bvand   (n : Nat) : builtin_identifier (const_sort.mk [bitvec n, bitvec n] (bitvec n))
+| bvor    (n : Nat) : builtin_identifier (const_sort.mk [bitvec n, bitvec n] (bitvec n))
+| bvadd   (n : Nat) : builtin_identifier (const_sort.mk [bitvec n, bitvec n] (bitvec n))
+| bvmul   (n : Nat) : builtin_identifier (const_sort.mk [bitvec n, bitvec n] (bitvec n))
+| bvudiv  (n : Nat) : builtin_identifier (const_sort.mk [bitvec n, bitvec n] (bitvec n))
+| bvurem  (n : Nat) : builtin_identifier (const_sort.mk [bitvec n, bitvec n] (bitvec n))
+| bvshl   (n : Nat) : builtin_identifier (const_sort.mk [bitvec n, bitvec n] (bitvec n))
+| bvlshr  (n : Nat) : builtin_identifier (const_sort.mk [bitvec n, bitvec n] (bitvec n))
+-- -- comparison
+| bvult   (n : Nat) : builtin_identifier (const_sort.mk [bitvec n, bitvec n] smt_bool)
+
+namespace builtin_identifier
+
+protected 
+def to_sexpr : forall {cs : const_sort}, builtin_identifier cs -> SExpr
+-- * Core theory
+| _, true                 => atom "true"
+| _, false                => atom "false"
+| _, not                  => atom "not"
+| _, impl                 => atom "impl"
+| _, and                  => atom "and"
+| _, or                   => atom "or"
+| _, xor                  => atom "xor"
+| _, eq       _           => atom "eq"
+| _, smt_ite  _           => atom "smt_ite"
+| _, distinct _ _         => atom "distinct"
+-- * BitVecs
+-- hex/binary literals
+| _, concat _ _           => atom "concat"
+| _, extract _ _ _        => atom "extract"
+-- unops
+| _, bvnot   _            => atom "bvnot"
+| _, bvneg   _            => atom "bvneg"
+-- binops                   
+| _, bvand   _            => atom "bvand"
+| _, bvor    _            => atom "bvor"
+| _, bvadd   _            => atom "bvadd"
+| _, bvmul   _            => atom "bvmul"
+| _, bvudiv  _            => atom "bvudiv"
+| _, bvurem  _            => atom "bvurem"
+| _, bvshl   _            => atom "bvshl"
+| _, bvlshr  _            => atom "bvlshr"
+-- comparison               
+| _, bvult   _            => atom "bvult"
+
+instance {cs : const_sort} : HasToSExpr (builtin_identifier cs) := ⟨builtin_identifier.to_sexpr⟩
+
+end builtin_identifier
+
+inductive identifier : const_sort -> Type 
+| symbol (cs : const_sort)  : symbol -> identifier cs
+| builtin {cs : const_sort} : builtin_identifier cs -> identifier cs
 
 namespace identifier
 
-def to_string : identifier -> String
-| symbol s => s
+protected
+def to_sexpr : forall {cs : const_sort}, identifier cs -> SExpr
+| _, symbol _ s => atom s
+| _, builtin bi => toSExpr bi
 
-instance : HasToString identifier := ⟨to_string⟩
+instance {cs : const_sort} : HasToSExpr (identifier cs)  := ⟨identifier.to_sexpr⟩
 
 end identifier
 
-def mksexp (ss : List String) : String := "(" ++ ss.foldr (fun a s => a ++ " " ++ s) ")"
-
-def sorted_var := symbol × sort
+inductive sorted_var : sort -> Type 
+| mk (s : sort) : symbol -> sorted_var s
+  
 namespace sorted_var 
 
-def to_string (s : sorted_var) : String := mksexp [s.fst, 
+protected
+def to_sexpr : forall {s : sort}, sorted_var s -> SExpr
+| _, mk s v => toSExpr [toSExpr v, toSExpr s]
+
+instance {s : sort} : HasToSExpr (sorted_var s)  := ⟨sorted_var.to_sexpr⟩
 
 end sorted_var
 
+inductive sorted_list (f : sort -> Type) : List sort -> Type 
+| nil  : sorted_list []
+| cons {s : sort} {ss : List sort} : f s -> sorted_list ss -> sorted_list (s :: ss)
 
 -- S3.6
 -- Use typed terms?
-inductive term : Type
-| spec_constant : spec_constant -> term
--- FIXME qual_identifier
-| app_ident  : identifier -> List term -> term
-| smt_let    : symbol -> term -> term -> term -- single binding only
-| smt_forall : sorted_var -> term -> term
-| smt_exists : sorted_var -> term -> term
--- FIXME match   
--- FIXME attribute
-
--- Theories.
--- * Core theory
-| true     : term
-| false    : term
-| not      : term -> term
-| impl     : term -> term -> term
-| and      : term -> term -> term
-| or       : term -> term -> term
-| xor      : term -> term -> term
-| eq       : term -> term -> term
-| distinct : List term -> term -- without the list we get term explosion
-| smt_ite  : term -> term -> term -> term
-
--- * BitVecs
--- hex/binary literals
-| concat : Nat -> Nat -> term -> term -> term -- are the nats needed?
-| extract : Nat -> Nat -> Nat -> term -> term
--- unops
-| bvnot   : term -> term
-| bvneg   : term -> term
--- binops
-| bvand   : term -> term -> term
-| bvor    : term -> term -> term
-| bvadd   : term -> term -> term
-| bvmul   : term -> term -> term
-| bvudiv  : term -> term -> term
-| bvurem  : term -> term -> term
-| bvshl   : term -> term -> term
-| bvlshr  : term -> term -> term
--- comparison
-| bvult   : term -> term -> term
+inductive term : sort -> Type
+| const (s : sort) : spec_constant -> term s
+| app_ident {cs : const_sort} : identifier cs -> sorted_list term cs.args -> term cs.result
+| smt_let {s t : sort}        : symbol -> term t -> term s -> term s -- single binding only
+| smt_forall {s : sort} : sorted_var s -> term smt_bool -> term smt_bool
+| smt_exists {s : sort} : sorted_var s -> term smt_bool -> term smt_bool
 
 namespace term
 
-
-#check (@term.recOn (fun _ => String) (fun _ => List String))
-
--- def to_string : term -> String
--- | spec_constant c  => toString c
--- | app_ident i args => mksexp (toString i :: list_to_string args)
--- | _ => ""
-
-
- -- ∀ (t : term),                                                                                                                                                 
- --    (∀ (a : spec_constant), (λ (_x : term), String) (spec_constant a)) →                                                                                        
- --    (∀ (a : identifier) (a_1 : List term), (λ (_x : List term), List String) a_1 → (λ (_x : term), String) (app_ident a a_1)) →                                 
- --    (∀ (a : symbol) (a_1a_2 : term), (λ (_x : term), String) a_1 → (λ (_x : term), String) a_2 → (λ (_x : term), String) (smt_let a a_1 a_2)) →
- --    (∀ (a : sorted_var) (a_1 : term), (λ (_x : term), String) a_1 → (λ (_x : term), String) (smt_forall a a_1)) →
- --    (∀ (a : sorted_var) (a_1 : term), (λ (_x : term), String) a_1 → (λ (_x : term), String) (smt_exists a a_1)) →
- --    (λ (_x : term), String) true →
- --    (λ (_x : term), String) false →
- --    (∀ (a : term), (λ (_x : term), String) a → (λ (_x : term), String) (not a)) →
- --    (∀ (aa_1 : term), (λ (_x : term), String) a → (λ (_x : term), String) a_1 → (λ (_x : term), String) (impl a a_1)) →
- --    (∀ (aa_1 : term), (λ (_x : term), String) a → (λ (_x : term), String) a_1 → (λ (_x : term), String) (and a a_1)) →
- --    (∀ (aa_1 : term), (λ (_x : term), String) a → (λ (_x : term), String) a_1 → (λ (_x : term), String) (or a a_1)) →
- --    (∀ (aa_1 : term), (λ (_x : term), String) a → (λ (_x : term), String) a_1 → (λ (_x : term), String) (xor a a_1)) →
- --    (∀ (aa_1 : term), (λ (_x : term), String) a → (λ (_x : term), String) a_1 → (λ (_x : term), String) (eq a a_1)) →
- --    (∀ (a : List term), (λ (_x : List term), List String) a → (λ (_x : term), String) (distinct a)) →
- --    (∀ (aa_1a_2 : term),
- --       (λ (_x : term), String) a →
- --       (λ (_x : term), String) a_1 → (λ (_x : term), String) a_2 → (λ (_x : term), String) (smt_ite a a_1 a_2)) →
- --    (∀ (aa_1 : Nat) (a_2a_3 : term), (λ (_x : term), String) a_2 → (λ (_x : term), String) a_3 → (λ (_x : term), String) (concat a a_1 a_2 a_3)) →
- --    (∀ (aa_1a_2 : Nat) (a_3 : term), (λ (_x : term), String) a_3 → (λ (_x : term), String) (extract a a_1 a_2 a_3)) →
- --    (∀ (a : term), (λ (_x : term), String) a → (λ (_x : term), String) (bvnot a)) →
- --    (∀ (a : term), (λ (_x : term), String) a → (λ (_x : term), String) (bvneg a)) →
- --    (∀ (aa_1 : term), (λ (_x : term), String) a → (λ (_x : term), String) a_1 → (λ (_x : term), String) (bvand a a_1)) →
- --    (∀ (aa_1 : term), (λ (_x : term), String) a → (λ (_x : term), String) a_1 → (λ (_x : term), String) (bvor a a_1)) →
- --    (∀ (aa_1 : term), (λ (_x : term), String) a → (λ (_x : term), String) a_1 → (λ (_x : term), String) (bvadd a a_1)) →
- --    (∀ (aa_1 : term), (λ (_x : term), String) a → (λ (_x : term), String) a_1 → (λ (_x : term), String) (bvmul a a_1)) →
- --    (∀ (aa_1 : term), (λ (_x : term), String) a → (λ (_x : term), String) a_1 → (λ (_x : term), String) (bvudiv a a_1)) →
- --    (∀ (aa_1 : term), (λ (_x : term), String) a → (λ (_x : term), String) a_1 → (λ (_x : term), String) (bvurem a a_1)) →
- --    (∀ (aa_1 : term), (λ (_x : term), String) a → (λ (_x : term), String) a_1 → (λ (_x : term), String) (bvshl a a_1)) →
- --    (∀ (aa_1 : term), (λ (_x : term), String) a → (λ (_x : term), String) a_1 → (λ (_x : term), String) (bvlshr a a_1)) →
- --    (∀ (aa_1 : term), (λ (_x : term), String) a → (λ (_x : term), String) a_1 → (λ (_x : term), String) (bvult a a_1)) →
---     (λ (_x : List term), List String) List.nil →
---     (∀ (hd : term) (tl : List term), (λ (_x : term), String) hd → (λ (_x : List term), List String) tl → (λ (_x : List term), List String) (hd::tl)) →
---     (λ (_x : term), String) t
-
--- -- things with lists in them are currently broken :(
--- def to_string (t : term) : String := 
---   @term.recOn (fun _ => String) (fun _ => List String)
---   (fun (x : spec_constant) => toString x)
---   (fun (i : identifier) (args : List term) (args_s : List String) => mksexp (toString i :: args))
---   (fun (v : symbol) (_ _ : term) (x : String) (body : String) => mksexp ["let", mksexp [v, x], body])
---   (fun (v : sorted_var) (_: term), (body : String)            => mksexp ["forall", mksexp [v, x], body])
---   (fun (v : sorted_var) (_: term), (body : String)            => mksexp ["exists", mksexp [v, x], body])
---   (
+  -- ∀ {a : sort} (t : term a),
+  --   (∀ (s : sort) (a : spec_constant), (λ (_x : sort) (_x : term _x), SExpr) s (spec_constant s a)) →
+  --   (∀ {cs : const_sort} (a : identifier cs) (a_1 : sorted_list term (cs.args)),
+  --      (λ (_x : List sort) (_x : sorted_list term _x), List SExpr) (cs.args) a_1 →
+  --      (λ (_x : sort) (_x : term _x), SExpr) (cs.result) (app_ident a a_1)) →
+  --   (∀ {st : sort} (a : symbol) (a_1 : term t) (a_2 : term s),
+  --      (λ (_x : sort) (_x : term _x), SExpr) t a_1 →
+  --      (λ (_x : sort) (_x : term _x), SExpr) s a_2 → (λ (_x : sort) (_x : term _x), SExpr) s (smt_let a a_1 a_2)) →
+  --   (∀ {s : sort} (a : sorted_var s) (a_1 : term smt_bool), (λ (_x : sort) (_x : term _x), SExpr) smt_bool a_1 → (λ (_x : sort) (_x : term _x), SExpr) smt_bool (smt_forall a a_1)) →
+  --   (∀ {s : sort} (a : sorted_var s) (a_1 : term smt_bool), (λ (_x : sort) (_x : term _x), SExpr) smt_bool a_1 → (λ (_x : sort) (_x : term _x), SExpr) smt_bool (smt_exists a a_1)) →
+  --   (λ (_x : List sort) (_x : sorted_list term _x), List SExpr) List.nil (sorted_list.nil term) →
+  --   (∀ {s : sort} {ss : List sort} (a : term s) (a_1 : sorted_list term ss),
+  --      (λ (_x : sort) (_x : term _x), SExpr) s a →
+  --      (λ (_x : List sort) (_x : sorted_list term _x), List SExpr) ss a_1 →
+  --      (λ (_x : List sort) (_x : sorted_list term _x), List SExpr) (s::ss) (sorted_list.cons a a_1)) →
+  --   (λ (_x : sort) (_x : term _x), SExpr) a t
 
 
-
-
--- | smt_let    : symbol -> term -> term -> term -- single binding only
--- | smt_forall : sorted_var -> term -> term
--- | smt_exists : sorted_var -> term -> term
--- -- FIXME match   
--- -- FIXME attribute
-
--- -- Theories.
--- -- * Core theory
--- | true     : term
--- | false    : term
--- | not      : term -> term
--- | impl     : term -> term -> term
--- | and      : term -> term -> term
--- | or       : term -> term -> term
--- | xor      : term -> term -> term
--- | eq       : term -> term -> term
--- | distinct : List term -> term -- without the list we get term explosion
--- | smt_ite  : term -> term -> term -> term
-
--- -- * BitVecs
--- -- hex/binary literals
--- | concat : Nat -> Nat -> term -> term -> term -- are the nats needed?
--- | extract : Nat -> Nat -> Nat -> term -> term
--- -- unops
--- | bvnot   : term -> term
--- | bvneg   : term -> term
--- -- binops
--- | bvand   : term -> term -> term
--- | bvor    : term -> term -> term
--- | bvadd   : term -> term -> term
--- | bvmul   : term -> term -> term
--- | bvudiv  : term -> term -> term
--- | bvurem  : term -> term -> term
--- | bvshl   : term -> term -> term
--- | bvlshr  : term -> term -> term
--- -- comparison
--- | bvult   : term -> term -> term
-
+-- things with lists in them are currently broken :(
+def to_sexpr {s : sort} (t : term s) : SExpr := 
+  @term.recOn (fun _ _ => SExpr) (fun _ _ => List SExpr) s t
+  (fun (s : sort) (x : spec_constant) => toSExpr x) -- include sort here?
+  (fun (cs : const_sort) (i : identifier cs) (_args : sorted_list term cs.args) (args_s : List SExpr) => SExpr.app (toSExpr i) args_s)
+  (fun {s t : sort} (v : symbol) (_ : term t) (_ : term s) (x : SExpr) (body : SExpr) => toSExpr [atom "let", toSExpr [toSExpr v, x], body])
+  (fun {s : sort} (v : sorted_var s) (_: term smt_bool) (body : SExpr)                => SExpr.app (atom "forall") [toSExpr [toSExpr v], body])
+  (fun {s : sort} (v : sorted_var s) (_: term smt_bool) (body : SExpr)                => SExpr.app (atom "exists") [toSExpr [toSExpr v], body])
+  -- lists
+  []
+  (fun {s : sort} {ss : List sort} (_ : term s) (_ : sorted_list term ss) (x : SExpr) (xs : List SExpr) => x :: xs)
 
 end term
 
@@ -220,7 +267,7 @@ end term
 -- Scripts and Commands (S3.9)
 
 inductive command : Type 
-| assert : term -> command
+| assert : term smt_bool -> command
 
 -- | check_sat : command
 
@@ -236,7 +283,9 @@ inductive command : Type
 -- Syntactic sugar for declare-fun
 -- | declare-const ⟨symbol ⟩ ⟨sort ⟩ )
 | declare_fun : symbol -> List sort -> sort -> command
-| define_fun : symbol -> List sorted_var -> sort -> term -> command
+| define_fun {ss : List sort} : symbol -> sorted_list sorted_var ss 
+                              -> forall (s : sort), term s -> command
+
 -- | echo : String -> command
 -- | exit : command
 -- | ( get-assertions )
@@ -264,24 +313,24 @@ namespace command
 end command
 
 end Raw
-open sort
+
 
 -- *** Exported API ***
 
-def term (s : sort) := Raw.term
+def term := Raw.term
 
 def symbol := Raw.symbol
 
--- FIXME: we may want to include a proof of well-typedness here
-def identifier (args : List sort) (result : sort) : Type := Raw.identifier
+def identifier := Raw.identifier
 
 def args_to_type : List sort -> sort -> Type
 | [], res        => term res
 | (x :: xs), res => term x -> args_to_type xs res
 
 -- given ident [a, b, c] and d, turns teram a -> term b -> term c -> term d into (ident [a, b, c])
-def app_ident_aux (res : sort) (ident : Raw.identifier) : forall (args : List sort), List Raw.term -> args_to_type args res
-| [], args        => Raw.term.app_ident ident args.reverse
+def app_ident_aux (cs : const_sort) (ident : identifier cs) 
+  : sorted_list term cs.args -> args_to_type cs.args cs.result
+| nil             => Raw.term.app_ident ident args.reverse
 | (s :: ss), args => fun (t_s : term s) => app_ident_aux ss (t_s :: args)
 
 def app_ident  {args : List sort} {res : sort} (ident : identifier args res) : args_to_type args res
