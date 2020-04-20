@@ -44,7 +44,25 @@ Assuming you've just `vagrant ssh`'d into the freshly provisioned VM described b
 
 7. Get the built lean4 files now in the `local` directory within the `reopt-vcg` repo directory structure into your PATH, e.g. `sudo rsync -a ./local/ /usr/local/` (N.B., that copies and I believes overwrites conflicting files, which may not be what you want)
 
-8. (Optional) Install lean4-mode for emacs by adding something like the following to your config file:
+
+## Building `reopt-vcg`
+
+Assuming you're in the `reopt-vcg` repo top level directory:
+
+1. `cd lean4/`
+2. `LEAN_CXX=clang-8 make LEAN=$PWD/../local/bin/lean LEANC=$PWD/../local/bin/leanc LLVM_CONFIG=llvm-config-8 CXX=clang-8`
+
+## (Optional) Setting up `lean4-mode`
+
+1. In the `lean4/` directory, run `make env`, which will print the
+   `LEAN_PATH` environment variable value used by the build. That is
+   the value you'll want your `LEAN_PATH` environment variable to be
+   for `lean4-mode` to be able to find the various packages
+   `reopt-vcg` uses. (E.g., add an `export LEAN_PATH=...` line in to
+   your `~/.bashrc` or similar with the printed content).
+
+2. Add the following (or similar) elisp to your emacs config file to
+   enable `lean4-mode` whenever a `*.lean` file is opened.
 
 ```
 ;; You need to modify the following line if your directory structure differs
@@ -66,11 +84,3 @@ Assuming you've just `vagrant ssh`'d into the freshly provisioned VM described b
 (setq load-path (cons (concat lean4-rootdir "/lean4-mode") load-path))
 (require 'lean4-mode)
 ```
-
-
-## Building `reopt-vcg`
-
-Assuming you're in the `reopt-vcg` repo top level directory:
-
-1. `cd lean4/`
-2. `LEAN_CXX=clang-8 make LEAN=$PWD/../local/bin/lean LEANC=$PWD/../local/bin/leanc LLVM_CONFIG=llvm-config-8 CXX=clang-8`

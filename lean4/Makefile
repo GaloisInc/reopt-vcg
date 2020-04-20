@@ -49,6 +49,9 @@ MAKEDEPEND = $(LEAN) --deps $< | sed 's@${LCSRCROOT}@@p' | xargs echo "$(BUILDDI
 
 # depend: ${DEPENDS}
 
+env:
+	@echo "LEAN_PATH value used during build: ${LEAN_PATH}"
+
 all: $(TARGET)
 
 $(TARGET): ${CPPLEAN} ${EXTRAOBJ}
