@@ -16,7 +16,9 @@ open x86
 def get_text_segment (e : elf.ehdr) (phdrs : List (elf.phdr e.elf_class)) : Option (elf.phdr e.elf_class) :=
     phdrs.find? (fun p => p.flags.has_X)
 
-def throwS { a : Type} (e : String) : IO a := throw (IO.userError e)
+
+def throwS {a : Type} {m : Type -> Type} [MonadIO m] (e : String) : m a := 
+  monadLift (throw (IO.userError e) : IO a)
 
 namespace sysv_abi
 
@@ -36,14 +38,14 @@ namespace x86_64
 --
 -- For now we just pick a reasonably rsp, initialise s.t. argc == 0
 
-def initialise { ost : Type } (st : system_state ost) : system_state ost :=
+def initialise (st : machine_state) : machine_state :=
     let rsp_idx : Fin 16 := 4; -- FIXME
     let stack_top := bitvec.of_nat 64 (2 ^ 47);
     let words     := [ 0 /- argc -/, 0 /- argv term. -/, 0 /- envp term -/, 0, 0 /- auxv term (2 words) -/ ];
     let f (acc : (bitvec 64 × machine_state)) (v : Nat) : bitvec 64 × machine_state :=         
         (acc.fst + bitvec.of_nat _ 8, acc.snd.store_word acc.fst (bitvec.of_nat (8 * 8) v));
-    let s'        := List.foldl f (stack_top, st.machine_state) words;
-    { st with machine_state := machine_state.update_gpreg rsp_idx (fun _ => stack_top) s'.snd }
+    let s'        := List.foldl f (stack_top, st) words;
+    machine_state.update_gpreg rsp_idx (fun _ => stack_top) s'.snd
 
 end x86_64
 
@@ -74,8 +76,42 @@ structure os_state :=
 
 def os_state.empty : os_state := os_state.mk 0 []
 
-def emit_trace_event (e : trace_event) : system_m os_state Unit :=
-  modify (fun s => { s with os_state := { trace := (s.os_state.current_ip, e) :: s.os_state.trace, ..s.os_state }})
+-- Stacking like this makes it easier to derive MonadState
+def base_system_m := (StateT os_state (ExceptT String IO))
+def system_m := StateT machine_state base_system_m
+
+instance : Monad base_system_m :=
+  inferInstanceAs (Monad (StateT os_state (ExceptT String IO)))
+
+instance : MonadState os_state base_system_m :=
+  inferInstanceAs (MonadState os_state (StateT os_state (ExceptT String IO)))
+
+instance : MonadExcept String base_system_m :=
+  inferInstanceAs (MonadExcept String (StateT os_state (ExceptT String IO)))
+
+instance  : MonadIO base_system_m :=
+  inferInstanceAs (MonadIO (StateT os_state (ExceptT String IO)))
+
+instance system_m.Monad : Monad system_m :=
+  inferInstanceAs (Monad (StateT machine_state base_system_m))
+
+instance system_m.MonadState : MonadState machine_state system_m :=
+  inferInstanceAs (MonadState machine_state (StateT machine_state base_system_m))
+
+instance system_m.MonadExcept : MonadExcept String system_m :=
+  inferInstanceAs (MonadExcept String (StateT machine_state base_system_m))
+
+instance : HasMonadLiftT base_system_m system_m :=
+  inferInstanceAs (HasMonadLiftT base_system_m (StateT machine_state base_system_m))
+
+instance system_m.MonadIO : MonadIO system_m :=
+  inferInstanceAs (MonadIO (StateT machine_state base_system_m))
+
+def system_m.run {a : Type} (m : system_m a) (s : machine_state) : IO (Except String a) := 
+  ((m.run' s).run' os_state.empty).run
+
+def emit_trace_event (e : trace_event) : system_m Unit :=
+  monadLift (modify (fun (s : os_state) => { s with trace := (s.current_ip, e) :: s.trace }) : base_system_m Unit)
 
 -- Linux calling conv: %rdi, %rsi, %rdx, %r10, %r8 and %r9, with %rax holding syscall number.
 
@@ -98,49 +134,48 @@ def r13_idx : Fin 16 := 13
 def r14_idx : Fin 16 := 14
 def r15_idx : Fin 16 := 15
 
--- def simple_syscall (f : system_state os_state -> machine_word) : system_m os_state Unit :=
+-- def simple_syscall (f : system_state os_state -> machine_word) : system_m Unit :=
 --   modify (fun s => { s with machine_state := s.machine_state.update_gpreg rax_idx (fun _ => f s) })
 
-def emit_syscall_trace (syscall_no : Nat) (args : List machine_word) : system_m os_state Unit :=
+def emit_syscall_trace (syscall_no : Nat) (args : List machine_word) : system_m Unit :=
     emit_trace_event (trace_event.syscall syscall_no args)
 
-def raw_syscall {a : Type} (f : machine_word -> machine_word -> machine_word -> machine_word -> machine_word -> machine_word -> system_m os_state a)
-  : system_m os_state a := do
+def raw_syscall {a : Type} (f : machine_word -> machine_word -> machine_word -> machine_word -> machine_word -> machine_word -> system_m a)
+  : system_m a := do
   s <- get;
-  f (s.machine_state.get_gpreg rdi_idx)
-    (s.machine_state.get_gpreg rsi_idx)
-    (s.machine_state.get_gpreg rdx_idx)
-    (s.machine_state.get_gpreg r10_idx)
-    (s.machine_state.get_gpreg r8_idx)
-    (s.machine_state.get_gpreg r9_idx)
+  f (s.get_gpreg rdi_idx)
+    (s.get_gpreg rsi_idx)
+    (s.get_gpreg rdx_idx)
+    (s.get_gpreg r10_idx)
+    (s.get_gpreg r8_idx)
+    (s.get_gpreg r9_idx)
 
-def syscall0 (sys_f : system_m os_state machine_word)
+def syscall0 (sys_f : system_m machine_word)
              (syscall_no : Nat) 
-             : system_m os_state Unit := do
+             : system_m Unit := do
   res <- raw_syscall (fun _ _ _ _ _ _ => do emit_syscall_trace syscall_no []; sys_f);
-  modify (fun s => { s with machine_state := s.machine_state.update_gpreg rax_idx (fun _ => res) })
+  modify (machine_state.update_gpreg rax_idx (fun _ => res))
 
-def syscall1 (sys_f : machine_word -> system_m os_state machine_word) 
+def syscall1 (sys_f : machine_word -> system_m machine_word) 
              (syscall_no : Nat)
-             : system_m os_state Unit := do
+             : system_m Unit := do
   res <- raw_syscall (fun a _ _ _ _ _ => do emit_syscall_trace syscall_no [a]; sys_f a);
-  modify (fun s => { s with machine_state := s.machine_state.update_gpreg rax_idx (fun _ => res) })
+  modify (machine_state.update_gpreg rax_idx (fun _ => res))
 
-def syscall3 (sys_f : machine_word -> machine_word -> machine_word -> system_m os_state machine_word) 
+def syscall3 (sys_f : machine_word -> machine_word -> machine_word -> system_m machine_word) 
              (syscall_no : Nat)
-             : system_m os_state Unit := do
+             : system_m Unit := do
   res <- raw_syscall (fun a b c _ _ _ => do emit_syscall_trace syscall_no [a, b, c]; sys_f a b c);
-  modify (fun s => { s with machine_state := s.machine_state.update_gpreg rax_idx (fun _ => res) })
+  modify (machine_state.update_gpreg rax_idx (fun _ => res))
 
-def syscall6 (sys_f : machine_word -> machine_word -> machine_word -> machine_word -> machine_word -> machine_word -> system_m os_state machine_word) 
+def syscall6 (sys_f : machine_word -> machine_word -> machine_word -> machine_word -> machine_word -> machine_word -> system_m machine_word) 
              (syscall_no : Nat)
-             : system_m os_state Unit := do
+             : system_m Unit := do
   res <- raw_syscall (fun a b c d e f => do emit_syscall_trace syscall_no [a, b, c, d, e, f]; sys_f a b c d e f);
-  modify (fun s => { s with machine_state := s.machine_state.update_gpreg rax_idx (fun _ => res) })
-
+  modify (machine_state.update_gpreg rax_idx (fun _ => res))
 
 -- Stub calls
-abbrev syscall_t := ∀(syscall_no : Nat), system_m os_state Unit
+abbrev syscall_t := ∀(syscall_no : Nat), system_m Unit
 
 def sys_getuid : syscall_t :=
   syscall0 (pure (bitvec.of_nat 64 4242))
@@ -164,7 +199,7 @@ def sys_exit : syscall_t :=
 def sys_write : syscall_t :=
   syscall3 (fun filedes buf nbytes => do
                s <- get;
-               let m_bytes := s.machine_state.mem.read_bytes buf nbytes.to_nat;
+               let m_bytes := s.mem.read_bytes buf nbytes.to_nat;
                match m_bytes with
                | none      => throw ("sys_write: unable to read " ++ nbytes.to_nat.repr ++ " bytes at " ++ buf.pp_hex)
                | (some bs) => if filedes = 1 
@@ -183,45 +218,47 @@ def syscalls : RBMap Nat syscall_t (fun x y => decide (x < y)) :=
                   , (0x6c, sys_getegid)
                   ] (fun x y => decide (x < y))
 
-def syscall_handler : system_m os_state Unit := do
+def syscall_handler : system_m Unit := do
   s <- get;
-  let syscall_no := (s.machine_state.get_gpreg rax_idx).to_nat;
+  let syscall_no := (s.get_gpreg rax_idx).to_nat;
   match syscalls.find? syscall_no with
      | none     => throw ("Unknown syscall: " ++ repr syscall_no)
      | (some m) => m syscall_no
 
-def system_config : SystemConfig :=
-  SystemConfig.mk os_state syscall_handler 
-                  (fun addr n b => emit_trace_event (trace_event.read addr n b))
-                  (fun addr n b => emit_trace_event (trace_event.write addr n b))
+instance : SystemM system_m :=
+  SystemM.mk syscall_handler 
+             (fun addr n b => emit_trace_event (trace_event.read addr n b))
+             (fun addr n b => emit_trace_event (trace_event.write addr n b))
+
 end x86_64
 end linux
 
 
 -- def lift_eval {α : Type *} |  evaluator α) : io a
 
-def dump_state (s : system_state linux.x86_64.os_state) : IO Unit := do
-  let line := s.machine_state.ip.pp_hex ++ ": " ++ s.machine_state.print_regs ++ " " ++ s.machine_state.print_set_flags;
-  IO.println line
+-- def dump_state (s : system_state linux.x86_64.os_state) : IO Unit := do
+--   let line := s.ip.pp_hex ++ ": " ++ s.print_regs ++ " " ++ s.print_set_flags;
+--   IO.println line
 
-def decode_loop (d : decodex86.decoder) : Nat -> system_state linux.x86_64.os_state -> IO Unit
-  | Nat.zero,    _   => throwS "Out of fuel"
-  | (Nat.succ n), s  => do
+def decode_loop (d : decodex86.decoder) : Nat -> linux.x86_64.system_m Unit
+  | Nat.zero      => throwS "Out of fuel"
+  | (Nat.succ n)  => do
   -- dump_state s;
-  let inst := decodex86.decode d s.machine_state.ip.to_nat;
+  s <- get;
+  let inst := decodex86.decode d s.ip.to_nat;
   match inst with 
   | (Sum.inl b) => throwS "Unknown byte"
   | (Sum.inr i) => do
     -- IO.println (repr i);
-    r <- eval_instruction linux.x86_64.system_config 
-           { machine_state := { ip := s.machine_state.ip + bitvec.of_nat _ i.nbytes, .. s.machine_state}, 
-             os_state      := { current_ip := s.machine_state.ip, .. s.os_state } } 
-           i;
-    (match r with
-    | (Except.error e) => 
-      do s.os_state.trace.reverse.mapM (fun (e : (machine_word × linux.x86_64.trace_event)) => IO.println (e.fst.pp_hex ++ " " ++ repr e.snd));
-         throwS ("Eval failed: (" ++ repr i ++ ") at " ++  s.machine_state.ip.pp_hex ++ " "  ++ e)
-    | (Except.ok s')   => decode_loop n s')
+    modify (fun (s : machine_state) => { s with ip := s.ip + bitvec.of_nat _ i.nbytes });
+    monadLift (modify (fun (s' : linux.x86_64.os_state) => {s' with current_ip := s.ip}) : 
+               linux.x86_64.base_system_m Unit);
+    catch (eval_instruction linux.x86_64.system_m i)
+          (fun e => do s' <- monadLift (get : linux.x86_64.base_system_m linux.x86_64.os_state);
+                       s'.trace.reverse.mapM (fun (e : (machine_word × linux.x86_64.trace_event)) => 
+                                              IO.println (e.fst.pp_hex ++ " " ++ repr e.snd));
+                       throwS ("Eval failed: (" ++ repr i ++ ") at " ++  s.ip.pp_hex ++ " "  ++ e));
+    decode_loop n
 
 def doit (elffile : String) : IO Unit := do
   ((Sigma.mk ehdr phdrs), init_mem) <- elf.read_info_from_file elffile;
@@ -236,13 +273,15 @@ def doit (elffile : String) : IO Unit := do
                           ++ " exp:"    ++ repr (2 ^ 64)
                           ++ " mul:"  ++ repr (9223372036854775808 * 2) );
   let d := decodex86.mk_decoder text_bytes text_phdr.vaddr.toNat;
-  let init_state := 
-      system_state.mk { machine_state.empty with 
-                      ip := bitvec.of_nat _ ehdr.entry.toNat
-                      , mem := memory.from_init init_mem } 
-                      linux.x86_64.os_state.empty;
-    let init_state_abi := sysv_abi.x86_64.initialise init_state;
-    let fuel : Nat := 100000; decode_loop d fuel init_state_abi
+  let init_state :=  { machine_state.empty with 
+                       ip := bitvec.of_nat _ ehdr.entry.toNat
+                     , mem := memory.from_init init_mem };
+  let init_state_abi := sysv_abi.x86_64.initialise init_state;
+  let fuel : Nat := 100000; 
+  r <- (decode_loop d fuel).run init_state_abi;
+  match r with 
+  | (Except.ok _) => pure ()
+  | (Except.error e) => throwS ("Unexpected error: " ++ e)    
 
 -- set_option profiler true
 -- #eval doit ("../testfiles/two", "../llvm-tablegen-support/llvm-tablegen-support", 1530, 1544)
