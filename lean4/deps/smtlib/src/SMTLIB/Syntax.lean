@@ -458,8 +458,9 @@ def ex1 : smtM Unit :=
   do f <- declare_fun "f" [smt_bool, smt_bool] smt_bool;
      assert (f true false)
 
-#eval toString ((runsmtM (assert true)).map toSExpr)
-#eval toString ((runsmtM ex1).map toSExpr)
+-- #check true
+-- #check false
+-- #eval toString (List.map toSExpr (runsmtM ex1))
 
 
 end
