@@ -21,8 +21,14 @@ LEAN_PATH := Init=${LEANDIR}/lib/lean/Init
 LEANFILES := 
 EXTRACXXFILES :=
 
+TARGET := $(BUILDDIR)/sim $(BUILDDIR)/driver
+
+all: $(TARGET)
+
+
 include deps/galois_stdlib/Makefile.include
 include deps/llvm-tablegen-support/Makefile.include
+include deps/lean-llvm/Makefile.include
 include deps/x86_semantics/Makefile.include
 include simulator/Makefile.include
 
@@ -34,12 +40,13 @@ DEPENDS := ${patsubst %.lean,%.d,${LEANFILES_REL}}
 OLEAN   := ${patsubst %.lean,%.olean,${LEANFILES_REL}}
 CPPLEAN := ${patsubst %.lean,$(BUILDDIR)/%.cpp,${LEANFILES_REL}}
 
-TARGET  := $(BUILDDIR)/sim
+
 
 # FIXME: move to llvm-tablegen-support submake
 # LLVM_BUILD_ROOT ?= ${HOME}/galois/vadds/llvm-stuff/llvm-build
 # LLVM_CONFIG = ${LLVM_BUILD_ROOT}/bin/llvm-config
 LLVM_CONFIG ?= llvm-config
+LLVM_INCLUDE = $(shell $(LLVM_CONFIG) --includedir)
 
 CXXFLAGS += -fPIC -ggdb3
 
@@ -47,15 +54,17 @@ export LEAN_PATH
 
 MAKEDEPEND = $(LEAN) --deps $< | sed 's@${LCSRCROOT}@@p' | xargs echo "$(BUILDDIR)/$*.cpp $*.olean:" > $@
 
-# depend: ${DEPENDS}
+depend: ${DEPENDS}
 
-all: $(TARGET)
+$(BUILDDIR)/sim : ${CPPLEAN} ${EXTRAOBJ} build/simulator/Main.cpp
+	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cxxflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86` -lstdc++
 
-$(TARGET): ${CPPLEAN} ${EXTRAOBJ}
+$(BUILDDIR)/driver: ${CPPLEAN} ${EXTRAOBJ} build/deps/lean-llvm/src/Driver.cpp
 	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cxxflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86` -lstdc++
 
 %.d: %.lean
 	$(MAKEDEPEND)
+
 
 # The olean have to be in the same directory :/
 # %.olean : %.lean
@@ -74,6 +83,8 @@ $(BUILDDIR)/%.o: %.cpp
 $(BUILDDIR)/deps/galois_stdlib/src/Galois/Init/%: CXXFLAGS += -I${LEANDIR}/include -std=c++14
 
 $(BUILDDIR)/deps/llvm-tablegen-support/src/%: CXXFLAGS += -g -O3 -I deps/llvm-tablegen-support/src/ -I deps/llvm-tablegen-support/llvm-files/ `${LLVM_CONFIG} --cxxflags` -I${LEANDIR}/include/ -I${LEANDIR}/include/runtime -std=c++14 -fexceptions
+
+$(BUILDDIR)/deps/lean-llvm/src/%: CXXFLAGS += -g -O3 -I deps/llvm-tablegen-support/src/ -I deps/llvm-tablegen-support/llvm-files/ `${LLVM_CONFIG} --cxxflags` -I${LEANDIR}/include/ -I${LEANDIR}/include/runtime -std=c++14 -fexceptions
 
 # %.olean %.cpp : %.lean %.d
 # 	@mkdir -p $(@D);
@@ -98,4 +109,3 @@ clean:
 	rm -f ${DEPENDS} ${OLEAN}
 
 include ${DEPENDS}
-

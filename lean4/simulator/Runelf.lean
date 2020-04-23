@@ -281,12 +281,7 @@ def doit (elffile : String) : IO Unit := do
   r <- (decode_loop d fuel).run init_state_abi;
   match r with 
   | (Except.ok _) => pure ()
-  | (Except.error e) => throwS ("Unexpected error: " ++ e)
-    
-def main (xs : List String) : IO UInt32 :=
-  match xs with 
-  | [f] => do doit f; pure 0
-  | _   => throwS "Expected a file"
+  | (Except.error e) => throwS ("Unexpected error: " ++ e)    
 
 -- set_option profiler true
 -- #eval doit ("../testfiles/two", "../llvm-tablegen-support/llvm-tablegen-support", 1530, 1544)
