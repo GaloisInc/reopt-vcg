@@ -1,20 +1,44 @@
 
 # http://make.mad-scientist.net/papers/advanced-auto-dependency-generation/#tldr
 
-# DEPDIR := .d
-# $(shell mkdir -p $(DEPDIR) >/dev/null)
+# IMPORTANT:
+#
+# 1. Please AVOID DOUBLE SLASHES (e.g., `//`) and other seemingly
+#    innocuous but unneccesary content in generated file paths;
+#
+# 2. Please do not leave trailing slashes on directory paths---e.g.,
+#    use `foo/bar/baz` and not `foo/bar/baz/`---to help achieve (1).
+#
+# This Makefile and the included `Makefile.include`s must be careful
+# to consistently name paths/files/etc since we _generate_ makefile
+# rules/dependencies/etc based on these values which then impact the
+# build. While the double slashes, dot-dots, etc may be
+# ignored/removed/etc in many cases, when used as a target name a path
+# with that sort of extra "noise" in it will _not_ be considered the
+# same target as the same path without such seemingly innocuous noise.
 
-SRCROOT := $(dir $(realpath $(firstword $(MAKEFILE_LIST))))
+
+# Determine the root directory for the source files (e.g., `.../reopt-vcg/lean4`)
+SRCROOT := $(abspath $(dir $(realpath $(firstword $(MAKEFILE_LIST)))))
+# A lowercase version of SRCROOT used below (AMK: TODO why are we doing this?)
 LCSRCROOT := $(shell echo ${SRCROOT} | tr A-Z a-z)
 
+# Where do we put the build files?
 BUILDDIR ?= build
 # $(shell mkdir -p $(DEPDIR) >/dev/null)
 
+# Names of the Lean executables if they're not explicitly
+# set already defined already in the environment
 LEAN ?= lean
 LEANC ?= leanc
 
-LEANDIR := ${dir ${shell which ${LEAN}}}../
+# Up one directory from the executable we should be able to find
+# the `lib` directory with Lean files in it
+LEANDIR := ${realpath ${dir ${shell which ${LEAN}}}/..}
 
+
+# Set the Lean Path (i.e., the key-value pairs of Lean packages and their locations)
+# to include the Init definitions from Lean
 LEAN_PATH := Init=${LEANDIR}/lib/lean/Init
 
 # This forces LEANFILES to be strict
@@ -32,14 +56,19 @@ include deps/lean-llvm/Makefile.include
 include deps/x86_semantics/Makefile.include
 include simulator/Makefile.include
 
-#LEANFILES are absolute, we need them to be relative to the root dir for the rest to work.
-LEANFILES_REL := ${patsubst ${SRCROOT}%,%,${LEANFILES}}
-EXTRAOBJ      := ${patsubst ${SRCROOT}%.cpp,${BUILDDIR}/%.o,${EXTRACXXFILES}}
 
-DEPENDS := ${patsubst %.lean,%.d,${LEANFILES_REL}}
-OLEAN   := ${patsubst %.lean,%.olean,${LEANFILES_REL}}
-CPPLEAN := ${patsubst %.lean,$(BUILDDIR)/%.cpp,${LEANFILES_REL}}
+# The paths populating LEANFILES from the various above includes are absolute,
+# but we need them to be relative to the root dir for the rest to work.
+LEANFILES_REL := ${patsubst ${SRCROOT}/%,%,${LEANFILES}}
+EXTRAOBJFILES := ${patsubst ${SRCROOT}/%.cpp,${BUILDDIR}/%.o,${EXTRACXXFILES}}
 
+# For every Lean file `Foo.lean` there should be a `Foo.d` with an entry
+# `Foo.c Foo.olean: DEPENDENCY1.olean ... DEPENDENCYN.olean` describing the
+# N files that lean file depends on
+DEPFILES := ${patsubst %.lean,%.d,${LEANFILES_REL}}
+
+OLEANFILES   := ${patsubst %.lean,%.olean,${LEANFILES_REL}}
+CPPLEANFILES := ${patsubst %.lean,$(BUILDDIR)/%.cpp,${LEANFILES_REL}}
 
 
 # FIXME: move to llvm-tablegen-support submake
@@ -52,26 +81,22 @@ CXXFLAGS += -fPIC -ggdb3
 
 export LEAN_PATH
 
-MAKEDEPEND = $(LEAN) --deps $< | sed 's@${LCSRCROOT}@@p' | xargs echo "$(BUILDDIR)/$*.cpp $*.olean:" > $@
+MAKEDEPEND = $(LEAN) --deps $< | sed 's@${LCSRCROOT}/@@p' | sort -u | xargs echo "$(BUILDDIR)/$*.cpp $*.olean:" > $@
 
-depend: ${DEPENDS}
 
-$(BUILDDIR)/sim : ${CPPLEAN} ${EXTRAOBJ} build/simulator/Main.cpp
+depend: ${DEPFILES}
+
+$(BUILDDIR)/sim : ${CPPLEANFILES} ${EXTRAOBJFILES} build/simulator/Main.cpp
 	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cxxflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86` -lstdc++
 
-$(BUILDDIR)/driver: ${CPPLEAN} ${EXTRAOBJ} build/deps/lean-llvm/src/Driver.cpp
+$(BUILDDIR)/driver: ${CPPLEANFILES} ${EXTRAOBJFILES} build/deps/lean-llvm/src/Driver.cpp
 	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cxxflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86` -lstdc++
 
 %.d: %.lean
 	$(MAKEDEPEND)
 
-
-# The olean have to be in the same directory :/
-# %.olean : %.lean
-# 	$(LEAN) --make $<
-
 # could do this when making the olean
-$(BUILDDIR)/%.cpp %.olean: %.lean 
+$(BUILDDIR)/%.cpp %.olean: %.lean
 	@mkdir -p ${dir $(BUILDDIR)/$*.cpp}
 	$(LEAN) --cpp="$(BUILDDIR)/$*.cpp.tmp" --make $<
 	mv $(BUILDDIR)/$*.cpp.tmp $(BUILDDIR)/$*.cpp
@@ -86,26 +111,10 @@ $(BUILDDIR)/deps/llvm-tablegen-support/src/%: CXXFLAGS += -g -O3 -I deps/llvm-ta
 
 $(BUILDDIR)/deps/lean-llvm/src/%: CXXFLAGS += -g -O3 -I deps/llvm-tablegen-support/src/ -I deps/llvm-tablegen-support/llvm-files/ `${LLVM_CONFIG} --cxxflags` -I${LEANDIR}/include/ -I${LEANDIR}/include/runtime -std=c++14 -fexceptions
 
-# %.olean %.cpp : %.lean %.d
-# 	@mkdir -p $(@D);
-#         @$(LEAN) --deps $< > $*.Td; \
-#           cp $*.Td $*.d; \
-#           sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
-#               -e '/^$$/ d' -e 's/$$/ :/' < $*.Td >> $*.d; \
-#           rm -f $*.Td
-#         $(LEAN) --make --cpp="$*.cpp.tmp" $<
-# # create the .cpp file atomically
-#         @mv "$*.cpp.tmp" "$*.cpp"
-# 	@touch $*.olean
 
-# # %.o : %.cpp
-# # %.o : %.cpp
 
-# %.d: ;
-# .PRECIOUS: %.d
-
-# include $(wildcard $(patsubst %,%.d,$(basename $(SRCS))))
 clean:
-	rm -f ${DEPENDS} ${OLEAN}
+	rm -f ${DEPFILES} ${OLEANFILES}
 
-include ${DEPENDS}
+
+include ${DEPFILES}
