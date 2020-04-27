@@ -20,8 +20,6 @@
 
 # Determine the root directory for the source files (e.g., `.../reopt-vcg/lean4`)
 SRCROOT := $(abspath $(dir $(realpath $(firstword $(MAKEFILE_LIST)))))
-# A lowercase version of SRCROOT used below (AMK: TODO why are we doing this?)
-LCSRCROOT := $(shell echo ${SRCROOT} | tr A-Z a-z)
 
 # Where do we put the build files?
 BUILDDIR ?= build
@@ -81,7 +79,7 @@ CXXFLAGS += -fPIC -ggdb3
 
 export LEAN_PATH
 
-MAKEDEPEND = $(LEAN) --deps $< | sed 's@${LCSRCROOT}/@@p' | sort -u | xargs echo "$(BUILDDIR)/$*.cpp $*.olean:" > $@
+MAKEDEPEND = $(LEAN) --deps $< | sed 's@${SRCROOT}/@@p' | sort -u | xargs echo "$(BUILDDIR)/$*.cpp $*.olean:" > $@
 
 
 depend: ${DEPFILES}
