@@ -16,111 +16,21 @@ def annotate' {m} [Monad m] [MonadExcept String m]
 
 namespace mc_semantics
 
--- This represents only nats (not lhs or expression binders), and is
--- used to instantiate nat_exprs
-@[reducible]
-def nat_env := List (Option Nat)
-
-namespace nat_expr
-
-@[reducible]
-def eval (e : nat_env) : nat_expr -> Option Nat 
-  | (lit n)     => some n
-  | (var idx)   => joinM (List.get? idx e)
-  | (add e1 e2) => (fun x y => x + y) <$> (eval e1) <*> (eval e2) 
-  | (sub e1 e2) => (fun x y => x - y) <$> (eval e1) <*> (eval e2) 
-  | (mul e1 e2) => (fun x y => x * y) <$> (eval e1) <*> (eval e2) 
-  | (div e1 e2) => (fun x y => x / y) <$> (eval e1) <*> (eval e2) 
-
-def wf_nat_expr (nenv : nat_env) : nat_expr -> Prop 
-  | (lit _)     => true
-  | (var idx)   => Option.isSome (joinM (List.get? idx nenv))
-  | (add e1 e2) => wf_nat_expr e1 ∧ wf_nat_expr e2
-  | (sub e1 e2) => wf_nat_expr e1 ∧ wf_nat_expr e2
-  | (mul e1 e2) => wf_nat_expr e1 ∧ wf_nat_expr e2
-  | (div e1 e2) => wf_nat_expr e1 ∧ wf_nat_expr e2
-
--- lemma eval_add_eq {e} {x y} : eval e (x + y) = (+) <$> (eval e x) <*> (eval e y) :=
---   by { cases x; cases y; simp [ has_add.add, nat_expr.do_add, nat_expr.eval] }
-
--- lemma eval_sub_eq {e} {x y} : eval e (x - y) = (fun x y => x - y) <$> (eval e x) <*> (eval e y) :=
---   by { cases x; cases y; simp [ has_sub.sub, nat_expr.do_sub, nat_expr.eval]  }
-
--- lemma eval_mul_eq {e} {x y} : eval e (x * y) = (*) <$> (eval e x) <*> (eval e y) :=
---   by { cases x; cases y; simp [ has_mul.mul, nat_expr.do_mul, nat_expr.eval] }
-
-@[reducible]
-def eval_default (e : nat_env) : nat_expr -> Nat 
-  | (lit n)     => n
-  | (var idx)   => match List.get? idx e with | (some (some n)) => n | _ => 0 
-  | (add e1 e2) => (eval_default e1) + (eval_default e2) 
-  | (sub e1 e2) => (eval_default e1) - (eval_default e2) 
-  | (mul e1 e2) => (eval_default e1) * (eval_default e2) 
-  | (div e1 e2) => (eval_default e1) / (eval_default e2) 
-
--- instance {nenv} : decidable_pred (wf_nat_expr nenv) := 
--- begin
---   unfold decidable_pred,
---   intros e,
---   induction e; simp [wf_nat_expr],
---   case lit { apply is_true, trivial },
---   case var { apply coe_decidable_eq },
---   apply_instance, 
-  
--- end
-
--- lemma eval_default_add_eq {e} {x y} : eval_default e (x + y) = (eval_default e x) + (eval_default e y) :=
---   by { cases x; cases y; simp [ has_add.add, nat_expr.do_add, eval_default] }
-
--- lemma eval_default_sub_eq {e} {x y} : eval_default e (x - y) = (eval_default e x) - (eval_default e y) :=
---   by { cases x; cases y; simp [ has_sub.sub, nat_expr.do_sub, nat_expr.eval_default]  }
-
--- lemma eval_default_mul_eq {e} {x y} : eval_default e (x * y) = (eval_default e x) * (eval_default e y) :=
---   by { cases x; cases y; simp [ has_mul.mul, nat_expr.do_mul, nat_expr.eval_default] }
-
-
--- @[reducible]
--- def eval : nat_expr -> Nat 
---   | (nat_expr.lit n)     => n
---   -- | (nat_expr.var idx)   := match List.nth nat_env idx with | (some (some n)) := n | _ => 0 end
---   | (nat_expr.var idx)   => 0
---  -- FIXME, maybe use sorry?
---   | (nat_expr.add e1 e2) => (eval e1) + (eval e2) 
---   | (nat_expr.sub e1 e2) => (eval e1) - (eval e2) 
---   | (nat_expr.mul e1 e2) => (eval e1) * (eval e2) 
---   | (nat_expr.div e1 e2) => (eval e1) / (eval e2) 
-
-end nat_expr
-
 namespace type 
 
-@[reducible]
-def eval (nenv : nat_env) : type -> Option type 
-  | (bv e) => (fun n => bv (nat_expr.lit n)) <$> nat_expr.eval nenv e
-  | (fn arg res) => fn <$> (eval arg) <*> (eval res)
-  | tp     => pure tp
-
-def eval_default (nenv : nat_env) : type -> type 
-  | (bv e) => bv (nat_expr.lit (nat_expr.eval_default nenv e))
-  | (fn arg res) => fn (eval_default arg) (eval_default res)
-  | tp           => tp
-
-def assert_types {m} [Monad m] [MonadExcept String m] 
-  (nenv : nat_env) 
-  (t1 t2 : type) : m Unit :=
-  if eval_default nenv t1 = eval_default nenv t2
+def assert_types {m} [Monad m] [MonadExcept String m] (t1 t2 : type) : m Unit :=
+  if t1 = t2
   then pure () 
   else throw $ "Type mismatch: "-- ++ t1.pp ++ " and " ++ t2.pp ++ " in " ++ repr nenv
 
-def assert_bv {m} [Monad m] [MonadExcept String m] (nenv : nat_env) (tp : type) : m Nat :=
+def assert_bv {m} [Monad m] [MonadExcept String m] (tp : type) : m Nat :=
   match tp with
-  | (bv e) => pure (nat_expr.eval_default nenv e)
+  | (bv n) => pure n
   | _      => throw "Not a bitvecor"
 
 
 end type
 end mc_semantics
-
 
 namespace x86
 
@@ -231,21 +141,11 @@ class SystemM (m : Type -> Type) extends Monad m, MonadState machine_state m, Mo
 
 section with_nat_env
 
-variables (system_m : Type -> Type) [SystemM system_m] (nenv : nat_env)
-
-@[reducible]
-def eval_nat_expr (e : nat_expr) : Nat
-  := nat_expr.eval_default nenv e
-
-@[reducible]
-def eval_type : type -> type := type.eval_default nenv
-  -- | (bv e) => bv (nat_expr.lit (eval_nat_expr e))
-  -- | (fn arg res) => fn (eval_type arg) (eval_type res)
-  -- | tp     => tp
+variables (system_m : Type -> Type) [SystemM system_m]
 
 @[reducible]
 def value : type -> Type
-  | (bv e) => bitvec (eval_nat_expr nenv e) -- We use the _normalised_ value here.
+  | (bv e) => bitvec e
   | bit    => Bool
   | float  => Unit -- FIXME
   | double => Unit -- FIXME
@@ -274,7 +174,7 @@ inductive arg_value
   | natv             : Nat        -> arg_value 
   -- covers reg, addr, and lhs bindings
   | lval             : arg_lval -> arg_value
-  | rval {tp : type} : value nenv tp -> arg_value
+  | rval {tp : type} : value tp -> arg_value
 
 -- namespace arg_value
 
@@ -287,16 +187,16 @@ inductive arg_value
 -- end arg_value
 
 @[reducible]
-def environment := List (arg_value nenv)
+def environment := List arg_value
 
 -- machine state is stored in the underlying monad
 structure evaluator_state : Type :=
-  (environment   : environment nenv) -- read only, but reading can fail
-  (locals        : RBMap Nat (Sigma (value nenv)) (fun (n n' : Nat) => decide (n < n')))
+  (environment   : environment) -- read only, but reading can fail
+  (locals        : RBMap Nat (Sigma value) (fun (n n' : Nat) => decide (n < n')))
 
 -- namespace evaluator_state
 
-def evaluator_state.init : evaluator_state nenv := 
+def evaluator_state.init : evaluator_state := 
   { environment   := []
   , locals        := {}
   }
@@ -305,7 +205,7 @@ def evaluator_state.init : evaluator_state nenv :=
 
 -- Monad for evaluating with failure.  This nesting might be useful to get the ip where things break?
 @[reducible]
-def evaluator := StateT (evaluator_state nenv) (ExceptT String system_m)
+def evaluator := StateT evaluator_state (ExceptT String system_m)
 
 -- FIXME: this is repeated from the stdlib, not sure why it needs to be
 instance (ε): MonadExcept ε (Except ε) := 
@@ -326,25 +226,8 @@ instance Alternative_ExceptT (ε) (m) [Inhabited ε] [Monad m] : Alternative (Ex
   , orelse  := fun α => MonadExcept.orelse }
 
 
--- namespace type
-
--- If evaluation of the expr fails, we return the original type.  
--- def normalise (e : environment) : type -> type
---   | (base b)     => base (base_type.normalise e b)
---   | (fn arg res) => fn (normalise arg) (normalise res)
-  
--- def equiv (e : environment) (t1 : type) (t2 : type) : Prop :=
---   normalise e t1 = normalise e t2
-
--- instance (e) : decidable_rel (equiv e) :=
---   fun a b => begin simp [equiv], apply_instance end
-
--- end type
-
--- namespace value
-
-theorem value.type_eval_is_id: ∀{tp : type}, value nenv (eval_type nenv tp) = value nenv tp :=
-  I_am_really_sorry _
+-- theorem value.type_eval_is_id: ∀{tp : type}, value nenv (eval_type nenv tp) = value nenv tp :=
+--   I_am_really_sorry _
 -- lemma value.type_eval_is_id: ∀{tp : type}, value (eval_type tp) = value tp :=
 -- begin  
 --   intros,
@@ -354,11 +237,8 @@ theorem value.type_eval_is_id: ∀{tp : type}, value nenv (eval_type nenv tp) = 
 --   repeat { refl }
 -- end
 
-def value.eval_cong {tp tp' : type} (pf : eval_type nenv tp = eval_type nenv tp') (v : value nenv tp) 
-  : value nenv tp' :=
-  have v' : value nenv (eval_type nenv tp) from Eq.recOn (@value.type_eval_is_id nenv tp).symm v;
-  have v'' : value nenv (eval_type nenv tp') from Eq.recOn pf v';
-  Eq.recOn (@value.type_eval_is_id nenv tp') v''
+def value.eval_cong {tp tp' : type} (pf : tp = tp') (v : value nenv tp) 
+  : value nenv tp' := Eq.recOn pf v
 
 
 -- begin
