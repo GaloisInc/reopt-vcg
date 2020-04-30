@@ -996,8 +996,10 @@ instance cons_one_of_pattern_def
   [ pattern_def ctx (tpc (one_of.elem v)) ]
 : one_of_pattern_def ctx ls (v :: sls) tpc :=
 { list_define := fun f => 
-              List.append (pattern_def.define ctx (f (one_of.elem v)))
-                          (@one_of_pattern_def.list_define ctx ls sls tpc h f)
+              -- we reverse at the end, so this ensures order is preserved
+              List.append (@one_of_pattern_def.list_define ctx ls sls tpc h f)
+                          (pattern_def.define ctx (f (one_of.elem v)))
+                          
 }
 
 instance pi_one_of_is_pattern_def
@@ -1028,13 +1030,6 @@ instance pattern_list_is_monad_state : MonadState (List pattern) pattern_list
 def mk_pattern {α:Type} [h : pattern_def ∅ α] (x:α) : pattern_list Unit := do
   modify (List.append (pattern_def.define ∅ x))
 
-
--- set_option trace.class_instances true
--- set_option trace.complete_instance true
-
--- #check @one_of_pattern_def.list_define (context.mk []) [] [] (fun _ => semantics Unit) _
-
-def foo : pattern_list Unit := mk_pattern (fun (w : one_of [1, 2, 3]) => (pure () : semantics Unit))
 
 ------------------------------------------------------------------------
 -- definst
