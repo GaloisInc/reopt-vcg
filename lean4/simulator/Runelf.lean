@@ -255,8 +255,8 @@ def decode_loop (d : decodex86.decoder) : Nat -> linux.x86_64.system_m Unit
                linux.x86_64.base_system_m Unit);
     catch (eval_instruction linux.x86_64.system_m i)
           (fun e => do s' <- monadLift (get : linux.x86_64.base_system_m linux.x86_64.os_state);
-                       s'.trace.reverse.mapM (fun (e : (machine_word × linux.x86_64.trace_event)) => 
-                                              IO.println (e.fst.pp_hex ++ " " ++ repr e.snd));
+                       _ <- s'.trace.reverse.mapM (fun (e : (machine_word × linux.x86_64.trace_event)) => 
+                                                  IO.println (e.fst.pp_hex ++ " " ++ repr e.snd));
                        throwS ("Eval failed: (" ++ repr i ++ ") at " ++  s.ip.pp_hex ++ " "  ++ e));
     decode_loop n
 
