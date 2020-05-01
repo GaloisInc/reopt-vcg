@@ -59,7 +59,7 @@ def many1 (p : Parser tok a) : Parser tok (List a) :=
      pure (v :: vs)
 
 def sepBy (s : Parser tok b) (p : Parser tok a) : Parser tok (List a) := 
-  (do rs <- many (do x <- p; s; pure x); -- p <* s
+  (do rs <- many (do x <- p; discard s; pure x); -- p <* s
       -- rs <- pure [];
       r  <- p;
       pure (List.append rs [r])) <|> pure []
@@ -86,7 +86,7 @@ def natP : CharParser Nat :=
      pure (ds.foldl (fun acc d => acc * 10 + d) 0)
 
 def intP : CharParser Int :=
-  (do exact '-';
+  (do discard $ exact '-';
       n <- natP;
       pure (Int.negOfNat n)) <|> 
       (Int.ofNat <$> natP)
@@ -97,11 +97,13 @@ def string1P (f : Char -> Bool) : CharParser String := List.asString <$> many1 (
 def nonWSP : CharParser String := 
   string1P (fun c => not (Char.isWhitespace c))
 
-def whitespaceP : CharParser Unit := token Char.isWhitespace *> pure ()
+def whitespaceP : CharParser Unit := 
+do _ <-token Char.isWhitespace;
+   pure ()
 
-def parseFile {a : Type} {m : Type → Type} [Monad m] [MonadIO m] (p : CharParser a) (fname : String) (bin := false) 
+def parseFile {a : Type} {m : Type → Type} [Monad m] [MonadIO m] (p : CharParser a) (fname : String)
   : m (Option a) := 
-  do s <- IO.FS.readFile fname bin;
+  do s <- IO.FS.readFile fname;
      pure (runParser p s.toList)
   
 

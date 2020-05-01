@@ -107,8 +107,13 @@ instance : HasMonadLiftT base_system_m system_m :=
 instance system_m.MonadIO : MonadIO system_m :=
   inferInstanceAs (MonadIO (StateT machine_state base_system_m))
 
-def system_m.run {a : Type} (m : system_m a) (s : machine_state) : IO (Except String a) := 
-  ((m.run' s).run' os_state.empty).run
+def system_m.run {a : Type} (m : system_m a) (os : os_state) (s : machine_state) 
+  : IO (Except String ((a × machine_state) × os_state)) := do
+  ((m.run s).run os).run
+
+-- def system_m.run' {a : Type} (m : system_m a) (s : machine_state) : IO (Except String a) := 
+--   do x <- m.run os_state.empty s;
+--      pure 
 
 def emit_trace_event (e : trace_event) : system_m Unit :=
   monadLift (modify (fun (s : os_state) => { s with trace := (s.current_ip, e) :: s.trace }) : base_system_m Unit)
@@ -240,25 +245,24 @@ end linux
 --   let line := s.ip.pp_hex ++ ": " ++ s.print_regs ++ " " ++ s.print_set_flags;
 --   IO.println line
 
-def decode_loop (d : decodex86.decoder) : Nat -> linux.x86_64.system_m Unit
-  | Nat.zero      => throwS "Out of fuel"
-  | (Nat.succ n)  => do
-  -- dump_state s;
-  s <- get;
-  let inst := decodex86.decode d s.ip.to_nat;
-  match inst with 
-  | (Sum.inl b) => throwS "Unknown byte"
-  | (Sum.inr i) => do
-    -- IO.println (repr i);
-    modify (fun (s : machine_state) => { s with ip := s.ip + bitvec.of_nat _ i.nbytes });
-    monadLift (modify (fun (s' : linux.x86_64.os_state) => {s' with current_ip := s.ip}) : 
-               linux.x86_64.base_system_m Unit);
-    catch (eval_instruction linux.x86_64.system_m i)
-          (fun e => do s' <- monadLift (get : linux.x86_64.base_system_m linux.x86_64.os_state);
-                       s'.trace.reverse.mapM (fun (e : (machine_word × linux.x86_64.trace_event)) => 
-                                              IO.println (e.fst.pp_hex ++ " " ++ repr e.snd));
-                       throwS ("Eval failed: (" ++ repr i ++ ") at " ++  s.ip.pp_hex ++ " "  ++ e));
-    decode_loop n
+def decode_loop (d : decodex86.decoder) 
+  : forall (fuel : Nat) (os : linux.x86_64.os_state) (s : machine_state), IO Unit
+  | Nat.zero, _, _      => throwS "Out of fuel"
+  | Nat.succ n, os, s => do -- dump_state s;
+     let inst := decodex86.decode d s.ip.to_nat;
+     match inst with 
+     | (Sum.inl b) => throwS "Unknown byte"
+     | (Sum.inr i) => do
+       -- IO.println (repr i);
+       let s'  := {s with ip := s.ip + bitvec.of_nat _ i.nbytes };
+       let os' := {os with current_ip := s.ip};
+       r <- (eval_instruction linux.x86_64.system_m i).run os' s';
+       match r with
+       | Except.ok ((_, s''), os'') => decode_loop n os'' s''
+       | Except.error e => do
+         _ <- os'.trace.reverse.mapM (fun (e : (machine_word × linux.x86_64.trace_event)) => 
+                                           IO.println (e.fst.pp_hex ++ " " ++ repr e.snd));
+         throwS ("Eval failed: (" ++ repr i ++ ") at " ++  s.ip.pp_hex ++ " "  ++ e)
 
 def doit (elffile : String) : IO Unit := do
   ((Sigma.mk ehdr phdrs), init_mem) <- elf.read_info_from_file elffile;
@@ -269,19 +273,14 @@ def doit (elffile : String) : IO Unit := do
                 | none        => throwS "No text region"
                 | some (_, b) => pure b);
   let entry := ehdr.entry.toNat;
-  IO.println ("Entry is " ++ repr entry ++ " imm:" ++ repr (18446744073709551616 : Nat) 
-                          ++ " exp:"    ++ repr (2 ^ 64)
-                          ++ " mul:"  ++ repr (9223372036854775808 * 2) );
+  IO.println ("Entry is " ++ repr entry);
   let d := decodex86.mk_decoder text_bytes text_phdr.vaddr.toNat;
   let init_state :=  { machine_state.empty with 
                        ip := bitvec.of_nat _ ehdr.entry.toNat
                      , mem := memory.from_init init_mem };
   let init_state_abi := sysv_abi.x86_64.initialise init_state;
   let fuel : Nat := 100000; 
-  r <- (decode_loop d fuel).run init_state_abi;
-  match r with 
-  | (Except.ok _) => pure ()
-  | (Except.error e) => throwS ("Unexpected error: " ++ e)    
+  decode_loop d fuel linux.x86_64.os_state.empty init_state_abi
 
 -- set_option profiler true
 -- #eval doit ("../testfiles/two", "../llvm-tablegen-support/llvm-tablegen-support", 1530, 1544)
