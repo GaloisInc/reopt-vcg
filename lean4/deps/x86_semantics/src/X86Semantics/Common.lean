@@ -4,6 +4,15 @@ This module defines the core datatypes used to represent x86 instruction semanti
 import Galois.Category.Coe1
 -- import galois.sexpr
 
+-- No lemma length (x :: xs) = succ (length xs)
+-- namespace List
+
+-- def get {a : Type}: forall (ls : List a) (n : Nat) (pf : n < ls.length), a
+-- | x :: _, 0, _ => x
+-- | (_ :: ls), (Nat.succ n), pf => ls.get n (Nat.ltOfSuccLtSucc pf)
+
+-- end List
+
 namespace mc_semantics
 
 ------------------------------------------------------------------------
@@ -16,161 +25,21 @@ It is equivant to a deBrujin level.
 @[reducible]
 def arg_index := Nat
 
--- inductive foo : Type
---   | base  : Nat -> foo
---   | three : foo -> Nat -> foo -> foo -> foo
-
--- namespace foo
-
--- protected
--- def decEq : Π(e e':foo), Decidable (e = e')
---   | (base n1)     (base n2)     => 
---     if h : n1 = n2 
---     then isTrue (h ▸ rfl)
---     else isFalse (λh', foo.noConfusion h' h)
---   | (three e1 n1 e1' e1'') (three e2 n2 e2' e2'') => 
---   if h : n1 = n2 then
---     (match decEq e1 e2, decEq e1' e2', decEq e1'' e2''  with
---     | (isTrue h1), (isTrue h2), (isTrue h3) => isTrue (h1 ▸ h ▸ h2 ▸ h3 ▸ rfl)
---     | (isFalse h1), _          , _ => isFalse (fun h => foo.noConfusion h $ fun h1' hh' h2' h3' => absurd h1' h1 )
---     | (isTrue h1), (isFalse h2), _ => isFalse (fun h => foo.noConfusion h $ fun h1' hh' h2' h3' => absurd h2' h2 )
---     | (isTrue h1), (isTrue h2), (isFalse h3) => isFalse (fun h => foo.noConfusion h $ fun h1' hh' h2' h3' => absurd h3' h3))
---   else isFalse (fun h' => foo.noConfusion h' $ fun h1' hh' h2' h3' => absurd hh' h)
---   | (base _) (three _ _ _ _) => isFalse (fun h => foo.noConfusion h)
---   | (three _ _ _ _) (base _) => isFalse (fun h => foo.noConfusion h)
-
--- #check foo.decEq
-
--- end foo
-
-------------------------------------------------------------------------
--- nat_expr
-
-inductive nat_expr : Type
-| lit : Nat → nat_expr
-| var : arg_index → nat_expr
-| add : nat_expr → nat_expr → nat_expr
-| sub : nat_expr → nat_expr → nat_expr
-| mul : nat_expr → nat_expr → nat_expr
--- div x y is floor (x / y)
-| div : nat_expr → nat_expr → nat_expr
-
-namespace nat_expr
-
-protected def zero : nat_expr := lit 0
-
-protected def one : nat_expr := lit 1
-
-protected def do_add : nat_expr → nat_expr → nat_expr
-| (lit x), (lit y) => lit (x+y)
-| x, y => add x y
-
-protected def do_sub : nat_expr → nat_expr → nat_expr
-| (lit x), (lit y) => lit (x-y)
-| x, y => sub x y
-
-protected def do_mul : nat_expr → nat_expr → nat_expr
-| (lit x), (lit y) => lit (x*y)
-| x, y => mul x y
-
-protected def do_div : nat_expr → nat_expr → nat_expr
-| (lit x), (lit y) => lit (x/y)
-| x, y => div x y
-
-instance : HasZero nat_expr := ⟨nat_expr.zero⟩
-instance : HasOne nat_expr := ⟨nat_expr.one⟩
-instance : HasAdd nat_expr := ⟨nat_expr.do_add⟩
-instance : HasSub nat_expr := ⟨nat_expr.do_sub⟩
-instance : HasMul nat_expr := ⟨nat_expr.do_mul⟩
-instance : HasDiv nat_expr := ⟨nat_expr.do_div⟩
-
-instance nat_coe_nat_expr : HasCoe Nat nat_expr := ⟨fun x => lit x⟩
-
-protected def hasDecEq : ∀(e e' : nat_expr), Decidable (e = e')
-| (lit c1), (lit c1') => 
- (match decEq c1 c1' with 
-  | (isTrue h1) => isTrue (h1 ▸ rfl)
-  | (isFalse nh) => isFalse (fun h => nat_expr.noConfusion h $ fun h1' => absurd h1' nh))
-| (var c1), (var c1') => 
- (match decEq c1 c1' with 
-  | (isTrue h1) => isTrue (h1 ▸ rfl)
-  | (isFalse nh) => isFalse (fun h => nat_expr.noConfusion h $ fun h1' => absurd h1' nh))
-| (add c1 c2), (add c1' c2') => 
- (match hasDecEq c1 c1', hasDecEq c2 c2' with 
-  | (isTrue h1), (isTrue h2) => isTrue (h1 ▸ h2 ▸ rfl)
-  | (isFalse nh), _ => isFalse (fun h => nat_expr.noConfusion h $ fun h1' h2' => absurd h1' nh)
-  | (isTrue _), (isFalse nh) => isFalse (fun h => nat_expr.noConfusion h $ fun h1' h2' => absurd h2' nh))
-| (sub c1 c2), (sub c1' c2') => 
- (match hasDecEq c1 c1', hasDecEq c2 c2' with 
-  | (isTrue h1), (isTrue h2) => isTrue (h1 ▸ h2 ▸ rfl)
-  | (isFalse nh), _ => isFalse (fun h => nat_expr.noConfusion h $ fun h1' h2' => absurd h1' nh)
-  | (isTrue _), (isFalse nh) => isFalse (fun h => nat_expr.noConfusion h $ fun h1' h2' => absurd h2' nh))
-| (mul c1 c2), (mul c1' c2') => 
- (match hasDecEq c1 c1', hasDecEq c2 c2' with 
-  | (isTrue h1), (isTrue h2) => isTrue (h1 ▸ h2 ▸ rfl)
-  | (isFalse nh), _ => isFalse (fun h => nat_expr.noConfusion h $ fun h1' h2' => absurd h1' nh)
-  | (isTrue _), (isFalse nh) => isFalse (fun h => nat_expr.noConfusion h $ fun h1' h2' => absurd h2' nh))
-| (div c1 c2), (div c1' c2') => 
- (match hasDecEq c1 c1', hasDecEq c2 c2' with 
-  | (isTrue h1), (isTrue h2) => isTrue (h1 ▸ h2 ▸ rfl)
-  | (isFalse nh), _ => isFalse (fun h => nat_expr.noConfusion h $ fun h1' h2' => absurd h1' nh)
-  | (isTrue _), (isFalse nh) => isFalse (fun h => nat_expr.noConfusion h $ fun h1' h2' => absurd h2' nh))
-| (lit _), (var _) => isFalse (fun h => nat_expr.noConfusion h)
-| (lit _), (add _ _) => isFalse (fun h => nat_expr.noConfusion h)
-| (lit _), (sub _ _) => isFalse (fun h => nat_expr.noConfusion h)
-| (lit _), (mul _ _) => isFalse (fun h => nat_expr.noConfusion h)
-| (lit _), (div _ _) => isFalse (fun h => nat_expr.noConfusion h)
-| (var _), (lit _) => isFalse (fun h => nat_expr.noConfusion h)
-| (var _), (add _ _) => isFalse (fun h => nat_expr.noConfusion h)
-| (var _), (sub _ _) => isFalse (fun h => nat_expr.noConfusion h)
-| (var _), (mul _ _) => isFalse (fun h => nat_expr.noConfusion h)
-| (var _), (div _ _) => isFalse (fun h => nat_expr.noConfusion h)
-| (add _ _), (lit _) => isFalse (fun h => nat_expr.noConfusion h)
-| (add _ _), (var _) => isFalse (fun h => nat_expr.noConfusion h)
-| (add _ _), (sub _ _) => isFalse (fun h => nat_expr.noConfusion h)
-| (add _ _), (mul _ _) => isFalse (fun h => nat_expr.noConfusion h)
-| (add _ _), (div _ _) => isFalse (fun h => nat_expr.noConfusion h)
-| (sub _ _), (lit _) => isFalse (fun h => nat_expr.noConfusion h)
-| (sub _ _), (var _) => isFalse (fun h => nat_expr.noConfusion h)
-| (sub _ _), (add _ _) => isFalse (fun h => nat_expr.noConfusion h)
-| (sub _ _), (mul _ _) => isFalse (fun h => nat_expr.noConfusion h)
-| (sub _ _), (div _ _) => isFalse (fun h => nat_expr.noConfusion h)
-| (mul _ _), (lit _) => isFalse (fun h => nat_expr.noConfusion h)
-| (mul _ _), (var _) => isFalse (fun h => nat_expr.noConfusion h)
-| (mul _ _), (add _ _) => isFalse (fun h => nat_expr.noConfusion h)
-| (mul _ _), (sub _ _) => isFalse (fun h => nat_expr.noConfusion h)
-| (mul _ _), (div _ _) => isFalse (fun h => nat_expr.noConfusion h)
-| (div _ _), (lit _) => isFalse (fun h => nat_expr.noConfusion h)
-| (div _ _), (var _) => isFalse (fun h => nat_expr.noConfusion h)
-| (div _ _), (add _ _) => isFalse (fun h => nat_expr.noConfusion h)
-| (div _ _), (sub _ _) => isFalse (fun h => nat_expr.noConfusion h)
-| (div _ _), (mul _ _) => isFalse (fun h => nat_expr.noConfusion h)
-  
-instance decidable_eq_nat_expr : DecidableEq nat_expr := -- by tactic.mk_dec_eq_instance
-  nat_expr.hasDecEq
-
-def pp : nat_expr -> String
-| (lit n) => repr n
-| (var i) => "(var " ++ repr i ++ ")"
-| (add e e') => "(add " ++ e.pp ++ " " ++ e'.pp ++ ")"
-| (sub e e') => "(sub " ++ e.pp ++ " " ++ e'.pp ++ ")"
-| (mul e e') => "(mul " ++ e.pp ++ " " ++ e'.pp ++ ")"
-| (div e e') => "(div " ++ e.pp ++ " " ++ e'.pp ++ ")"
-
-end nat_expr
 ------------------------------------------------------------------------
 -- one_of
 
 inductive one_of (l:List Nat) : Type
-| var{} : arg_index → one_of
+| elem{} (v : Nat) : -- l.contains v
+                    one_of
 
 namespace one_of
 
-def to_nat_expr {l:List Nat} : one_of l → nat_expr
-| (one_of.var i) => nat_expr.var i
+-- FIXME: fix this when we get tactics
+def to_nat {l:List Nat} : one_of l → Nat
+| (one_of.elem x) => x
 
-instance (l:List Nat) : HasCoe (one_of l) nat_expr :=
-⟨ one_of.to_nat_expr ⟩
+instance (l:List Nat) : HasCoe (one_of l) Nat :=
+⟨ one_of.to_nat ⟩
 
 end one_of
 
@@ -178,12 +47,12 @@ end one_of
 -- Type
 
 inductive type
-| bv (w:nat_expr) : type
+| bv (w:Nat) : type
 | bit : type
 | float  : type
 | double : type
 | x86_80 : type
-| vec (w:nat_expr) (tp:type) : type
+| vec (w:Nat) (tp:type) : type
 -- A pair with fields of the given type.
 -- N.B. We use pairs rather than more general tuples for now, just for simplicity.
 -- We do not need this currently, but have left it available in case it is needed soon.
@@ -306,15 +175,7 @@ inductive gpreg_type : Type
 namespace gpreg_type
 
 @[reducible]
-def width' : gpreg_type → Nat
-| reg8l  => 8
-| reg8h  => 8
-| reg16 => 16
-| reg32 => 32
-| reg64 => 64
-
-@[reducible]
-def width : gpreg_type → nat_expr
+def width : gpreg_type → Nat
 | reg8l  => 8
 | reg8h  => 8
 | reg16 => 16
@@ -434,8 +295,6 @@ section prim
 -- local
 infixr `.→`:30 := type.fn
 
--- local notation Nat := nat_expr
-
 -- This denotes primitive operations that are part of the semantics.
 -- Unless otherwise specified primitive functions evaluate all their
 -- arguments in left-to-right order before evaluating the function.
@@ -461,118 +320,118 @@ inductive prim : type → Type
 
 -- Bit vector operations
 -- `bv_nat` constructs a bit vector from a natural number.
-| bv_nat (w:nat_expr) : nat_expr → prim (bv w)
+| bv_nat (w:Nat) : Nat → prim (bv w)
 -- `(add i)` returns the sum of two i-bit numbers.
-| add (i:nat_expr) : prim (bv i .→ bv i .→ bv i)
+| add (i:Nat) : prim (bv i .→ bv i .→ bv i)
 -- `(adc i)` returns the sum of two i-bit numbers and a carry bit.
-| adc (i:nat_expr) : prim (bv i .→ bv i .→ bit .→ bv i)
+| adc (i:Nat) : prim (bv i .→ bv i .→ bit .→ bv i)
 -- Unsigned add with carry overflow
-| uadc_overflows (i:nat_expr) : prim (bv i .→ bv i .→ bit .→ bit)
+| uadc_overflows (i:Nat) : prim (bv i .→ bv i .→ bit .→ bit)
 -- Signed add with carry overflow
-| sadc_overflows (i:nat_expr) : prim (bv i .→ bv i .→ bit .→ bit)
+| sadc_overflows (i:Nat) : prim (bv i .→ bv i .→ bit .→ bit)
 -- `(sub i)` substracts two i-bit bitvectors.
-| sub (i:nat_expr) : prim (bv i .→ bv i .→ bv i)
+| sub (i:Nat) : prim (bv i .→ bv i .→ bv i)
 -- `(ssbb_overflows i)` true if signed sub overflows, the bit
 -- is a borrow bit.
-| ssbb_overflows (i:nat_expr) : prim (bv i .→ bv i .→ bit .→ bit)
+| ssbb_overflows (i:Nat) : prim (bv i .→ bv i .→ bit .→ bit)
 -- `(usbb_overflows i)` true if unsigned sub overflows,
 -- the bit is a borrow bit.
-| usbb_overflows (i:nat_expr) : prim (bv i .→ bv i .→ bit .→ bit)
+| usbb_overflows (i:Nat) : prim (bv i .→ bv i .→ bit .→ bit)
 -- `(neg tp)` Two's Complement negation.
-| neg (i:nat_expr) : prim (bv i .→ bv i)
+| neg (i:Nat) : prim (bv i .→ bv i)
 -- `(mul i)` returns the product of two i-bit numbers.
-| mul (i:nat_expr) : prim (bv i .→ bv i .→ bv i)
+| mul (i:Nat) : prim (bv i .→ bv i .→ bv i)
 -- `(quotRem i) n d` returns a pair `(q,r)` where `q` is a `floor (n/d)`
 -- and `r` is `n - d * floor (n/d)`.
 -- `n` and `d` are treated as unsigned values.
 -- If `d = 0` or `floor(n/d) >= 2^n`, then this triggers a #DE exception.
-| quotRem (i:nat_expr) : prim (bv (2*i) .→ bv i .→ pair (bv i) (bv i))
+| quotRem (i:Nat) : prim (bv (2*i) .→ bv i .→ pair (bv i) (bv i))
 
 -- `(squotRem i) n d` returns a pair `(q,r)` where `q` is a `trunc (n/d)`
 -- and `r` is `n - d * trunc (n/d)`.  `trunc` always round to zero.
 -- `n` and `d` are treated as signed values.
 -- If `d = 0`, `trunc(n/d) >= 2^(n-1)` or `trunc(n/d) < -2^(n-1), then this
 -- triggers a #DE exception when evaluated.
-| squotRem (i:nat_expr) : prim (bv (2*i) .→ bv i .→ pair (bv i) (bv i))
+| squotRem (i:Nat) : prim (bv (2*i) .→ bv i .→ pair (bv i) (bv i))
 
-| ule (i:nat_expr) : prim (bv i .→ bv i .→ bit)
-| ult (i:nat_expr) : prim (bv i .→ bv i .→ bit)
+| ule (i:Nat) : prim (bv i .→ bv i .→ bit)
+| ult (i:Nat) : prim (bv i .→ bv i .→ bit)
 
 -- `(slice w u l)` takes bits `u` through `l` out of a `w`-bit number.
-| slice (w:nat_expr) (u:nat_expr) (l:nat_expr) : prim (bv w .→ bv (u+1-l))
+| slice (w:Nat) (u:Nat) (l:Nat) : prim (bv w .→ bv (u+1-l))
 -- `(sext i o)` sign extends an `i`-bit number to a `o`-bit number.
-| sext  (i:nat_expr) (o:nat_expr) : prim (bv i .→ bv o)
+| sext  (i:Nat) (o:Nat) : prim (bv i .→ bv o)
 -- `(uext i o)` unsigned extension of an `i`-bit number to a `o`-bit number.
-| uext  (i:nat_expr) (o:nat_expr) : prim (bv i .→ bv o)
+| uext  (i:Nat) (o:Nat) : prim (bv i .→ bv o)
 -- `(trunc i o)` truncates an `i`-bit number to a `o`-bit number.
-| trunc (i:nat_expr) (o:nat_expr) : prim (bv i .→ bv o)
+| trunc (i:Nat) (o:Nat) : prim (bv i .→ bv o)
 -- `(cat i) x y` returns the bitvector `uext i (2*i) x << i | uext _ (2*i) y`
-| cat (i:nat_expr) : prim (bv i .→ bv i .→ bv (2*i))
+| cat (i:Nat) : prim (bv i .→ bv i .→ bv (2*i))
 -- Return the most-significant bit in the bitvector.
-| msb (i:nat_expr) : prim (bv i .→ bit)
+| msb (i:Nat) : prim (bv i .→ bit)
 
-| bv_and (i:nat_expr) : prim (bv i .→ bv i .→ bv i)
-| bv_or  (i:nat_expr) : prim (bv i .→ bv i .→ bv i)
-| bv_xor (i:nat_expr) : prim (bv i .→ bv i .→ bv i)
+| bv_and (i:Nat) : prim (bv i .→ bv i .→ bv i)
+| bv_or  (i:Nat) : prim (bv i .→ bv i .→ bv i)
+| bv_xor (i:Nat) : prim (bv i .→ bv i .→ bv i)
 -- Complement bits
-| bv_complement (i:nat_expr) : prim (bv i .→ bv i)
+| bv_complement (i:Nat) : prim (bv i .→ bv i)
 
 --- `(shl i) x y` shifts the bits in `x` to the left by
 --- `y` bits where `y` is treated as an unsigned integer.
 --- The new bits shifted in from the left are all zero.
-| shl (i:nat_expr) : prim (bv i .→ bv 8 .→ bv i)
+| shl (i:Nat) : prim (bv i .→ bv 8 .→ bv i)
 --- `(shl_carry w) c b i` returns the `i`th bit
 --- in the bitvector [c]++b where `i` is treated as an unsigned
 --- number with `0` as the most-significant bit.
 -- e.g., If `i` is `0`, then this returns `c`.  If `i`
 -- exceeds the number of bits in `[c] ++ b` (i.e., i >= w+1),
 -- the the result is false.
-| shl_carry (w:nat_expr) : prim (bit .→ bv w .→ bv 8 .→ bit)
+| shl_carry (w:Nat) : prim (bit .→ bv w .→ bv 8 .→ bit)
 --- `(shr i) x y` shifts the bits in `x` to the right by
 --- `y` bits where `y` is treated as an unsigned integer.
 --- The new bits shifted in from the right are all zero.
-| shr (i:nat_expr) : prim (bv i .→ bv 8 .→ bv i)
+| shr (i:Nat) : prim (bv i .→ bv 8 .→ bv i)
 --- `(shr_carry w) b c i` returns the `i`th bit
 --- in the bitvector b++[c] where `i` is treated as an unsigned
 --- number with `0` as the least-significant bit.
 -- e.g., If `i` is `0`, then this returns `c`.  If `i`
 -- exceeds the number of bits in `b++[c]` (i.e., i >= w+1),
 -- the the result is false.
-| shr_carry (w:nat_expr) : prim (bv w .→ bit .→ bv 8 .→ bit)
+| shr_carry (w:Nat) : prim (bv w .→ bit .→ bv 8 .→ bit)
 --- `(sar i) x y` arithmetically shifts the bits in `x` to
 --- the left by `y` bits where `y` is treated as an unsigned integer.
 --- The new bits shifted in all match the most-significant bit in y.
-| sar (i:nat_expr) : prim (bv i .→ bv 8 .→ bv i)
+| sar (i:Nat) : prim (bv i .→ bv 8 .→ bv i)
 --- `(sar_carry w) b c i` returns the `i`th bit
 --- in the bitvector b++[c] where `i` is treated as an unsigned
 --- number with `0` as the least-significant bit.
 -- e.g., If `i` is `0`, then this returns `c`.  If `i`
 -- exceeds the number of bits in `b++[c]` (i.e., i >= w+1),
 -- the the result is equal to the most-signfiicant bit.
-| sar_carry (w:nat_expr) : prim (bv w .→ bit .→ bv 8 .→ bit)
+| sar_carry (w:Nat) : prim (bv w .→ bit .→ bv 8 .→ bit)
 
-| even_parity (i:nat_expr) : prim (bv i .→ bit)
+| even_parity (i:Nat) : prim (bv i .→ bit)
 -- `(bsf i)` returns the index of least-significant bit that is 1.
-| bsf   (i:nat_expr) : prim (bv i .→ bv i)
+| bsf   (i:Nat) : prim (bv i .→ bv i)
 -- `(bsr i)` returns the index of most-significant bit that is 1.
-| bsr   (i:nat_expr) : prim (bv i .→ bv i)
+| bsr   (i:Nat) : prim (bv i .→ bv i)
 -- `(bswap i)` reverses the bytes in the bitvector.
-| bswap (i:nat_expr) : prim (bv i .→ bv i)
+| bswap (i:Nat) : prim (bv i .→ bv i)
 -- `(btc w j) base idx` interprets base as bitvector and returns
 -- a bitvector contains the same bits as `base` except the `i`th bit
 -- (where 0 denotes the least-significant bit) is complemented.
 -- The value `i` is `idx` as a unsigned integer modulo `w`.
-| btc (w:one_of [16,32,64]) (j:nat_expr) : prim (bv w .→ bv j .→ bv w)
+| btc (w:one_of [16,32,64]) (j:Nat) : prim (bv w .→ bv j .→ bv w)
 -- `(btr w j) base idx` interprets base as bitvector and returns
 -- a bitvector contains the same bits as `base` except the `i`th bit
 -- (where 0 denotes the least-significant bit) is cleared.
 -- The value `i` is `idx` as a unsigned integer modulo `w`.
-| btr (w:one_of [16,32,64]) (j:nat_expr) : prim (bv w .→ bv j .→ bv w)
+| btr (w:one_of [16,32,64]) (j:Nat) : prim (bv w .→ bv j .→ bv w)
 -- `(bts w j) base idx` interprets base as bitvector and returns
 -- a bitvector contains the same bits as `base` except the `i`th bit
 -- (where 0 denotes the least-significant bit) is set.
 -- The value `i` is `idx` as a unsigned integer modulo `w`.
-| bts (w:one_of [16,32,64]) (j:nat_expr) : prim (bv w .→ bv j .→ bv w)
+| bts (w:one_of [16,32,64]) (j:Nat) : prim (bv w .→ bv j .→ bv w)
 
 -- Floating point operations
 
@@ -610,11 +469,11 @@ inductive expression : type → Type
 | primitive {rtp:type} (o:prim rtp) : expression rtp
 -- `bv_bit_reg_reg wr wi r ri` treats `ri` as an unsigned number, lets `i = ri mod wr`, and
 -- denotes the value in the `i`th bit of `r` with `0` the least-significant bit.
-| bit_test {wr wi:nat_expr} (r : expression (bv wr)) (idx : expression (bv wi)) : expression bit
+| bit_test {wr wi:Nat} (r : expression (bv wr)) (idx : expression (bv wi)) : expression bit
 -- `mulc m x` denotes the value `m * x`.
-| mulc (m : nat_expr) (x : expression (bv 64)) : expression (bv 64)
+| mulc (m : Nat) (x : expression (bv 64)) : expression (bv 64)
 -- `quotc m x` denotes the value `x / m`.
-| quotc (m : nat_expr) (x : expression (bv 64)) : expression (bv 64)
+| quotc (m : Nat) (x : expression (bv 64)) : expression (bv 64)
 -- Denotes some value
 | undef (rtp:type) : expression rtp
 -- Apply a function to an argument.
@@ -705,29 +564,29 @@ instance (a:type) (f:type) : HasCoeToFun (expression (type.fn a f)) :=
 , coe := app
 }
 
-def add : ∀{w:nat_expr}, expression (bv w) → expression (bv w) → expression (bv w)
+def add : ∀{w:Nat}, expression (bv w) → expression (bv w) → expression (bv w)
 --| ._ (primitive (prim.bv_nat ._ n)) (primitive (prim.bv_nat w m)) => prim.bv_nat w (n + m)
 | i, x, y => prim.add i x y
 
-def sub : ∀{w:nat_expr}, expression (bv w) → expression (bv w) → expression (bv w)
+def sub : ∀{w:Nat}, expression (bv w) → expression (bv w) → expression (bv w)
 --| ._ (primitive (prim.bv_nat ._ n)) (primitive (prim.bv_nat w m)) => prim.bv_nat w (n - m)
 | i, x, y => prim.sub i x y
 
-def neg : ∀{w:nat_expr}, expression (bv w) → expression (bv w)
+def neg : ∀{w:Nat}, expression (bv w) → expression (bv w)
   | _, x => app (primitive (prim.neg _)) x
 
-instance (w:nat_expr) : HasZero (expression (bv w)) := ⟨prim.bv_nat w 0⟩
-instance (w:nat_expr) : HasOne  (expression (bv w)) := ⟨prim.bv_nat w 1⟩
-instance (w:nat_expr) : HasAdd  (expression (bv w)) := ⟨add⟩
-instance (w:nat_expr) : HasSub  (expression (bv w)) := ⟨sub⟩
-instance (w:nat_expr) : HasNeg  (expression (bv w)) := ⟨neg⟩
+instance (w:Nat) : HasZero (expression (bv w)) := ⟨prim.bv_nat w 0⟩
+instance (w:Nat) : HasOne  (expression (bv w)) := ⟨prim.bv_nat w 1⟩
+instance (w:Nat) : HasAdd  (expression (bv w)) := ⟨add⟩
+instance (w:Nat) : HasSub  (expression (bv w)) := ⟨sub⟩
+instance (w:Nat) : HasNeg  (expression (bv w)) := ⟨neg⟩
 
-def adc         {w:nat_expr} (x y : expression (bv w)) (b : expression bit) : expression (bv w) := prim.adc   w x y b
-def bswap       {w:nat_expr} (v : expression (bv w))                        : expression (bv w) := prim.bswap w v
+def adc         {w:Nat} (x y : expression (bv w)) (b : expression bit) : expression (bv w) := prim.adc   w x y b
+def bswap       {w:Nat} (v : expression (bv w))                        : expression (bv w) := prim.bswap w v
 def bit_or            (x y : expression bit)                         : expression bit    := prim.bit_or  x y
 def bit_and           (x y : expression bit)                         : expression bit    := prim.bit_and x y
 def bit_xor           (x y : expression bit)                         : expression bit    := prim.bit_xor x y
-def bv_nat (w:nat_expr) (x : nat_expr) : expression (bv w) := prim.bv_nat w x
+def bv_nat (w:Nat) (x : Nat) : expression (bv w) := prim.bv_nat w x
 
 def read_addr {tp:type} : addr tp → expression tp
 | (addr.arg idx) => expression.read_arg idx tp
@@ -754,18 +613,18 @@ instance expression.imm_is_expression (tp:type) : HasCoe (imm tp) (expression tp
 
 -- Operations on expressions
 
-def slice {w:nat_expr} (x:expression (bv w)) (u:nat_expr) (l:nat_expr)
+def slice {w:Nat} (x:expression (bv w)) (u:Nat) (l:Nat)
 : expression (bv (u+1-l)) := prim.slice w u l x
 
-def trunc {w:nat_expr} (x: bv w) (o:nat_expr) : bv o := prim.trunc w o x
+def trunc {w:Nat} (x: bv w) (o:Nat) : bv o := prim.trunc w o x
 
-def bsf {w:nat_expr} (x: bv w) : bv w := prim.bsf w x
+def bsf {w:Nat} (x: bv w) : bv w := prim.bsf w x
 
-def bsr {w:nat_expr} (x: bv w) : bv w := prim.bsr w x
+def bsr {w:Nat} (x: bv w) : bv w := prim.bsr w x
 
-def sext {w:nat_expr} (x: bv w) (o:nat_expr) : bv o := prim.sext w o x
+def sext {w:Nat} (x: bv w) (o:Nat) : bv o := prim.sext w o x
 
-def uext {w:nat_expr} (x: bv w) (o:nat_expr) : bv o := prim.uext w o x
+def uext {w:Nat} (x: bv w) (o:Nat) : bv o := prim.uext w o x
 
 def neq {tp:type} (x y : tp) : bit := prim.neq tp x y
 
@@ -774,7 +633,7 @@ def eq {tp:type} (x y : tp) : bit := prim.eq tp x y
 def bit_one  : bit := prim.bit_one
 def bit_zero : bit := prim.bit_zero
 
-instance bv_has_mul (w:nat_expr) : HasMul (bv w) := ⟨fun x y => prim.mul w x y⟩
+instance bv_has_mul (w:Nat) : HasMul (bv w) := ⟨fun x y => prim.mul w x y⟩
 
 -- Add two 80-bit numbers using the current x87 floating point control.
 def x87_fadd (x y : x86_80) : x86_80 := prim.x87_fadd x y
@@ -904,7 +763,7 @@ inductive event
 | jmp  (addr: bv 64) : event
 | branch : expression bit → bv 64 → event
 | hlt : event
-| xchg {w : nat_expr} (addr1: bv w) (addr2: bv w) : event
+| xchg {w : Nat} (addr1: bv w) (addr2: bv w) : event
 | cpuid : event
 
 ------------------------------------------------------------------------
@@ -919,7 +778,7 @@ inductive action
 -- Set the lhs but raise an exception when the lhs does not have proper alignment
 -- TODO: Document what precisely is meant by "exception" when alignment is not
 -- respected.
-| set_aligned    {tp:type} (l:lhs tp) (v:expression tp) (alignment:nat_expr) : action
+| set_aligned    {tp:type} (l:lhs tp) (v:expression tp) (alignment:Nat) : action
 -- Define a local variable for an expression.
 | local_def {tp:type} (idx:Nat) (v:expression tp) : action
 | event (e:event) : action
@@ -935,7 +794,6 @@ def action.set_undef_cond {tp:type} (l:lhs tp) (c: expression bit) : action :=
 -- binding
 
 inductive binding
-| one_of : List Nat → binding
 | reg  : type → binding
 | addr : type → binding
 | imm  : type → binding
@@ -981,10 +839,10 @@ class is_bound_var (tp:Type) :=
 (to_binding{} : binding)
 (mk_arg{} : arg_index → tp)
 
-instance one_of_is_bound_var (range:List Nat) : is_bound_var (one_of range) :=
-{ to_binding := binding.one_of range
-, mk_arg := one_of.var
-}
+-- instance one_of_is_bound_var (range:List Nat) : is_bound_var (one_of range) :=
+-- { to_binding := binding.one_of range
+-- , mk_arg := one_of.var
+-- }
 
 instance reg_is_bound_var (tp:type) : is_bound_var (reg tp) :=
 { to_binding := binding.reg tp
@@ -1102,13 +960,14 @@ end semantics
 -- is needed so that we can infer how many variables have been bound outside of the
 -- current context.
 class pattern_def (ctx : context) (tp:Type) :=
-{ define{} : tp → pattern }
+{ define{} : tp → List pattern }
 
 instance semantics_is_pattern_def (ctx : context)
 : pattern_def ctx (semantics Unit) := { define := fun m =>
-    { context := ctx
-    , actions := semantics.run m
-    }
+    [ { context := ctx
+      , actions := semantics.run m
+      } 
+    ]
   }
 
 instance pi_is_pattern_def
@@ -1121,6 +980,35 @@ instance pi_is_pattern_def
 { define := fun f => do
     pattern_def.define (context.insert (is_bound_var.to_binding tp) ctx) (f (is_bound_var.mk_arg ctx.length))
 }
+
+class one_of_pattern_def (ctx : context) (ls : List Nat) (sls : List Nat) -- (pf : isSuffixOf sls ls)
+                         (tpc: one_of ls -> Type) :=
+      { list_define : (forall (w : one_of ls), tpc w) -> List pattern }
+
+instance nil_one_of_pattern_def
+  (ctx : context) (ls : List Nat) (tpc: one_of ls -> Type) 
+: one_of_pattern_def ctx ls [] tpc :=
+{ list_define := fun _ => [] }
+
+instance cons_one_of_pattern_def
+  (ctx : context) (ls : List Nat) (v : Nat) (sls : List Nat) (tpc: one_of ls -> Type)
+  [ h : one_of_pattern_def ctx ls sls tpc ]
+  [ pattern_def ctx (tpc (one_of.elem v)) ]
+: one_of_pattern_def ctx ls (v :: sls) tpc :=
+{ list_define := fun f => 
+              -- we reverse at the end, so this ensures order is preserved
+              List.append (@one_of_pattern_def.list_define ctx ls sls tpc h f)
+                          (pattern_def.define ctx (f (one_of.elem v)))
+                          
+}
+
+instance pi_one_of_is_pattern_def
+  (ls : List Nat)
+  (ctx:context)
+  (β:one_of ls → Type)
+  [ h: one_of_pattern_def ctx ls ls β ]
+: pattern_def ctx (∀(w: one_of ls), β w) := 
+{ define := @one_of_pattern_def.list_define ctx ls ls β h }
 
 -- Contains a List of patten matches defined using a monadic syntax.
 -- @[derive Monad]
@@ -1140,7 +1028,8 @@ instance pattern_list_is_monad_state : MonadState (List pattern) pattern_list
 
 -- Record pattern in current instruction
 def mk_pattern {α:Type} [h : pattern_def ∅ α] (x:α) : pattern_list Unit := do
-  modify (List.cons (pattern_def.define ∅ x))
+  modify (List.append (pattern_def.define ∅ x))
+
 
 ------------------------------------------------------------------------
 -- definst

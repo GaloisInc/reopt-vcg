@@ -11,6 +11,8 @@ open mc_semantics.type
 open reg
 open semantics
 
+set_option class.instance_max_depth 1000
+
 notation `pattern` body `pat_end` := mk_pattern body
 
 -- Introduces notation x[h..l] to slice the h..l bits out of x.
@@ -27,7 +29,7 @@ infix = := eq
 notation `⇑`:max x:max := coe1 x
 
 -- local 
-abbreviation ℕ := nat_expr
+abbreviation ℕ := Nat
 
 infix `.=`:20 := set
 
@@ -250,7 +252,7 @@ def xchg : instruction := do
 -- cmp definition
 -- Compare Two Operands
 
-def do_cmp {u v : nat_expr} (x : bv u) (src2 : bv v) := do
+def do_cmp {u v : Nat} (x : bv u) (src2 : bv v) := do
      y ← eval (sext src2 u);
      of .= ssub_overflows x y;
      af .= usub4_overflows x y;
