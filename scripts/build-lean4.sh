@@ -26,6 +26,10 @@ cmake $SRCDIR/src -DCMAKE_BUILD_TYPE=debug -DCMAKE_INSTALL_PREFIX=$INSTALLDIR -D
 make -j16
 make install
 popd
+
+mkdir -p $INSTALLDIR/include/util
+cp $SRCDIR/src/util/buffer.h $INSTALLDIR/include/util/
+
 # ninja install
 # rm -f $HOME/opt/lean4
 # ln -s $HOME/opt/lean4-$GITREV/ $HOME/opt/lean4

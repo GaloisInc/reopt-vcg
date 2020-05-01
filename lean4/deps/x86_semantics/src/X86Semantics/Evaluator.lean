@@ -16,111 +16,21 @@ def annotate' {m} [Monad m] [MonadExcept String m]
 
 namespace mc_semantics
 
--- This represents only nats (not lhs or expression binders), and is
--- used to instantiate nat_exprs
-@[reducible]
-def nat_env := List (Option Nat)
-
-namespace nat_expr
-
-@[reducible]
-def eval (e : nat_env) : nat_expr -> Option Nat 
-  | (lit n)     => some n
-  | (var idx)   => joinM (List.get? idx e)
-  | (add e1 e2) => (fun x y => x + y) <$> (eval e1) <*> (eval e2) 
-  | (sub e1 e2) => (fun x y => x - y) <$> (eval e1) <*> (eval e2) 
-  | (mul e1 e2) => (fun x y => x * y) <$> (eval e1) <*> (eval e2) 
-  | (div e1 e2) => (fun x y => x / y) <$> (eval e1) <*> (eval e2) 
-
-def wf_nat_expr (nenv : nat_env) : nat_expr -> Prop 
-  | (lit _)     => true
-  | (var idx)   => Option.isSome (joinM (List.get? idx nenv))
-  | (add e1 e2) => wf_nat_expr e1 ∧ wf_nat_expr e2
-  | (sub e1 e2) => wf_nat_expr e1 ∧ wf_nat_expr e2
-  | (mul e1 e2) => wf_nat_expr e1 ∧ wf_nat_expr e2
-  | (div e1 e2) => wf_nat_expr e1 ∧ wf_nat_expr e2
-
--- lemma eval_add_eq {e} {x y} : eval e (x + y) = (+) <$> (eval e x) <*> (eval e y) :=
---   by { cases x; cases y; simp [ has_add.add, nat_expr.do_add, nat_expr.eval] }
-
--- lemma eval_sub_eq {e} {x y} : eval e (x - y) = (fun x y => x - y) <$> (eval e x) <*> (eval e y) :=
---   by { cases x; cases y; simp [ has_sub.sub, nat_expr.do_sub, nat_expr.eval]  }
-
--- lemma eval_mul_eq {e} {x y} : eval e (x * y) = (*) <$> (eval e x) <*> (eval e y) :=
---   by { cases x; cases y; simp [ has_mul.mul, nat_expr.do_mul, nat_expr.eval] }
-
-@[reducible]
-def eval_default (e : nat_env) : nat_expr -> Nat 
-  | (lit n)     => n
-  | (var idx)   => match List.get? idx e with | (some (some n)) => n | _ => 0 
-  | (add e1 e2) => (eval_default e1) + (eval_default e2) 
-  | (sub e1 e2) => (eval_default e1) - (eval_default e2) 
-  | (mul e1 e2) => (eval_default e1) * (eval_default e2) 
-  | (div e1 e2) => (eval_default e1) / (eval_default e2) 
-
--- instance {nenv} : decidable_pred (wf_nat_expr nenv) := 
--- begin
---   unfold decidable_pred,
---   intros e,
---   induction e; simp [wf_nat_expr],
---   case lit { apply is_true, trivial },
---   case var { apply coe_decidable_eq },
---   apply_instance, 
-  
--- end
-
--- lemma eval_default_add_eq {e} {x y} : eval_default e (x + y) = (eval_default e x) + (eval_default e y) :=
---   by { cases x; cases y; simp [ has_add.add, nat_expr.do_add, eval_default] }
-
--- lemma eval_default_sub_eq {e} {x y} : eval_default e (x - y) = (eval_default e x) - (eval_default e y) :=
---   by { cases x; cases y; simp [ has_sub.sub, nat_expr.do_sub, nat_expr.eval_default]  }
-
--- lemma eval_default_mul_eq {e} {x y} : eval_default e (x * y) = (eval_default e x) * (eval_default e y) :=
---   by { cases x; cases y; simp [ has_mul.mul, nat_expr.do_mul, nat_expr.eval_default] }
-
-
--- @[reducible]
--- def eval : nat_expr -> Nat 
---   | (nat_expr.lit n)     => n
---   -- | (nat_expr.var idx)   := match List.nth nat_env idx with | (some (some n)) := n | _ => 0 end
---   | (nat_expr.var idx)   => 0
---  -- FIXME, maybe use sorry?
---   | (nat_expr.add e1 e2) => (eval e1) + (eval e2) 
---   | (nat_expr.sub e1 e2) => (eval e1) - (eval e2) 
---   | (nat_expr.mul e1 e2) => (eval e1) * (eval e2) 
---   | (nat_expr.div e1 e2) => (eval e1) / (eval e2) 
-
-end nat_expr
-
 namespace type 
 
-@[reducible]
-def eval (nenv : nat_env) : type -> Option type 
-  | (bv e) => (fun n => bv (nat_expr.lit n)) <$> nat_expr.eval nenv e
-  | (fn arg res) => fn <$> (eval arg) <*> (eval res)
-  | tp     => pure tp
-
-def eval_default (nenv : nat_env) : type -> type 
-  | (bv e) => bv (nat_expr.lit (nat_expr.eval_default nenv e))
-  | (fn arg res) => fn (eval_default arg) (eval_default res)
-  | tp           => tp
-
-def assert_types {m} [Monad m] [MonadExcept String m] 
-  (nenv : nat_env) 
-  (t1 t2 : type) : m Unit :=
-  if eval_default nenv t1 = eval_default nenv t2
+def assert_types {m} [Monad m] [MonadExcept String m] (t1 t2 : type) : m Unit :=
+  if t1 = t2
   then pure () 
   else throw $ "Type mismatch: "-- ++ t1.pp ++ " and " ++ t2.pp ++ " in " ++ repr nenv
 
-def assert_bv {m} [Monad m] [MonadExcept String m] (nenv : nat_env) (tp : type) : m Nat :=
+def assert_bv {m} [Monad m] [MonadExcept String m] (tp : type) : m Nat :=
   match tp with
-  | (bv e) => pure (nat_expr.eval_default nenv e)
+  | (bv n) => pure n
   | _      => throw "Not a bitvecor"
 
 
 end type
 end mc_semantics
-
 
 namespace x86
 
@@ -132,17 +42,17 @@ def machine_word := bitvec 64
 
 namespace reg
 
-axiom inject_ax0 : 8 + gpreg_type.width' gpreg_type.reg8h ≤ 64
-axiom inject_ax1 : ∀(rtp : gpreg_type), 0 + gpreg_type.width' rtp ≤ 64
+axiom inject_ax0 : 8 + gpreg_type.width gpreg_type.reg8h ≤ 64
+axiom inject_ax1 : ∀(rtp : gpreg_type), 0 + gpreg_type.width rtp ≤ 64
 
-def inject : ∀(rtp : gpreg_type), bitvec rtp.width' -> machine_word -> machine_word
+def inject : ∀(rtp : gpreg_type), bitvec rtp.width -> machine_word -> machine_word
   | gpreg_type.reg32, b, _   => bitvec.append (bitvec.zero 32) b
   | gpreg_type.reg8h, b, old => old.set_bits 8 b inject_ax0
   | rtp,              b, old => old.set_bits 0 b (inject_ax1 rtp) -- (begin cases rtp; simp end)
 
-def project : ∀(rtp : gpreg_type), machine_word -> bitvec rtp.width'
-  | gpreg_type.reg8h, b => b.get_bits 8 8 inject_ax0 -- (begin simp [gpreg_type.width'], exact dec_trivial end)
-  | rtp,              b => b.get_bits 0 rtp.width' (inject_ax1 rtp) -- (begin cases rtp; simp end)
+def project : ∀(rtp : gpreg_type), machine_word -> bitvec rtp.width
+  | gpreg_type.reg8h, b => b.get_bits 8 8 inject_ax0 -- (begin simp [gpreg_type.width], exact dec_trivial end)
+  | rtp,              b => b.get_bits 0 rtp.width (inject_ax1 rtp) -- (begin cases rtp; simp end)
 
 end reg
 
@@ -231,21 +141,11 @@ class SystemM (m : Type -> Type) extends Monad m, MonadState machine_state m, Mo
 
 section with_nat_env
 
-variables (system_m : Type -> Type) [SystemM system_m] (nenv : nat_env)
-
-@[reducible]
-def eval_nat_expr (e : nat_expr) : Nat
-  := nat_expr.eval_default nenv e
-
-@[reducible]
-def eval_type : type -> type := type.eval_default nenv
-  -- | (bv e) => bv (nat_expr.lit (eval_nat_expr e))
-  -- | (fn arg res) => fn (eval_type arg) (eval_type res)
-  -- | tp     => tp
+variables (system_m : Type -> Type) [SystemM system_m]
 
 @[reducible]
 def value : type -> Type
-  | (bv e) => bitvec (eval_nat_expr nenv e) -- We use the _normalised_ value here.
+  | (bv e) => bitvec e
   | bit    => Bool
   | float  => Unit -- FIXME
   | double => Unit -- FIXME
@@ -268,13 +168,9 @@ def value : type -> Type
 
 -- Corresponding to the binder type, more or less.
 inductive arg_value 
-  -- natv is here for completeness --- the presumption is that a
-  -- one_of param is only used in types, but in case it is not, we
-  -- include a binding in the environment,
-  | natv             : Nat        -> arg_value 
   -- covers reg, addr, and lhs bindings
   | lval             : arg_lval -> arg_value
-  | rval {tp : type} : value nenv tp -> arg_value
+  | rval {tp : type} : value tp -> arg_value
 
 -- namespace arg_value
 
@@ -287,16 +183,16 @@ inductive arg_value
 -- end arg_value
 
 @[reducible]
-def environment := List (arg_value nenv)
+def environment := List arg_value
 
 -- machine state is stored in the underlying monad
 structure evaluator_state : Type :=
-  (environment   : environment nenv) -- read only, but reading can fail
-  (locals        : RBMap Nat (Sigma (value nenv)) (fun (n n' : Nat) => decide (n < n')))
+  (environment   : environment) -- read only, but reading can fail
+  (locals        : RBMap Nat (Sigma value) (fun (n n' : Nat) => decide (n < n')))
 
 -- namespace evaluator_state
 
-def evaluator_state.init : evaluator_state nenv := 
+def evaluator_state.init : evaluator_state := 
   { environment   := []
   , locals        := {}
   }
@@ -305,7 +201,7 @@ def evaluator_state.init : evaluator_state nenv :=
 
 -- Monad for evaluating with failure.  This nesting might be useful to get the ip where things break?
 @[reducible]
-def evaluator := StateT (evaluator_state nenv) (ExceptT String system_m)
+def evaluator := StateT evaluator_state (ExceptT String system_m)
 
 -- FIXME: this is repeated from the stdlib, not sure why it needs to be
 instance (ε): MonadExcept ε (Except ε) := 
@@ -326,25 +222,8 @@ instance Alternative_ExceptT (ε) (m) [Inhabited ε] [Monad m] : Alternative (Ex
   , orelse  := fun α => MonadExcept.orelse }
 
 
--- namespace type
-
--- If evaluation of the expr fails, we return the original type.  
--- def normalise (e : environment) : type -> type
---   | (base b)     => base (base_type.normalise e b)
---   | (fn arg res) => fn (normalise arg) (normalise res)
-  
--- def equiv (e : environment) (t1 : type) (t2 : type) : Prop :=
---   normalise e t1 = normalise e t2
-
--- instance (e) : decidable_rel (equiv e) :=
---   fun a b => begin simp [equiv], apply_instance end
-
--- end type
-
--- namespace value
-
-theorem value.type_eval_is_id: ∀{tp : type}, value nenv (eval_type nenv tp) = value nenv tp :=
-  I_am_really_sorry _
+-- theorem value.type_eval_is_id: ∀{tp : type}, value nenv (eval_type nenv tp) = value nenv tp :=
+--   I_am_really_sorry _
 -- lemma value.type_eval_is_id: ∀{tp : type}, value (eval_type tp) = value tp :=
 -- begin  
 --   intros,
@@ -354,11 +233,8 @@ theorem value.type_eval_is_id: ∀{tp : type}, value nenv (eval_type nenv tp) = 
 --   repeat { refl }
 -- end
 
-def value.eval_cong {tp tp' : type} (pf : eval_type nenv tp = eval_type nenv tp') (v : value nenv tp) 
-  : value nenv tp' :=
-  have v' : value nenv (eval_type nenv tp) from Eq.recOn (@value.type_eval_is_id nenv tp).symm v;
-  have v'' : value nenv (eval_type nenv tp') from Eq.recOn pf v';
-  Eq.recOn (@value.type_eval_is_id nenv tp') v''
+def value.eval_cong {tp tp' : type} (pf : tp = tp') (v : value tp) 
+  : value tp' := Eq.recOn pf v
 
 
 -- begin
@@ -368,10 +244,10 @@ def value.eval_cong {tp tp' : type} (pf : eval_type nenv tp = eval_type nenv tp'
 -- end
 
 -- This allows us to resolve arith in nat_exprs
-def value.type_check {m} [Monad m] [MonadExcept String m] (tp : type) (v : value nenv tp) (tp' : type)
-  : m (value nenv tp') :=
-  if H : eval_type nenv tp = eval_type nenv tp'
-  then pure (value.eval_cong nenv H v)
+def value.type_check {m} [Monad m] [MonadExcept String m] (tp : type) (v : value tp) (tp' : type)
+  : m (value tp') :=
+  if H : tp = tp'
+  then pure (value.eval_cong H v)
   else throw "type_check: arg type mismatch"
 
 -- end value
@@ -393,10 +269,9 @@ def SystemM.read_memory_at (addr : machine_word) (n : Nat) : system_m (bitvec n)
               pure res
       else throw "read_memory_at: width not a multiple of 8"
 
-def SystemM.write_memory_at : ∀{tp : type} (addr : machine_word) (bytes : value nenv tp)
+def SystemM.write_memory_at : ∀{tp : type} (addr : machine_word) (bytes : value tp)
   , system_m Unit
-  | (bv e), addr, bytes =>
-    let width := eval_nat_expr nenv e;
+  | (bv width), addr, bytes =>
     (if H : width = 8 * (width / 8)
         then do modify (fun (s : machine_state) => s.store_word addr (bitvec.cong H bytes));
                 emit_write_event addr width bytes
@@ -405,46 +280,46 @@ def SystemM.write_memory_at : ∀{tp : type} (addr : machine_word) (bytes : valu
 
 end SystemM
 -- namespace evaluator
-def evaluator.run {a : Type} (m : evaluator system_m nenv a) 
-                             (s : evaluator_state nenv) : system_m (Except String (a × evaluator_state nenv)) :=
+def evaluator.run {a : Type} (m : evaluator system_m a) 
+                             (s : evaluator_state) : system_m (Except String (a × evaluator_state)) :=
   (m.run s).run
 
-def evaluator.run' {a : Type} (m : evaluator system_m nenv a) (e : environment nenv) : system_m a :=
-  do r <- evaluator.run system_m nenv m { evaluator_state . environment := e, locals := {} };
+def evaluator.run' {a : Type} (m : evaluator system_m a) (e : environment) : system_m a :=
+  do r <- evaluator.run system_m m { evaluator_state . environment := e, locals := {} };
      match r with
      | Except.ok v    => pure v.fst
      | Except.error e => throw e
 
--- def evaluator.run' {a : Type} (m : evaluator system_m nenv a) (e : environment nenv) : system_m a :=
+-- def evaluator.run' {a : Type} (m : evaluator system_m a) (e : environment) : system_m a :=
 --     adaptState' (fun (s : system_state system_config.os_state) => 
 --                      { evaluator_state . 
 --                        system_state  := s
 --                      , environment   := e
 --                      , locals        := {}
 --                      })
---                 (fun (s : evaluator_state nenv) => s.system_state)
+--                 (fun (s : evaluator_state) => s.system_state)
 --                 m
 
-def evaluator.run_system_m {a : Type} (m : system_m a) : evaluator system_m nenv a :=
+def evaluator.run_system_m {a : Type} (m : system_m a) : evaluator system_m a :=
     monadLift m
-    -- adaptState (fun (s : evaluator_state nenv) => (s.system_state, s))
+    -- adaptState (fun (s : evaluator_state) => (s.system_state, s))
     --          (fun s s' => { s' with system_state := s })
     --          m
 
-def evaluator.map_machine_state (f : machine_state → machine_state) : evaluator system_m nenv Unit :=
+def evaluator.map_machine_state (f : machine_state → machine_state) : evaluator system_m Unit :=
     monadLift (modify f : system_m Unit)
 
-def evaluator.with_machine_state {a : Type} (f : machine_state → a) : evaluator system_m nenv a :=
+def evaluator.with_machine_state {a : Type} (f : machine_state → a) : evaluator system_m a :=
     monadLift (f <$> (get : system_m machine_state))
 
-def evaluator.read_memory_at (addr : machine_word) (n : Nat) : evaluator system_m nenv (bitvec n) := do
-  evaluator.run_system_m system_m nenv (SystemM.read_memory_at system_m addr n)
+def evaluator.read_memory_at (addr : machine_word) (n : Nat) : evaluator system_m (bitvec n) := do
+  evaluator.run_system_m system_m (SystemM.read_memory_at system_m addr n)
 
-def evaluator.write_memory_at {tp : type} (addr : machine_word) (bytes : value nenv tp) :
-  evaluator system_m nenv Unit :=
-  evaluator.run_system_m system_m nenv (SystemM.write_memory_at system_m nenv addr bytes)
+def evaluator.write_memory_at {tp : type} (addr : machine_word) (bytes : value tp) :
+  evaluator system_m Unit :=
+  evaluator.run_system_m system_m (SystemM.write_memory_at system_m addr bytes)
 
-def evaluator.arg_at_idx (idx : Nat) : evaluator system_m nenv (arg_value nenv) :=
+def evaluator.arg_at_idx (idx : Nat) : evaluator system_m (arg_value) :=
   do s <- get;
      match s.environment.get? idx with
        | (some a) => pure a
@@ -452,57 +327,48 @@ def evaluator.arg_at_idx (idx : Nat) : evaluator system_m nenv (arg_value nenv) 
 
 -- We should factor out the type check, although it might depend on
 -- the functor (value in this case) if we generalise equality
-def evaluator.local_at_idx (idx : Nat) (tp : type) : evaluator system_m nenv (value nenv tp) :=
+def evaluator.local_at_idx (idx : Nat) (tp : type) : evaluator system_m (value tp) :=
   do s <- get;
      (match s.locals.find? idx with
-     | (some (Sigma.mk tp' v)) => value.type_check nenv _ v tp
+     | (some (Sigma.mk tp' v)) => value.type_check _ v tp
      | none                    => throw "local_at_idx: no arg at idx")
 
-theorem width_width' : ∀(rtp : gpreg_type), eval_nat_expr nenv rtp.width = rtp.width' :=
-  I_am_really_sorry _
-
-def concrete_reg.set : ∀{tp : type}, concrete_reg tp -> value nenv tp -> evaluator system_m nenv Unit
+def concrete_reg.set : ∀{tp : type}, concrete_reg tp -> value tp -> evaluator system_m Unit
   | ._, (concrete_reg.gpreg idx rtp), b => 
-    let b' : bitvec rtp.width' := Eq.rec b (width_width' nenv rtp);
-    evaluator.map_machine_state system_m nenv (machine_state.update_gpreg idx (reg.inject rtp b'))
+    evaluator.map_machine_state system_m (machine_state.update_gpreg idx (reg.inject rtp b))
   | ._, (concrete_reg.flagreg idx),   b => 
-    evaluator.map_machine_state system_m nenv (machine_state.update_flag idx (fun _ => b))
+    evaluator.map_machine_state system_m (machine_state.update_flag idx (fun _ => b))
   
-def concrete_reg.from_state : ∀{tp : type}, concrete_reg tp -> machine_state 
-  -> value nenv tp
-  | _, (concrete_reg.gpreg idx rtp), s => 
-    let v := reg.project rtp (s.get_gpreg idx);
-    let v' : bitvec (eval_nat_expr nenv rtp.width) 
-        := Eq.rec v (width_width' nenv rtp).symm;
-    v'
+def concrete_reg.from_state : ∀{tp : type}, concrete_reg tp -> machine_state -> value tp
+  | _, (concrete_reg.gpreg idx rtp), s => reg.project rtp (s.get_gpreg idx)
   | _, (concrete_reg.flagreg idx),   s => s.get_flag idx
 
-def concrete_reg.read {tp : type} (r : concrete_reg tp) : evaluator system_m nenv (value nenv tp) := 
-    evaluator.with_machine_state system_m nenv (concrete_reg.from_state nenv r)
+def concrete_reg.read {tp : type} (r : concrete_reg tp) : evaluator system_m (value tp) := 
+    evaluator.with_machine_state system_m (concrete_reg.from_state r)
 
 -- namespace arg_lval 
 
-def arg_lval.to_value' : arg_lval -> ∀(tp : type), system_m (value nenv tp)
+def arg_lval.to_value' : arg_lval -> ∀(tp : type), system_m (value tp)
   | (@arg_lval.reg tp r), tp' => do
     s <- get;
-    value.type_check nenv tp (concrete_reg.from_state nenv r s) tp'
+    value.type_check tp (concrete_reg.from_state r s) tp'
   | (arg_lval.memloc width addr), tp' => do
     w <- SystemM.read_memory_at system_m addr width;
-    value.type_check nenv (bv width) w tp'
+    value.type_check (bv width) w tp'
 
-def arg_lval.to_value : arg_lval -> ∀(tp : type), evaluator system_m nenv (value nenv tp)
-  | (@arg_lval.reg tp r), tp' => do v <- concrete_reg.read system_m nenv r;
-                                   value.type_check nenv tp v tp'
+def arg_lval.to_value : arg_lval -> ∀(tp : type), evaluator system_m (value tp)
+  | (@arg_lval.reg tp r), tp' => do v <- concrete_reg.read system_m r;
+                                   value.type_check tp v tp'
   | (arg_lval.memloc width addr), tp' => do
-    v <- evaluator.read_memory_at system_m nenv addr width;
-    value.type_check nenv (bv width) v tp'
+    v <- evaluator.read_memory_at system_m addr width;
+    value.type_check (bv width) v tp'
 
-def arg_lval.set_value : arg_lval -> ∀{tp : type}, value nenv tp 
-  -> evaluator system_m nenv  Unit
-  | (@arg_lval.reg tp r), tp', v => do v' <- value.type_check nenv _ v tp;
-                                       concrete_reg.set system_m nenv r v'
+def arg_lval.set_value : arg_lval -> ∀{tp : type}, value tp 
+  -> evaluator system_m  Unit
+  | (@arg_lval.reg tp r), tp', v => do v' <- value.type_check _ v tp;
+                                       concrete_reg.set system_m r v'
   | (arg_lval.memloc _width addr), tp, v => do
-    evaluator.write_memory_at system_m nenv addr v
+    evaluator.write_memory_at system_m addr v
 
 -- def read_memory_at (av : arg_value) (n : Nat) : evaluator trace_event (bitvec (8 * n)) :=
 --   match av with 
@@ -511,26 +377,25 @@ def arg_lval.set_value : arg_lval -> ∀{tp : type}, value nenv tp
 --   end
 
 -- Can fail if types mismatch
-def arg_value.to_value : arg_value nenv -> ∀(tp : type), evaluator system_m nenv (value nenv tp)
-  | (arg_value.natv _ _),  _ => throw "arg_value.to_value: saw a natv"
-  | (arg_value.lval _ l), tp => arg_lval.to_value system_m nenv l tp
-  | (arg_value.rval v), tp => value.type_check nenv _ v tp
+def arg_value.to_value : arg_value -> ∀(tp : type), evaluator system_m (value tp)
+  | (arg_value.lval l), tp => arg_lval.to_value system_m l tp
+  | (arg_value.rval v), tp => value.type_check _ v tp
 
-def arg_value.set_value : arg_value nenv -> ∀{tp : type}, value nenv tp -> evaluator system_m nenv Unit
-  | (arg_value.lval _ l), tp, v => arg_lval.set_value system_m nenv l v
+def arg_value.set_value : arg_value -> ∀{tp : type}, value tp -> evaluator system_m Unit
+  | (arg_value.lval l), tp, v => arg_lval.set_value system_m l v
   | _, _, _ => throw "arg_value.set_value: not an lvalue"
 
-def addr.read : ∀{tp : type}, addr tp -> evaluator system_m nenv (value nenv tp)
+def addr.read : ∀{tp : type}, addr tp -> evaluator system_m (value tp)
   | tp, (addr.arg idx) => do 
-      av <- evaluator.arg_at_idx system_m nenv idx;
-      arg_value.to_value system_m nenv av tp -- FIXME: we should really check if this is a memloc first.
+      av <- evaluator.arg_at_idx system_m idx;
+      arg_value.to_value system_m av tp -- FIXME: we should really check if this is a memloc first.
       -- w  <- av.read_memory_at n,
       -- return (value.bv w)
 
-def addr.set : ∀{tp : type}, addr tp -> value nenv tp -> evaluator system_m nenv Unit
+def addr.set : ∀{tp : type}, addr tp -> value tp -> evaluator system_m Unit
   | tp, (addr.arg idx), v => do 
-      av <- evaluator.arg_at_idx system_m nenv idx; -- FIXME: we should really check if this is a memloc first.
-      arg_value.set_value system_m nenv av v
+      av <- evaluator.arg_at_idx system_m idx; -- FIXME: we should really check if this is a memloc first.
+      arg_value.set_value system_m av v
 
 -- This is the least-worst option.  The other alternative is to have a
 -- value constructor for functions, which we only need here.
@@ -604,17 +469,17 @@ instance decidable_pred_type_has_eq: DecidablePred type.has_eq := type.has_eq_de
 -- set_option trace.eqn_compiler true
 -- set_option trace.debug.eqn_compiler true
 
--- def tester1 : ∀{tp : type}, value nenv tp -> value nenv tp -> Bool
+-- def tester1 : ∀{tp : type}, value tp -> value tp -> Bool
 --   | (bv _)     => fun v1 v2 => v1 = v2
 --   | _ => fun _ _ => true
 
--- def tester2 : ∀{tp : type}, value nenv tp -> value nenv tp -> Bool
+-- def tester2 : ∀{tp : type}, value tp -> value tp -> Bool
 --   | (bv _)     => fun v1 v2 => v1 - v2 = 0
 --   | _ => fun _ _ => true
 
 -- #print tester2._main
 
-def value.partial_eq : ∀{tp : type}, type.has_eq tp -> value nenv tp -> value nenv tp -> Bool
+def value.partial_eq : ∀{tp : type}, type.has_eq tp -> value tp -> value tp -> Bool
   | (bv _), _, v1, v2      => (v1 - v2 = 0) -- FIXME: bug in the eqn compiler?
   | bit,    _, v1, v2      => (v1 = v2)
   | float,  _, v1, v2      => (v1 = v2)
@@ -622,7 +487,7 @@ def value.partial_eq : ∀{tp : type}, type.has_eq tp -> value nenv tp -> value 
   | x86_80, _, v1, v2     => (v1 = v2)
   | (vec _ tp), pf, v1, v2 => 
      let pf' : type.has_eq tp := pf;
-        (List.zip (Array.toList v1) (Array.toList v2)).all (fun (v : (value nenv tp × value nenv tp)) => value.partial_eq pf' v.fst v.snd)
+        (List.zip (Array.toList v1) (Array.toList v2)).all (fun (v : (value tp × value tp)) => value.partial_eq pf' v.fst v.snd)
   | (pair tp tp'), pf, v1, v2 => false -- FIXME
     -- and (value.partial_eq pf.left v1.fst v2.fst) (value.partial_eq pf.right v1.snd v2.snd)
 
@@ -633,16 +498,16 @@ def bitvec.parity {n : Nat} (b : bitvec n) : Bool :=
 -- example : bitvec.parity (3 : bitvec 4) = false := by refl
 -- example : bitvec.parity (7 : bitvec 4) = true := by refl
 
-def prim.eval : ∀{tp : type}, prim tp -> evaluator system_m nenv (value nenv tp)
+def prim.eval : ∀{tp : type}, prim tp -> evaluator system_m (value tp)
   -- `(eq tp)` returns `true` if two values are equal.
   | ._, (prim.eq tp) => 
     if pf : type.has_eq tp 
-    then pure (value.partial_eq nenv pf)
+    then pure (value.partial_eq pf)
     else throw "prim.eval.eq: eq at unsupported type"
   -- `(neq tp)` returns `true` if two values are not equal.
   | ._, (prim.neq tp) => 
     if pf : type.has_eq tp 
-    then pure (fun v1 v2 => not (value.partial_eq nenv pf v1 v2))
+    then pure (fun v1 v2 => not (value.partial_eq pf v1 v2))
     else throw "prim.eval.neq: neq at unsupported type"
   -- `(mux tp) c t f` evaluates to `t` when `c` is true and `f` otherwise.
   -- This only evaluates `t` when `c` is true, and only evaluates `f` when
@@ -659,23 +524,23 @@ def prim.eval : ∀{tp : type}, prim tp -> evaluator system_m nenv (value nenv t
   | ._, prim.bit_xor => pure xor
 
   -- `bvnat` constructs a bit vector from a natural number.
-  | ._, (prim.bv_nat w n) => pure (bitvec.of_nat (eval_nat_expr nenv w) (eval_nat_expr nenv n))
+  | ._, (prim.bv_nat w n) => pure (bitvec.of_nat w n)
   -- `(add i)` returns the sum of two i-bit numbers.
   | ._, (prim.add i)        => pure bitvec.add
   -- `(adc i)` returns the sum of two i-bit numbers and a carry bit.
   | ._, (prim.adc i)         => pure (fun x y b => bitvec.add x (bitvec.add y (bit_to_bitvec _ b)))
-  | ._, (prim.uadc_overflows i) => pure (fun x y b => bitvec.ult (x + y + bit_to_bitvec (eval_nat_expr nenv i) b) x)
-  | ._, (prim.sadc_overflows i) => pure (fun x y b => bitvec.slt (x + y + bit_to_bitvec (eval_nat_expr nenv i) b) x)
+  | ._, (prim.uadc_overflows i) => pure (fun x y b => bitvec.ult (x + y + bit_to_bitvec i b) x)
+  | ._, (prim.sadc_overflows i) => pure (fun x y b => bitvec.slt (x + y + bit_to_bitvec i b) x)
   -- `(bvsub i)` substracts two i-bit bitvectors.
   | ._, (prim.sub i) => pure bitvec.sub
   -- `(ssbb_overflows i)` true if signed sub overflows, the bit
   -- is a borrow bit.
   -- FIXME: is this correct?
   | ._, (prim.ssbb_overflows i) => 
-    pure (fun x y b => bitvec.slt x (x - y - bit_to_bitvec (eval_nat_expr nenv i) b))
+    pure (fun x y b => bitvec.slt x (x - y - bit_to_bitvec i b))
   -- `(usbb_overflows i)` true if unsigned sub overflows,
   -- the bit is a borrow bit.
-  | ._, (prim.usbb_overflows i) => pure (fun x y b => bitvec.ult x (x - y - bit_to_bitvec (eval_nat_expr nenv i) b))
+  | ._, (prim.usbb_overflows i) => pure (fun x y b => bitvec.ult x (x - y - bit_to_bitvec i b))
 
   -- `(neg tp)` Two's Complement negation.
   | ._, (prim.neg i) => pure bitvec.neg
@@ -703,32 +568,22 @@ def prim.eval : ∀{tp : type}, prim tp -> evaluator system_m nenv (value nenv t
   --  prim (bv w .→ bv (u+1-l))
   --  slice {w: Nat} (u l k:Nat) (H: w = k + (u + 1 - l)) (x: bitvec w) : bitvec (u + 1 - l)
   | tp, (prim.slice w u l) => do
-       let n := eval_nat_expr nenv u + 1 - eval_nat_expr nenv l;
-       H <- annotate' "slice" (assert (eval_nat_expr nenv w = (eval_nat_expr nenv w - n + n)));
-       let f : bitvec (eval_nat_expr nenv w) → bitvec n :=
-         (bitvec.slice (eval_nat_expr nenv u) (eval_nat_expr nenv l) (eval_nat_expr nenv w - n) H.default);
-       let rewr : value nenv (bv (u + 1 - l)) = value nenv (bv (nat_expr.lit n)) := I_am_really_sorry _ ;
-       pure (fun x => Eq.recOn rewr.symm (f x))
-       -- pure (begin
-       --   have rewr : value nenv (bv (u + 1 - l)) = value nenv (bv (nat_expr.lit n)) :=
-       --     begin simp [n, value, nat_expr.eval_default_sub_eq
-       --                , nat_expr.eval_default_add_eq
-       --                , eval_nat_expr, nat_expr.eval_default], rw add_comm, refl end,
-       --   simp [value], rw rewr,
-       --   exact (bitvec.slice (eval_nat_expr nenv u) (eval_nat_expr nenv l) (eval_nat_expr nenv w - n) H.default)
-       --  end)
+       let n := u + 1 - l;
+       H <- annotate' "slice" (assert (w = w - n + n));
+       let f : bitvec w → bitvec n := (bitvec.slice u l (w - n) H.default);
+       pure f
   -- `(sext i o)` sign extends an `i`-bit number to a `o`-bit number.
-  | ._, (prim.sext i o) => do H <- annotate' "sext" (assert (eval_nat_expr nenv i ≤ eval_nat_expr nenv o));
-                             pure (bitvec.sext (eval_nat_expr nenv o) H.default)
+  | ._, (prim.sext i o) => do H <- annotate' "sext" (assert (i ≤ o));
+                             pure (bitvec.sext o H.default)
   -- `(uext i o)` unsigned extension of an `i`-bit number to a `o`-bit number.
-  | ._, (prim.uext i o) => do H <- annotate' "uext" (assert (eval_nat_expr nenv i ≤ eval_nat_expr nenv o));
-                             pure (bitvec.uext (eval_nat_expr nenv o) H.default)
+  | ._, (prim.uext i o) => do H <- annotate' "uext" (assert (i ≤ o));
+                             pure (bitvec.uext o H.default)
   -- `(trunc i o)` truncates an `i`-bit number to a `o`-bit number.
-  | ._, (prim.trunc i o) => do H <- annotate' "trunc" (assert (eval_nat_expr nenv o ≤ eval_nat_expr nenv i));
-                              pure (bitvec.trunc (eval_nat_expr nenv o) H.default)
+  | ._, (prim.trunc i o) => do H <- annotate' "trunc" (assert (o ≤ i));
+                              pure (bitvec.trunc o H.default)
 
   | ._, (prim.cat i) => pure (fun x y => 
-       let prf : eval_nat_expr nenv i + eval_nat_expr nenv i = eval_nat_expr nenv (2 * i) := I_am_really_sorry _;
+       let prf : i + i = (2 * i) := I_am_really_sorry _;
        bitvec.cong prf (bitvec.append x y))
   --(begin simp [eval_nat_expr, nat_expr.eval_default_mul_eq, nat_expr.eval, eval_default_2, two_mul], 
   --end)
@@ -750,8 +605,8 @@ def prim.eval : ∀{tp : type}, prim tp -> evaluator system_m nenv (value nenv t
        match i.to_nat with
        | Nat.zero        => c
        -- FIXME: is this the intended behaviour?
-       | (Nat.succ n) => if n < eval_nat_expr nenv w
-                         then bitvec.nth b (eval_nat_expr nenv w - n - 1) else false 
+       | (Nat.succ n) => if n < w
+                         then bitvec.nth b (w - n - 1) else false 
        )
    --- `(shr i) x y` shifts the bits in `x` to the right by
    --- `y` bits where `y` is treated as an unsigned integer.
@@ -766,10 +621,8 @@ def prim.eval : ∀{tp : type}, prim tp -> evaluator system_m nenv (value nenv t
   | ._, (prim.shr_carry w) => pure (fun b c (i : bitvec 8) => 
        match i.to_nat with
        | Nat.zero     => c
-       | (Nat.succ n) => -- @ite _ (n < eval_nat_expr nenv w) (Nat.decLt _ _) _ (bitvec.nth b n) false
-if n < eval_nat_expr nenv w 
-then bitvec.nth b n
-else false
+       | (Nat.succ n) => -- @ite _ (n < eval_nat_expr w) (Nat.decLt _ _) _ (bitvec.nth b n) false
+         if n <  w then bitvec.nth b n else false
        )
    --- `(sar i) x y` arithmetically shifts the bits in `x` to
    --- the left by `y` bits where `y` is treated as an unsigned integer.
@@ -785,13 +638,10 @@ else false
        match i.to_nat with
        | Nat.zero     => c
        | (Nat.succ n) =>
-         -- @ite _ (n < eval_nat_expr nenv w) (Nat.decLt _ _) _ 
+         -- @ite _ (n < eval_nat_expr w) (Nat.decLt _ _) _ 
          --      (bitvec.nth b n)
          --      (bitvec.msb b)
-       (if n < eval_nat_expr nenv w 
-                          then bitvec.nth b n
-                          else bitvec.msb b)
-         )
+       (if n < w then bitvec.nth b n else bitvec.msb b))
    
   | ._, (prim.even_parity i) => pure (fun b => bitvec.parity b = false)
   -- `(bsf i)` returns the index of least-significant bit that is 1.
@@ -826,93 +676,93 @@ else false
   | ._, prim.x87_fadd           => throw "prim.eval.dx87_fadd unimplemented"
 
   -- Return first element of a pair
-  | ._, (prim.pair_fst x y) => pure (fun (v : value nenv x × value nenv y) => v.fst)
+  | ._, (prim.pair_fst x y) => pure (fun (v : value x × value y) => v.fst)
   -- Return second element of a pair.
-  | ._, (prim.pair_snd x y) => pure (fun (v : value nenv x × value nenv y) => v.snd)
+  | ._, (prim.pair_snd x y) => pure (fun (v : value x × value y) => v.snd)
 
-def value.make_undef : ∀(tp : type), value nenv tp 
-  | (bv e) => bitvec.of_nat (eval_nat_expr nenv e) 0
+def value.make_undef : ∀(tp : type), value tp 
+  | (bv e) => bitvec.of_nat e 0
   | bit    => false
   | float  => ()
   | double => ()
   | x86_80 => ()
-  | (vec w tp) => mkArray (eval_nat_expr nenv w) (value.make_undef tp)
+  | (vec w tp) => mkArray w (value.make_undef tp)
   | (pair tp tp') => (value.make_undef tp, value.make_undef tp')
   | (fn arg res) => fun _ => value.make_undef res
 
-def expression.eval : ∀{tp : type}, expression tp -> evaluator system_m nenv (value nenv tp)
-  | ._, (expression.primitive p) => prim.eval system_m nenv p
+def expression.eval : ∀{tp : type}, expression tp -> evaluator system_m (value tp)
+  | ._, (expression.primitive p) => prim.eval system_m p
   | ._, (@expression.bit_test wr wi re idxe) => do
     r   <- expression.eval re;
     idx <- expression.eval idxe;
-    let idx' := idx.to_nat % eval_nat_expr nenv wr;
+    let idx' := idx.to_nat % wr;
     pure (r.nth idx')
   | ._, (expression.mulc m xe) => do
     x <- expression.eval xe;
-    pure (bitvec.mul (bitvec.of_nat 64 (eval_nat_expr nenv m)) x)
+    pure (bitvec.mul (bitvec.of_nat 64 m) x)
   | ._, (expression.quotc m xe) => throw "expression.eval.quotc unimplemented"
-  | ._, (expression.undef tp)   => pure (value.make_undef nenv tp)
+  | ._, (expression.undef tp)   => pure (value.make_undef tp)
   | ._, (expression.app f a) => (expression.eval f) <*> (expression.eval a)
-  | ._, (expression.get_reg r) => concrete_reg.read system_m nenv r
+  | ._, (expression.get_reg r) => concrete_reg.read system_m r
   | ._, (expression.read tp addre) => do
     addr   <- expression.eval addre;
     (match tp with
-      | (bv we) => evaluator.read_memory_at system_m nenv  addr (eval_nat_expr nenv we)
+      | (bv we) => evaluator.read_memory_at system_m  addr we
       | _ => throw "expression.eval.read Trying to store non-bitvector")
 
   | ._, (expression.streg idx) => throw "expression.eval.streg unimplemented"
-  | ._, (expression.get_local idx tp) => evaluator.local_at_idx system_m nenv idx tp
+  | ._, (expression.get_local idx tp) => evaluator.local_at_idx system_m idx tp
   -- This is overly general, we might not know that av here is an rval
   | ._, (expression.imm_arg idx tp) => do
-    av <- evaluator.arg_at_idx system_m nenv idx;
+    av <- evaluator.arg_at_idx system_m idx;
     (match av with
-    | (arg_value.rval v) => value.type_check nenv _ v tp
+    | (arg_value.rval v) => value.type_check _ v tp
     | _ => throw "expression.eval.imm_arg Not an rval")
 
   | ._, (expression.addr_arg idx) => do
-    av <- evaluator.arg_at_idx system_m nenv idx;
+    av <- evaluator.arg_at_idx system_m idx;
     (match av with
-    | (arg_value.lval _ (arg_lval.memloc _ addr)) => pure addr
+    | (arg_value.lval (arg_lval.memloc _ addr)) => pure addr
     | _ => throw "expression.eval.addr_arg Not an memloc lval")
   -- FIXME: isn't specific to arg_lval
   | ._, (expression.read_arg idx tp) => do
-    av <- evaluator.arg_at_idx system_m nenv idx;
-    arg_value.to_value system_m nenv av tp
+    av <- evaluator.arg_at_idx system_m idx;
+    arg_value.to_value system_m av tp
 
-def evaluator.set_ip (new_ip : bitvec 64) : evaluator system_m nenv Unit :=
-  evaluator.map_machine_state system_m nenv (fun (s : machine_state) => { s with ip := new_ip })
+def evaluator.set_ip (new_ip : bitvec 64) : evaluator system_m Unit :=
+  evaluator.map_machine_state system_m (fun (s : machine_state) => { s with ip := new_ip })
 
-def lhs.set : ∀{tp : type}, lhs tp -> value nenv tp -> evaluator system_m nenv Unit
-  | ._, (lhs.set_reg r), v        => concrete_reg.set system_m nenv  r v
+def lhs.set : ∀{tp : type}, lhs tp -> value tp -> evaluator system_m Unit
+  | ._, (lhs.set_reg r), v        => concrete_reg.set system_m  r v
   | ._, (lhs.write_addr ae tp), v => do
-    a <- expression.eval system_m nenv ae;
-    evaluator.write_memory_at system_m nenv a v
+    a <- expression.eval system_m ae;
+    evaluator.write_memory_at system_m a v
   | ._, (lhs.write_arg idx _tp), v => do
-    av <- evaluator.arg_at_idx system_m nenv idx;
+    av <- evaluator.arg_at_idx system_m idx;
     -- fixme: we ignore tp here?
-    arg_value.set_value system_m nenv av v
+    arg_value.set_value system_m av v
   | ._, (lhs.streg idx), v  => throw "lhs.set: unsupported FP write"
 
-def lhs.read : ∀{tp : type}, lhs tp -> evaluator system_m nenv (value nenv tp)
-  | ._, (lhs.set_reg r)        => concrete_reg.read system_m nenv r
+def lhs.read : ∀{tp : type}, lhs tp -> evaluator system_m (value tp)
+  | ._, (lhs.set_reg r)        => concrete_reg.read system_m r
   | ._, (lhs.write_addr ae tp) => do
-    addr <- expression.eval system_m nenv ae;
+    addr <- expression.eval system_m ae;
    (match tp with
-     | (bv we) => evaluator.read_memory_at system_m nenv addr (eval_nat_expr nenv we)
+     | (bv we) => evaluator.read_memory_at system_m addr we
      | _ => throw "lhs.read Trying to store non-bitvector")
   | ._, (lhs.write_arg idx tp) => do
-    av <- evaluator.arg_at_idx system_m nenv idx;
+    av <- evaluator.arg_at_idx system_m idx;
     -- fixme: we ignore tp here?
-    arg_value.to_value system_m nenv av tp
+    arg_value.to_value system_m av tp
   | ._, (lhs.streg idx) => throw "lhs.set: unsupported FP write"
 
-def evaluator.push64 (v : value nenv (bv 64)) : evaluator system_m nenv Unit := do
-  sp <- lhs.read system_m nenv rsp;
+def evaluator.push64 (v : value (bv 64)) : evaluator system_m Unit := do
+  sp <- lhs.read system_m rsp;
   let sp' := sp - 8; do
-    lhs.set system_m nenv rsp sp';
-    evaluator.write_memory_at system_m nenv sp' v
+    lhs.set system_m rsp sp';
+    evaluator.write_memory_at system_m sp' v
 
-def read_cpuid : evaluator system_m nenv Unit :=
+def read_cpuid : evaluator system_m Unit :=
   -- Copied from the cpuid results from my macbook
   -- Note: CPUID is allowed to return 0s 
   let cpuid_values : RBMap Nat (bitvec 32 × bitvec 32 × bitvec 32 × bitvec 32) (fun x y => decide (x < y)) :=
@@ -945,37 +795,37 @@ def read_cpuid : evaluator system_m nenv Unit :=
       | none     => (0, 0, 0, 0)
       | (some r) => r;
     do 
-      raxv <- lhs.read system_m nenv rax;
+      raxv <- lhs.read system_m rax;
       match cpuid_fn raxv.to_nat with 
       | (axv, bxv, cxv, dxv) => do 
-        lhs.set system_m nenv eax axv;
-        lhs.set system_m nenv ebx bxv;
-        lhs.set system_m nenv ecx cxv;
-        lhs.set system_m nenv edx dxv
+        lhs.set system_m eax axv;
+        lhs.set system_m ebx bxv;
+        lhs.set system_m ecx cxv;
+        lhs.set system_m edx dxv
 
-def event.eval : event -> evaluator system_m nenv Unit
+def event.eval : event -> evaluator system_m Unit
   | event.syscall => monadLift (SystemM.os_transition : system_m Unit)
-    -- adaptState (fun (s : evaluator_state nenv) => (s.system_state, s))
+    -- adaptState (fun (s : evaluator_state) => (s.system_state, s))
     --            (fun s s' => { s' with system_state := s })
     --            (system_m.os_transition)
   | (event.unsupported msg) => throw ("event.eval: unsupported: " ++ msg)
   | event.pop_x87_register_stack => throw "pop_x87_register_stack"
   | (event.call addr) => do
-    new_ip <- expression.eval system_m nenv addr;
-    old_ip <- evaluator.with_machine_state system_m nenv (fun s => s.ip);
-    evaluator.push64 system_m nenv old_ip;
-    evaluator.set_ip system_m nenv new_ip
+    new_ip <- expression.eval system_m addr;
+    old_ip <- evaluator.with_machine_state system_m (fun s => s.ip);
+    evaluator.push64 system_m old_ip;
+    evaluator.set_ip system_m new_ip
 
   | (event.jmp addr) => do
-    new_ip <- expression.eval system_m nenv addr;
-    evaluator.set_ip system_m nenv new_ip
+    new_ip <- expression.eval system_m addr;
+    evaluator.set_ip system_m new_ip
   | (event.branch c addr) => do
-    new_ip <- expression.eval system_m nenv addr;
-    b      <- expression.eval system_m nenv c;
-    when b (evaluator.set_ip system_m nenv new_ip)
+    new_ip <- expression.eval system_m addr;
+    b      <- expression.eval system_m c;
+    when b (evaluator.set_ip system_m new_ip)
   | event.hlt => throw "halt"
   | (event.xchg addr1 addr2) => throw "xchg"
-  | event.cpuid => read_cpuid system_m nenv
+  | event.cpuid => read_cpuid system_m
 
 -- def lhs.read : ∀{tp : type}, lhs tp -> evaluator trace_event (value tp)
 --   | ._ (lhs.reg r)       => reg.read r
@@ -984,29 +834,29 @@ def event.eval : event -> evaluator system_m nenv Unit
 --                                   arg_value.to_value av tp
 --   | ._ (lhs.streg idx)   => throw "lhs.read: unsupported FP read"
 
-def action.eval : action -> evaluator system_m nenv Unit
-  | (action.set l e) => do v <- expression.eval system_m nenv e;
-                           lhs.set system_m nenv l v
+def action.eval : action -> evaluator system_m Unit
+  | (action.set l e) => do v <- expression.eval system_m e;
+                           lhs.set system_m l v
   | (action.set_cond l c e) => do
-    b <- expression.eval system_m nenv c;
-    v <- expression.eval system_m nenv e;
-    when b (lhs.set system_m nenv l v)
+    b <- expression.eval system_m c;
+    v <- expression.eval system_m e;
+    when b (lhs.set system_m l v)
   | (@action.set_aligned (bv _) l e align) => throw "set_aligned: buggy case" -- FIXME: compiler bug
-    -- v <- expression.eval os_state nenv e,
-    -- if v.to_nat % eval_nat_expr nenv align = 0
-    -- then lhs.set os_state nenv l v
+    -- v <- expression.eval os_state e,
+    -- if v.to_nat % eval_nat_expr align = 0
+    -- then lhs.set os_state l v
     -- else throw "Unaligned set_aligned"
   | (@action.set_aligned _ l e align) => throw "set_aligned: not a bv"
   | (@action.local_def tp idx e) => do 
-    v <- expression.eval system_m nenv e;
+    v <- expression.eval system_m e;
     modify (fun s => { s with locals := s.locals.insert idx (Sigma.mk tp v)})
-  | (action.event e) => event.eval system_m nenv e
+  | (action.event e) => event.eval system_m e
 
 -- FIXME: check pattern.context |- environment
-def pattern.eval (p : pattern) (e : environment nenv)
+def pattern.eval (p : pattern) (e : environment)
     : system_m Unit :=
-    evaluator.run' system_m nenv (List.mapM (action.eval system_m nenv) p.actions >>= fun _ => pure ()) e
-    -- pure ((fun (v : Unit × evaluator_state nenv) => v.snd.system_state) <$> r)
+    evaluator.run' system_m (List.mapM (action.eval system_m) p.actions >>= fun _ => pure ()) e
+    -- pure ((fun (v : Unit × evaluator_state) => v.snd.system_state) <$> r)
 
 end with_nat_env
 
