@@ -1,0 +1,187 @@
+{
+    "binary_path": "test_fib_diet_lld.exe",
+    "functions": [
+        {
+            "blocks": [
+                {
+                    "addr": "0x201400",
+                    "label": "block_0_201400",
+                    "mem_events": [
+                        {
+                            "addr": "0x201400",
+                            "type": "binary_only_access"
+                        },
+                        {
+                            "addr": "0x201408",
+                            "type": "binary_only_access"
+                        },
+                        {
+                            "addr": "0x20140c",
+                            "type": "binary_only_access"
+                        }
+                    ],
+                    "preconditions": [
+                        "(= rbx (fnstart rbx ) )",
+                        "(= rsp stack_high )",
+                        "(= rbp (fnstart rbp ) )",
+                        "(= r12 (fnstart r12 ) )",
+                        "(= r13 (fnstart r13 ) )",
+                        "(= r14 (fnstart r14 ) )",
+                        "(= r15 (fnstart r15 ) )"
+                    ],
+                    "size": 23
+                },
+                {
+                    "addr": "0x201417",
+                    "label": "block_0_201417",
+                    "mem_events": [
+                        {
+                            "addr": "0x201417",
+                            "type": "binary_only_access"
+                        },
+                        {
+                            "addr": "0x20141b",
+                            "type": "binary_only_access"
+                        }
+                    ],
+                    "preconditions": [
+                        "(= (llvm t4 ) rdi )",
+                        "(= (llvm t4 ) (mcstack (bvsub stack_high (_ bv24 64 ) ) (_ BitVec 64 ) ) )",
+                        "(= rbx (fnstart rbx ) )",
+                        "(= rsp (bvsub stack_high (_ bv40 64 ) ) )",
+                        "(= rbp (bvsub stack_high (_ bv8 64 ) ) )",
+                        "(= r12 (fnstart r12 ) )",
+                        "(= r13 (fnstart r13 ) )",
+                        "(= r14 (fnstart r14 ) )",
+                        "(= r15 (fnstart r15 ) )",
+                        "(= rdi (mcstack (bvsub stack_high (_ bv24 64 ) ) (_ BitVec 64 ) ) )",
+                        "(= (mcstack (bvsub stack_high (_ bv8 64 ) ) (_ BitVec 64 ) ) (fnstart rbp ) )"
+                    ],
+                    "size": 13
+                },
+                {
+                    "addr": "0x201424",
+                    "label": "block_0_201424",
+                    "mem_events": [
+                        {
+                            "addr": "0x201424",
+                            "type": "binary_only_access"
+                        },
+                        {
+                            "addr": "0x20142f",
+                            "type": "binary_only_access"
+                        }
+                    ],
+                    "preconditions": [
+                        "(= (llvm t5 ) rdi )",
+                        "(= (llvm t5 ) (mcstack (bvsub stack_high (_ bv24 64 ) ) (_ BitVec 64 ) ) )",
+                        "(= rbx (fnstart rbx ) )",
+                        "(= rsp (bvsub stack_high (_ bv40 64 ) ) )",
+                        "(= rbp (bvsub stack_high (_ bv8 64 ) ) )",
+                        "(= r12 (fnstart r12 ) )",
+                        "(= r13 (fnstart r13 ) )",
+                        "(= r14 (fnstart r14 ) )",
+                        "(= r15 (fnstart r15 ) )",
+                        "(= rdi (mcstack (bvsub stack_high (_ bv24 64 ) ) (_ BitVec 64 ) ) )",
+                        "(= (mcstack (bvsub stack_high (_ bv8 64 ) ) (_ BitVec 64 ) ) (fnstart rbp ) )"
+                    ],
+                    "size": 16
+                },
+                {
+                    "addr": "0x201434",
+                    "label": "block_0_201434",
+                    "mem_events": [
+                        {
+                            "addr": "0x201434",
+                            "type": "binary_only_access"
+                        },
+                        {
+                            "addr": "0x20143c",
+                            "type": "binary_only_access"
+                        },
+                        {
+                            "addr": "0x201440",
+                            "type": "binary_only_access"
+                        }
+                    ],
+                    "preconditions": [
+                        "(= (llvm t8 ) rax )",
+                        "(= (llvm t9 ) (mcstack (bvsub stack_high (_ bv24 64 ) ) (_ BitVec 64 ) ) )",
+                        "(= rbx (fnstart rbx ) )",
+                        "(= rsp (bvsub stack_high (_ bv40 64 ) ) )",
+                        "(= rbp (bvsub stack_high (_ bv8 64 ) ) )",
+                        "(= r12 (fnstart r12 ) )",
+                        "(= r13 (fnstart r13 ) )",
+                        "(= r14 (fnstart r14 ) )",
+                        "(= r15 (fnstart r15 ) )",
+                        "(= (mcstack (bvsub stack_high (_ bv8 64 ) ) (_ BitVec 64 ) ) (fnstart rbp ) )"
+                    ],
+                    "size": 17
+                },
+                {
+                    "addr": "0x201445",
+                    "label": "block_0_201445",
+                    "mem_events": [
+                        {
+                            "addr": "0x201445",
+                            "type": "binary_only_access"
+                        },
+                        {
+                            "addr": "0x20144c",
+                            "type": "binary_only_access"
+                        }
+                    ],
+                    "preconditions": [
+                        "(= (llvm t12 ) rax )",
+                        "(= (llvm t13 ) (mcstack (bvsub stack_high (_ bv32 64 ) ) (_ BitVec 64 ) ) )",
+                        "(= rbx (fnstart rbx ) )",
+                        "(= rsp (bvsub stack_high (_ bv40 64 ) ) )",
+                        "(= rbp (bvsub stack_high (_ bv8 64 ) ) )",
+                        "(= r12 (fnstart r12 ) )",
+                        "(= r13 (fnstart r13 ) )",
+                        "(= r14 (fnstart r14 ) )",
+                        "(= r15 (fnstart r15 ) )",
+                        "(= (mcstack (bvsub stack_high (_ bv8 64 ) ) (_ BitVec 64 ) ) (fnstart rbp ) )"
+                    ],
+                    "size": 11
+                },
+                {
+                    "addr": "0x201450",
+                    "label": "block_0_201450",
+                    "mem_events": [
+                        {
+                            "addr": "0x201450",
+                            "type": "binary_only_access"
+                        },
+                        {
+                            "addr": "0x201458",
+                            "type": "binary_only_access"
+                        },
+                        {
+                            "addr": "0x201459",
+                            "type": "binary_only_access"
+                        }
+                    ],
+                    "preconditions": [
+                        "(= (llvm t15 ) rdi )",
+                        "(= (llvm t15 ) (mcstack (bvsub stack_high (_ bv16 64 ) ) (_ BitVec 64 ) ) )",
+                        "(= rbx (fnstart rbx ) )",
+                        "(= rsp (bvsub stack_high (_ bv40 64 ) ) )",
+                        "(= rbp (bvsub stack_high (_ bv8 64 ) ) )",
+                        "(= r12 (fnstart r12 ) )",
+                        "(= r13 (fnstart r13 ) )",
+                        "(= r14 (fnstart r14 ) )",
+                        "(= r15 (fnstart r15 ) )",
+                        "(= rdi (mcstack (bvsub stack_high (_ bv16 64 ) ) (_ BitVec 64 ) ) )",
+                        "(= (mcstack (bvsub stack_high (_ bv8 64 ) ) (_ BitVec 64 ) ) (fnstart rbp ) )"
+                    ],
+                    "size": 10
+                }
+            ],
+            "llvm_name": "fib"
+        }
+    ],
+    "llvm_path": "test_fib_diet_reopt.ll",
+    "page_size": 4096,
+    "stack_guard_pages": 1
+}

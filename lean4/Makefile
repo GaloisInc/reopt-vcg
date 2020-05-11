@@ -43,7 +43,7 @@ LEAN_PATH := Init=${LEANDIR}/lib/lean/Init
 LEANFILES := 
 EXTRACXXFILES :=
 
-TARGET := $(BUILDDIR)/sim $(BUILDDIR)/driver
+TARGET := $(BUILDDIR)/sim $(BUILDDIR)/driver $(BUILDDIR)/reopt-vcg
 
 all: $(TARGET)
 
@@ -53,6 +53,7 @@ include deps/llvm-tablegen-support/Makefile.include
 include deps/lean-llvm/Makefile.include
 include deps/x86_semantics/Makefile.include
 include simulator/Makefile.include
+include app/Makefile.include
 
 
 # The paths populating LEANFILES from the various above includes are absolute,
@@ -89,6 +90,10 @@ $(BUILDDIR)/sim : ${CPPLEANFILES} ${EXTRAOBJFILES} build/simulator/Main.cpp
 
 $(BUILDDIR)/driver: ${CPPLEANFILES} ${EXTRAOBJFILES} build/deps/lean-llvm/src/Driver.cpp
 	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cxxflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86` -lstdc++ -lm
+
+$(BUILDDIR)/reopt-vcg : ${CPPLEANFILES} ${EXTRAOBJFILES} build/app/Main.cpp
+	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cxxflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86` -lstdc++ -lm
+
 
 %.d: %.lean
 	$(MAKEDEPEND)
