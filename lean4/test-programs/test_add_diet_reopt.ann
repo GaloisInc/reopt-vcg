@@ -1,0 +1,119 @@
+{
+    "binary_path": "test_add_diet_lld.exe",
+    "functions": [
+        {
+            "blocks": [
+                {
+                    "addr": "0x201000",
+                    "label": "block_0_201000",
+                    "mem_events": [
+                        {
+                            "addr": "0x201000",
+                            "type": "binary_only_access"
+                        },
+                        {
+                            "addr": "0x201004",
+                            "type": "binary_only_access"
+                        },
+                        {
+                            "addr": "0x201008",
+                            "type": "binary_only_access"
+                        },
+                        {
+                            "addr": "0x20100c",
+                            "type": "binary_only_access"
+                        },
+                        {
+                            "addr": "0x201010",
+                            "type": "binary_only_access"
+                        },
+                        {
+                            "addr": "0x20101a",
+                            "type": "binary_only_access"
+                        },
+                        {
+                            "addr": "0x20101b",
+                            "type": "binary_only_access"
+                        }
+                    ],
+                    "preconditions": [
+                        "(= rbx (fnstart rbx ) )",
+                        "(= rsp stack_high )",
+                        "(= rbp (fnstart rbp ) )",
+                        "(= r12 (fnstart r12 ) )",
+                        "(= r13 (fnstart r13 ) )",
+                        "(= r14 (fnstart r14 ) )",
+                        "(= r15 (fnstart r15 ) )"
+                    ],
+                    "size": 28
+                }
+            ],
+            "llvm_name": "add"
+        },
+        {
+            "blocks": [
+                {
+                    "addr": "0x201020",
+                    "label": "block_0_201020",
+                    "mem_events": [
+                        {
+                            "addr": "0x201020",
+                            "type": "binary_only_access"
+                        },
+                        {
+                            "addr": "0x201028",
+                            "type": "binary_only_access"
+                        },
+                        {
+                            "addr": "0x201034",
+                            "type": "binary_only_access"
+                        }
+                    ],
+                    "preconditions": [
+                        "(= rbx (fnstart rbx ) )",
+                        "(= rsp stack_high )",
+                        "(= rbp (fnstart rbp ) )",
+                        "(= r12 (fnstart r12 ) )",
+                        "(= r13 (fnstart r13 ) )",
+                        "(= r14 (fnstart r14 ) )",
+                        "(= r15 (fnstart r15 ) )"
+                    ],
+                    "size": 25
+                },
+                {
+                    "addr": "0x201039",
+                    "label": "block_0_201039",
+                    "mem_events": [
+                        {
+                            "addr": "0x20103b",
+                            "type": "binary_only_access"
+                        },
+                        {
+                            "addr": "0x201045",
+                            "type": "binary_only_access"
+                        },
+                        {
+                            "addr": "0x201046",
+                            "type": "binary_only_access"
+                        }
+                    ],
+                    "preconditions": [
+                        "(= rbx (fnstart rbx ) )",
+                        "(= rsp (bvsub stack_high (_ bv24 64 ) ) )",
+                        "(= rbp (bvsub stack_high (_ bv8 64 ) ) )",
+                        "(= r12 (fnstart r12 ) )",
+                        "(= r13 (fnstart r13 ) )",
+                        "(= r14 (fnstart r14 ) )",
+                        "(= r15 (fnstart r15 ) )",
+                        "(= (mcstack (bvsub stack_high (_ bv8 64 ) ) (_ BitVec 64 ) ) (fnstart rbp ) )"
+                    ],
+                    "size": 14
+                }
+            ],
+            "llvm_name": "main"
+        }
+    ],
+    "llvm_path": "test_add_diet_reopt.ll",
+    "page_size": 4096,
+    "stack_guard_pages": 1
+}
