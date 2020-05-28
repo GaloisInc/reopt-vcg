@@ -1,6 +1,6 @@
 
 HERE := $(abspath $(dir $(realpath $(lastword $(MAKEFILE_LIST)))))
-LOCAL_LLVM := src/Galois/Data/Bitvec.lean\
+LOCALFILES := src/Galois/Data/Bitvec.lean\
   src/Galois/Init/Int.lean\
   src/Galois/Init/Io.lean\
   src/Galois/Init/Nat.lean\
@@ -8,6 +8,6 @@ LOCAL_LLVM := src/Galois/Data/Bitvec.lean\
   src/Galois/Category/Coe1.lean\
   src/Galois/Data/ParserComb.lean
 LOCAL_CXX  := src/Galois/Init/io_runtime.cpp
-LEANFILES += $(patsubst %,${HERE}/%,${LOCAL_LLVM})
+LEANFILES += $(patsubst %,${HERE}/%,${LOCALFILES})
 EXTRACXXFILES += $(patsubst %,${HERE}/%,${LOCAL_CXX})
 LEAN_PATH := ${LEAN_PATH}:Galois=${HERE}/src/Galois

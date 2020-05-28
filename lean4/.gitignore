@@ -1,3 +1,4 @@
 *.d
 *.olean
 build
+set_LEAN_PATH.sh
