@@ -62,7 +62,12 @@ guardCount ← parseObjValAsNat js "stack_guard_pages";
 when (guardCount == 0) $
   throw "There must be at least one guard page.";
 fnsArr ← parseObjValAsArrWith parseFunctionAnn js "functions";
-pure $ ModuleAnnotations.mk llvmFile binFile pgSize guardCount fnsArr.toList
+pure $ { llvmFilePath := llvmFile,
+         binFilePath := binFile,
+         pageSize := pgSize,
+         stackGuardPageCount := guardCount,
+         functions := fnsArr.toList
+       }
 
 
 def ModuleAnnotations.fromJson (js : Json) : Option ModuleAnnotations :=
@@ -73,7 +78,8 @@ toJson $ RBMap.fromList [ ("llvm_path", toJson ann.llvmFilePath)
                         , ("binary_path", toJson ann.binFilePath)
                         , ("page_size", toJson ann.pageSize)
                         , ("stack_guard_pages", toJson ann.stackGuardPageCount)
-                        , ("functions", toJson ann.functions.toArray)]
+                        , ("functions", toJson ann.functions.toArray)
+                        ]
                         Lean.strLt
 
 

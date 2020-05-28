@@ -32,13 +32,13 @@ partial def parseArgs : List String →  VCGArgs → Except String VCGCmd
   else if s == "--verbose" then
     parseArgs ss $ {args with verbose := true}
   else if s == "--export" then do 
-    unless (isDefaultMode args.mode) $ throw "Cannot specify --export or --solver multiple times.";
+    unless args.mode.isDefault $ throw "Cannot specify --export or --solver multiple times.";
     match ss with
     | [] => throw "missing argument for `--export` flag"
     | s'::ss' =>
     parseArgs ss' $ {args with mode := VerificationMode.exportMode s'}
   else if s == "--solver" then do
-    unless (isDefaultMode args.mode) $ throw "Cannot specify --export or --solver multiple times.";
+    unless args.mode.isDefault $ throw "Cannot specify --export or --solver multiple times.";
     match ss with
     | [] => throw "missing argument for `--solver` flag"
     | s'::ss' =>

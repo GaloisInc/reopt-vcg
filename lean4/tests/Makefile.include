@@ -1,4 +1,5 @@
 HERE := $(realpath $(dir $(realpath $(lastword $(MAKEFILE_LIST)))))
-LOCALFILES := JsonRoundtrip.lean
+LOCALFILES := JsonRoundtrip.lean\
+ LoadElf.lean
 LEANFILES += $(patsubst %,${HERE}/%,${LOCALFILES})
 LEAN_PATH := ${LEAN_PATH}:Test=${HERE}
