@@ -43,17 +43,19 @@ LEAN_PATH := Init=${LEANDIR}/lib/lean/Init
 LEANFILES := 
 EXTRACXXFILES :=
 
-TARGET := $(BUILDDIR)/sim $(BUILDDIR)/driver $(BUILDDIR)/reopt-vcg
+TARGET := $(BUILDDIR)/sim $(BUILDDIR)/driver $(BUILDDIR)/reopt-vcg $(BUILDDIR)/reopt-vcg-unit-test
 
 all: $(TARGET)
 
 
+include app/Makefile.include
 include deps/galois_stdlib/Makefile.include
-include deps/llvm-tablegen-support/Makefile.include
 include deps/lean-llvm/Makefile.include
+include deps/llvm-tablegen-support/Makefile.include
+include deps/smtlib/Makefile.include
 include deps/x86_semantics/Makefile.include
 include simulator/Makefile.include
-include app/Makefile.include
+include tests/Makefile.include
 
 
 # The paths populating LEANFILES from the various above includes are absolute,
@@ -79,6 +81,9 @@ LLVM_INCLUDE = $(shell $(LLVM_CONFIG) --includedir)
 CXXFLAGS += -fPIC -ggdb3
 
 export LEAN_PATH
+$(shell echo "#!/bin/bash" > set_LEAN_PATH.sh)
+$(shell echo "export LEAN_PATH=${LEAN_PATH}" >> set_LEAN_PATH.sh)
+
 
 MAKEDEPEND = $(LEAN) --deps $< | sed 's@${SRCROOT}/@@p' | sort -u | xargs echo "$(BUILDDIR)/$*.cpp $*.olean:" > $@
 
@@ -93,6 +98,10 @@ $(BUILDDIR)/driver: ${CPPLEANFILES} ${EXTRAOBJFILES} build/deps/lean-llvm/src/Dr
 
 $(BUILDDIR)/reopt-vcg : ${CPPLEANFILES} ${EXTRAOBJFILES} build/app/Main.cpp
 	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cxxflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86` -lstdc++ -lm
+
+$(BUILDDIR)/reopt-vcg-unit-test : ${CPPLEANFILES} ${EXTRAOBJFILES} build/tests/Main.cpp
+	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cxxflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86` -lstdc++ -lm
+
 
 
 %.d: %.lean
