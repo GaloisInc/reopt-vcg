@@ -1,5 +1,4 @@
 
-import Galois.Data.Bitvec
 import X86Semantics.Common
 
 namespace x86
