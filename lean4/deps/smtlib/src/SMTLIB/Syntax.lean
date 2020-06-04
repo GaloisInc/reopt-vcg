@@ -11,6 +11,7 @@ instance SExpr.HasToString : HasToString SExpr := ⟨fun (s : SExpr) => s.sexpr�
 def atom : String -> SExpr := SExpr.mk
 
 class HasToSExpr (a : Type) := (toSExpr : a -> SExpr)
+
 open HasToSExpr
 
 instance SExpr.HasToSExpr : HasToSExpr SExpr := ⟨id⟩
@@ -26,6 +27,10 @@ protected
 def app (f : SExpr) (args : List SExpr) : SExpr := toSExpr (f :: args)
 
 end SExpr
+
+
+export SExpr.HasToSExpr (toSExpr)
+
 
 namespace SMTLIB
 
@@ -129,6 +134,9 @@ abbrev unop (a : sort) (b : sort) : const_sort :=
 abbrev binop (a : sort) (b : sort) (c : sort) : const_sort :=
   const_sort.fsort a (const_sort.fsort b (const_sort.base c))
 
+abbrev ternop (a : sort) (b : sort) (c : sort) (d : sort) : const_sort :=
+  const_sort.fsort a (const_sort.fsort b (const_sort.fsort c (const_sort.base d)))
+
 end builtin_identifier
 
 section
@@ -155,6 +163,11 @@ inductive builtin_identifier : const_sort -> Type
 | smt_ite  (s : sort) : builtin_identifier (const_sort.fsort smt_bool (binop s s s))
 | distinct (s : sort) (arity : Nat)
                       : builtin_identifier (nary s smt_bool arity)
+
+-- * Arrays
+| select (k v : sort) : builtin_identifier (binop (array k v) k v)
+| store  (k v : sort) : builtin_identifier (ternop (array k v) k v (array k v))
+
 -- * BitVecs
 -- hex/binary literals
 | concat  (n : Nat) (m : Nat) : builtin_identifier (binop (bitvec n) (bitvec m) (bitvec (n + m)))
@@ -221,6 +234,10 @@ def to_sexpr : forall {cs : const_sort}, builtin_identifier cs -> SExpr
 | _, eq       _           => atom "eq"
 | _, smt_ite  _           => atom "smt_ite"
 | _, distinct _ _         => atom "distinct"
+
+| _, select _ _           => atom "select"
+| _, store  _ _           => atom "store"
+
 -- * BitVecs
 -- hex/binary literals
 | _, concat _ _           => atom "concat"
@@ -396,11 +413,17 @@ open sort
 
 
 def term (s : sort) := Raw.term (Raw.const_sort.base s)
+instance term.HasToSExpr (s : sort) : HasToSExpr (term s) := 
+  inferInstanceAs (HasToSExpr (Raw.term (Raw.const_sort.base s)))
 
 def symbol := Raw.symbol
 
+@[reducible]
+def  command := Raw.command
+
 -- def identifier := Raw.identifier
 
+@[reducible]
 def args_to_type (ss : List sort) (res : sort) : Type 
   := List.foldr (fun x t => term x -> t) (term res) ss
 -- | [], res        => term res
@@ -472,6 +495,13 @@ def eq {a : sort} : term a -> term a -> term smt_bool       := binop (eq a)
 -- def distinct {a : sort} : List (term a) -> term smt_bool := Raw.term.distinct
 def smt_ite  {a : sort} : term smt_bool -> term a -> term a -> term a := ternop (smt_ite a)
 
+-- Arrays
+def select (k v : sort) : term (array k v) -> term k -> term v :=
+  binop (select k v)
+
+def store  (k v : sort) : term (array k v) -> term k -> term v -> term (array k v) :=
+  ternop (store k v)
+
 -- BitVecs
 -- hex/binary literals
 def bvimm (n v : Nat) : term (bitvec n) := const (bitvec n) (binary n v)
@@ -526,28 +556,59 @@ def bvsgt        {n : Nat} : term (bitvec n) -> term (bitvec n) -> term smt_bool
 def bvsge        {n : Nat} : term (bitvec n) -> term (bitvec n) -> term smt_bool := binop (bvsge n) 
 
 -- Scripts and Commands
-def script : Type := List Raw.command
+def script : Type := List command
 
-def smtM := StateM script
+structure SMTState :=
+  (nextFreshId : Nat)
+  (script      : script)
 
-instance : Monad smtM := inferInstanceAs (Monad (StateM script))
-instance : MonadState script smtM := inferInstanceAs (MonadState script (StateM script))
+def smtM := StateM SMTState
 
-def runsmtM {a : Type} (m : smtM a) : script := (StateT.run m []).snd.reverse
+instance : Monad smtM := inferInstanceAs (Monad (StateM SMTState))
+instance : MonadState SMTState smtM := inferInstanceAs (MonadState SMTState (StateM SMTState))
+
+def freshSymbol (base : String) : smtM String := do
+  n <- modifyGet (fun st => (st.nextFreshId, { st with nextFreshId := st.nextFreshId + 1 }));
+  pure ("|" ++ base ++ "-" ++ repr n ++ "|")
+
+def runsmtM {a : Type} (next : Nat) (m : smtM a) : (a × (Nat × script)) := 
+  let r := StateT.run m { nextFreshId := next, script := [] };
+  (r.fst, (r.snd.nextFreshId, r.snd.script.reverse))
 
 theorem const_sort_to_type_fold {res : sort} : forall {args : List sort}, 
  const_sort_to_type (List.foldr fsort (base res) args) = args_to_type args res -- := sorryAx _
 | []       => rfl
 | hd :: tl => congrArg (fun r => (term hd -> r)) (@const_sort_to_type_fold tl)
 
--- FIXME: check that s is new etc. 
-def declare_fun (s : symbol) (args : List sort) (res : sort) : smtM (args_to_type args res) :=
-  let ident := Raw.identifier.symbol (List.foldr fsort (base res) args) s;
-  do modify (fun st => (declare_fun s args res) :: st);
+def declare_fun (s : String) (args : List sort) (res : sort) : smtM (args_to_type args res) := do
+  s' <- freshSymbol s;  
+  let ident := Raw.identifier.symbol (List.foldr fsort (base res) args) s';
+  do modify (fun st => {st with script := (declare_fun s' args res) :: st.script });
+     pure (Eq.mp const_sort_to_type_fold ident.expand_ident)
+
+def inst_args_aux (res : sort) : 
+    forall (args : List sort) (body : args_to_type args res) (acc : List (Sigma Raw.sorted_var)), 
+    smtM (List (Sigma Raw.sorted_var) × term res) 
+| [],       body, acc    => pure (acc.reverse, body)
+| hd :: tl, f,    acc    => do   
+  s <- freshSymbol "arg";  
+  let arg := Raw.term.identifier (Raw.identifier.symbol (Raw.const_sort.base hd) s);
+  inst_args_aux tl (f arg) (Sigma.mk hd (Raw.sorted_var.mk hd s) :: acc)
+
+def inst_args (res : sort) (args : List sort) (body : args_to_type args res) 
+    : smtM (List (Sigma Raw.sorted_var) × term res) := 
+    inst_args_aux res args body []
+
+def define_fun (s : String) (args : List sort) (res : sort) (body : args_to_type args res)
+  : smtM (args_to_type args res) := do
+  s' <- freshSymbol s;
+  let ident := Raw.identifier.symbol (List.foldr fsort (base res) args) s';
+  (args', body') <- inst_args res args body;
+  do modify (fun st => {st with script := (define_fun s' args' res body') :: st.script });
      pure (Eq.mp const_sort_to_type_fold ident.expand_ident)
 
 def assert (b : term smt_bool) : smtM Unit := 
-  modify (fun st => (Raw.command.assert b) :: st)
+  modify (fun st => {st with script := (Raw.command.assert b) :: st.script })
 
 def ex1 : smtM Unit :=
   do f <- declare_fun "f" [smt_bool, smt_bool] smt_bool;

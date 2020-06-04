@@ -43,7 +43,7 @@ LEAN_PATH := Init=${LEANDIR}/lib/lean/Init
 LEANFILES := 
 EXTRACXXFILES :=
 
-TARGET := $(BUILDDIR)/sim $(BUILDDIR)/driver $(BUILDDIR)/reopt-vcg
+TARGET := $(BUILDDIR)/sim $(BUILDDIR)/test-sym $(BUILDDIR)/driver $(BUILDDIR)/reopt-vcg
 
 all: $(TARGET)
 
@@ -54,6 +54,7 @@ include deps/smtlib/Makefile.include
 include deps/lean-llvm/Makefile.include
 include deps/x86_semantics/Makefile.include
 include simulator/Makefile.include
+include test-symbolic/Makefile.include
 include app/Makefile.include
 
 
@@ -65,7 +66,7 @@ EXTRAOBJFILES := ${patsubst ${SRCROOT}/%.cpp,${BUILDDIR}/%.o,${EXTRACXXFILES}}
 # For every Lean file `Foo.lean` there should be a `Foo.d` with an entry
 # `Foo.c Foo.olean: DEPENDENCY1.olean ... DEPENDENCYN.olean` describing the
 # N files that lean file depends on
-DEPFILES := ${patsubst %.lean,%.d,${LEANFILES_REL}}
+DEPFILES := ${patsubst %.lean,%.d,${LEANFILES_REL} test-symbolic/Main.lean}
 
 OLEANFILES   := ${patsubst %.lean,%.olean,${LEANFILES_REL}}
 CPPLEANFILES := ${patsubst %.lean,$(BUILDDIR)/%.cpp,${LEANFILES_REL}}
@@ -87,6 +88,9 @@ MAKEDEPEND = $(LEAN) --deps $< | sed 's@${SRCROOT}/@@p' | sort -u | xargs echo "
 depend: ${DEPFILES}
 
 $(BUILDDIR)/sim : ${CPPLEANFILES} ${EXTRAOBJFILES} build/simulator/Main.cpp
+	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cxxflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86` -lstdc++ -lm
+
+$(BUILDDIR)/test-sym : ${CPPLEANFILES} ${EXTRAOBJFILES} build/test-symbolic/Main.cpp
 	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cxxflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86` -lstdc++ -lm
 
 $(BUILDDIR)/driver: ${CPPLEANFILES} ${EXTRAOBJFILES} build/deps/lean-llvm/src/Driver.cpp

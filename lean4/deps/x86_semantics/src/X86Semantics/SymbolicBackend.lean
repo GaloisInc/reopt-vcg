@@ -13,9 +13,10 @@ axiom I_am_really_sorry3 : ∀(P : Prop),  P
 
 open mc_semantics
 open mc_semantics.type
-open SMTLIB (sort term smtM)
+open SMTLIB (sort term smtM command)
 
-def bitvec (n : Nat) := term (SMTLIB.sort.bitvec n)
+abbrev bitvec (n : Nat) := term (SMTLIB.sort.bitvec n)
+
 def memaddr := bitvec 64
 def byte    := bitvec 8
 
@@ -55,13 +56,24 @@ def trunc {n : Nat} (m : Nat) (pf : m <= n) (x : bitvec n) : bitvec m :=
 
 end bitvec
 
-def memory_t := SMTLIB.sort.array (SMTLIB.sort.bitvec 64) (SMTLIB.sort.bitvec 8)
+abbrev memory_t := SMTLIB.sort.array (SMTLIB.sort.bitvec 64) (SMTLIB.sort.bitvec 8)
 def memory := term memory_t
 
 -- We use these to abstract over the actual implementation of read/store
 structure StdLib :=
   (read_byte  : memaddr -> memory  -> byte)
   (store_byte : memaddr -> byte -> memory -> memory)
+
+namespace StdLib
+
+def make : smtM StdLib := do
+  rb <- SMTLIB.define_fun "read_byte" [SMTLIB.sort.bitvec 64, memory_t] (SMTLIB.sort.bitvec 8)
+        (fun addr mem => SMTLIB.select _ _ mem addr);
+  sb <- SMTLIB.define_fun "write_byte" [SMTLIB.sort.bitvec 64, SMTLIB.sort.bitvec 8, memory_t] memory_t
+        (fun addr b mem => SMTLIB.store _ _ mem addr b);
+  pure { read_byte := rb, store_byte := sb }
+
+end StdLib
 
 namespace memory
 
@@ -130,21 +142,81 @@ def store_word {n : Nat} (s : machine_state) (stdlib : StdLib) (addr : machine_w
 def read_word (s : machine_state) (stdlib : StdLib) (addr : machine_word) (n : Nat) : bitvec (8 * n) :=
   s.mem.read_word stdlib addr n 
 
--- def print_regs (s : machine_state) : String :=
---   let lines := List.zipWith (fun n (r : bitvec 64) => if r = 0 then "" else (n ++ ": " ++ r.pp_hex ++ ", ")) reg.r64_names s.gpregs.toList;
---   String.join lines
+def print_regs (s : machine_state) : String :=
+  let lines := List.zipWith (fun n (r : bitvec 64) => (n ++ ": " ++ toString (toSExpr r) ++ ", ")) reg.r64_names s.gpregs.toList;
+  String.join lines
 
 -- def print_set_flags (s : machine_state) : String :=
 --   let lines := List.zipWith (fun n (r : Bool) => if r then n else "") reg.flag_names s.flags.toList;
 --   "[" ++ String.intercalate ", " (List.filter (fun s => s.length > 0) lines) ++ "]"
 
+
+-- Constructs a new machine state where all the elements are fresh constants
+-- FIXME: could use sz = ns.length
+protected 
+def declare_const_aux {s : sort} (ns : List String) (sz : Nat) : smtM (Array (term s)) := do
+  let base := mkArray sz 0;
+  let f    := fun n (_ : Nat) => SMTLIB.declare_fun (List.getD n ns "el") [] s;
+  Array.mapIdxM f base
+
+def declare_const : smtM machine_state := do
+  mem   <- SMTLIB.declare_fun "memory" [] memory_t;
+  gprs  <- machine_state.declare_const_aux reg.r64_names 16;
+  flags <- machine_state.declare_const_aux reg.flag_names 32;
+  ip    <- SMTLIB.declare_fun "ip" [] (SMTLIB.sort.bitvec 64);
+  pure { mem := mem, gpregs := gprs, flags := flags, ip := ip }
+
 end machine_state
-  
--- FIXME
-inductive trace_event 
-  | syscall : Nat -> List machine_word -> trace_event
-  | read    : machine_word -> ∀(n:Nat), bitvec n -> trace_event
-  | write   : machine_word -> ∀(n:Nat), bitvec n -> trace_event
+
+inductive Event
+  | Command : SMTLIB.command -> Event
+  | Warning : String -> Event
+  | Read  : memaddr -> Nat -> Event
+  | Write : memaddr -> forall (n : Nat), bitvec n -> Event
+
+namespace Event
+
+protected
+def repr : Event -> String
+  | Command c   => toString (toSExpr c)
+  | Warning w   => "Warning: "  ++ w
+  | Read _ _    => "Read"
+  | Write _ _ _ => "Write"
+
+instance : HasRepr Event := ⟨Event.repr⟩
+
+end Event
+
+  --   -- ^ We added a warning about an issue in the VCG
+  -- | MCOnlyStackReadEvent : memaddr -> Nat -> Event -- SMT.Term !(MemRepr tp) !Var
+  --   -- ^ `MCOnlyReadEvent a w v` indicates that we read `w` bytes
+  --   -- from `a`, and assign the value returned to `v`.  This only
+  --   -- appears in the binary code.
+  -- | forall tp . JointStackReadEvent !SMT.Term !(MemRepr tp) !Var !Ann.LocalIdent
+  --   -- ^ `JointReadEvent a w v llvmAlloca` indicates that we read `w` bytes from `a`,
+  --   -- and assign the value returned to `v`.  This appears in the both the binary
+  --   -- and LLVM.  The alloca name refers to the LLVM allocation this is part of,
+  --   -- and otherwise this is a binary only read.
+  -- | forall tp . NonStackReadEvent !SMT.Term !(MemRepr tp) !Var
+  --   -- ^ `NonStackReadEvent a w v` indicates that we read `w` bytes
+  --   -- from `a`, and assign the value returned to `v`.  The address `a` should not
+  --   -- be in the stack.
+  -- | forall tp . MCOnlyStackWriteEvent !SMT.Term !(MemRepr tp) !SMT.Term
+  --   -- ^ `MCOnlyStackWriteEvent a tp v` indicates that we write the `w` byte value `v`  to `a`.
+  --   --
+  --   -- This has side effects, so we record the event.
+  -- | forall tp . JointStackWriteEvent !SMT.Term !(MemRepr tp) !SMT.Term !Ann.LocalIdent
+  --   -- ^ `JointStackWriteEvent a w v` indicates that we write the `w` byte value `v`  to `a`.
+  --   -- The write affects the alloca pointed to by Allocaname.
+  --   --
+  --   -- This has side effects, so we record the event.
+  -- | forall tp . NonStackWriteEvent !SMT.Term !(MemRepr tp) !SMT.Term
+  --   -- ^ `NonStackWriteEvent a w v` indicates that we write the `w` byte value `v`  to `a`.  The
+  --   -- address `a` should not be in the stack.
+  --   --
+  --   -- This has side effects, so we record the event.
+  -- | forall ids . FetchAndExecuteEvent !EvalContext !(RegState (ArchReg X86_64) (Value X86_64 ids))
+  --   -- ^ A fetch and execute
 
 -- def trace_event.repr : trace_event -> String 
 --   | trace_event.syscall n args => 
@@ -157,22 +229,23 @@ inductive trace_event
 
 structure os_state :=
   (current_ip : machine_word)
-  (trace : List (machine_word × trace_event))
+  (nextFresh  : Nat)
+  (trace : List Event)
 
-def os_state.empty : os_state := os_state.mk (SMTLIB.bvimm _ 0) []
+def os_state.empty : os_state := os_state.mk (SMTLIB.bvimm _ 0) 0 []
 
 -- Stacking like this makes it easier to derive MonadState
-def base_system_m := (StateT os_state (ExceptT String smtM))
+def base_system_m := (StateT os_state (ExceptT String Id))
 def system_m := StateT machine_state base_system_m
 
 instance : Monad base_system_m :=
-  inferInstanceAs (Monad (StateT os_state (ExceptT String smtM)))
+  inferInstanceAs (Monad (StateT os_state (ExceptT String Id)))
 
 instance : MonadState os_state base_system_m :=
-  inferInstanceAs (MonadState os_state (StateT os_state (ExceptT String smtM)))
+  inferInstanceAs (MonadState os_state (StateT os_state (ExceptT String Id)))
 
 instance : MonadExcept String base_system_m :=
-  inferInstanceAs (MonadExcept String (StateT os_state (ExceptT String smtM)))
+  inferInstanceAs (MonadExcept String (StateT os_state (ExceptT String Id)))
 
 instance system_m.Monad : Monad system_m :=
   inferInstanceAs (Monad (StateT machine_state base_system_m))
@@ -186,16 +259,28 @@ instance system_m.MonadExcept : MonadExcept String system_m :=
 instance : HasMonadLiftT base_system_m system_m :=
   inferInstanceAs (HasMonadLiftT base_system_m (StateT machine_state base_system_m))
 
-def system_m.run {a : Type} (m : system_m a) (os : os_state) (s : machine_state) 
-  : smtM (Except String ((a × machine_state) × os_state)) := do
+
+namespace system_m
+
+def run {a : Type} (m : system_m a) (os : os_state) (s : machine_state) 
+  : (Except String ((a × machine_state) × os_state)) := do
   ((m.run s).run os).run
+
+def runsmtM {a : Type} (m : smtM a) : system_m a := do
+  let run' := fun (s : os_state) => 
+                  (let r := SMTLIB.runsmtM s.nextFresh m;
+                  (r.fst, {s with trace := (List.map Event.Command r.snd.snd.reverse) ++ s.trace
+                          , nextFresh   := r.snd.fst}));
+  monadLift (modifyGet run' : base_system_m a)
+
+end system_m
 
 -- def system_m.run' {a : Type} (m : system_m a) (s : machine_state) : IO (Except String a) := 
 --   do x <- m.run os_state.empty s;
 --      pure 
 
-def emit_trace_event (e : trace_event) : system_m Unit :=
-  monadLift (modify (fun (s : os_state) => { s with trace := (s.current_ip, e) :: s.trace }) : base_system_m Unit)
+def emit_event (e : Event) : system_m Unit :=
+  monadLift (modify (fun (s : os_state) => { s with trace := e :: s.trace }) : base_system_m Unit)
 
 -- FIXME: maybe factor out common stuff from concreteBackend
 def symbolicBackend (stdlib : StdLib) : Backend :=
@@ -211,11 +296,11 @@ def symbolicBackend (stdlib : StdLib) : Backend :=
   
   , store_word := fun n addr v => do 
                   -- FIXME: might want to name the new state
-                  emit_trace_event (trace_event.write addr _ v);
+                  -- emit_trace_event (trace_event.write addr _ v);
                   modify (fun s => machine_state.store_word s stdlib addr v)
   , read_word  := fun addr n => do
                   v <- (fun s => machine_state.read_word s stdlib addr n) <$> get;
-                  emit_trace_event (trace_event.read addr _ v);
+                  -- emit_trace_event (trace_event.read addr _ v);
                   pure v
                
   , get_gpreg  := fun i => (fun s => machine_state.get_gpreg s i) <$> get
