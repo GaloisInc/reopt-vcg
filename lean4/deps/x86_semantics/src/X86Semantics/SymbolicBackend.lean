@@ -54,6 +54,26 @@ def trunc {n : Nat} (m : Nat) (pf : m <= n) (x : bitvec n) : bitvec m :=
   else (let pf' : (m - 1) + 1 - 0 = m := I_am_really_sorry3 _; 
         bitvec.cong pf' (SMTLIB.extract (m - 1) 0 x))
 
+def uresize (n m : Nat) (x : bitvec n) : bitvec m :=
+  if H : n ≤ m 
+  then (let pf : n + (m - n) = m := I_am_really_sorry3 _; 
+       bitvec.cong pf (SMTLIB.zero_extend (m - n) x))
+  else bitvec.trunc m (Nat.leOfLt (Nat.gtOfNotLe H)) x
+
+def sresize (n m : Nat) (x : bitvec n) : bitvec m :=
+  if H : n ≤ m 
+  then (let pf : n + (m - n) = m := I_am_really_sorry3 _; 
+       bitvec.cong pf (SMTLIB.sign_extend (m - n) x))
+  else bitvec.trunc m (Nat.leOfLt (Nat.gtOfNotLe H)) x
+
+-- There may be a more efficient way of doing this (e.g. slicing and concat)
+def set_bits {n} (x:bitvec n) (i:Nat) {m} (y:bitvec m) (p:i+m ≤ n) : bitvec n :=
+  let premask := SMTLIB.bvshl (uresize _ n (SMTLIB.repeat m (SMTLIB.bvimm 1 1)))
+                              (SMTLIB.bvimm _ i);
+  let mask    := SMTLIB.bvnot premask;
+  let bits := SMTLIB.bvshl (uresize _ n y) (SMTLIB.bvimm _ i);
+  SMTLIB.bvor (SMTLIB.bvand x mask) bits
+
 end bitvec
 
 abbrev memory_t := SMTLIB.sort.array (SMTLIB.sort.bitvec 64) (SMTLIB.sort.bitvec 8)
@@ -333,18 +353,8 @@ def symbolicBackend (stdlib : StdLib) : Backend :=
   , s_bvurem   := @SMTLIB.bvurem
   , s_bvextract := fun (w i j : Nat) (x : bitvec w) => SMTLIB.extract i j x
 
-  -- FIXME: use resize
-  , s_sext    := fun (n m : Nat) (x : bitvec n) =>
-                 if H : n ≤ m 
-                 then (let pf : n + (m - n) = m := I_am_really_sorry3 _; 
-                       bitvec.cong pf (SMTLIB.sign_extend (m - n) x))
-                 else bitvec.trunc m (Nat.leOfLt (Nat.gtOfNotLe H)) x
-
-  , s_uext    := fun (n m : Nat) (x : bitvec n) =>
-                 if H : n ≤ m 
-                 then (let pf : n + (m - n) = m := I_am_really_sorry3 _; 
-                       bitvec.cong pf (SMTLIB.zero_extend (m - n) x))
-                 else bitvec.trunc m (Nat.leOfLt (Nat.gtOfNotLe H)) x
+  , s_sext    := bitvec.sresize
+  , s_uext    := bitvec.uresize
 
   , s_trunc   := fun (n m : Nat) (x : bitvec n) =>
                  if H : m ≤ n
@@ -358,7 +368,9 @@ def symbolicBackend (stdlib : StdLib) : Backend :=
                           bitvec.cong pf (SMTLIB.extract (off + m - 1) off x))
 
   , s_bvsetbits  := fun {n m : Nat} (off : Nat) (x : bitvec n) (bs : bitvec m) =>
-                    SMTLIB.bvimm _ 0   -- FIXME
+                    if H : off + m <= n 
+                    then bitvec.set_bits x off bs H
+                    else SMTLIB.bvimm _ 0   -- FIXME  
   , s_bvand      := @SMTLIB.bvand
   , s_bvor       := @SMTLIB.bvor
   , s_bvxor      := @SMTLIB.bvxor
