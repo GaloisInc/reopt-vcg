@@ -34,15 +34,20 @@ def doit (bs : List String) : IO Unit := do
       SMTLIB.runsmtM 0 (do init_s <- machine_state.declare_const;
                            stdlib <- StdLib.make;
                            pure (init_s, stdlib));
-
+  IO.println "Prelude:";
+  _ <- init_script.mapM (fun c => IO.println (toString (toSExpr c)));
+  IO.println "\nInstruction:";
+  
   let inst := decodex86.decode d 0;
   match inst with 
   | (Sum.inl b) => throwS "Unknown byte"
   | (Sum.inr i) => do
        -- let s'  := {s with ip := s.ip + bitvec.of_nat _ i.nbytes };
        -- let os' := {os with current_ip := s.ip};
-       IO.println (repr i);
-       let r := (eval_instruction (symbolicBackend stdlib) i).run os_state.empty init_s;
+       -- IO.println (repr i);
+       let r := (eval_instruction (symbolicBackend stdlib) i).run            
+                { os_state.empty with nextFresh := nextFresh }
+                init_s;
        match r with
        | Except.ok ((_, s''), os'') => do  
          _ <- os''.trace.reverse.mapM (fun (e : Event) => IO.println (repr e));

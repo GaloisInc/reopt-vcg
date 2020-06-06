@@ -107,8 +107,8 @@ protected def to_hex_with_leading_zeros : List Char → Nat → Nat → String
 --- Print word as hex
 def pp_bin (n : Nat) (v : Nat) : String := 
   if n % 4 = 0   
-  then "0x" ++ spec_constant.to_hex_with_leading_zeros [] (n / 4) v
-  else "0b" ++ (List.map (fun i => if Nat.test_bit v i then '1' else '0') (Nat.upto0_lt n)).asString
+  then "#x" ++ spec_constant.to_hex_with_leading_zeros [] (n / 4) v
+  else "#b" ++ (List.map (fun i => if Nat.test_bit v i then '1' else '0') (Nat.upto0_lt n)).asString
 
 end to_hex
 
@@ -400,7 +400,7 @@ protected
 def to_sexpr : command -> SExpr 
 | assert tm              => SExpr.app (atom "assert") [toSExpr tm]
 | declare_fun s args r   => SExpr.app (atom "declare-fun") [toSExpr s, toSExpr (args.map toSExpr), toSExpr r]
-| define_fun  s args r b => SExpr.app (atom "define-fun") [toSExpr (args.map to_sexpr_sigma), toSExpr r
+| define_fun  s args r b => SExpr.app (atom "define-fun") [toSExpr s, toSExpr (args.map to_sexpr_sigma), toSExpr r
                                                           , toSExpr b]
 instance : HasToSExpr command := ⟨command.to_sexpr⟩
 
@@ -606,6 +606,13 @@ def define_fun (s : String) (args : List sort) (res : sort) (body : args_to_type
   (args', body') <- inst_args res args body;
   do modify (fun st => {st with script := (define_fun s' args' res body') :: st.script });
      pure (Eq.mp const_sort_to_type_fold ident.expand_ident)
+
+-- Names the const if it is non-trivial, otherwise returns the original term
+def name_term (name : String) : forall {s : sort} (tm : term s), smtM (term s)
+-- FIXME
+-- | ._, tm@(Raw.term.const _ _)     => pure tm
+-- | ._, tm@(Raw.term.identifier _)  => pure tm
+| s, tm                          => define_fun name [] s tm
 
 def assert (b : term smt_bool) : smtM Unit := 
   modify (fun st => {st with script := (Raw.command.assert b) :: st.script })

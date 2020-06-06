@@ -16,6 +16,7 @@ open mc_semantics.type
 open SMTLIB (sort term smtM command)
 
 abbrev bitvec (n : Nat) := term (SMTLIB.sort.bitvec n)
+def s_bool              := term SMTLIB.sort.smt_bool
 
 def memaddr := bitvec 64
 def byte    := bitvec 8
@@ -74,6 +75,8 @@ def set_bits {n} (x:bitvec n) (i:Nat) {m} (y:bitvec m) (p:i+m ≤ n) : bitvec n 
   let bits := SMTLIB.bvshl (uresize _ n y) (SMTLIB.bvimm _ i);
   SMTLIB.bvor (SMTLIB.bvand x mask) bits
 
+def to_bool (b : bitvec 1) : s_bool := SMTLIB.eq b (SMTLIB.bvimm _ 1)
+
 end bitvec
 
 abbrev memory_t := SMTLIB.sort.array (SMTLIB.sort.bitvec 64) (SMTLIB.sort.bitvec 8)
@@ -118,7 +121,6 @@ def read_word (m : memory) (stdlib : StdLib) (addr : memaddr) (n : Nat) : bitvec
 end memory
 
 def machine_word := bitvec 64
-def s_bool       := term SMTLIB.sort.smt_bool
 
 structure machine_state : Type :=
   (mem    : memory)
@@ -293,6 +295,9 @@ def runsmtM {a : Type} (m : smtM a) : system_m a := do
                           , nextFresh   := r.snd.fst}));
   monadLift (modifyGet run' : base_system_m a)
 
+def name_term {s : sort} (name : Option String) (tm : term s) : system_m (term s) :=
+  runsmtM (SMTLIB.name_term (name.getD "tmp") tm)
+
 end system_m
 
 -- def system_m.run' {a : Type} (m : system_m a) (s : machine_state) : IO (Except String a) := 
@@ -317,14 +322,17 @@ def symbolicBackend (stdlib : StdLib) : Backend :=
   , store_word := fun n addr v => do 
                   -- FIXME: might want to name the new state
                   -- emit_trace_event (trace_event.write addr _ v);
-                  modify (fun s => machine_state.store_word s stdlib addr v)
+                  addr' <- system_m.name_term (some "addr") addr;
+                  modify (fun s => machine_state.store_word s stdlib addr' v)
   , read_word  := fun addr n => do
-                  v <- (fun s => machine_state.read_word s stdlib addr n) <$> get;
+                  addr' <- system_m.name_term (some "addr") addr;
+                  v <- (fun s => machine_state.read_word s stdlib addr' n) <$> get;
                   -- emit_trace_event (trace_event.read addr _ v);
                   pure v
                
   , get_gpreg  := fun i => (fun s => machine_state.get_gpreg s i) <$> get
-  , set_gpreg := fun i v => modify (machine_state.update_gpreg i (fun _ => v))
+  , set_gpreg := fun i v => do s <- system_m.name_term (reg.r64_names.get? i.val) v;
+                               modify (machine_state.update_gpreg i (fun _ => s))
   , get_flag  :=  fun i => (fun s => machine_state.get_flag s i) <$> get
   , set_flag := fun i v => modify (machine_state.update_flag i (fun _ => v))
   
@@ -381,8 +389,13 @@ def symbolicBackend (stdlib : StdLib) : Backend :=
   , s_bvlshr     := @SMTLIB.bvlshr
   -- signed
   , s_bvsshr     := @SMTLIB.bvashr
-  , s_parity     := fun (n : Nat) (x : bitvec n) => SMTLIB.false -- FIXME
-  , s_bit_test   := fun {wr wi : Nat} (x : bitvec wr) (y : bitvec wi) => SMTLIB.false -- FIXME
+  , s_parity     := fun (n : Nat) (x : bitvec n) => 
+                    bitvec.to_bool (List.foldl SMTLIB.bvxor (SMTLIB.bvimm 1 0) (bitvec.split_list x 1))
+
+  , s_bit_test   := fun {wr wi : Nat} (x : bitvec wr) (y : bitvec wi) => 
+                    let ix := bitvec.uresize _ wr y;
+                    let ixbit := SMTLIB.bvshl (SMTLIB.bvimm _ 1) ix;
+                    SMTLIB.not (SMTLIB.eq (SMTLIB.bvand x ixbit) (SMTLIB.bvimm _ 0))
    
   -- System operations
   , s_os_transition := pure ()
