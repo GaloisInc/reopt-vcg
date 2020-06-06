@@ -184,10 +184,29 @@ def width : gpreg_type → Nat
 
 end gpreg_type
 
+inductive Reg64
+| rax : Reg64
+| rcx : Reg64
+| rdx : Reg64
+| rbx : Reg64
+| rsp : Reg64
+| rbp : Reg64
+| rsi : Reg64
+| rdi : Reg64
+| r8  : Reg64
+| r9  : Reg64
+| r10 : Reg64
+| r11 : Reg64
+| r12 : Reg64
+| r13 : Reg64
+| r14 : Reg64
+| r15 : Reg64
+
 -- Type for concrete x86 registers
 inductive concrete_reg : type → Type
 | gpreg   (idx:Fin 16) (tp:gpreg_type) : concrete_reg (bv (tp.width))
 | flagreg (idx:Fin 32) : concrete_reg bit
+
 
 -- Type for x86 registers
 inductive reg (tp:type) : Type
