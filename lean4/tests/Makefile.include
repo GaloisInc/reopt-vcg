@@ -1,8 +1,5 @@
-
 HERE := $(realpath $(dir $(realpath $(lastword $(MAKEFILE_LIST)))))
-LOCALFILES := Annotations.lean\
- ReoptVCG.lean\
- Types.lean
+LOCALFILES := JsonRoundtrip.lean\
+ LoadElf.lean
 LEANFILES += $(patsubst %,${HERE}/%,${LOCALFILES})
-LEAN_PATH := ${LEAN_PATH}:ReoptVCG=${HERE}
-
+LEAN_PATH := ${LEAN_PATH}:Test=${HERE}

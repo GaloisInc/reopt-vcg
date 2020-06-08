@@ -50,13 +50,13 @@ match js.getObjVal? key with
 end
 
 def parseObjValAsBool := parseObjValAsDescr Bool "Bool"
-def parseObjValAsBoolD (dflt : Bool) := parseObjValAsDescrD Bool "Bool" dflt
+def parseObjValAsBoolD := parseObjValAsDescrD Bool "Bool"
 def parseObjValAsString := parseObjValAsDescr String "String"
-def parseObjValAsStringD (dflt : String) := parseObjValAsDescr String "String" dflt
+def parseObjValAsStringD := parseObjValAsDescrD String "String"
 def parseObjValAsNat := parseObjValAsDescr Nat "Nat"
 def parseObjValAsNatD := parseObjValAsDescrD Nat "Nat"
 def parseObjValAsInt := parseObjValAsDescr Int "Int"
-def parseObjValAsIntD (dflt : Int) := parseObjValAsDescrD Int "Int" dflt
+def parseObjValAsIntD := parseObjValAsDescrD Int "Int"
 def parseObjValAsArr := parseObjValAsDescr (Array Json) "Array"
 def parseObjValAsArrD := parseObjValAsDescrD (Array Json) "Array"
 def parseObjValAsArrOf (α : Type u) [HasFromJson α] (dscr : String) := parseObjValAsDescr (Array α) ("(Array "++dscr++")")

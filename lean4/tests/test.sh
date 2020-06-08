@@ -1,24 +1,33 @@
 #!/usr/bin/env bash
 cd "$(dirname "$0")"
-if [ $# -ne 2 -a $# -ne 1 ]; then
-    echo "Usage: test.sh [lean-executable-path] [yes/no]?"
+if [[ $# -gt 2 ]]; then
+    echo "Usage: test.sh [unit-test-exe-path] [yes|no]?"
     exit 1
 fi
 
-LEAN=$1
+if [[ $# -ne 0 ]]; then
+    TEST_EXE=$1
+else
+    TEST_EXE=../build/reopt-vcg-unit-test
+fi
 
-if [ $# -ne 2 ]; then
+
+if [[ $# -ne 2 ]]; then
     INTERACTIVE=no
 else
     INTERACTIVE=$2
 fi
+
 NUM_TESTS=0
 NUM_FAILS=0
+
 for f in *.lean; do
-    NUM_TESTS=$(($NUM_TESTS+1))
-    bash ./test_single.sh $LEAN $f $INTERACTIVE
-    if [ $? -ne 0 ]; then
-        NUM_FAILS=$(($NUM_FAILS+1))
+    if [[ $(basename "$f") != "Main.lean" ]]; then
+        NUM_TESTS=$(($NUM_TESTS+1))
+        bash ./test_single.sh $TEST_EXE $f $INTERACTIVE
+        if [ $? -ne 0 ]; then
+            NUM_FAILS=$(($NUM_FAILS+1))
+        fi
     fi
 done
 

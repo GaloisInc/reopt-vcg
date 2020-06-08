@@ -15,7 +15,7 @@ open x86
 --   | (n, sum.inl err)  => throw "Got an unknown byte"
 --   | (n, sum.inr inst) := eval_instruction {s with ip => s.ip + bitvec.of_nat _ n} inst
 
-def get_text_segment (e : elf.ehdr) (phdrs : List (elf.phdr e.elf_class)) : Option (elf.phdr e.elf_class) :=
+def get_text_segment {c} (e : elf.ehdr c) (phdrs : List (elf.phdr c)) : Option (elf.phdr c) :=
     phdrs.find? (fun p => p.flags.has_X)
 
 def throwS {a : Type} {m : Type -> Type} [MonadIO m] (e : String) : m a := 
@@ -47,7 +47,7 @@ def decode_loop (d : decodex86.decoder)
          throwS ("Eval failed: (" ++ repr i ++ ") at " ++  s.ip.pp_hex ++ " "  ++ e)
 
 def doit (elffile : String) : IO Unit := do
-  ((Sigma.mk ehdr phdrs), init_mem) <- elf.read_info_from_file elffile;
+  (⟨c, (ehdr, phdrs)⟩, init_mem) <- elf.read_info_from_file elffile;
   text_phdr <- (match get_text_segment ehdr phdrs with
                 | none     => throwS "No executable segment"
                 | (some p) => pure p);

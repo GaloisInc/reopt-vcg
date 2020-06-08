@@ -1,28 +1,28 @@
 #!/usr/bin/env bash
 if [ $# -ne 3 -a $# -ne 2 ]; then
-    echo "Usage: test_single.sh [lean-executable-path] [file] [yes/no]?"
+    echo "Usage: test_single.sh test-file [unit-test-exe-path] [yes/no]?"
     exit 1
 fi
+
+
 ulimit -s 8192
-LEAN=$1
-
-LEAN_PATH=Init=../../local/lib/lean/Init
-LEAN_PATH=$LEAN_PATH:Galois=../deps/galois_stdlib/src/Galois
-LEAN_PATH=$LEAN_PATH:DecodeX86=../deps/llvm-tablegen-support/lean
-LEAN_PATH=$LEAN_PATH:X86Semantics=../deps/x86_semantics/src/X86Semantics
-LEAN_PATH=$LEAN_PATH:Main=../simulator
-LEAN_PATH=$LEAN_PATH:ReoptVCG=../app
-LEAN_PATH=$LEAN_PATH:Test=.
-
+source ../set_LEAN_PATH.sh
 export LEAN_PATH
 
+if [ $# -lt 2 ]; then
+    TEST_EXE=../build/reopt-vcg-unit-test
+else
+    TEST_EXE=$1
+fi
 if [ $# -ne 3 ]; then
     INTERACTIVE=no
 else
     INTERACTIVE=$3
 fi
+
 f=$2
 ff=$(bash ./readlinkf.sh "$f")
+testname=$(basename "$ff")
 
 if [[ "$OSTYPE" == "msys" ]]; then
     # Windows running MSYS2
@@ -36,7 +36,7 @@ if diff --color --help >/dev/null 2>&1; then
 fi
 
 echo "-- testing $f"
-"$LEAN" "$ff" 2>&1 | sed 's|does\\not\\exist|does/not/exist|' | sed "/warning: imported file uses 'sorry'/d" | sed "/warning: using 'sorry'/d" | sed "/failed to elaborate theorem/d" | sed "s|^$ff|$f|" > "$f.produced.out"
+$TEST_EXE "$testname" 2>&1 | sed 's|does\\not\\exist|does/not/exist|' | sed "/warning: imported file uses 'sorry'/d" | sed "/warning: using 'sorry'/d" | sed "/failed to elaborate theorem/d" | sed "s|^$ff|$f|" > "$f.produced.out"
 if test -f "$f.expected.out"; then
     if $DIFF -u --ignore-all-space -I "executing external script" "$f.expected.out" "$f.produced.out"; then
         echo "-- checked"
