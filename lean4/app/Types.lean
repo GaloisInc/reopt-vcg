@@ -219,11 +219,19 @@ def moduleCatch (m : ModuleVCG Unit) :  ModuleVCG Unit :=
 -- Annotated Block
 -------------------------------------------------------
 
+@[reducible]
+def BlockLabelValMap := RBMap llvm.block_label llvm.value (λ x y => x < y)
+
+
 structure AnnotatedBlock :=
 (annotation: BlockAnn)
 (label : llvm.block_label)
-(phiVarMap : RBMap String Unit Lean.strLt) -- FIXME
-(stmts : List Unit) -- FIXME
+(phiVarMap : RBMap llvm.ident (SMTLIB.sort × BlockLabelValMap) (λ x y => x<y))
+(stmts : List llvm.stmt)
 
+
+/--  Maps LLM block labels to their associated annotations. --/
+@[reducible]
+def ReachableBlockAnnMap := RBMap llvm.block_label AnnotatedBlock (λ x y => x<y)
 
 end ReoptVCG

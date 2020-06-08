@@ -1,6 +1,7 @@
 
 HERE := $(realpath $(dir $(realpath $(lastword $(MAKEFILE_LIST)))))
 LOCALFILES := Annotations.lean\
+ LoadLLVM.lean\
  ReoptVCG.lean\
  Types.lean
 LEANFILES += $(patsubst %,${HERE}/%,${LOCALFILES})
