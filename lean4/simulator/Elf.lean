@@ -326,7 +326,7 @@ instance UInt16_si_elf_file_data : elf_file_data UInt16 :=
 -/
 
 -- A 32 or 64-bit word dependent on the class.
-def word (c:elf_class) := 
+def word (c:elf_class) :=
   match c with 
   | ELF32 => UInt32
   | ELF64 => UInt64
@@ -337,26 +337,27 @@ def toNat : ∀{c : elf_class}, word c -> Nat
 | ELF32, v => UInt32.toNat v
 | ELF64, v => UInt64.toNat v
 
-protected def to_hex_with_leading_zeros : List Char → Nat → Nat → String
-| prev, 0, _ => prev.asString
-| prev, (Nat.succ w), x =>
-  let c := (Nat.land x 0xf).digitChar;
-  to_hex_with_leading_zeros (c::prev) w (Nat.shiftr x 4)
 
-protected def to_hex' : List Char → Nat → Nat → String
-| prev, 0, _ => prev.asString
-| prev, w, 0 => prev.asString
-| prev, (Nat.succ w), x =>
-  let c := (Nat.land x 0xf).digitChar;
-  to_hex' (c::prev) w (Nat.shiftr x 4)
+protected def fromNat (c : elf_class) (n : Nat) : Option (word c) :=
+match c with
+| ELF32 => 
+  (if h : n < uint32Sz 
+   then some $ UInt32.ofNat' n h
+   else Option.none)
+| ELF64 => 
+  (if _h : n < uint64Sz
+   then Option.some $ UInt64.ofNat n
+   else Option.none)
+
+
 
 -- Print word as decinal
 protected def pp_dec {c:elf_class} (w : word c) : String := repr w.toNat
   
 --- Print word as hex
 protected def pp_hex : ∀{c:elf_class}, word c → String
-| ELF32, v => "0x" ++ word.to_hex' []  8 v.toNat
-| ELF64, v => "0x" ++ word.to_hex' [] 16 v.toNat
+| ELF32, v => Nat.ppHex v.toNat
+| ELF64, v => Nat.ppHex v.toNat
 
 protected def size : elf_class → Nat := elf_class.bytes
 

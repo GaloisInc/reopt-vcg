@@ -1,12 +1,14 @@
 import Galois.Init.Json
+import Galois.Init.Nat
 import Init.Data.UInt
 import Init.Lean.Data.Json
 import Init.Lean.Data.Json.Basic
 import Init.Lean.Data.Json.Printer
 import Init.Lean.Data.Json.FromToJson
 import Init.Data.RBMap
+import LeanLLVM.AST
 import Main.Elf
-
+import SMTLIB.Syntax
 
 namespace ReoptVCG
 
@@ -147,7 +149,7 @@ structure AllocaAnn :=
 def parseAllocaAnn (js:Json) : Except String AllocaAnn := do
 ident ← 
   match js.getObjVal? "llvm_ident" with
-  | Option.some rawJs => parseLocalIdent rawJs
+  | Option.some rawJson => parseLocalIdent rawJson
   | Option.none => throw $ "`llvm_ident` field was missing from annotation.";
 off ← parseObjValAsNat js "offset";
 sz ← parseObjValAsNat js "size";
@@ -217,6 +219,41 @@ def renderMemoryAnn (ann:MemoryAnn) : List (String × Json) :=
 -- For object files, it is the offset into the .text section.
 structure MCAddr := (addr : elf.word ELF64)
 
+def MCAddr.decEq (a b : MCAddr) : Decidable (a = b) :=
+MCAddr.casesOn a $ fun n => MCAddr.casesOn b $ fun m =>
+  if h : n = m 
+  then isTrue (h ▸ rfl)
+  else isFalse (fun h' => MCAddr.noConfusion h' (fun h' => absurd h' h))
+
+instance MCAddr.hasDecidableEq : DecidableEq MCAddr := MCAddr.decEq
+
+
+def parseMCAddr (js : Json) : Except String MCAddr := do
+let errMsg := "Expected either a string containing a hexadecimal address or a natural number,"
+              ++ " but found " ++ js.pretty;
+match js.getStr? with
+| Option.some addrStr => match Nat.fromHexString addrStr with
+  | Option.some n => match elf.word.fromNat ELF64 n with
+    | Option.some w => pure $ MCAddr.mk w
+    | Option.none => throw errMsg
+  | Option.none => throw errMsg
+| Option.none => match js.getNat? with
+  | Option.some n => match elf.word.fromNat ELF64 n with
+    | Option.some w => pure $ MCAddr.mk w
+    | Option.none => throw errMsg
+  | Option.none => throw errMsg
+
+def MCAddr.fromJson (js:Json) : Option MCAddr :=
+(parseMCAddr js).toOption
+
+def MCAddr.toJson (m:MCAddr) : Json :=
+toJson $ Nat.ppHex $ UInt64.toNat m.addr
+
+instance MCAddr.hasFromJson : HasFromJson MCAddr :=
+⟨MCAddr.fromJson⟩
+instance MCAddr.hasToJson : HasToJson MCAddr :=
+⟨MCAddr.toJson⟩
+
 
 structure MCMemoryEvent :=
 (addr : MCAddr)
@@ -224,11 +261,20 @@ structure MCMemoryEvent :=
 (info : MemoryAnn)
 
 
+def parseMCMemoryEvent (js : Json) : Except String MCMemoryEvent := do
+addr ← match js.getObjVal? "addr" with
+  | Option.some o => parseMCAddr o
+  | Option.none => throw "Missing an `addr` entry for a memory event.";
+info ← parseMemoryAnn js;
+pure $ MCMemoryEvent.mk addr info
+
+
+
 def MCMemoryEvent.fromJson (js : Json) : Option MCMemoryEvent :=
-Option.none -- TODO
+(parseMCMemoryEvent js).toOption
 
 def MCMemoryEvent.toJson (me : MCMemoryEvent) : Json := 
-toJson $ "TODO: implement MCMemoryEvent.toJson" -- TODO
+toJson $ "TODO: MCMemoryEvent.toJson"
 
 instance MCMemoryEvent.hasFromJson : HasFromJson MCMemoryEvent :=
 ⟨MCMemoryEvent.fromJson⟩
@@ -236,18 +282,19 @@ instance MCMemoryEvent.hasToJson : HasToJson MCMemoryEvent :=
 ⟨MCMemoryEvent.toJson⟩
 
 
+abbrev Precondition := Nat
 
 
 structure ReachableBlockAnn :=
-(startAddr : Nat) -- FIXME
+(startAddr : MCAddr) -- FIXME
  -- ^ Address of start of block in machine code
 (codeSize : Nat) -- FIXME
  -- ^ Number of bytes in block
 (x87Top : Nat) -- FIXME
  -- ^ The top of x87 stack (empty = 7, full = 0)
 (dfFlag : Bool)
- -- ^ The value of the DF flag (default = False)
-(preconds : List Nat) -- FIXME
+ -- ^ The value of the DF flag (default = false)
+(preconds : List Precondition)
  -- ^ List of preconditions for block.
 (allocas : RBMap String AllocaAnn Lean.strLt)
 -- ^ Maps identifiers to the allocation used to initialize them.
@@ -257,14 +304,55 @@ structure ReachableBlockAnn :=
 (memoryEvents : List MCMemoryEvent)
 -- ^ Annotates events within the block.
 
+namespace ReachableBlockAnn
+
+-- Default values for various ReachableBlockAnn optional entries.
+def x87TopDefault : Nat := 7
+def dfFlagDefault : Bool := false
+def rawPrecondsDefault : Array Json := Array.empty
+def precondsDefault : List Precondition := []
+def rawAllocasDefault : Array Json := Array.empty
+def allocasDefault : RBMap String AllocaAnn Lean.strLt := RBMap.empty
+def memoryEventsDefault : List MCMemoryEvent := []
+
+end ReachableBlockAnn
 
 inductive BlockAnn
 | reachable : ReachableBlockAnn → BlockAnn
 | unreachable : BlockAnn
 
 
-def parseBlockAnn (js:Json) : Except String BlockAnn :=
-Except.error "TODO: implement parseBlockAnn"
+abbrev LLVMVarMap := RBMap llvm.ident SMTLIB.sort (λ x y => x<y)
+
+-- abbrev Precondition := SMTLIB.term SMTLIB.sort.smt_bool
+
+def parsePrecondition (llvmMap: LLVMVarMap) (js:Json) : Except String Precondition :=
+Except.error "TODO"
+
+def parseReachableBlockAnn (llvmMap: LLVMVarMap) (js:Json) : Except String ReachableBlockAnn := do
+addr ← match js.getObjVal? "addr" with
+  | Option.some rawJson => parseMCAddr rawJson
+  | Option.none => throw $ "Expected a `addr` field with a machine code address in"
+                           ++ " the block annotation.";
+let addrNat := addr.addr.toNat;
+size ← parseObjValAsNat js "size";
+when (addrNat + size < addrNat) $ throw "Expected end of block computation to not overflow.";
+x87Top ← parseObjValAsNatD js "x87_top" ReachableBlockAnn.x87TopDefault;
+dfFlag ← parseObjValAsBoolD js "df_flag" ReachableBlockAnn.dfFlagDefault;
+rawPreconds ← parseObjValAsArrD js "preconditions" ReachableBlockAnn.rawPrecondsDefault;
+preconds ← rawPreconds.toList.mapM (parsePrecondition llvmMap);
+rawAllocas ← parseObjValAsArrD js "allocas" ReachableBlockAnn.rawAllocasDefault;
+allocas ← rawAllocas.toList.mapM parseAllocaAnn;
+-- BOOKMARK
+throw "TODO: parseReachableBlockAnn"
+-- Nat.fromHexString
+
+
+def parseBlockAnn (llvmMap: LLVMVarMap) (js:Json) : Except String BlockAnn := do
+isReachable ← parseObjValAsBoolD js "reachable" true;
+if isReachable
+then BlockAnn.reachable <$> parseReachableBlockAnn llvmMap js
+else pure BlockAnn.unreachable
 
 
 def BlockAnn.toJson (block_label:String) : BlockAnn → Json
