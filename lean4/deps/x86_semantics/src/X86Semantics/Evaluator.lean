@@ -73,12 +73,14 @@ axiom inject_ax0 : 8 + gpreg_type.width gpreg_type.reg8h ≤ 64
 axiom inject_ax1 : ∀(rtp : gpreg_type), 0 + gpreg_type.width rtp ≤ 64
 
 def inject : ∀(rtp : gpreg_type), backend.s_bv rtp.width -> backend.s_bv 64 -> backend.s_bv 64
-  | gpreg_type.reg32, b, _   => backend.s_bvappend (backend.s_bvzero 32) b
+  | gpreg_type.reg32, b, _   => backend.s_uext _ _ b
   | gpreg_type.reg8h, b, old => backend.s_bvsetbits 8 old b -- inject_ax0
+  | gpreg_type.reg64, b, _   => b -- special case to keep output compact
   | rtp,              b, old => backend.s_bvsetbits 0 old b -- (inject_ax1 rtp) -- (begin cases rtp; simp end)
 
 def project : ∀(rtp : gpreg_type), backend.s_bv 64 -> backend.s_bv rtp.width
   | gpreg_type.reg8h, b => backend.s_bvgetbits 8 8 b -- inject_ax0 -- (begin simp [gpreg_type.width], exact dec_trivial end)
+  | gpreg_type.reg64, b => b -- special case to keep output compact
   | rtp,              b => backend.s_bvgetbits 0 rtp.width b -- (inject_ax1 rtp) -- (begin cases rtp; simp end)
 
 end reg
@@ -446,7 +448,7 @@ def mux (b : backend.s_bool) : ∀{tp : type}, type.has_mux tp
   | x86_80, _, v1, v2      => ()
   -- This is very inefficient, maybe make Arrays part of backend?  This type is mainly for AVX etc.
   | (vec _ tp), pf, v1, v2 => 
-     let pf' : type.has_eq tp := pf;
+     let pf' : type.has_mux tp := pf;
      let bs  := List.zipWith (mux pf') (Array.toList v1) (Array.toList v2); -- ).all (fun (v : (value tp × value tp)) => value.partial_eq pf' v.fst v.snd)
      bs.toArray
   | (pair tp tp'), pf, v1, v2 => (mux pf.left v1.fst v2.fst, mux pf.right v1.snd v2.snd)

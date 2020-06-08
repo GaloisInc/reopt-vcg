@@ -11,6 +11,7 @@ instance SExpr.HasToString : HasToString SExpr := ⟨fun (s : SExpr) => s.sexpr�
 def atom : String -> SExpr := SExpr.mk
 
 class HasToSExpr (a : Type) := (toSExpr : a -> SExpr)
+
 open HasToSExpr
 
 instance SExpr.HasToSExpr : HasToSExpr SExpr := ⟨id⟩
@@ -27,6 +28,10 @@ def app (f : SExpr) (args : List SExpr) : SExpr := toSExpr (f :: args)
 
 end SExpr
 
+
+export SExpr.HasToSExpr (toSExpr)
+
+
 namespace SMTLIB
 
 open SExpr
@@ -39,6 +44,7 @@ def indexed (f : SExpr) (args : List SExpr) : SExpr :=
 inductive sort : Type
 | smt_bool : sort
 | bitvec : Nat -> sort
+| array  : sort -> sort -> sort
 
 namespace sort
 
@@ -46,6 +52,7 @@ protected
 def to_sexpr : sort -> SExpr
 | smt_bool => atom "Bool"
 | bitvec n => indexed (atom "BitVec") [toSExpr n]
+| array k v => SExpr.app (atom "Array") [to_sexpr k, to_sexpr v]
 
 instance : HasToSExpr sort := ⟨sort.to_sexpr⟩
           
@@ -66,6 +73,7 @@ namespace const_sort
 
 def smt_bool := base sort.smt_bool
 def bitvec (n : Nat) := base (sort.bitvec n)
+def array (k v : sort) := base (sort.array k v)
 
 end const_sort
 
@@ -89,6 +97,7 @@ namespace spec_constant
 -- FIXME: copied from bitvec!
 section to_hex
 
+-- [0 ..< x]
 protected def to_hex_with_leading_zeros : List Char → Nat → Nat → String
 | prev, 0, _ => prev.asString
 | prev, (Nat.succ w), x =>
@@ -96,8 +105,10 @@ protected def to_hex_with_leading_zeros : List Char → Nat → Nat → String
   to_hex_with_leading_zeros (c::prev) w (Nat.shiftr x 4)
 
 --- Print word as hex
-def pp_hex (n : Nat) (v : Nat) : String := 
-  "0x" ++ spec_constant.to_hex_with_leading_zeros [] (n / 4) v
+def pp_bin (n : Nat) (v : Nat) : String := 
+  if n % 4 = 0   
+  then "#x" ++ spec_constant.to_hex_with_leading_zeros [] (n / 4) v
+  else "#b" ++ (List.map (fun i => if Nat.test_bit v i then '1' else '0') (Nat.upto0_lt n)).asString
 
 end to_hex
 
@@ -105,7 +116,7 @@ protected
 def to_sexpr : spec_constant -> SExpr
 | numeral n   => toSExpr n
 | decimal n f => atom (toString n ++ "." ++ toString f)
-| binary n v  => atom (pp_hex n v)
+| binary n v  => atom (pp_bin n v)
 | string s    => toSExpr s
 
 instance : HasToSExpr spec_constant := ⟨spec_constant.to_sexpr⟩
@@ -122,6 +133,9 @@ abbrev unop (a : sort) (b : sort) : const_sort :=
 
 abbrev binop (a : sort) (b : sort) (c : sort) : const_sort :=
   const_sort.fsort a (const_sort.fsort b (const_sort.base c))
+
+abbrev ternop (a : sort) (b : sort) (c : sort) (d : sort) : const_sort :=
+  const_sort.fsort a (const_sort.fsort b (const_sort.fsort c (const_sort.base d)))
 
 end builtin_identifier
 
@@ -149,11 +163,16 @@ inductive builtin_identifier : const_sort -> Type
 | smt_ite  (s : sort) : builtin_identifier (const_sort.fsort smt_bool (binop s s s))
 | distinct (s : sort) (arity : Nat)
                       : builtin_identifier (nary s smt_bool arity)
+
+-- * Arrays
+| select (k v : sort) : builtin_identifier (binop (array k v) k v)
+| store  (k v : sort) : builtin_identifier (ternop (array k v) k v (array k v))
+
 -- * BitVecs
 -- hex/binary literals
 | concat  (n : Nat) (m : Nat) : builtin_identifier (binop (bitvec n) (bitvec m) (bitvec (n + m)))
 | extract (n : Nat) (i : Nat) (j : Nat)                   
-                              : builtin_identifier (unop (bitvec n) (bitvec (i - j + 1)))
+                              : builtin_identifier (unop (bitvec n) (bitvec (i + 1 - j)))
 -- -- unops
 | bvnot   (n : Nat) : builtin_identifier (unop (bitvec n) (bitvec n))
 | bvneg   (n : Nat) : builtin_identifier (unop (bitvec n) (bitvec n))
@@ -166,8 +185,37 @@ inductive builtin_identifier : const_sort -> Type
 | bvurem  (n : Nat) : builtin_identifier (binop (bitvec n) (bitvec n) (bitvec n))
 | bvshl   (n : Nat) : builtin_identifier (binop (bitvec n) (bitvec n) (bitvec n))
 | bvlshr  (n : Nat) : builtin_identifier (binop (bitvec n) (bitvec n) (bitvec n))
--- -- comparison
+-- comparison
 | bvult   (n : Nat) : builtin_identifier (binop (bitvec n) (bitvec n) smt_bool)
+
+-- Functions defined by SMT as abbrevs.
+| bvnand (n : Nat) : builtin_identifier (binop (bitvec n) (bitvec n) (bitvec n))
+| bvnor  (n : Nat) : builtin_identifier (binop (bitvec n) (bitvec n) (bitvec n))
+| bvxor  (n : Nat) : builtin_identifier (binop (bitvec n) (bitvec n) (bitvec n))
+| bvxnor (n : Nat) : builtin_identifier (binop (bitvec n) (bitvec n) (bitvec n))
+| bvcomp (n : Nat) : builtin_identifier (binop (bitvec n) (bitvec n) (bitvec 1))
+| bvsub  (n : Nat) : builtin_identifier (binop (bitvec n) (bitvec n) (bitvec n))
+| bvsdiv (n : Nat) : builtin_identifier (binop (bitvec n) (bitvec n) (bitvec n))
+| bvsrem (n : Nat) : builtin_identifier (binop (bitvec n) (bitvec n) (bitvec n))
+| bvsmod (n : Nat) : builtin_identifier (binop (bitvec n) (bitvec n) (bitvec n))
+| bvashr (n : Nat) : builtin_identifier (binop (bitvec n) (bitvec n) (bitvec n))
+
+-- Defined, param by i >= 1
+| repeat (i : Nat) (n : Nat) : builtin_identifier (unop (bitvec n) (bitvec (i * n)))
+
+-- Defined, param by i >= 0
+| zero_extend  (i : Nat) (n : Nat) : builtin_identifier (unop (bitvec n) (bitvec (n + i)))
+| sign_extend  (i : Nat) (n : Nat) : builtin_identifier (unop (bitvec n) (bitvec (n + i)))
+| rotate_left  (i : Nat) (n : Nat) : builtin_identifier (unop (bitvec n) (bitvec n))
+| rotate_right (i : Nat) (n : Nat) : builtin_identifier (unop (bitvec n) (bitvec n))
+
+| bvule                  (n : Nat) : builtin_identifier (binop (bitvec n) (bitvec n) smt_bool)
+| bvugt                  (n : Nat) : builtin_identifier (binop (bitvec n) (bitvec n) smt_bool)
+| bvuge                  (n : Nat) : builtin_identifier (binop (bitvec n) (bitvec n) smt_bool)
+| bvslt                  (n : Nat) : builtin_identifier (binop (bitvec n) (bitvec n) smt_bool)
+| bvsle                  (n : Nat) : builtin_identifier (binop (bitvec n) (bitvec n) smt_bool)
+| bvsgt                  (n : Nat) : builtin_identifier (binop (bitvec n) (bitvec n) smt_bool)
+| bvsge                  (n : Nat) : builtin_identifier (binop (bitvec n) (bitvec n) smt_bool)
 
 end 
 
@@ -186,10 +234,14 @@ def to_sexpr : forall {cs : const_sort}, builtin_identifier cs -> SExpr
 | _, eq       _           => atom "eq"
 | _, smt_ite  _           => atom "smt_ite"
 | _, distinct _ _         => atom "distinct"
+
+| _, select _ _           => atom "select"
+| _, store  _ _           => atom "store"
+
 -- * BitVecs
 -- hex/binary literals
 | _, concat _ _           => atom "concat"
-| _, extract _ _ _        => atom "extract"
+| _, extract _ i j        => indexed (atom "extract") [toSExpr i, toSExpr j]
 -- unops
 | _, bvnot   _            => atom "bvnot"
 | _, bvneg   _            => atom "bvneg"
@@ -204,6 +256,32 @@ def to_sexpr : forall {cs : const_sort}, builtin_identifier cs -> SExpr
 | _, bvlshr  _            => atom "bvlshr"
 -- comparison               
 | _, bvult   _            => atom "bvult"
+
+| _, bvnand  _            => atom "bvnand" 
+| _, bvnor   _            => atom "bvnor" 
+| _, bvxor   _            => atom "bvxor"  
+| _, bvxnor  _            => atom "bvxnor"  
+| _, bvcomp  _            => atom "bvcomp" 
+| _, bvsub   _            => atom "bvsub" 
+| _, bvsdiv  _            => atom "bvsdiv"
+| _, bvsrem  _            => atom "bvsrem" 
+| _, bvsmod  _            => atom "bvsmod" 
+| _, bvashr  _            => atom "bvashr" 
+
+| _, repeat i _           => indexed (atom "repeat") [toSExpr i]
+
+| _, zero_extend  i _     => indexed (atom "zero_extend")  [toSExpr i]
+| _, sign_extend  i _     => indexed (atom "sign_extend")  [toSExpr i]
+| _, rotate_left  i _     => indexed (atom "rotate_left")  [toSExpr i]
+| _, rotate_right i _     => indexed (atom "rotate_right") [toSExpr i]
+
+| _, bvule _              => atom "bvule" 
+| _, bvugt _              => atom "bvugt" 
+| _, bvuge _              => atom "bvuge" 
+| _, bvslt _              => atom "bvslt" 
+| _, bvsle _              => atom "bvsle" 
+| _, bvsgt _              => atom "bvsgt" 
+| _, bvsge _              => atom "bvsge" 
 
 instance {cs : const_sort} : HasToSExpr (builtin_identifier cs) := ⟨builtin_identifier.to_sexpr⟩
 
@@ -322,7 +400,7 @@ protected
 def to_sexpr : command -> SExpr 
 | assert tm              => SExpr.app (atom "assert") [toSExpr tm]
 | declare_fun s args r   => SExpr.app (atom "declare-fun") [toSExpr s, toSExpr (args.map toSExpr), toSExpr r]
-| define_fun  s args r b => SExpr.app (atom "define-fun") [toSExpr (args.map to_sexpr_sigma), toSExpr r
+| define_fun  s args r b => SExpr.app (atom "define-fun") [toSExpr s, toSExpr (args.map to_sexpr_sigma), toSExpr r
                                                           , toSExpr b]
 instance : HasToSExpr command := ⟨command.to_sexpr⟩
 
@@ -335,11 +413,17 @@ open sort
 
 
 def term (s : sort) := Raw.term (Raw.const_sort.base s)
+instance term.HasToSExpr (s : sort) : HasToSExpr (term s) := 
+  inferInstanceAs (HasToSExpr (Raw.term (Raw.const_sort.base s)))
 
 def symbol := Raw.symbol
 
+@[reducible]
+def  command := Raw.command
+
 -- def identifier := Raw.identifier
 
+@[reducible]
 def args_to_type (ss : List sort) (res : sort) : Type 
   := List.foldr (fun x t => term x -> t) (term res) ss
 -- | [], res        => term res
@@ -361,6 +445,8 @@ open Raw.identifier
 open Raw.command
 open Raw (const_sort)
 open Raw.const_sort (fsort base)
+open Raw (spec_constant)
+open Raw.spec_constant
 
 def const_sort_to_type : const_sort -> Type 
 | base s    => term s
@@ -409,11 +495,20 @@ def eq {a : sort} : term a -> term a -> term smt_bool       := binop (eq a)
 -- def distinct {a : sort} : List (term a) -> term smt_bool := Raw.term.distinct
 def smt_ite  {a : sort} : term smt_bool -> term a -> term a -> term a := ternop (smt_ite a)
 
+-- Arrays
+def select (k v : sort) : term (array k v) -> term k -> term v :=
+  binop (select k v)
+
+def store  (k v : sort) : term (array k v) -> term k -> term v -> term (array k v) :=
+  ternop (store k v)
+
 -- BitVecs
 -- hex/binary literals
+def bvimm (n v : Nat) : term (bitvec n) := const (bitvec n) (binary n v)
+
 def concat {n m : Nat} : term (bitvec n) -> term (bitvec m) -> term (bitvec (n + m)) := 
   binop (concat n m)
-def extract {n : Nat} (i : Nat) (j : Nat) : term (bitvec n) -> term (bitvec (i - j + 1)) :=
+def extract {n : Nat} (i : Nat) (j : Nat) : term (bitvec n) -> term (bitvec (i + 1 - j)) :=
   unop (extract n i j)
 def bvnot {n : Nat} : term (bitvec n) -> term (bitvec n) := unop (bvnot n)
 def bvneg {n : Nat} : term (bitvec n) -> term (bitvec n) := unop (bvneg n)
@@ -430,29 +525,97 @@ def bvlshr {n : Nat} : term (bitvec n) -> term (bitvec n) -> term (bitvec n) := 
 -- comparison
 def bvult {n : Nat} : term (bitvec n) -> term (bitvec n) -> term smt_bool := binop (bvult n)
 
+
+-- Functions defined by SMT as abbrevs.
+def bvnand {n : Nat} : term (bitvec n) -> term (bitvec n) -> term (bitvec n)  := binop (bvnand n) 
+def bvnor  {n : Nat} : term (bitvec n) -> term (bitvec n) -> term (bitvec n)  := binop (bvnor  n) 
+def bvxor  {n : Nat} : term (bitvec n) -> term (bitvec n) -> term (bitvec n)  := binop (bvxor  n) 
+def bvxnor {n : Nat} : term (bitvec n) -> term (bitvec n) -> term (bitvec n)  := binop (bvxnor n) 
+def bvcomp {n : Nat} : term (bitvec n) -> term (bitvec n) -> term (bitvec 1)  := binop (bvcomp n)
+def bvsub  {n : Nat} : term (bitvec n) -> term (bitvec n) -> term (bitvec n)  := binop (bvsub  n) 
+def bvsdiv {n : Nat} : term (bitvec n) -> term (bitvec n) -> term (bitvec n)  := binop (bvsdiv n) 
+def bvsrem {n : Nat} : term (bitvec n) -> term (bitvec n) -> term (bitvec n)  := binop (bvsrem n) 
+def bvsmod {n : Nat} : term (bitvec n) -> term (bitvec n) -> term (bitvec n)  := binop (bvsmod n) 
+def bvashr {n : Nat} : term (bitvec n) -> term (bitvec n) -> term (bitvec n)  := binop (bvashr n) 
+
+-- Defined, param by i >= 1
+def repeat {n : Nat} (i : Nat) : term (bitvec n) -> term (bitvec (i * n)) := unop (repeat i n)
+
+-- Defined, param by i >= 0
+def zero_extend  {n : Nat} (i : Nat) : term (bitvec n) -> term (bitvec (n + i)) := unop (zero_extend  i n) 
+def sign_extend  {n : Nat} (i : Nat) : term (bitvec n) -> term (bitvec (n + i)) := unop (sign_extend  i n) 
+def rotate_left  {n : Nat} (i : Nat) : term (bitvec n) -> term (bitvec n)       := unop (rotate_left  i n) 
+def rotate_right {n : Nat} (i : Nat) : term (bitvec n) -> term (bitvec n)       := unop (rotate_right i n) 
+
+def bvule        {n : Nat} : term (bitvec n) -> term (bitvec n) -> term smt_bool := binop (bvule n) 
+def bvugt        {n : Nat} : term (bitvec n) -> term (bitvec n) -> term smt_bool := binop (bvugt n) 
+def bvuge        {n : Nat} : term (bitvec n) -> term (bitvec n) -> term smt_bool := binop (bvuge n) 
+def bvslt        {n : Nat} : term (bitvec n) -> term (bitvec n) -> term smt_bool := binop (bvslt n) 
+def bvsle        {n : Nat} : term (bitvec n) -> term (bitvec n) -> term smt_bool := binop (bvsle n) 
+def bvsgt        {n : Nat} : term (bitvec n) -> term (bitvec n) -> term smt_bool := binop (bvsgt n) 
+def bvsge        {n : Nat} : term (bitvec n) -> term (bitvec n) -> term smt_bool := binop (bvsge n) 
+
 -- Scripts and Commands
-def script : Type := List Raw.command
+def script : Type := List command
 
-def smtM := StateM script
+structure SMTState :=
+  (nextFreshId : Nat)
+  (script      : script)
 
-instance : Monad smtM := inferInstanceAs (Monad (StateM script))
-instance : MonadState script smtM := inferInstanceAs (MonadState script (StateM script))
+def smtM := StateM SMTState
 
-def runsmtM {a : Type} (m : smtM a) : script := (StateT.run m []).snd.reverse
+instance : Monad smtM := inferInstanceAs (Monad (StateM SMTState))
+instance : MonadState SMTState smtM := inferInstanceAs (MonadState SMTState (StateM SMTState))
+
+def freshSymbol (base : String) : smtM String := do
+  n <- modifyGet (fun st => (st.nextFreshId, { st with nextFreshId := st.nextFreshId + 1 }));
+  pure ("|" ++ base ++ "-" ++ repr n ++ "|")
+
+def runsmtM {a : Type} (next : Nat) (m : smtM a) : (a × (Nat × script)) := 
+  let r := StateT.run m { nextFreshId := next, script := [] };
+  (r.fst, (r.snd.nextFreshId, r.snd.script.reverse))
 
 theorem const_sort_to_type_fold {res : sort} : forall {args : List sort}, 
  const_sort_to_type (List.foldr fsort (base res) args) = args_to_type args res -- := sorryAx _
 | []       => rfl
 | hd :: tl => congrArg (fun r => (term hd -> r)) (@const_sort_to_type_fold tl)
 
--- FIXME: check that s is new etc. 
-def declare_fun (s : symbol) (args : List sort) (res : sort) : smtM (args_to_type args res) :=
-  let ident := Raw.identifier.symbol (List.foldr fsort (base res) args) s;
-  do modify (fun st => (declare_fun s args res) :: st);
+def declare_fun (s : String) (args : List sort) (res : sort) : smtM (args_to_type args res) := do
+  s' <- freshSymbol s;  
+  let ident := Raw.identifier.symbol (List.foldr fsort (base res) args) s';
+  do modify (fun st => {st with script := (declare_fun s' args res) :: st.script });
      pure (Eq.mp const_sort_to_type_fold ident.expand_ident)
 
+def inst_args_aux (res : sort) : 
+    forall (args : List sort) (body : args_to_type args res) (acc : List (Sigma Raw.sorted_var)), 
+    smtM (List (Sigma Raw.sorted_var) × term res) 
+| [],       body, acc    => pure (acc.reverse, body)
+| hd :: tl, f,    acc    => do   
+  s <- freshSymbol "arg";  
+  let arg := Raw.term.identifier (Raw.identifier.symbol (Raw.const_sort.base hd) s);
+  inst_args_aux tl (f arg) (Sigma.mk hd (Raw.sorted_var.mk hd s) :: acc)
+
+def inst_args (res : sort) (args : List sort) (body : args_to_type args res) 
+    : smtM (List (Sigma Raw.sorted_var) × term res) := 
+    inst_args_aux res args body []
+
+def define_fun (s : String) (args : List sort) (res : sort) (body : args_to_type args res)
+  : smtM (args_to_type args res) := do
+  s' <- freshSymbol s;
+  let ident := Raw.identifier.symbol (List.foldr fsort (base res) args) s';
+  (args', body') <- inst_args res args body;
+  do modify (fun st => {st with script := (define_fun s' args' res body') :: st.script });
+     pure (Eq.mp const_sort_to_type_fold ident.expand_ident)
+
+-- Names the const if it is non-trivial, otherwise returns the original term
+def name_term (name : String) : forall {s : sort} (tm : term s), smtM (term s)
+-- FIXME
+-- | ._, tm@(Raw.term.const _ _)     => pure tm
+-- | ._, tm@(Raw.term.identifier _)  => pure tm
+| s, tm                          => define_fun name [] s tm
+
 def assert (b : term smt_bool) : smtM Unit := 
-  modify (fun st => (Raw.command.assert b) :: st)
+  modify (fun st => {st with script := (Raw.command.assert b) :: st.script })
 
 def ex1 : smtM Unit :=
   do f <- declare_fun "f" [smt_bool, smt_bool] smt_bool;
