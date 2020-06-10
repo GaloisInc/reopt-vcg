@@ -4,6 +4,7 @@ import LeanLLVM.PP
 import Main.Elf
 import ReoptVCG.Annotations
 import SMTLIB.Syntax
+import DecodeX86.DecodeX86
 
 -- TODO move these (or similar fns) to lean-llvm
 def llvm.ident.pp := pp.render ∘ llvm.pp_ident
@@ -78,8 +79,8 @@ def LLVMTypeMap := RBMap String (Option llvm.llvm_type) Lean.strLt
 structure ModuleVCGContext :=
 (annotations : ModuleAnnotations)
 -- ^ Annotations for module.
-(memory : elf.elfmem)
--- ^ Machine code memory
+(decoder : decodex86.decoder )
+-- ^ Machine code memory / decoder state
 (symbolAddrMap : RBMap String (elf.word elf.elf_class.ELF64) Lean.strLt)
 -- ^ Maps bytes to the symbol name
 (writeStderr : Bool)

@@ -66,7 +66,7 @@ EXTRAOBJFILES := ${patsubst ${SRCROOT}/%.cpp,${BUILDDIR}/%.o,${EXTRACXXFILES}}
 # For every Lean file `Foo.lean` there should be a `Foo.d` with an entry
 # `Foo.c Foo.olean: DEPENDENCY1.olean ... DEPENDENCYN.olean` describing the
 # N files that lean file depends on
-DEPFILES := ${patsubst %.lean,%.d,${LEANFILES_REL} test-symbolic/Main.lean}
+DEPFILES := ${patsubst %.lean,%.d,${LEANFILES_REL} test-symbolic/Main.lean app/Main.lean}
 
 OLEANFILES   := ${patsubst %.lean,%.olean,${LEANFILES_REL}}
 CPPLEANFILES := ${patsubst %.lean,$(BUILDDIR)/%.cpp,${LEANFILES_REL}}

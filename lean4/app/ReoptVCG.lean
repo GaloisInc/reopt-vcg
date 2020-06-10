@@ -6,6 +6,7 @@ import ReoptVCG.LoadLLVM
 import ReoptVCG.Types
 import SMTLIB.Syntax
 import X86Semantics.Common
+import DecodeX86.DecodeX86
 
 namespace ReoptVCG
 
@@ -283,18 +284,30 @@ let addEntry : LLVMTypeMap → llvm.type_decl → LLVMTypeMap := λ m tdecl =>
   | llvm.type_decl_body.defn t => m.insert tdecl.name $ Option.some t;
 m.types.foldl addEntry RBMap.empty
 
+def get_text_segment {c} (e : elf.ehdr c) (phdrs : List (elf.phdr c)) : Option (elf.phdr c) :=
+    phdrs.find? (fun p => p.flags.has_X)
+
 /-- Run a ReoptVCG instance w.r.t. the given configuration. --/
 def runVCG (cfg : VCGConfig) : IO UInt32 := do
 (ann, gen) ← setupWithConfig cfg;
 -- Load Elf file and emit warnings
+-- FIXME: cleanup
 (elfHdr, prgmHdrs, elfMem, fnSymAddrMap) ← loadElf ann.binFilePath;
+text_phdr <- (match get_text_segment elfHdr prgmHdrs with
+              | none     => throw $ IO.userError $ "No executable segment"
+              | (some p) => pure p);
+text_bytes <- (match elfMem.lookup_buffer (bitvec.of_nat 64 text_phdr.vaddr.toNat) with
+              | none        => throw $ IO.userError $ "No text region"
+              | some (_, b) => pure b);
+let entry := elfHdr.entry.toNat;
+let d := decodex86.mk_decoder text_bytes text_phdr.vaddr.toNat;
 -- Get LLVM module
 lMod ← loadLLVMModule ann.llvmFilePath;
 -- Create verification coontext for module.
 errorRef ← IO.mkRef 0;
 let modCtx : ModuleVCGContext := 
   { annotations := ann
-  , memory := elfMem
+  , decoder := d
   , symbolAddrMap := fnSymAddrMap
   , writeStderr := true
   , errorCount := errorRef

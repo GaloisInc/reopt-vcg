@@ -3,7 +3,10 @@ HERE := $(realpath $(dir $(realpath $(lastword $(MAKEFILE_LIST)))))
 LOCALFILES := Annotations.lean\
  LoadLLVM.lean\
  ReoptVCG.lean\
- Types.lean
+ Types.lean\
+ VCGBackend.lean\
+ VCGBlock.lean
+ 
 LEANFILES += $(patsubst %,${HERE}/%,${LOCALFILES})
 LEAN_PATH := ${LEAN_PATH}:ReoptVCG=${HERE}
 
