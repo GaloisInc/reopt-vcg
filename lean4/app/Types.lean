@@ -10,6 +10,25 @@ def llvm.ident.pp := pp.render ∘ llvm.pp_ident
 def llvm.llvm_type.pp := pp.render ∘ llvm.pp_type
 def llvm.block_label.pp := pp.render ∘ llvm.pp_label
 
+namespace llvm
+
+namespace block_label
+
+def lt : forall (x y : block_label), Prop
+  | { label := x }, {label := y } => x < y
+
+instance : HasLess block_label := ⟨lt⟩
+ 
+instance decideableBlockLabelLt : ∀(x y:block_label), Decidable (x < y)
+| { label := x }, { label := y } =>
+  (match ident.decideLt x y with
+   | Decidable.isTrue  p => Decidable.isTrue p
+   | Decidable.isFalse p => Decidable.isFalse p
+   )
+
+end block_label
+end llvm
+
 namespace ReoptVCG
 
 -- FIXME double check on which interface/API/etc to use here =\
