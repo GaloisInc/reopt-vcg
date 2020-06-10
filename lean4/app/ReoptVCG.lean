@@ -66,9 +66,9 @@ def x86ArgGPRegs : List x86.Reg64 :=
   x86.Reg64.r9 ]
 
 
-def llvmTypeToSort : llvm_type → Option SMTLIB.sort
+def llvmTypeToSort : llvm_type → Option SMT.sort
 | llvm_type.prim_type (prim_type.integer lw) =>
-  Option.some $ SMTLIB.sort.bitvec lw
+  Option.some $ SMT.sort.bitvec lw
 | llvm_type.ptr_to _ => Option.none
 | _ => Option.none
 
@@ -76,7 +76,7 @@ def llvmTypeToSort : llvm_type → Option SMTLIB.sort
 /-- Maps between LLVM argument and machine code name. --/
 structure LLVMMCArgBinding :=
 (llvmArgName : llvm.ident)
-(smtSort: SMTLIB.sort)
+(smtSort: SMT.sort)
 (register: x86.Reg64)
 
 
@@ -123,7 +123,7 @@ def parseAnnotatedBlock
 : ModuleVCG AnnotatedBlock := do
 let lbl := b.label;
 let (phiVarList, llvmStmts) := extractPhiStmtVars [] b.stmts.toList;
-let parseLLVMVar : (llvm.ident × llvm_type × BlockLabelValMap) → ModuleVCG (llvm.ident × SMTLIB.sort) :=
+let parseLLVMVar : (llvm.ident × llvm_type × BlockLabelValMap) → ModuleVCG (llvm.ident × SMT.sort) :=
   (λ (p : (llvm.ident × llvm_type × BlockLabelValMap)) =>
     let (nm, tp, _) := p;
     match llvmTypeToSort tp with
@@ -163,7 +163,7 @@ ModuleVCG (List LLVMMCArgBinding)
   | [] => functionError fnm $ FnError.custom $ 
           "Maximum of "++(x86ArgGPRegs.length.repr)++" i64 arguments supported"
   | (reg::restRegs) =>
-    let binding := LLVMMCArgBinding.mk nm (SMTLIB.sort.bitvec 64) reg;
+    let binding := LLVMMCArgBinding.mk nm (SMT.sort.bitvec 64) reg;
     parseLLVMArgs (binding::revBinds) restArgs restRegs
 | _, (⟨tp, nm⟩::restArgs), _ =>
   functionError fnm $ FnError.argTypeUnsupported nm tp

@@ -32,7 +32,7 @@ end SExpr
 export SExpr.HasToSExpr (toSExpr)
 
 
-namespace SMTLIB
+namespace SMT
 
 open SExpr
 open SExpr.HasToSExpr
@@ -628,4 +628,4 @@ def ex1 : smtM Unit :=
 
 end
 
-end SMTLIB
+end SMT

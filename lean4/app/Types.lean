@@ -33,11 +33,11 @@ end llvm
 namespace ReoptVCG
 
 -- FIXME double check on which interface/API/etc to use here =\
--- The SMTLIB.Raw namespace feels like it has the direct equivalents
+-- The SMT.Raw namespace feels like it has the direct equivalents
 -- to the What4.Protocol.SMTLib2.Syntax module in Haskell, but...
 -- it's the "Raw" interface which feels a little off...
 
-open SMTLIB.Raw
+open SMT.Raw
 
 
 @[reducible]
@@ -61,7 +61,7 @@ structure VCGConfig :=
 (verbose : Bool)
 
 -- TODO / FIXME see comment below about moving away from IO          
--- FIXME(AMK) don't use the raw interface to SMTLIB
+-- FIXME(AMK) don't use the raw interface to SMT
 structure ProverInterface :=
 (addCommandCallback : command → IO Unit)
 (proveFalseCallback : term const_sort.smt_bool → String → IO Unit)
@@ -248,7 +248,7 @@ def BlockLabelValMap := RBMap llvm.block_label llvm.value (λ x y => x < y)
 structure AnnotatedBlock :=
 (annotation: BlockAnn)
 (label : llvm.block_label)
-(phiVarMap : RBMap llvm.ident (SMTLIB.sort × BlockLabelValMap) (λ x y => x<y))
+(phiVarMap : RBMap llvm.ident (SMT.sort × BlockLabelValMap) (λ x y => x<y))
 (stmts : List llvm.stmt)
 
 

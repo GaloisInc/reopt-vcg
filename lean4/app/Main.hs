@@ -387,7 +387,7 @@ getMCAddrOfLLVMFunction m nm = do
 -- | Denotes the "name" of an address for pretty printing purposes.
 type AddrName = Text
 
--- | Return the name for SMTLIB display purposes of an address.
+-- | Return the name for SMT display purposes of an address.
 addrName :: MemWidth w => MemAddr w -> AddrName
 addrName addr
     | addrBase addr == 0 = Text.pack $ 'a' : off ""

@@ -1,7 +1,7 @@
 
 import LeanLLVM.AST
 import LeanLLVM.LLVMLib
-import SMTLIB.Syntax
+import SMT.Syntax
 import ReoptVCG.Types
 
 namespace ReoptVCG
@@ -11,13 +11,13 @@ open llvm (llvm_type typed prim_type value)
 def llvmReturn (mlret : Option (typed value)) : BlockVCG Unit := throw "Not done yet"
 
 -- | Convert LLVM type to SMT sort.
-def asSMTSort : llvm_type -> Option SMTLIB.sort
-| llvm.llvm_type.ptr_to _  => some (SMTLIB.sort.bitvec 64)
+def asSMTSort : llvm_type -> Option SMT.sort
+| llvm.llvm_type.ptr_to _  => some (SMT.sort.bitvec 64)
 | llvm.llvm_type.prim_type (llvm.prim_type.integer i) =>
-  if i > 0 then some (SMTLIB.sort.bitvec i) else none
+  if i > 0 then some (SMT.sort.bitvec i) else none
 | _ => none
 
-def coerceToSMTSort (ty : llvm_type) : BlockVCG SMTLIB.sort :=
+def coerceToSMTSort (ty : llvm_type) : BlockVCG SMT.sort :=
   match asSMTSort ty with
   | some tp => pure tp
   | none    => throw ("Unexpected type ")
@@ -25,7 +25,7 @@ def coerceToSMTSort (ty : llvm_type) : BlockVCG SMTLIB.sort :=
 section
 open llvm.instruction
 
--- def defineTerm {s : SMTLIB.sort) : llvm.ident -> SMT.term s -> BlockVCG Unit :=
+-- def defineTerm {s : SMT.sort) : llvm.ident -> SMT.term s -> BlockVCG Unit :=
   
 def stepNextStmt (stmt : llvm.stmt) : BlockVCG Bool := do
   match stmt.instr with

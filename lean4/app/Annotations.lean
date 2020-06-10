@@ -322,9 +322,9 @@ inductive BlockAnn
 | unreachable : BlockAnn
 
 
-abbrev LLVMVarMap := RBMap llvm.ident SMTLIB.sort (λ x y => x<y)
+abbrev LLVMVarMap := RBMap llvm.ident SMT.sort (λ x y => x<y)
 
--- abbrev Precondition := SMTLIB.term SMTLIB.sort.smt_bool
+-- abbrev Precondition := SMT.term SMT.sort.smt_bool
 
 def parsePrecondition (llvmMap: LLVMVarMap) (js:Json) : Except String Precondition :=
 Except.error "TODO"

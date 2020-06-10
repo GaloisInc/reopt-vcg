@@ -31,7 +31,7 @@ def doit (bs : List String) : IO Unit := do
   let text_bytes := bytesToByteArray bs;
   let d := decodex86.mk_decoder text_bytes 0;
   let ((init_s, stdlib), (nextFresh, init_script)) :=
-      SMTLIB.runsmtM 0 (do init_s <- machine_state.declare_const;
+      SMT.runsmtM 0 (do init_s <- machine_state.declare_const;
                            stdlib <- StdLib.make;
                            pure (init_s, stdlib));
   IO.println "Prelude:";
