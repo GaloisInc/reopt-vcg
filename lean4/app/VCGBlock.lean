@@ -1,7 +1,7 @@
 
 import LeanLLVM.AST
 import LeanLLVM.LLVMLib
-import SMT.Syntax
+import SMTLIB.Syntax
 import ReoptVCG.Types
 
 namespace ReoptVCG
