@@ -12,13 +12,29 @@ inductive Atom
 | nat : Nat → Atom
 | ident : String → Atom 
 
-def readAtom (input : String) : Except String Atom := 
-Except.error "TODO: implement readAtom"
+def Atom.toString : Atom → String
+| Atom.nat n => n.repr
+| Atom.ident nm => nm
+
+instance Atom.hasToString : HasToString Atom := ⟨Atom.toString⟩
+
+def readAtom (str : String) : Except String Atom :=
+if str.isEmpty
+then Except.error "an Atom must contain one or more characters"
+else
+  let subStr := str.toSubstring;
+  match subStr.toNat? with
+  | some n => pure $ Atom.nat n
+  | none => pure $ Atom.ident str
 
 abbrev SExpr := WellFormedSExp.SExp Atom
 
-def readSExpr : String → Except String SExpr := 
-WellFormedSExp.SExp.read1 readAtom
+def readSExpr (str:String) : Except String SExpr := do
+ss ← WellFormedSExp.SExp.readSExps readAtom str;
+match ss with
+| [] => Except.error "no s-expressions were found in the string"
+| [s] => pure s
+| _ => Except.error $ "multiple s-expressions were found in the string: " ++ str
 
 
 -- TODO / FIXME Should we just use the typed SMT expression AST from the
@@ -40,7 +56,14 @@ inductive Expr (α : Type u)
 
 def VarParser (α : Type u) := SExpr -> Except String (α × SMT.sort)
 
-def readExpr {α : Type u} : VarParser α → String → Except String (Expr α) :=
+-- was simply `fromText` in Haskell
+def Expr.fromString
+{α : Type u}
+(varParser : VarParser α)
+(input : String) : Except String (Expr α) :=
+Except.error "TODO: implement Expr.fromString"
+
+def evalExpr {α : Type u} : VarParser α → SExpr → Except String ((Expr α) × SMT.sort) :=
 λ varParser input => Except.error "TODO: implement readExpr"
 
 

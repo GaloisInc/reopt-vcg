@@ -184,29 +184,10 @@ def width : gpreg_type → Nat
 
 end gpreg_type
 
-inductive Reg64
-| rax : Reg64
-| rcx : Reg64
-| rdx : Reg64
-| rbx : Reg64
-| rsp : Reg64
-| rbp : Reg64
-| rsi : Reg64
-| rdi : Reg64
-| r8  : Reg64
-| r9  : Reg64
-| r10 : Reg64
-| r11 : Reg64
-| r12 : Reg64
-| r13 : Reg64
-| r14 : Reg64
-| r15 : Reg64
-
 -- Type for concrete x86 registers
 inductive concrete_reg : type → Type
 | gpreg   (idx:Fin 16) (tp:gpreg_type) : concrete_reg (bv (tp.width))
 | flagreg (idx:Fin 32) : concrete_reg bit
-
 
 -- Type for x86 registers
 inductive reg (tp:type) : Type
@@ -267,8 +248,8 @@ end reg
 namespace concrete_reg
 
 protected
-def repr : ∀{tp:type}, concrete_reg tp → String
-| ._, (gpreg idx tp) => "$" ++
+def name : ∀{tp:type}, concrete_reg tp → String
+| ._, (gpreg idx tp) =>
   (match tp with
   | gpreg_type.reg8l => List.get! idx.val reg.r8l_names
   | gpreg_type.reg8h => List.get! idx.val reg.r8h_names
@@ -276,13 +257,60 @@ def repr : ∀{tp:type}, concrete_reg tp → String
   | gpreg_type.reg32 => List.get! idx.val reg.r32_names
   | gpreg_type.reg64 => List.get! idx.val reg.r64_names)
  
-| ._, (flagreg idx) => "$" ++
+| ._, (flagreg idx) =>
    (match List.get? idx.val reg.flag_names with
    | (Option.some nm) => nm
    | Option.none      => "RESERVED_" ++ idx.val.repr)
 
+protected def repr {tp:type} (r:concrete_reg tp) : String :=
+"$" ++ (concrete_reg.name r)
 
 end concrete_reg
+
+abbrev reg64 := concrete_reg (bv 64)
+
+namespace reg64
+
+private def mkReg64 (idx: Fin 16) : reg64 := concrete_reg.gpreg idx gpreg_type.reg64
+
+def rax : reg64 := mkReg64 0
+def rcx : reg64 := mkReg64 1
+def rdx : reg64 := mkReg64 2
+def rbx : reg64 := mkReg64 3
+def rsp : reg64 := mkReg64 4
+def rbp : reg64 := mkReg64 5
+def rsi : reg64 := mkReg64 6
+def rdi : reg64 := mkReg64 7
+def r8  : reg64 := mkReg64 8
+def r9  : reg64 := mkReg64 9
+def r10 : reg64 := mkReg64 10
+def r11 : reg64 := mkReg64 11
+def r12 : reg64 := mkReg64 12
+def r13 : reg64 := mkReg64 13
+def r14 : reg64 := mkReg64 14
+def r15 : reg64 := mkReg64 15
+
+def fromName : String → Option reg64
+| "rax" => some reg64.rax
+| "rcx" => some reg64.rcx
+| "rdx" => some reg64.rdx
+| "rbx" => some reg64.rbx
+| "rsp" => some reg64.rsp
+| "rbp" => some reg64.rbp
+| "rsi" => some reg64.rsi
+| "rdi" => some reg64.rdi
+| "r8"  => some reg64.r8
+| "r9"  => some reg64.r9
+| "r10" => some reg64.r10
+| "r11" => some reg64.r11
+| "r12" => some reg64.r12
+| "r13" => some reg64.r13
+| "r14" => some reg64.r14
+| "r15" => some reg64.r15
+| _ => none
+
+
+end reg64
 
 namespace reg
 
@@ -707,63 +735,63 @@ end expression
 
 section
 
-def reg8l (i:Fin 16) : lhs (bv 8) := lhs.set_reg $ concrete_reg.gpreg i gpreg_type.reg8l
-def reg8h (i:Fin 16) : lhs (bv 8) := lhs.set_reg $ concrete_reg.gpreg i gpreg_type.reg8h
+def reg8lLhs (i:Fin 16) : lhs (bv 8) := lhs.set_reg $ concrete_reg.gpreg i gpreg_type.reg8l
+def reg8hLhs (i:Fin 16) : lhs (bv 8) := lhs.set_reg $ concrete_reg.gpreg i gpreg_type.reg8h
 
-def al  := reg8l 0
-def cl  := reg8l 1
-def dl  := reg8l 2
-def bl  := reg8l 3
-def spl := reg8l 4
-def bpl := reg8l 5
-def sil := reg8l 6
-def dil := reg8l 7
-def ah  := reg8h 0
+def al  := reg8lLhs 0
+def cl  := reg8lLhs 1
+def dl  := reg8lLhs 2
+def bl  := reg8lLhs 3
+def spl := reg8lLhs 4
+def bpl := reg8lLhs 5
+def sil := reg8lLhs 6
+def dil := reg8lLhs 7
+def ah  := reg8hLhs 0
 
-def reg16 (i:Fin 16) := lhs.set_reg $ concrete_reg.gpreg i gpreg_type.reg16
+def reg16Lhs (i:Fin 16) := lhs.set_reg $ concrete_reg.gpreg i gpreg_type.reg16
 
-def ax := reg16 0
-def cx := reg16 1
-def dx := reg16 2
-def bx := reg16 3
+def ax := reg16Lhs 0
+def cx := reg16Lhs 1
+def dx := reg16Lhs 2
+def bx := reg16Lhs 3
 
-def reg32 (i:Fin 16) := lhs.set_reg $ concrete_reg.gpreg i gpreg_type.reg32
+def reg32Lhs (i:Fin 16) := lhs.set_reg $ concrete_reg.gpreg i gpreg_type.reg32
 
-def eax := reg32 0
-def ecx := reg32 1
-def edx := reg32 2
-def ebx := reg32 3
+def eax := reg32Lhs 0
+def ecx := reg32Lhs 1
+def edx := reg32Lhs 2
+def ebx := reg32Lhs 3
 
-def reg64 (i:Fin 16) := lhs.set_reg $ concrete_reg.gpreg i gpreg_type.reg64
+def reg64Lhs (i:Fin 16) := lhs.set_reg $ concrete_reg.gpreg i gpreg_type.reg64
 
-def rax := reg64 0
-def rcx := reg64 1
-def rdx := reg64 2
-def rbx := reg64 3
-def rsp := reg64 4
-def rbp := reg64 5
-def rsi := reg64 6
-def rdi := reg64 7
-def r8  := reg64 8
-def r9  := reg64 9
-def r10 := reg64 10
-def r11 := reg64 11
-def r12 := reg64 12
-def r13 := reg64 13
-def r14 := reg64 14
-def r15 := reg64 15
+def rax := reg64Lhs 0
+def rcx := reg64Lhs 1
+def rdx := reg64Lhs 2
+def rbx := reg64Lhs 3
+def rsp := reg64Lhs 4
+def rbp := reg64Lhs 5
+def rsi := reg64Lhs 6
+def rdi := reg64Lhs 7
+def r8  := reg64Lhs 8
+def r9  := reg64Lhs 9
+def r10 := reg64Lhs 10
+def r11 := reg64Lhs 11
+def r12 := reg64Lhs 12
+def r13 := reg64Lhs 13
+def r14 := reg64Lhs 14
+def r15 := reg64Lhs 15
 
-def flagreg (i:Fin 32) := lhs.set_reg $ concrete_reg.flagreg i
+def flagregLhs (i:Fin 32) := lhs.set_reg $ concrete_reg.flagreg i
 
-def cf  := flagreg  0
-def pf  := flagreg  2
-def af  := flagreg  4
-def zf  := flagreg  6
-def sf  := flagreg  7
-def tf  := flagreg  8
-def if' := flagreg  9
-def df  := flagreg 10
-def of  := flagreg 11
+def cf  := flagregLhs  0
+def pf  := flagregLhs  2
+def af  := flagregLhs  4
+def zf  := flagregLhs  6
+def sf  := flagregLhs  7
+def tf  := flagregLhs  8
+def if' := flagregLhs  9
+def df  := flagregLhs 10
+def of  := flagregLhs 11
 
 def st0 : lhs x86_80 := lhs.streg 0
 

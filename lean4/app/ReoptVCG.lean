@@ -58,7 +58,7 @@ def llvmTypeToSort : llvm_type → Option SMT.sort
 structure LLVMMCArgBinding :=
 (llvmArgName : llvm.ident)
 (smtSort: SMT.sort)
-(register: x86.Reg64)
+(register: x86.reg64)
 
 
 
@@ -136,7 +136,7 @@ def parseLLVMArgs
 (fnm:FnName) : -- ^ Name of function for error purposes.
 List LLVMMCArgBinding → -- ^ Accumulator for parsed arguments.
 List (llvm.typed llvm.ident) → -- ^ Arguments to be parsed.
-List x86.Reg64 →  -- ^ Remaining registers available for arguments.
+List x86.reg64 →  -- ^ Remaining registers available for arguments.
 ModuleVCG (List LLVMMCArgBinding)
 | revArgs, [], _ => pure revArgs.reverse
 | revBinds, (⟨llvm_type.prim_type (prim_type.integer 64), nm⟩::restArgs), regs =>
@@ -144,7 +144,7 @@ ModuleVCG (List LLVMMCArgBinding)
   | [] => functionError fnm $ FnError.custom $ 
           "Maximum of "++(x86ArgGPRegs.length.repr)++" i64 arguments supported"
   | (reg::restRegs) =>
-    let binding := LLVMMCArgBinding.mk nm (SMT.sort.bitvec 64) reg;
+    let binding := LLVMMCArgBinding.mk nm (SMT.sort.bv64) reg;
     parseLLVMArgs (binding::revBinds) restArgs restRegs
 | _, (⟨tp, nm⟩::restArgs), _ =>
   functionError fnm $ FnError.argTypeUnsupported nm tp

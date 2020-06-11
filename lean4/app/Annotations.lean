@@ -1,3 +1,4 @@
+import Galois.Data.RBMap
 import Galois.Data.SExp
 import Galois.Init.Json
 import Galois.Init.Nat
@@ -12,6 +13,12 @@ import Main.Elf
 import ReoptVCG.SMTParser
 import SMTLIB.Syntax
 import X86Semantics.Common
+
+namespace llvm
+namespace ident
+instance : HasToString ident := ⟨ident.asString⟩
+end ident
+end llvm
 
 namespace ReoptVCG
 
@@ -316,22 +323,22 @@ instance MCMemoryEvent.hasToJson : HasToJson MCMemoryEvent :=
 -- BlockVar
 
 /-- Callee saved registers. --/
-def x86CalleeSavedGPRegs : List x86.Reg64 :=
-[ x86.Reg64.rbp,
-  x86.Reg64.rbx,
-  x86.Reg64.r12,
-  x86.Reg64.r13,
-  x86.Reg64.r14,
-  x86.Reg64.r15 ]
+def x86CalleeSavedGPRegs : List x86.reg64 :=
+[ x86.reg64.rbp,
+  x86.reg64.rbx,
+  x86.reg64.r12,
+  x86.reg64.r13,
+  x86.reg64.r14,
+  x86.reg64.r15 ]
 
 /-- General purpose registers that may be used to pass arguments. --/
-def x86ArgGPRegs : List x86.Reg64 :=
-[ x86.Reg64.rdi,
-  x86.Reg64.rsi,
-  x86.Reg64.rdx,
-  x86.Reg64.rcx,
-  x86.Reg64.r8,
-  x86.Reg64.r9 ]
+def x86ArgGPRegs : List x86.reg64 :=
+[ x86.reg64.rdi,
+  x86.reg64.rsi,
+  x86.reg64.rdx,
+  x86.reg64.rcx,
+  x86.reg64.r8,
+  x86.reg64.r9 ]
 
 
 -- | A variable that may appear in a block precondition.
@@ -341,10 +348,10 @@ inductive BlockVar
   --
   -- This is the address the return address is stored at, and
   -- the curent frame.
-| initGPReg64 : x86.Reg64 → BlockVar
+| initGPReg64 : x86.reg64 → BlockVar
   -- ^ Denotes the value of a 64-bit general purpose register
   -- at the start of the block execution.
-| fnStartGPReg64 : x86.Reg64 → BlockVar
+| fnStartGPReg64 : x86.reg64 → BlockVar
   -- ^ Denotes the value of a general purpose when the function starts.
   --
   -- Note. We do not support all registers here, only the registers
@@ -365,16 +372,53 @@ inductive BlockVar
 
 abbrev LLVMVarMap := RBMap llvm.ident SMT.sort (λ x y => x<y)
 
-def sexprToBlockVar (llvmMap : LLVMVarMap) : SExpr → Except String (BlockVar × SMT.sort) :=
-λ _ => Except.error "TODO: implement sexprToBlockVar"
-
+-- Was simply `fromExpr` in Haskell
+partial def BlockVar.fromSExpr
+(llvmMap : LLVMVarMap)
+: SExpr →
+Except String (BlockVar × SMT.sort)
+| SExp.list [SExp.atom (Atom.ident "mcstack"), sa, sw] => do
+  (a, tp) ← evalExpr BlockVar.fromSExpr sa;
+  unless (tp == SMT.sort.bv64) $ Except.error "Expected 64-bit address";
+  w ← match sw with
+      | SExp.list [SExp.atom (Atom.ident "_"),
+                   SExp.atom (Atom.ident "BitVec"),
+                   SExp.atom (Atom.nat w)] =>
+        if w == 8 || w == 16 || w == 32 || w == 64
+        then Except.ok w
+        else Except.error "mcstack could not interpret memory type."
+      | _ => Except.error "mcstack could not interpret memory type";
+  Except.ok (BlockVar.mcStack a w, SMT.sort.bitvec w)
+| SExp.list [SExp.atom (Atom.ident "fnstart"), regExpr] =>
+  match regExpr with
+  | SExp.atom (Atom.ident regName) =>
+    match x86.reg64.fromName regName with
+    | some r => Except.ok (BlockVar.fnStartGPReg64 r, SMT.sort.bv64)
+    | none => Except.error $ "could not interpret register name " ++ regName
+  | _ => throw $ "could not interpret register name " ++ regExpr.toString
+| SExp.list [SExp.atom (Atom.ident "llvm"), llvmExpr] =>
+  match llvmExpr with
+  | SExp.atom (Atom.ident llvmName) =>
+    match llvmMap.find? (llvm.ident.named llvmName) with
+    | some tp => Except.ok (BlockVar.llvmVar llvmName, tp)
+    | none => Except.error $ "Could not interpret llvm variable " ++ llvmExpr.toString
+                           ++ "\nKnown variables: " ++ llvmMap.keys.toString
+  | _ => Except.error $ "Could not interpret llvm variable " ++ llvmExpr.toString
+                      ++ "\nKnown variables: " ++ llvmMap.keys.toString
+| SExp.atom (Atom.ident "stack_high") =>
+  pure (BlockVar.stackHigh, SMT.sort.bv64)
+| SExp.atom (Atom.ident nm) =>
+  match x86.reg64.fromName nm with
+  | some r => pure (BlockVar.initGPReg64 r, SMT.sort.bv64)
+  | none => throw $ "Could not interpret identifier as a variable: " ++ nm
+| sexpr => throw $ "Could not interpret expression as a variable: " ++ sexpr.toString
 
 
 def parseExpr (llvmMap: LLVMVarMap) (js:Json) : Except String (Expr BlockVar) := do
 rawStr ← match js.getStr? with
-  | none => throw $ "Expected precondition to be a string but got: " ++ js.pretty ++ "."
-  | some s => pure s;
-readExpr (sexprToBlockVar llvmMap) rawStr
+  | none => Except.error $ "Expected precondition to be a string but got: " ++ js.pretty ++ "."
+  | some s => Except.ok s;
+Expr.fromString (BlockVar.fromSExpr llvmMap) rawStr
 
 
 def exprToJson : (Expr BlockVar) → Json :=
