@@ -3,6 +3,7 @@ HERE := $(realpath $(dir $(realpath $(lastword $(MAKEFILE_LIST)))))
 LOCALFILES := Annotations.lean\
  LoadLLVM.lean\
  ReoptVCG.lean\
+ SMTParser.lean\
  Types.lean\
  VCGBackend.lean\
  VCGBlock.lean
