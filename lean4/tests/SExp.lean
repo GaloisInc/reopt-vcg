@@ -17,13 +17,13 @@ def parseAtom (input:String) : Except String Atom := pure $ Atom.mk input
 abbrev SExpr := WellFormedSExp.SExp Atom
 
 def parsePass (input : String) : IO String :=
-match WellFormedSExp.SExp.read1 parseAtom input with
+match WellFormedSExp.SExp.readSExp parseAtom input with
 | Except.error errMsg => 
   pure $ "unexpected fail on `" ++ input ++ "` with error message `"++errMsg++"`"
 | Except.ok sexp => pure $ "pass " ++ sexp.toString
 
 def parseFail (input : String) : IO String :=
-match WellFormedSExp.SExp.read1 parseAtom input with
+match WellFormedSExp.SExp.readSExp parseAtom input with
 | Except.error _errMsg => pure $ "fail " ++ input
 | Except.ok sexp => pure $ "unexpected pass on `" ++ input ++ "` which parsed as `"++sexp.toString++"`."
 

@@ -20,8 +20,9 @@ partial def SExp.toString {α : Type u} [HasToString α] : SExp α → String
 
 
 namespace SExp
-
 open SExp
+
+instance {α : Type u} [HasToString α] : HasToString (SExp α) := ⟨SExp.toString⟩
 
 inductive Tag
 | atom
@@ -97,9 +98,10 @@ Except String (SExp α × String)
     else readAux cs $ ⟨Tag.atom, inAtom c [] $ inList xs xsPrev⟩
 
 
--- Attempts to read the an s-expression from the given string,
--- returning either the first s-expression encountered and remainder
--- of the string or an error message.
+/-- Read the first s-expression in the string, using the given atom parser
+    to convert atom strings into the parameter type `α`. The result
+    is either an error message or the parsed s-expression and the
+    remainder of the string. --/
 def read 
 {α : Type u}
 (parseAtom : String → Except String α)
@@ -107,16 +109,28 @@ def read
 : Except String (SExp α × String) :=
 readAux parseAtom str.data ⟨Tag.nonAtom, init α⟩
 
--- Attempts to read the an s-expression from the given string,
--- returning either the first s-expression encountered and remainder
--- of the string or an error message.
-def read1
+/-- Like `read` but does not return the remainder of the input string. --/
+def readSExp
 {α : Type u}
 (parseAtom : String → Except String α)
-(str: String) 
+(str: String)
 : Except String (SExp α) := do
 (s, _) ← read parseAtom str;
 pure s
+
+/-- Like `readSExp` but reads all s-expressions from the input string and returns
+    them in a list. --/
+def readSExps
+{α : Type u}
+(parseAtom : String → Except String α)
+(str: String)
+: Except String (List (SExp α)) := do
+(ss, _) ← readAux parseAtom (str.data ++ [')']) ⟨Tag.nonAtom, inList [] (init α)⟩;
+match ss with
+| atom a => pure [ss]
+ -- ^ not technically possible given how the parser works but that's not locally obvious
+| list l => pure l
+
 
 end SExp
 
