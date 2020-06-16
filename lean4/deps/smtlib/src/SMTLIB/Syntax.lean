@@ -54,27 +54,27 @@ def bv32 := bitvec 32
 def bv64 := bitvec 64
 
 
-protected def hasDecEq : ∀(a b : sort), Decidable (a = b)
-| smt_bool, bitvec _ => isFalse (λ h => sort.noConfusion h)
-| smt_bool, array _ _ => isFalse (λ h => sort.noConfusion h)
-| bitvec _, smt_bool => isFalse (λ h => sort.noConfusion h)
-| bitvec _, array _ _ => isFalse (λ h => sort.noConfusion h)
-| array _ _, bitvec _ => isFalse (λ h => sort.noConfusion h)
-| array _ _, smt_bool => isFalse (λ h => sort.noConfusion h)
-| smt_bool, smt_bool => isTrue rfl
-| bitvec x, bitvec y => 
-  match decEq x y with
-  | isTrue hxy => isTrue (Eq.subst hxy rfl)
-  | isFalse nxy => isFalse (λ h => sort.noConfusion h (λ hxy => absurd hxy nxy))
-| array a b, array c d =>
-  match hasDecEq a c with
-  | isTrue hac  =>
-    match hasDecEq b d with
-    | isTrue hbd  => isTrue (Eq.subst hac (Eq.subst hbd rfl))
-    | isFalse nbd => isFalse (λ h => sort.noConfusion h (λ _ hnb => absurd hnb nbd))
-  | isFalse nac => isFalse (λ h => sort.noConfusion h (λ hac _ => absurd hac nac))
+-- protected def hasDecEq : ∀(a b : sort), Decidable (a = b)
+-- | smt_bool, bitvec _ => isFalse (λ h => sort.noConfusion h)
+-- | smt_bool, array _ _ => isFalse (λ h => sort.noConfusion h)
+-- | bitvec _, smt_bool => isFalse (λ h => sort.noConfusion h)
+-- | bitvec _, array _ _ => isFalse (λ h => sort.noConfusion h)
+-- | array _ _, bitvec _ => isFalse (λ h => sort.noConfusion h)
+-- | array _ _, smt_bool => isFalse (λ h => sort.noConfusion h)
+-- | smt_bool, smt_bool => isTrue rfl
+-- | bitvec x, bitvec y => 
+--   match decEq x y with
+--   | isTrue hxy => isTrue (Eq.subst hxy rfl)
+--   | isFalse nxy => isFalse (λ h => sort.noConfusion h (λ hxy => absurd hxy nxy))
+-- | array a b, array c d =>
+--   match hasDecEq a c with
+--   | isTrue hac  =>
+--     match hasDecEq b d with
+--     | isTrue hbd  => isTrue (Eq.subst hac (Eq.subst hbd rfl))
+--     | isFalse nbd => isFalse (λ h => sort.noConfusion h (λ _ hnb => absurd hnb nbd))
+--   | isFalse nac => isFalse (λ h => sort.noConfusion h (λ hac _ => absurd hac nac))
 
-instance : DecidableEq sort := sort.hasDecEq
+-- instance : DecidableEq sort := sort.hasDecEq
 
 protected def beq : sort → sort → Bool
 | smt_bool, smt_bool => true
