@@ -307,7 +307,8 @@ structure BlockVCGState :=
   -- Used for error reporting
 --(activeAllocaSet : RBTree LocalIdent (λ x y => x < y)) -- TODO use later
  -- ^ Set of allocation names that are active.
-
+(llvmIdentMap : RBMap llvm.ident (Sigma SMT.term) (fun x y => x < y))
+ -- ^ Mapping from llvm ident to their SMT equivalent.
 
 def BlockVCG := ReaderT BlockVCGContext (StateT BlockVCGState (ExceptT String IO))
 
@@ -328,6 +329,8 @@ instance : MonadExcept String BlockVCG :=
 instance : HasMonadLiftT IO BlockVCG :=
   inferInstanceAs (HasMonadLiftT IO (ReaderT BlockVCGContext (StateT BlockVCGState (ExceptT String IO))))
 
+
+def liftIO {a : Type} (m : IO a) : BlockVCG a := monadLift m
 
 end BlockVCG
 
