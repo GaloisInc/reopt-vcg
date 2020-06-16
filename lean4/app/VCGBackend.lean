@@ -13,6 +13,8 @@ namespace x86
 
 namespace vcg
 
+axiom I_am_really_sorry4 : ∀(P : Prop),  P 
+
 open mc_semantics
 open mc_semantics.type
 open SMT (sort term smtM command)
@@ -122,9 +124,6 @@ namespace Event
 
 end Event
 
-namespace Internal
-axiom I_am_really_sorry4 : ∀(P : Prop),  P 
-
 namespace bitvec
 
 def cong {n m : Nat} (pf : n = m) (x : bitvec n) : bitvec m :=
@@ -135,7 +134,7 @@ def split_list {n:Nat} (x : bitvec n) (w : Nat) : List (bitvec w) :=
   let idxs := (Nat.upto0_lt (n / w)).reverse;
   let ex1 : Nat -> bitvec w := fun ix =>
     (let b := ix * w; 
-     let pf : (b + w - 1) + 1 - b = w := I_am_really_sorry4 _;
+     let pf : (b + w - 1) + 1 - b = w := sorryAx _;
      let v : bitvec ((b + w - 1) + 1 - b) := SMT.extract (b + w - 1) b x;
      bitvec.cong pf v);
   List.map ex1 idxs
@@ -156,18 +155,18 @@ def concat_list {n : Nat} : forall (xs : List (bitvec n)), bitvec (n * xs.length
 def trunc {n : Nat} (m : Nat) (pf : m <= n) (x : bitvec n) : bitvec m :=
   if m = 0 
   then SMT.bvimm _ 0 -- FIXME: will probably cause issues
-  else (let pf' : (m - 1) + 1 - 0 = m := I_am_really_sorry4 _; 
+  else (let pf' : (m - 1) + 1 - 0 = m := sorryAx _; 
         bitvec.cong pf' (SMT.extract (m - 1) 0 x))
 
 def uresize (n m : Nat) (x : bitvec n) : bitvec m :=
   if H : n ≤ m 
-  then (let pf : n + (m - n) = m := I_am_really_sorry4 _; 
+  then (let pf : n + (m - n) = m := sorryAx _; 
        bitvec.cong pf (SMT.zero_extend (m - n) x))
   else bitvec.trunc m (Nat.leOfLt (Nat.gtOfNotLe H)) x
 
 def sresize (n m : Nat) (x : bitvec n) : bitvec m :=
   if H : n ≤ m 
-  then (let pf : n + (m - n) = m := I_am_really_sorry4 _; 
+  then (let pf : n + (m - n) = m := sorryAx _; 
        bitvec.cong pf (SMT.sign_extend (m - n) x))
   else bitvec.trunc m (Nat.leOfLt (Nat.gtOfNotLe H)) x
 
@@ -224,6 +223,7 @@ end bitvec
 
 -- end memory
 
+namespace Internal
 
 structure vcg_state :=
   (eventInfo  : Option MemoryAnn)

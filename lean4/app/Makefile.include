@@ -6,6 +6,7 @@ LOCALFILES := Annotations.lean\
  SMTParser.lean\
  Types.lean\
  VCGBackend.lean\
+ MCStdLib.lean\
  VCGBlock.lean
  
 LEANFILES += $(patsubst %,${HERE}/%,${LOCALFILES})
