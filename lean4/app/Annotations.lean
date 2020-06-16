@@ -341,91 +341,19 @@ def x86ArgGPRegs : List x86.reg64 :=
   x86.reg64.r9 ]
 
 
--- | A variable that may appear in a block precondition.
-inductive BlockVar
-| stackHigh : BlockVar
-  -- ^ Denotes the high address on the stack.
-  --
-  -- This is the address the return address is stored at, and
-  -- the curent frame.
-| initGPReg64 : x86.reg64 → BlockVar
-  -- ^ Denotes the value of a 64-bit general purpose register
-  -- at the start of the block execution.
-| fnStartGPReg64 : x86.reg64 → BlockVar
-  -- ^ Denotes the value of a general purpose when the function starts.
-  --
-  -- Note. We do not support all registers here, only the registers
-  -- in `calleeSavedGPRegs`
-| mcStack : (Expr BlockVar) → Nat → BlockVar
-  -- ^ @MCStack a w@ denotes @w@-bit value stored at the address @a@.
-  --
-  -- The width @w@ should be @8@, @16@, @32@, or @64@.
-  --
-  -- Our memory model only tracks the mc-only variables, so if the
-  -- address is not a stack-only variable, then the value just
-  -- means some arbitrary value.
-| llvmVar : String → BlockVar
-  -- ^ This denotes the value of an LLVM Phi variable when the
-  -- block starts.
 
-
-
-abbrev LLVMVarMap := RBMap llvm.ident SMT.sort (λ x y => x<y)
-
--- Was simply `fromExpr` in Haskell
-partial def BlockVar.fromSExpr
-(llvmMap : LLVMVarMap)
-: SExpr →
-Except String (BlockVar × SMT.sort)
-| SExp.list [SExp.atom (Atom.ident "mcstack"), sa, sw] => do
-  (a, tp) ← evalExpr BlockVar.fromSExpr sa;
-  unless (tp == SMT.sort.bv64) $ Except.error "Expected 64-bit address";
-  w ← match sw with
-      | SExp.list [SExp.atom (Atom.ident "_"),
-                   SExp.atom (Atom.ident "BitVec"),
-                   SExp.atom (Atom.nat w)] =>
-        if w == 8 || w == 16 || w == 32 || w == 64
-        then Except.ok w
-        else Except.error "mcstack could not interpret memory type."
-      | _ => Except.error "mcstack could not interpret memory type";
-  Except.ok (BlockVar.mcStack a w, SMT.sort.bitvec w)
-| SExp.list [SExp.atom (Atom.ident "fnstart"), regExpr] =>
-  match regExpr with
-  | SExp.atom (Atom.ident regName) =>
-    match x86.reg64.fromName regName with
-    | some r => Except.ok (BlockVar.fnStartGPReg64 r, SMT.sort.bv64)
-    | none => Except.error $ "could not interpret register name " ++ regName
-  | _ => throw $ "could not interpret register name " ++ regExpr.toString
-| SExp.list [SExp.atom (Atom.ident "llvm"), llvmExpr] =>
-  match llvmExpr with
-  | SExp.atom (Atom.ident llvmName) =>
-    match llvmMap.find? (llvm.ident.named llvmName) with
-    | some tp => Except.ok (BlockVar.llvmVar llvmName, tp)
-    | none => Except.error $ "Could not interpret llvm variable " ++ llvmExpr.toString
-                           ++ "\nKnown variables: " ++ llvmMap.keys.toString
-  | _ => Except.error $ "Could not interpret llvm variable " ++ llvmExpr.toString
-                      ++ "\nKnown variables: " ++ llvmMap.keys.toString
-| SExp.atom (Atom.ident "stack_high") =>
-  pure (BlockVar.stackHigh, SMT.sort.bv64)
-| SExp.atom (Atom.ident nm) =>
-  match x86.reg64.fromName nm with
-  | some r => pure (BlockVar.initGPReg64 r, SMT.sort.bv64)
-  | none => throw $ "Could not interpret identifier as a variable: " ++ nm
-| sexpr => throw $ "Could not interpret expression as a variable: " ++ sexpr.toString
-
-
-def parseExpr (llvmMap: LLVMVarMap) (js:Json) : Except String (Expr BlockVar) := do
+def parsePrecondition (llvmMap: LLVMTyEnv) (js:Json) : Except String (BlockExpr SMT.sort.smt_bool) := do
 rawStr ← match js.getStr? with
   | none => Except.error $ "Expected precondition to be a string but got: " ++ js.pretty ++ "."
   | some s => Except.ok s;
-Expr.fromString (BlockVar.fromSExpr llvmMap) rawStr
+BlockExpr.parseAs SMT.sort.smt_bool llvmMap rawStr
 
 
-def exprToJson : (Expr BlockVar) → Json :=
-λ _ => toJson "TODO: implement exprToJson"
+def blockExprToJson : ∀{tp:SMT.sort}, BlockExpr tp → Json :=
+λ _ _ => toJson "TODO: implement exprToJson"
 
-instance ExprBlockVarHasToJson : HasToJson (Expr BlockVar) :=
-⟨exprToJson⟩
+instance BlockExprHasToJson {tp:SMT.sort} : HasToJson (BlockExpr tp) :=
+⟨blockExprToJson⟩
 
 
 structure ReachableBlockAnn :=
@@ -437,7 +365,7 @@ structure ReachableBlockAnn :=
  -- ^ The top of x87 stack (empty = 7, full = 0)
 (dfFlag : Bool)
  -- ^ The value of the DF flag (default = false)
-(preconds : Array (Expr BlockVar))
+(preconds : Array (BlockExpr SMT.sort.smt_bool))
  -- ^ List of preconditions for block.
 (allocas : RBMap LocalIdent AllocaAnn (λ x y => x<y))
 -- ^ Maps identifiers to the allocation used to initialize them.
@@ -452,7 +380,7 @@ namespace ReachableBlockAnn
 -- Default values for various ReachableBlockAnn optional entries.
 def x87TopDefault : Nat := 7
 def dfFlagDefault : Bool := false
-def precondsDefault : Array (Expr BlockVar) := Array.empty
+def precondsDefault : Array (BlockExpr SMT.sort.smt_bool) := Array.empty
 def allocasArrayDefault : Array AllocaAnn := Array.empty
 def memoryEventsDefault : Array MCMemoryEvent := Array.empty
 
@@ -463,7 +391,7 @@ inductive BlockAnn
 | unreachable : BlockAnn
 
 
-def parseReachableBlockAnn (llvmMap: LLVMVarMap) (js:Json) : Except String ReachableBlockAnn := do
+def parseReachableBlockAnn (llvmMap: LLVMTyEnv) (js:Json) : Except String ReachableBlockAnn := do
 addr ← match js.getObjVal? "addr" with
   | Option.some rawJson => parseMCAddr rawJson
   | Option.none => throw $ "Expected a `addr` field with a machine code address in"
@@ -473,7 +401,7 @@ size ← parseObjValAsNat js "size";
 when (addrNat + size < addrNat) $ throw "Expected end of block computation to not overflow.";
 x87Top ← parseObjValAsNatD js "x87_top" ReachableBlockAnn.x87TopDefault;
 dfFlag ← parseObjValAsBoolD js "df_flag" ReachableBlockAnn.dfFlagDefault;
-preconds ← parseObjValAsArrWithD (parseExpr llvmMap) js "preconditions" ReachableBlockAnn.precondsDefault;
+preconds ← parseObjValAsArrWithD (parsePrecondition llvmMap) js "preconditions" ReachableBlockAnn.precondsDefault;
 allocas ← parseObjValAsArrWithD parseAllocaAnn js "allocas" ReachableBlockAnn.allocasArrayDefault;
 let allocaMap := RBMap.fromList (allocas.toList.map (λ a => (a.ident, a))) (λ x y => x<y);
 memoryEvents ← parseObjValAsArrWithD parseMCMemoryEvent js "mem_events" ReachableBlockAnn.memoryEventsDefault;
@@ -487,7 +415,7 @@ pure $ {startAddr := addr,
        }
 
 
-def parseBlockAnn (llvmMap: LLVMVarMap) (js:Json) : Except String BlockAnn := do
+def parseBlockAnn (llvmMap: LLVMTyEnv) (js:Json) : Except String BlockAnn := do
 isReachable ← parseObjValAsBoolD js "reachable" true;
 if isReachable
 then BlockAnn.reachable <$> parseReachableBlockAnn llvmMap js
