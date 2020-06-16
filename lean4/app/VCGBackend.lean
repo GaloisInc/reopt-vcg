@@ -9,7 +9,6 @@ import Main.Translate -- FIXME: this should be moved elsewhere
 
 import ReoptVCG.Annotations
 
-
 namespace x86
 
 namespace vcg
@@ -20,14 +19,111 @@ open SMT (sort term smtM command)
 
 open ReoptVCG (MemoryAnn)
 
-namespace Internal
-axiom I_am_really_sorry4 : ∀(P : Prop),  P 
-
 abbrev bitvec (n : Nat) := term (SMT.sort.bitvec n)
 def s_bool              := term SMT.sort.smt_bool
 
 def memaddr := bitvec 64
 def byte    := bitvec 8
+
+def machine_word := bitvec 64
+
+structure RegState : Type :=
+  (gpregs : Array machine_word) -- 16
+  (flags  : Array s_bool) -- 32
+  (ip     : machine_word)
+
+namespace RegState
+
+def get_gpreg  (s : RegState) (idx : Fin 16) : machine_word := 
+  -- FIXME
+  if h : 16 = s.gpregs.size
+  then Array.get s.gpregs (Eq.recOn h idx) else SMT.bvimm _ 0
+
+def update_gpreg (idx : Fin 16) (f : machine_word -> machine_word) (s : RegState) : RegState :=
+  -- FIXME
+  if h : 16 = s.gpregs.size 
+  then { s with gpregs := Array.set s.gpregs (Eq.recOn h idx) (f (get_gpreg s idx)) }
+  else s 
+
+def get_flag  (s : RegState) (idx : Fin 32) : s_bool := 
+  if h : 32 = s.flags.size
+  then Array.get s.flags (Eq.recOn h idx) else SMT.false
+
+def update_flag (idx : Fin 32) (f : s_bool -> s_bool) (s : RegState) : RegState :=
+  if h : 32 = s.flags.size
+  then { s with flags := Array.set s.flags (Eq.recOn h idx) (f (get_flag s idx)) }
+  else s 
+
+def print_regs (s : RegState) : String :=
+  let lines := List.zipWith (fun n (r : bitvec 64) => (n ++ ": " ++ toString (toSExpr r) ++ ", ")) reg.r64_names s.gpregs.toList;
+  String.join lines
+
+-- Constructs a new machine state where all the elements are fresh constants
+-- FIXME: could use sz = ns.length
+protected 
+def declare_const_aux {s : sort} (ns : List String) (sz : Nat) : smtM (Array (term s)) := do
+  let base := mkArray sz 0;
+  let f    := fun n (_ : Nat) => SMT.declare_fun (List.getD n ns "el") [] s;
+  Array.mapIdxM f base
+
+def declare_const : smtM RegState := do
+  gprs  <- RegState.declare_const_aux reg.r64_names 16;
+  flags <- RegState.declare_const_aux reg.flag_names 32;
+  ip    <- SMT.declare_fun "ip" [] (SMT.sort.bitvec 64);
+  pure { gpregs := gprs, flags := flags, ip := ip }
+
+end RegState
+
+-- This mirrors the Haskell prototype as far as possible, hence the slightly verbose names.
+inductive Event
+  | Command : SMT.command -> Event
+  | Warning : String -> Event
+    -- ^ We added a warning about an issue in the VCG
+  | MCOnlyStackReadEvent : memaddr -> forall (n : Nat), bitvec n -> Event
+    -- ^ `MCOnlyReadEvent a w v` indicates that we read `w` bytes
+    -- from `a`, and assign the value returned to `v`.  This only
+    -- appears in the binary code.
+  | JointStackReadEvent : memaddr -> forall (n : Nat), bitvec n -> ReoptVCG.LocalIdent -> Event
+    -- ^ `JointReadEvent a w v llvmAlloca` indicates that we read `w` bytes from `a`,
+    -- and assign the value returned to `v`.  This appears in the both the binary
+    -- and LLVM.  The alloca name refers to the LLVM allocation this is part of,
+    -- and otherwise this is a binary only read.
+  | NonStackReadEvent : memaddr -> forall (n : Nat), bitvec n -> Event
+    -- ^ `NonStackReadEvent a w v` indicates that we read `w` bytes
+    -- from `a`, and assign the value returned to `v`.  The address `a` should not
+    -- be in the stack.
+  | MCOnlyStackWriteEvent : memaddr -> forall (n : Nat), bitvec n -> Event
+    -- ^ `MCOnlyStackWriteEvent a tp v` indicates that we write the `w` byte value `v`  to `a`.
+    --
+    -- This has side effects, so we record the event.
+  | JointStackWriteEvent : memaddr -> forall (n : Nat), bitvec n -> ReoptVCG.LocalIdent -> Event 
+    -- ^ `JointStackWriteEvent a w v` indicates that we write the `w` byte value `v`  to `a`.
+    -- The write affects the alloca pointed to by Allocaname.
+    --
+    -- This has side effects, so we record the event.
+  | NonStackWriteEvent : memaddr -> forall (n : Nat), bitvec n -> Event
+    -- ^ `NonStackWriteEvent a w v` indicates that we write the `w` byte value `v`  to `a`.  The
+    -- address `a` should not be in the stack.
+    --
+    -- This has side effects, so we record the event.
+  | FetchAndExecuteEvent : RegState -> Event
+    -- ^ A fetch and execute
+
+namespace Event
+
+-- protected
+-- def repr : Event -> String
+--   | Command c   => toString (toSExpr c)
+--   | Warning w   => "Warning: "  ++ w
+--   | Read _ _    => "Read"
+--   | Write _ _ _ => "Write"
+
+-- instance : HasRepr Event := ⟨Event.repr⟩
+
+end Event
+
+namespace Internal
+axiom I_am_really_sorry4 : ∀(P : Prop),  P 
 
 namespace bitvec
 
@@ -128,121 +224,6 @@ end bitvec
 
 -- end memory
 
-def machine_word := bitvec 64
-
-structure machine_state : Type :=
-  (gpregs : Array machine_word) -- 16
-  (flags  : Array s_bool) -- 32
-  (ip     : machine_word)
-
-namespace machine_state
-
--- Constructs an empty machine state, with 0 where we need a value.
--- def empty : machine_state := 
---   { mem    := memory.empty
---   , gpregs := mkArray 16 0
---   , flags  := mkArray 32 false
---   , ip     := 0
---   }
-
-def get_gpreg  (s : machine_state) (idx : Fin 16) : machine_word := 
-  -- FIXME
-  if h : 16 = s.gpregs.size
-  then Array.get s.gpregs (Eq.recOn h idx) else SMT.bvimm _ 0
-
-def update_gpreg (idx : Fin 16) (f : machine_word -> machine_word) (s : machine_state) : machine_state :=
-  -- FIXME
-  if h : 16 = s.gpregs.size 
-  then { s with gpregs := Array.set s.gpregs (Eq.recOn h idx) (f (get_gpreg s idx)) }
-  else s 
-
-def get_flag  (s : machine_state) (idx : Fin 32) : s_bool := 
-  if h : 32 = s.flags.size
-  then Array.get s.flags (Eq.recOn h idx) else SMT.false
-
-def update_flag (idx : Fin 32) (f : s_bool -> s_bool) (s : machine_state) : machine_state :=
-  if h : 32 = s.flags.size
-  then { s with flags := Array.set s.flags (Eq.recOn h idx) (f (get_flag s idx)) }
-  else s 
-
--- def store_word {n : Nat} (s : machine_state) (stdlib : StdLib) (addr : machine_word) (b : bitvec (8 * n)) : machine_state :=
---   {s with mem := s.mem.store_word stdlib addr b }
-
--- def read_word (s : machine_state) (stdlib : StdLib) (addr : machine_word) (n : Nat) : bitvec (8 * n) :=
---   s.mem.read_word stdlib addr n 
-
-def print_regs (s : machine_state) : String :=
-  let lines := List.zipWith (fun n (r : bitvec 64) => (n ++ ": " ++ toString (toSExpr r) ++ ", ")) reg.r64_names s.gpregs.toList;
-  String.join lines
-
--- def print_set_flags (s : machine_state) : String :=
---   let lines := List.zipWith (fun n (r : Bool) => if r then n else "") reg.flag_names s.flags.toList;
---   "[" ++ String.intercalate ", " (List.filter (fun s => s.length > 0) lines) ++ "]"
-
-
--- Constructs a new machine state where all the elements are fresh constants
--- FIXME: could use sz = ns.length
-protected 
-def declare_const_aux {s : sort} (ns : List String) (sz : Nat) : smtM (Array (term s)) := do
-  let base := mkArray sz 0;
-  let f    := fun n (_ : Nat) => SMT.declare_fun (List.getD n ns "el") [] s;
-  Array.mapIdxM f base
-
-def declare_const : smtM machine_state := do
-  gprs  <- machine_state.declare_const_aux reg.r64_names 16;
-  flags <- machine_state.declare_const_aux reg.flag_names 32;
-  ip    <- SMT.declare_fun "ip" [] (SMT.sort.bitvec 64);
-  pure { gpregs := gprs, flags := flags, ip := ip }
-
-end machine_state
-
--- This mirrors the Haskell prototype as far as possible, hence the slightly verbose names.
-inductive Event
-  | Command : SMT.command -> Event
-  | Warning : String -> Event
-    -- ^ We added a warning about an issue in the VCG
-  | MCOnlyStackReadEvent : memaddr -> forall (n : Nat), bitvec n -> Event
-    -- ^ `MCOnlyReadEvent a w v` indicates that we read `w` bytes
-    -- from `a`, and assign the value returned to `v`.  This only
-    -- appears in the binary code.
-  | JointStackReadEvent : memaddr -> forall (n : Nat), bitvec n -> ReoptVCG.LocalIdent -> Event
-    -- ^ `JointReadEvent a w v llvmAlloca` indicates that we read `w` bytes from `a`,
-    -- and assign the value returned to `v`.  This appears in the both the binary
-    -- and LLVM.  The alloca name refers to the LLVM allocation this is part of,
-    -- and otherwise this is a binary only read.
-  | NonStackReadEvent : memaddr -> forall (n : Nat), bitvec n -> Event
-    -- ^ `NonStackReadEvent a w v` indicates that we read `w` bytes
-    -- from `a`, and assign the value returned to `v`.  The address `a` should not
-    -- be in the stack.
-  | MCOnlyStackWriteEvent : memaddr -> forall (n : Nat), bitvec n -> Event
-    -- ^ `MCOnlyStackWriteEvent a tp v` indicates that we write the `w` byte value `v`  to `a`.
-    --
-    -- This has side effects, so we record the event.
-  | JointStackWriteEvent : memaddr -> forall (n : Nat), bitvec n -> ReoptVCG.LocalIdent -> Event 
-    -- ^ `JointStackWriteEvent a w v` indicates that we write the `w` byte value `v`  to `a`.
-    -- The write affects the alloca pointed to by Allocaname.
-    --
-    -- This has side effects, so we record the event.
-  | NonStackWriteEvent : memaddr -> forall (n : Nat), bitvec n -> Event
-    -- ^ `NonStackWriteEvent a w v` indicates that we write the `w` byte value `v`  to `a`.  The
-    -- address `a` should not be in the stack.
-    --
-    -- This has side effects, so we record the event.
-  | FetchAndExecuteEvent : machine_state -> Event
-    -- ^ A fetch and execute
-
-namespace Event
-
--- protected
--- def repr : Event -> String
---   | Command c   => toString (toSExpr c)
---   | Warning w   => "Warning: "  ++ w
---   | Read _ _    => "Read"
---   | Write _ _ _ => "Write"
-
--- instance : HasRepr Event := ⟨Event.repr⟩
-
-end Event
 
 structure vcg_state :=
   (eventInfo  : Option MemoryAnn)
@@ -253,7 +234,7 @@ structure vcg_state :=
 
 -- Stacking like this makes it easier to derive MonadState
 def base_system_m := (StateT vcg_state (ExceptT String Id))
-def system_m := StateT machine_state base_system_m
+def system_m := StateT RegState base_system_m
 
 instance : Monad base_system_m :=
   inferInstanceAs (Monad (StateT vcg_state (ExceptT String Id)))
@@ -265,21 +246,21 @@ instance : MonadExcept String base_system_m :=
   inferInstanceAs (MonadExcept String (StateT vcg_state (ExceptT String Id)))
 
 instance system_m.Monad : Monad system_m :=
-  inferInstanceAs (Monad (StateT machine_state base_system_m))
+  inferInstanceAs (Monad (StateT RegState base_system_m))
 
-instance system_m.MonadState : MonadState machine_state system_m :=
-  inferInstanceAs (MonadState machine_state (StateT machine_state base_system_m))
+instance system_m.MonadState : MonadState RegState system_m :=
+  inferInstanceAs (MonadState RegState (StateT RegState base_system_m))
 
 instance system_m.MonadExcept : MonadExcept String system_m :=
-  inferInstanceAs (MonadExcept String (StateT machine_state base_system_m))
+  inferInstanceAs (MonadExcept String (StateT RegState base_system_m))
 
 instance : HasMonadLiftT base_system_m system_m :=
-  inferInstanceAs (HasMonadLiftT base_system_m (StateT machine_state base_system_m))
+  inferInstanceAs (HasMonadLiftT base_system_m (StateT RegState base_system_m))
 
 namespace system_m
 
-def run {a : Type} (m : system_m a) (os : vcg_state) (s : machine_state) 
-  : (Except String ((a × machine_state) × vcg_state)) := do
+def run {a : Type} (m : system_m a) (os : vcg_state) (s : RegState) 
+  : (Except String ((a × RegState) × vcg_state)) := do
   ((m.run s).run os).run
 
 def runsmtM {a : Type} (m : smtM a) : system_m a := do
@@ -340,11 +321,11 @@ def backend : Backend :=
   , store_word := fun n addr bv => system_m.store_word (8 * n) addr bv
   , read_word  := fun addr n => system_m.read_word (8 * n) addr 
                
-  , get_gpreg  := fun i => (fun s => machine_state.get_gpreg s i) <$> get
+  , get_gpreg  := fun i => (fun s => RegState.get_gpreg s i) <$> get
   , set_gpreg := fun i v => do s <- system_m.name_term (reg.r64_names.get? i.val) v;
-                               modify (machine_state.update_gpreg i (fun _ => s))
-  , get_flag  :=  fun i => (fun s => machine_state.get_flag s i) <$> get
-  , set_flag := fun i v => modify (machine_state.update_flag i (fun _ => v))
+                               modify (RegState.update_gpreg i (fun _ => s))
+  , get_flag  :=  fun i => (fun s => RegState.get_flag s i) <$> get
+  , set_flag := fun i v => modify (RegState.update_flag i (fun _ => v))
   
   , s_mux_bool := fun (b : s_bool) (x y : s_bool) => SMT.smt_ite b x y
   , s_mux_bv   := fun {n : Nat} (b : s_bool) (x y : bitvec n) => SMT.smt_ite b x y
@@ -409,7 +390,7 @@ def backend : Backend :=
    
   -- System operations
   , s_os_transition := pure ()
-  , s_get_ip        := (fun (s : machine_state) => s.ip) <$> get
+  , s_get_ip        := (fun (s : RegState) => s.ip) <$> get
   , s_set_ip        := fun x => modify (fun s => { s with ip := x })
   , s_read_cpuid    := pure ()
 
@@ -421,7 +402,7 @@ open Internal
 
 def instructionEvents ( evtMap : RBMap Nat MemoryAnn (fun x y => decide (x < y)) )
                       -- ^ Map from addresses to annotations of events on that address.
-                      ( s : machine_state )
+                      ( s : RegState )
                       -- ^ Initial values for registers
                       ( nextFresh : Nat)
                       -- ^ Next Local variable index

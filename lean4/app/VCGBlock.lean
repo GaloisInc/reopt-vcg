@@ -3,11 +3,13 @@ import LeanLLVM.AST
 import LeanLLVM.LLVMLib
 import SMTLIB.Syntax
 import ReoptVCG.Types
+import ReoptVCG.VCGBackend
 
 namespace ReoptVCG
 
 open llvm (llvm_type typed prim_type value)
 open SMT (smtM)
+open SMT.sort (smt_bool)
 
 namespace BlockVCG
 
@@ -24,19 +26,34 @@ def runsmtM {a : Type} (m : smtM a) : BlockVCG a := do
   _ <- List.mapM addCommand cmds;
   pure r
 
+-- | Add assertion that the propositon is true without requiring it to be proven.
+def addAssert (p : SMT.term smt_bool) : BlockVCG Unit := 
+  addCommand $ SMT.Raw.command.assert p -- FIXME
+
+-- | @proveTrue p msg@ adds a proof obligation @p@ is true for all
+-- interpretations of constants with the message @msg@.
+def proveTrue (p : SMT.term smt_bool) (msg : String) : BlockVCG Unit := do
+  -- annMsg <- prependLocation msg
+  prover <- (fun (s : BlockVCGContext) => s.callbackFns) <$> read;
+  liftIO $ prover.proveTrueCallback p msg;
+  -- Add command for future proofs
+  addAssert p
+
+-- | @proveEq x y msg@ add a proof obligation named @msg@ asserting
+-- that @x@ equals @y@.
+def proveEq {s : SMT.sort} (x y : SMT.term s) (msg : String) : BlockVCG Unit := do
+  prover <- (fun (s : BlockVCGContext) => s.callbackFns) <$> read;
+  --  annMsg <- prependLocation msg
+  liftIO $ prover.proveTrueCallback (SMT.eq x y) msg; -- FIXME: was proveFalseCallback/SMT.distinct
+  -- Add command for future proofs
+  addAssert (SMT.eq x y)
+
 end BlockVCG
 
-def llvmReturn (mlret : Option (typed value)) : BlockVCG Unit := throw "Not done yet"
+export BlockVCG (addCommand proveTrue proveEq addAssert)
 
--- -- | Convert LLVM type to SMT sort.
--- def asSMTSort : llvm_type -> Option SMT.sort
--- | llvm.llvm_type.ptr_to _  => some (SMT.sort.bitvec 64)
--- | llvm.llvm_type.prim_type (llvm.prim_type.integer i) =>
---   if i > 0 then some (SMT.sort.bitvec i) else none
--- | _ => none
-
--- structure HasSMTSort (tp : llvm_type) : Prop :=
---    (get : Exists (fun s => asSMTSort tp = some s))
+--------------------------------------------------------------------------------
+-- Type <-> SMT
 
 @[reducible]
 def HasSMTSort : llvm_type -> Prop
@@ -56,17 +73,6 @@ namespace HasSMTSort
 
 open llvm.llvm_type
 open llvm.prim_type
-
--- instance {tp} : Decidable (HasSMTSort tp) :=
---   let v := asSMTSort tp;
---   let contr : v = none -> HasSMTSort tp -> False :=
---     (let nc : forall x, none = some x -> False := fun x h => Option.noConfusion h;
---      fun v_none has => has.casesOn (fun s v_some => nc s (Eq.trans (Eq.symm v_none) v_some)));
-  
---   let pf := @Option.casesOn _ (fun x => v = x -> Decidable (HasSMTSort tp)) v
---                               (fun v_none   => isFalse (contr v_none))
---                               (fun x v_some => isTrue (HasSMTSort.intro x v_some));
---   pf rfl
 
 protected 
 def dec : forall (tp : llvm_type), Decidable (HasSMTSort tp)
@@ -98,6 +104,9 @@ def coerceToSMTSort (ty : llvm_type) : BlockVCG SMT.sort :=
   | some tp => pure tp
   | none    => throw ("Unexpected type ")
 
+--------------------------------------------------------------------------------
+-- Ident <-> SMT
+
 def lookupIdent (i : llvm.ident) (s : SMT.sort) : BlockVCG (SMT.term s) := do
   m <- (fun (s : BlockVCGState) => s.llvmIdentMap) <$> get;
   match m.find? i with
@@ -116,10 +125,125 @@ def defineTerm {s : SMT.sort} (i : llvm.ident) (tm : SMT.term s) : BlockVCG (SMT
   modify (fun s => {s with llvmIdentMap := s.llvmIdentMap.insert i (Sigma.mk _ sym)});
   pure sym
 
--- FIXME: ugh
+
+
+--------------------------------------------------------------------------------
+-- MC Events
+
+section
+
+open x86.vcg (Event)
+
+-- -- | Execute the machine-code only events that occur before jumping to the given address
+-- partial
+-- def execMCOnlyEvents : MemAddr -> BlockVCG Unit := fun endAddr => do
+--   evts <- (fun (s : BlockVCGState) => s.mcEvents) <$> get;
+--   match evts with
+--   | Event.Command cmd :: mevs => do
+--       addCommand cmd;
+--       modify (fun s => {w with mcEvents := mevs });
+--       execMCOnlyEvents endAddr
+--   | Event.Warning msg :: mevs -> do
+--       liftIO $ IO.println msg
+--       modify (fun s => {w with mcEvents := mevs });
+--       execMCOnlyEvents endAddr
+--   | Event.MCOnlyStackReadEvent mcAddr tp smtValVar :: mevs -> do
+--       -- TODO: Fix this to the following
+
+--       -- A MCOnlyStack read means the machine code reads memory, but
+--       -- the llvm does not.
+--       --
+--       -- We currently check that these reads only access the stack as
+--       -- the only current use of these annotations is to mark register
+--       -- spills, return address read/writes, and frame pointer/callee saved
+--       -- register saves/restores.
+--       --
+--       -- Checking this is on the stack also ensures there are no side effects
+--       -- from mem-mapped IO reads since the stack should not be mem-mapped IO.
+--       do thisIP <- (fun (s : BlovkVCGState) => s.mcCurAddr) <$> get;
+--          proveTrue (evalRangeCheck onStack mcAddr (memReprBytes tp)) $
+--            printf "Machine code read at %s is not within stack space." (show thisIP)
+--       -- Define value from reading Macaw heap
+--       supType <- getSupportedType tp
+--       defineVarFromReadMCMem macawValVar mcAddr supType
+--       -- Process future events.
+--       modify $ \s -> s { mcEvents = mevs }
+--       execMCOnlyEvents endAddr
+--     -- Every LLVM write should have a machine code write (but not
+--     -- necessarily vice versa), we pattern match on machine code
+--     -- writes.
+--     M.MCOnlyStackWriteEvent mcAddr tp macawVal:mevs -> do
+--       -- We need to assert that this write will not be visible to LLVM.
+--       do addr <- gets mcCurAddr
+--          proveTrue (evalRangeCheck mcOnlyStackRange mcAddr (memReprBytes tp)) $
+--            printf "Machine code write at %s is in unreserved stack space." (show addr)
+--       -- Update stack with write.
+--       mcWrite mcAddr tp macawVal
+--       -- Process next events
+--       modify $ \s -> s { mcEvents = mevs }
+--       execMCOnlyEvents endAddr
+--     -- This checks to see if the next instruction jumps to the next ip,
+--     -- and if so it runs it.
+--     (M.FetchAndExecuteEvent ectx regs:r) -> do
+--       when (not (null r)) $ do
+--         error "MC event after fetch and execute"
+--       modify $ \s -> s { mcEvents = [] }
+--       -- Update registers
+--       setMCRegs ectx regs
+--       -- Process next events
+--       nextAddr <- gets mcNextAddr
+--       case valueAsMemAddr (regs^.boundValue X86_IP) of
+--         Just ipAddr | ipAddr == nextAddr && addrLt nextAddr endAddr -> do
+--                         getNextEvents
+--                         execMCOnlyEvents endAddr
+--         _ -> do
+--           pure ()
+--     [] -> do
+--       nextAddr <- gets mcNextAddr
+--       when (addrLt nextAddr endAddr) $ do
+--         getNextEvents
+--         execMCOnlyEvents endAddr
+--     _:_ -> do
+--       pure ()
+
+-- -- | Get the next MC event that could interact with LLVM.
+-- popMCEvent :: HasCallStack => BlockVCG M.Event
+-- popMCEvent = do
+--   endAddr <- asks mcBlockEndAddr
+--   execMCOnlyEvents endAddr
+--   evts <- gets mcEvents
+--   case evts of
+--     [] -> do
+--       error "Reached end of block"
+--     (h:r) -> do
+--       modify $ \s -> s { mcEvents = r }
+--       pure h
+
+end
+
+
+-- -- | Move to end of current block.
+-- def mcExecuteToEnd : BlockVCG Unit := do
+--   endAddr <- (fun (s : BlockVCGContext) => s.mcBlockEndAddr) <$> read;
+--   execMCOnlyEvents endAddr
+--   evts <- gets mcEvents
+--   case evts of
+--     [] -> do
+--       pure ()
+--     (h:_) -> do
+--       error $ "Expecting end of block instead of " ++ show h
+
+--------------------------------------------------------------------------------
+-- Literal constructors
+
 def mkInt {w : Nat} (v : Int) (H : w > 0)
   : SMT.term (asSMTSort (llvm.llvm_type.prim_type (llvm.prim_type.integer w)) H) :=
   SMT.bvimm' w v
+
+def llvmReturn (mlret : Option (typed value)) : BlockVCG Unit := throw "unimplemented"
+  
+--------------------------------------------------------------------------------
+-- Arithmetic
 
 section
 open llvm.value
@@ -138,22 +262,10 @@ def primEval : forall (tp : llvm_type) (H :HasSMTSort tp), value -> BlockVCG (SM
 | llvm.llvm_type.prim_type (llvm.prim_type.integer w), H, integer i => pure (mkInt i H)
 | _, _, _ => throw "unimplemented"
 
--- -- Loses connection with tp, but is probably easier to use.
--- def primEval' (tp : llvm_type) (v : value) : BlockVCG (Sigma SMT.term) := do
---   r <- primEval tp v;
---   @OptionF.casesOn _ _ (fun o_v o_f => BlockVCG (Sigma SMT.term)) _
---                     r (throw ("Couldn't convert a type to SMT ") : BlockVCG (Sigma SMT.term))
---                       (fun v f_v => (pure (Sigma.mk v f_v)       : BlockVCG (Sigma SMT.term)))
---   -- match r with
---   -- | OptionF.someF x => pure (Sigma.mk _ x)
---   -- | OptionF.noneF   => throw ("Couldn't convert a type to SMT ")
-
 end
 
 section
 open llvm.instruction
-
--- def defineTerm {s : SMT.sort) : llvm.ident -> SMT.term s -> BlockVCG Unit :=
   
 def stepNextStmt (stmt : llvm.stmt) : BlockVCG Bool := do
   match stmt.instr with
@@ -170,7 +282,7 @@ def stepNextStmt (stmt : llvm.stmt) : BlockVCG Bool := do
       pure True
     else throw "Unexpected type"
   | _ => throw "unimplemented" 
-
+  
 
 --   | bit : bit_op -> typed value -> value -> instruction
 --   | conv : conv_op -> typed value -> llvm_type -> instruction

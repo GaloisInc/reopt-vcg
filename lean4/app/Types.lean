@@ -3,6 +3,7 @@ import LeanLLVM.AST
 import LeanLLVM.PP
 import Main.Elf
 import ReoptVCG.Annotations
+import ReoptVCG.VCGBackend
 import SMTLIB.Syntax
 import DecodeX86.DecodeX86
 
@@ -291,11 +292,11 @@ structure BlockVCGState :=
   -- ^ Top index in x86 stack (starts at 7 and grows down).
 (mcDF : Bool)
   -- ^ Direction flag
-(mcCurRegs : Unit) -- FIXME(sjw) machine_state
+(mcCurRegs : x86.vcg.RegState)
   -- ^ Map registers to the SMT term.
 (mcMemIndex : Nat)
   -- ^ Index of last defined memory object.
-(mcEvents : List Unit) -- FIXME Unit => Event
+(mcEvents : List x86.vcg.Event)
   -- ^ Unprocessed events from last instruction.
 (mcLocalIndex : Nat)
   -- ^ Index of next local variable for machine code.
