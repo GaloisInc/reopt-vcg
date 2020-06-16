@@ -67,7 +67,7 @@ structure ProverInterface :=
 (addCommandCallback : command → IO Unit)
 (proveFalseCallback : term const_sort.smt_bool → String → IO Unit)
 (proveTrueCallback  : term const_sort.smt_bool → String → IO Unit)
-(blockErrorCallback : Int → Nat → String → IO Unit)
+(blockErrorCallback : Int → Nat → String → IO Unit) -- what do we do there? Do nothing for now...?
 
 structure ProverSessionGenerator :=
 (blockCallback : FnName → llvm.block_label → (ProverInterface → IO Unit) → IO Unit)
