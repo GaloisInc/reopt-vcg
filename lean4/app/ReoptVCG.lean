@@ -110,15 +110,16 @@ let parseLLVMVar : (llvm.ident × llvm_type × BlockLabelValMap) → ModuleVCG (
     match llvmTypeToSort tp with
     | Option.some s => pure (nm, s)
     | Option.none   => blockError fnm lbl $ BlockError.unsupportedPhiVarType nm tp);
-llvmVarMap ← llvmIdentRBMap <$> phiVarList.mapM parseLLVMVar;
+varTypes ← phiVarList.mapM parseLLVMVar;
+let llvmTyEnv := RBMap.ltMap varTypes;
 blockJson ← match blockMap.find? lbl.label with
   | Option.some json => pure json
   | Option.none => blockError fnm lbl BlockError.missingAnnotations;
-match parseBlockAnn llvmVarMap blockJson with
+match parseBlockAnn llvmTyEnv blockJson with
 | Except.error errMsg => 
   blockError fnm lbl $ BlockError.annParseFailure errMsg
 | Except.ok ann => do
-  let phiMap := RBMap.empty;
+  let phiMap := RBMap.ltMap phiVarList;
   pure $ {annotation := ann,
           label := lbl,
           phiVarMap := phiMap,

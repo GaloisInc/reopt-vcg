@@ -248,7 +248,7 @@ def BlockLabelValMap := RBMap llvm.block_label llvm.value (λ x y => x < y)
 structure AnnotatedBlock :=
 (annotation: BlockAnn)
 (label : llvm.block_label)
-(phiVarMap : RBMap llvm.ident (SMT.sort × BlockLabelValMap) (λ x y => x<y))
+(phiVarMap : RBMap llvm.ident (llvm.llvm_type × BlockLabelValMap) (λ x y => x<y))
 (stmts : List llvm.stmt)
 
 

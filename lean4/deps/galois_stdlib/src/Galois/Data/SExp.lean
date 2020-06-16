@@ -40,8 +40,6 @@ Except.error $ "Failed to parse s-expression: " ++ specific ++ "."
 
 private def revStr (c:Char) (cs:List Char) : String := (c::cs).reverse.asString
 
-private def isDelim (c:Char) : Bool := c.isWhitespace || c == '(' || c == ')'
-
 
 def readAux {α : Type u} (parseAtom : String → Except String α) :
 List Char →
