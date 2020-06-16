@@ -1,3 +1,5 @@
+import Galois.Data.RBMap
+import Galois.Data.SExp
 import Galois.Init.Json
 import Galois.Init.Nat
 import Init.Data.UInt
@@ -8,13 +10,23 @@ import Init.Lean.Data.Json.FromToJson
 import Init.Data.RBMap
 import LeanLLVM.AST
 import Main.Elf
+import ReoptVCG.SMTParser
 import SMTLIB.Syntax
+import X86Semantics.Common
+
+namespace llvm
+namespace ident
+instance : HasToString ident := ⟨ident.asString⟩
+end ident
+end llvm
 
 namespace ReoptVCG
 
 open elf.elf_class (ELF64)
 open Lean (Json HasFromJson HasToJson Array.hasFromJson List.hasToJson Nat.hasToJson Json.arr)
 open Lean.Json
+open WellFormedSExp
+
 
 structure FunctionAnn :=
 (llvmFunName : String)
@@ -97,6 +109,22 @@ instance ModuleAnnotations.hasToJson : HasToJson ModuleAnnotations :=
 
 /-- A local LLVM identifier --/
 structure LocalIdent := (name : String)
+
+namespace LocalIdent
+
+def lt : forall (x y : LocalIdent), Prop
+  | { name := x }, {name := y } => x < y
+
+instance : HasLess LocalIdent := ⟨lt⟩
+
+instance decLt : ∀(x y:LocalIdent), Decidable (x < y)
+| { name := x }, { name := y } =>
+  (match String.decLt x y with
+   | Decidable.isTrue  p => Decidable.isTrue p
+   | Decidable.isFalse p => Decidable.isFalse p
+   )
+
+end LocalIdent
 
 def parseLocalIdent (js : Json) : Except String LocalIdent :=
 match js.getStr? with
@@ -198,8 +226,18 @@ inductive MemoryAnn
 -- ^ There is an access to heap memory.
 
 
-def parseMemoryAnn (js:Json) : Except String MemoryAnn :=
-Except.error "TODO: implement parseMemoryAnn"
+def parseMemoryAnn (js:Json) : Except String MemoryAnn := do
+tp ← parseObjValAsString js "type";
+match tp with
+| "binary_only_access" => pure MemoryAnn.binaryOnlyAccess
+| "joint_stack_access" => match js.getObjVal? "alloca" with
+  | Option.some rawAllocaJson => do
+    lIdent ← parseLocalIdent rawAllocaJson;
+    pure $ MemoryAnn.jointStackAccess lIdent
+  | Option.none =>
+    throw $ "Expected a local ident in the `alloca` field of a `joint_stack_access` memory annotation"
+| "heap_access" => pure MemoryAnn.heapAccess
+| _ => throw $ "Unexpected memory annotation type type: " ++ js.pretty
 
 
 def renderMemoryAnn (ann:MemoryAnn) : List (String × Json) :=
@@ -281,8 +319,113 @@ instance MCMemoryEvent.hasFromJson : HasFromJson MCMemoryEvent :=
 instance MCMemoryEvent.hasToJson : HasToJson MCMemoryEvent :=
 ⟨MCMemoryEvent.toJson⟩
 
+------------------------------------------------------------------------
+-- BlockVar
 
-abbrev Precondition := Nat
+/-- Callee saved registers. --/
+def x86CalleeSavedGPRegs : List x86.reg64 :=
+[ x86.reg64.rbp,
+  x86.reg64.rbx,
+  x86.reg64.r12,
+  x86.reg64.r13,
+  x86.reg64.r14,
+  x86.reg64.r15 ]
+
+/-- General purpose registers that may be used to pass arguments. --/
+def x86ArgGPRegs : List x86.reg64 :=
+[ x86.reg64.rdi,
+  x86.reg64.rsi,
+  x86.reg64.rdx,
+  x86.reg64.rcx,
+  x86.reg64.r8,
+  x86.reg64.r9 ]
+
+
+-- | A variable that may appear in a block precondition.
+inductive BlockVar
+| stackHigh : BlockVar
+  -- ^ Denotes the high address on the stack.
+  --
+  -- This is the address the return address is stored at, and
+  -- the curent frame.
+| initGPReg64 : x86.reg64 → BlockVar
+  -- ^ Denotes the value of a 64-bit general purpose register
+  -- at the start of the block execution.
+| fnStartGPReg64 : x86.reg64 → BlockVar
+  -- ^ Denotes the value of a general purpose when the function starts.
+  --
+  -- Note. We do not support all registers here, only the registers
+  -- in `calleeSavedGPRegs`
+| mcStack : (Expr BlockVar) → Nat → BlockVar
+  -- ^ @MCStack a w@ denotes @w@-bit value stored at the address @a@.
+  --
+  -- The width @w@ should be @8@, @16@, @32@, or @64@.
+  --
+  -- Our memory model only tracks the mc-only variables, so if the
+  -- address is not a stack-only variable, then the value just
+  -- means some arbitrary value.
+| llvmVar : String → BlockVar
+  -- ^ This denotes the value of an LLVM Phi variable when the
+  -- block starts.
+
+
+
+abbrev LLVMVarMap := RBMap llvm.ident SMT.sort (λ x y => x<y)
+
+-- Was simply `fromExpr` in Haskell
+partial def BlockVar.fromSExpr
+(llvmMap : LLVMVarMap)
+: SExpr →
+Except String (BlockVar × SMT.sort)
+| SExp.list [SExp.atom (Atom.ident "mcstack"), sa, sw] => do
+  (a, tp) ← evalExpr BlockVar.fromSExpr sa;
+  unless (tp == SMT.sort.bv64) $ Except.error "Expected 64-bit address";
+  w ← match sw with
+      | SExp.list [SExp.atom (Atom.ident "_"),
+                   SExp.atom (Atom.ident "BitVec"),
+                   SExp.atom (Atom.nat w)] =>
+        if w == 8 || w == 16 || w == 32 || w == 64
+        then Except.ok w
+        else Except.error "mcstack could not interpret memory type."
+      | _ => Except.error "mcstack could not interpret memory type";
+  Except.ok (BlockVar.mcStack a w, SMT.sort.bitvec w)
+| SExp.list [SExp.atom (Atom.ident "fnstart"), regExpr] =>
+  match regExpr with
+  | SExp.atom (Atom.ident regName) =>
+    match x86.reg64.fromName regName with
+    | some r => Except.ok (BlockVar.fnStartGPReg64 r, SMT.sort.bv64)
+    | none => Except.error $ "could not interpret register name " ++ regName
+  | _ => throw $ "could not interpret register name " ++ regExpr.toString
+| SExp.list [SExp.atom (Atom.ident "llvm"), llvmExpr] =>
+  match llvmExpr with
+  | SExp.atom (Atom.ident llvmName) =>
+    match llvmMap.find? (llvm.ident.named llvmName) with
+    | some tp => Except.ok (BlockVar.llvmVar llvmName, tp)
+    | none => Except.error $ "Could not interpret llvm variable " ++ llvmExpr.toString
+                           ++ "\nKnown variables: " ++ llvmMap.keys.toString
+  | _ => Except.error $ "Could not interpret llvm variable " ++ llvmExpr.toString
+                      ++ "\nKnown variables: " ++ llvmMap.keys.toString
+| SExp.atom (Atom.ident "stack_high") =>
+  pure (BlockVar.stackHigh, SMT.sort.bv64)
+| SExp.atom (Atom.ident nm) =>
+  match x86.reg64.fromName nm with
+  | some r => pure (BlockVar.initGPReg64 r, SMT.sort.bv64)
+  | none => throw $ "Could not interpret identifier as a variable: " ++ nm
+| sexpr => throw $ "Could not interpret expression as a variable: " ++ sexpr.toString
+
+
+def parseExpr (llvmMap: LLVMVarMap) (js:Json) : Except String (Expr BlockVar) := do
+rawStr ← match js.getStr? with
+  | none => Except.error $ "Expected precondition to be a string but got: " ++ js.pretty ++ "."
+  | some s => Except.ok s;
+Expr.fromString (BlockVar.fromSExpr llvmMap) rawStr
+
+
+def exprToJson : (Expr BlockVar) → Json :=
+λ _ => toJson "TODO: implement exprToJson"
+
+instance ExprBlockVarHasToJson : HasToJson (Expr BlockVar) :=
+⟨exprToJson⟩
 
 
 structure ReachableBlockAnn :=
@@ -294,14 +437,14 @@ structure ReachableBlockAnn :=
  -- ^ The top of x87 stack (empty = 7, full = 0)
 (dfFlag : Bool)
  -- ^ The value of the DF flag (default = false)
-(preconds : List Precondition)
+(preconds : Array (Expr BlockVar))
  -- ^ List of preconditions for block.
-(allocas : RBMap String AllocaAnn Lean.strLt)
+(allocas : RBMap LocalIdent AllocaAnn (λ x y => x<y))
 -- ^ Maps identifiers to the allocation used to initialize them.
 --
 -- The same allocations should be used across the function, but
 -- some block may not have been initialized.
-(memoryEvents : List MCMemoryEvent)
+(memoryEvents : Array MCMemoryEvent)
 -- ^ Annotates events within the block.
 
 namespace ReachableBlockAnn
@@ -309,11 +452,9 @@ namespace ReachableBlockAnn
 -- Default values for various ReachableBlockAnn optional entries.
 def x87TopDefault : Nat := 7
 def dfFlagDefault : Bool := false
-def rawPrecondsDefault : Array Json := Array.empty
-def precondsDefault : List Precondition := []
-def rawAllocasDefault : Array Json := Array.empty
-def allocasDefault : RBMap String AllocaAnn Lean.strLt := RBMap.empty
-def memoryEventsDefault : List MCMemoryEvent := []
+def precondsDefault : Array (Expr BlockVar) := Array.empty
+def allocasArrayDefault : Array AllocaAnn := Array.empty
+def memoryEventsDefault : Array MCMemoryEvent := Array.empty
 
 end ReachableBlockAnn
 
@@ -321,13 +462,6 @@ inductive BlockAnn
 | reachable : ReachableBlockAnn → BlockAnn
 | unreachable : BlockAnn
 
-
-abbrev LLVMVarMap := RBMap llvm.ident SMT.sort (λ x y => x<y)
-
--- abbrev Precondition := SMT.term SMT.sort.smt_bool
-
-def parsePrecondition (llvmMap: LLVMVarMap) (js:Json) : Except String Precondition :=
-Except.error "TODO"
 
 def parseReachableBlockAnn (llvmMap: LLVMVarMap) (js:Json) : Except String ReachableBlockAnn := do
 addr ← match js.getObjVal? "addr" with
@@ -339,13 +473,18 @@ size ← parseObjValAsNat js "size";
 when (addrNat + size < addrNat) $ throw "Expected end of block computation to not overflow.";
 x87Top ← parseObjValAsNatD js "x87_top" ReachableBlockAnn.x87TopDefault;
 dfFlag ← parseObjValAsBoolD js "df_flag" ReachableBlockAnn.dfFlagDefault;
-rawPreconds ← parseObjValAsArrD js "preconditions" ReachableBlockAnn.rawPrecondsDefault;
-preconds ← rawPreconds.toList.mapM (parsePrecondition llvmMap);
-rawAllocas ← parseObjValAsArrD js "allocas" ReachableBlockAnn.rawAllocasDefault;
-allocas ← rawAllocas.toList.mapM parseAllocaAnn;
--- BOOKMARK
-throw "TODO: parseReachableBlockAnn"
--- Nat.fromHexString
+preconds ← parseObjValAsArrWithD (parseExpr llvmMap) js "preconditions" ReachableBlockAnn.precondsDefault;
+allocas ← parseObjValAsArrWithD parseAllocaAnn js "allocas" ReachableBlockAnn.allocasArrayDefault;
+let allocaMap := RBMap.fromList (allocas.toList.map (λ a => (a.ident, a))) (λ x y => x<y);
+memoryEvents ← parseObjValAsArrWithD parseMCMemoryEvent js "mem_events" ReachableBlockAnn.memoryEventsDefault;
+pure $ {startAddr := addr,
+        codeSize := size,
+        x87Top := x87Top,
+        dfFlag := dfFlag,
+        preconds := preconds,
+        allocas := allocaMap,
+        memoryEvents := memoryEvents
+       }
 
 
 def parseBlockAnn (llvmMap: LLVMVarMap) (js:Json) : Except String BlockAnn := do
@@ -367,9 +506,9 @@ def BlockAnn.toJson (block_label:String) : BlockAnn → Json
             ("size", toJson ann.codeSize),
             ("x87_top", toJson ann.x87Top),
             ("df_flag", toJson ann.dfFlag),
-            ("preconditions", arr (ann.preconds.map toJson).toArray),
+            ("preconditions", arr (ann.preconds.map toJson)),
             ("allocas", arr $ (ann.allocas.revFold (λ as _ a => (toJson a)::as) []).toArray),
-            ("mem_events", arr $ (ann.memoryEvents.map toJson).toArray)
+            ("mem_events", arr $ (ann.memoryEvents.map toJson))
            ]
            Lean.strLt
 

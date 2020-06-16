@@ -3,6 +3,8 @@ HERE := $(abspath $(dir $(realpath $(lastword $(MAKEFILE_LIST)))))
 LOCALFILES := src/Galois/Data/Array.lean\
   src/Galois/Data/Bitvec.lean\
   src/Galois/Data/ByteArray.lean\
+  src/Galois/Data/RBMap.lean\
+  src/Galois/Data/SExp.lean\
   src/Galois/Init/Int.lean\
   src/Galois/Init/Io.lean\
   src/Galois/Init/Nat.lean\

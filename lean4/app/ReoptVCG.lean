@@ -47,25 +47,6 @@ match m.find? fnm with
 | Option.some expectedAddr => pure $ MCAddr.mk expectedAddr
 
 
-/-- Callee saved registers. --/
-def x86CalleeSavedGPRegs : List x86.Reg64 :=
-[ x86.Reg64.rbp,
-  x86.Reg64.rbx,
-  x86.Reg64.r12,
-  x86.Reg64.r13,
-  x86.Reg64.r14,
-  x86.Reg64.r15 ]
-
-/-- General purpose registers that may be used to pass arguments. --/
-def x86ArgGPRegs : List x86.Reg64 :=
-[ x86.Reg64.rdi,
-  x86.Reg64.rsi,
-  x86.Reg64.rdx,
-  x86.Reg64.rcx,
-  x86.Reg64.r8,
-  x86.Reg64.r9 ]
-
-
 def llvmTypeToSort : llvm_type → Option SMT.sort
 | llvm_type.prim_type (prim_type.integer lw) =>
   Option.some $ SMT.sort.bitvec lw
@@ -77,7 +58,7 @@ def llvmTypeToSort : llvm_type → Option SMT.sort
 structure LLVMMCArgBinding :=
 (llvmArgName : llvm.ident)
 (smtSort: SMT.sort)
-(register: x86.Reg64)
+(register: x86.reg64)
 
 
 
@@ -155,7 +136,7 @@ def parseLLVMArgs
 (fnm:FnName) : -- ^ Name of function for error purposes.
 List LLVMMCArgBinding → -- ^ Accumulator for parsed arguments.
 List (llvm.typed llvm.ident) → -- ^ Arguments to be parsed.
-List x86.Reg64 →  -- ^ Remaining registers available for arguments.
+List x86.reg64 →  -- ^ Remaining registers available for arguments.
 ModuleVCG (List LLVMMCArgBinding)
 | revArgs, [], _ => pure revArgs.reverse
 | revBinds, (⟨llvm_type.prim_type (prim_type.integer 64), nm⟩::restArgs), regs =>
@@ -163,7 +144,7 @@ ModuleVCG (List LLVMMCArgBinding)
   | [] => functionError fnm $ FnError.custom $ 
           "Maximum of "++(x86ArgGPRegs.length.repr)++" i64 arguments supported"
   | (reg::restRegs) =>
-    let binding := LLVMMCArgBinding.mk nm (SMT.sort.bitvec 64) reg;
+    let binding := LLVMMCArgBinding.mk nm (SMT.sort.bv64) reg;
     parseLLVMArgs (binding::revBinds) restArgs restRegs
 | _, (⟨tp, nm⟩::restArgs), _ =>
   functionError fnm $ FnError.argTypeUnsupported nm tp

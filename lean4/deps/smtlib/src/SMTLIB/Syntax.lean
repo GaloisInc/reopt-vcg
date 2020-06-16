@@ -48,6 +48,19 @@ inductive sort : Type
 
 namespace sort
 
+def bv8  := bitvec 8
+def bv16 := bitvec 16
+def bv32 := bitvec 32
+def bv64 := bitvec 64
+
+protected def beq : sort → sort → Bool
+| smt_bool, smt_bool => true
+| bitvec n, bitvec m => n == m
+| array a b, array c d => beq a c && beq b d
+| _, _ => false
+
+instance : HasBeq sort := ⟨sort.beq⟩
+
 protected
 def to_sexpr : sort -> SExpr
 | smt_bool => atom "Bool"
