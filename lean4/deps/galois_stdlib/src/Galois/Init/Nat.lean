@@ -104,10 +104,7 @@ private def fromHexStringAux : Nat → List Char → Option Nat
 
 protected def fromHexString (str:String) : Option Nat :=
 if str.take 2 == "0x" && str.length > 2
-then 
-  let rst := str.drop 2;
-  fromHexStringAux 0 str.toList
-else
-  Option.none
+then fromHexStringAux 0 (str.drop 2).toList
+else Option.none
 
 end Nat

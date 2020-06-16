@@ -1,5 +1,6 @@
 HERE := $(realpath $(dir $(realpath $(lastword $(MAKEFILE_LIST)))))
-LOCALFILES := JsonRoundtrip.lean\
+LOCALFILES := AnnotationParsing.lean\
+ JsonRoundtrip.lean\
  LoadElf.lean\
  SExp.lean
 LEANFILES += $(patsubst %,${HERE}/%,${LOCALFILES})

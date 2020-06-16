@@ -267,19 +267,21 @@ instance MCAddr.hasDecidableEq : DecidableEq MCAddr := MCAddr.decEq
 
 
 def parseMCAddr (js : Json) : Except String MCAddr := do
-let errMsg := "Expected either a string containing a hexadecimal address or a natural number,"
-              ++ " but found " ++ js.pretty;
 match js.getStr? with
 | Option.some addrStr => match Nat.fromHexString addrStr with
   | Option.some n => match elf.word.fromNat ELF64 n with
     | Option.some w => pure $ MCAddr.mk w
-    | Option.none => throw errMsg
-  | Option.none => throw errMsg
+    | Option.none =>
+      throw $ "Expected the hexadecimal number to be a valid machine code address, but got: " ++ js.pretty
+  | Option.none =>
+    throw $ "Expected the string to contain a hexadecimal machine code address, but got: " ++ js.pretty
 | Option.none => match js.getNat? with
   | Option.some n => match elf.word.fromNat ELF64 n with
     | Option.some w => pure $ MCAddr.mk w
-    | Option.none => throw errMsg
-  | Option.none => throw errMsg
+    | Option.none =>
+      throw $ "Expected the natural number to be a valid machine code address, but got: " ++ js.pretty
+  | Option.none =>
+    throw $ "Expected a string or natural number for the machine code address, but got: " ++ js.pretty
 
 def MCAddr.fromJson (js:Json) : Option MCAddr :=
 (parseMCAddr js).toOption
