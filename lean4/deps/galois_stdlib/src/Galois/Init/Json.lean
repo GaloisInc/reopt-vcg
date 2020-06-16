@@ -22,29 +22,28 @@ instance rbmapToJson : HasToJson (RBMap String Json Lean.strLt) :=
 section
 variables  (α : Type u) [HasFromJson α]
 
+
 -- Extract the value for the specified key of a Json object while expecting it to be of a certain
 -- type (which has a HasFromJson instance).
-def parseObjValAsDescr (descr : String) (js:Json) (key : String) : Except String α :=
+private def parseObjValAsDescrAux (descr : String) (js:Json) (key : String) (dflt : Option α) : Except String α :=
 match js.getObjVal? key with
-| Option.some js' => 
-  match fromJson? js' with
+| Option.some js' => match fromJson? js' with
   | Option.some a => Except.ok a
   | Option.none => 
     Except.error $ "Excepted key `"++key++"` to have a "++ descr ++" value but got `"++js'.pretty++"`."
-| Option.none => Except.error $ "Expected a Json object with key `"++key++"` but got `"++js.pretty++"`."
-
--- Like parseObjValAsDescr but with a default value if the field is missing.
-def parseObjValAsDescrD (descr : String) (js:Json) (key : String) (dflt : α) : Except String α :=
-match js.getObjVal? key with
-| Option.some js' => 
-  match fromJson? js' with
-  | Option.some a => Except.ok a
-  | Option.none => 
-    Except.error $ "Excepted key `"++key++"` to have a "++ descr ++" value but got `"++js'.pretty++"`."
-| Option.none => 
-  match js with
-  | obj _ => Except.ok dflt
+| Option.none => match js with
+  | obj _ => match dflt with
+    | Option.some a => Except.ok a
+    | Option.none =>
+      Except.error $ "Expected a Json object with key `"++key++"` but got `"++js.pretty++"`."
   | _ => Except.error $ "Expected a Json object but got `"++js.pretty++"`."
+
+
+def parseObjValAsDescr (descr : String) (js:Json) (key : String) : Except String α :=
+@parseObjValAsDescrAux _ _ descr js key none
+
+def parseObjValAsDescrD (descr : String) (js:Json) (key : String) (dflt : α) : Except String α :=
+@parseObjValAsDescrAux _ _ descr js key (some dflt)
 
 
 end
@@ -62,11 +61,34 @@ def parseObjValAsArrD := parseObjValAsDescrD (Array Json) "Array"
 def parseObjValAsArrOf (α : Type u) [HasFromJson α] (dscr : String) := parseObjValAsDescr (Array α) ("(Array "++dscr++")")
 def parseObjValAsArrOfD (α : Type u) [HasFromJson α] (dscr : String) := parseObjValAsDescrD (Array α) ("(Array "++dscr++")")
 
+
+private def parseObjValAsArrWithAux
+{α : Type u}
+(parser : Json → Except String α)
+(js:Json)
+(key : String)
+(dflt : Option (Array α))
+: Except String (Array α) :=
+match js.getObjVal? key with
+| Option.none => match dflt with
+  | Option.some as => pure as
+  | Option.none => Except.error $ "Expected a Json object with key `"++key++"`."
+| Option.some rawJson => match rawJson.getArr? with
+  | Option.some xs => do
+    vals ← Array.mapM parser xs;
+    pure vals
+  | Option.none =>
+    Except.error $ "Expected a Json object's `"++key
+                   ++"` field to contain an array, but got `"
+                   ++rawJson.pretty++"`."
+
+
 -- Parse a Json object field as an array and use the given parser for the sub-elements.
-def parseObjValAsArrWith {α : Type u} [HasFromJson α] (parser : Json → Except String α) (js:Json) (key : String) : Except String (Array α) :=
-match parseObjValAsArr js key with
-| Except.ok xs => Array.mapM parser xs
-| Except.error msg => Except.error $ msg
+def parseObjValAsArrWith {α : Type u} (parser : Json → Except String α) (js:Json) (key : String) : Except String (Array α) :=
+parseObjValAsArrWithAux parser js key none
+
+def parseObjValAsArrWithD {α : Type u} (parser : Json → Except String α) (js:Json) (key : String) (dflt : Array α) : Except String (Array α) :=
+parseObjValAsArrWithAux parser js key (some dflt)
 
 
 

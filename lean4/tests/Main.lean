@@ -2,6 +2,7 @@
 import Init.Data.RBMap
 import Test.JsonRoundtrip
 import Test.LoadElf
+import Test.SExp
 
 
 namespace Test
@@ -9,7 +10,8 @@ namespace Test
 def tests : RBMap String (IO UInt32) (λ x y => x < y) :=
   RBMap.fromList 
   [("JsonRoundtrip.lean", JsonRoundtrip.test),
-   ("LoadElf.lean", LoadElf.test)
+   ("LoadElf.lean", LoadElf.test),
+   ("SExp.lean", SExp.test)
   ]
   (λ x y => x < y)
 

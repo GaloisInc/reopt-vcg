@@ -3,20 +3,42 @@ import LeanLLVM.AST
 import LeanLLVM.PP
 import Main.Elf
 import ReoptVCG.Annotations
+import ReoptVCG.VCGBackend
 import SMTLIB.Syntax
+import DecodeX86.DecodeX86
 
 -- TODO move these (or similar fns) to lean-llvm
 def llvm.ident.pp := pp.render ∘ llvm.pp_ident
 def llvm.llvm_type.pp := pp.render ∘ llvm.pp_type
 def llvm.block_label.pp := pp.render ∘ llvm.pp_label
 
+namespace llvm
+
+namespace block_label
+
+def lt : forall (x y : block_label), Prop
+  | { label := x }, {label := y } => x < y
+
+instance : HasLess block_label := ⟨lt⟩
+ 
+instance decideableBlockLabelLt : ∀(x y:block_label), Decidable (x < y)
+| { label := x }, { label := y } =>
+  (match ident.decideLt x y with
+   | Decidable.isTrue  p => Decidable.isTrue p
+   | Decidable.isFalse p => Decidable.isFalse p
+   )
+
+end block_label
+end llvm
+
 namespace ReoptVCG
 
 -- FIXME double check on which interface/API/etc to use here =\
--- The SMTLIB.Raw namespace feels like it has the direct equivalents
+-- The SMT.Raw namespace feels like it has the direct equivalents
 -- to the What4.Protocol.SMTLib2.Syntax module in Haskell, but...
 -- it's the "Raw" interface which feels a little off...
-open SMTLIB.Raw 
+
+open SMT.Raw
 
 
 @[reducible]
@@ -40,11 +62,12 @@ structure VCGConfig :=
 (verbose : Bool)
 
 -- TODO / FIXME see comment below about moving away from IO          
+-- FIXME(AMK) don't use the raw interface to SMT
 structure ProverInterface :=
 (addCommandCallback : command → IO Unit)
 (proveFalseCallback : term const_sort.smt_bool → String → IO Unit)
 (proveTrueCallback  : term const_sort.smt_bool → String → IO Unit)
--- (blockErrorCallback : Int → MemSegmentOff 64 → String → IO Unit)
+(blockErrorCallback : Int → Nat → String → IO Unit)
 
 structure ProverSessionGenerator :=
 (blockCallback : FnName → llvm.block_label → (ProverInterface → IO Unit) → IO Unit)
@@ -57,8 +80,8 @@ def LLVMTypeMap := RBMap String (Option llvm.llvm_type) Lean.strLt
 structure ModuleVCGContext :=
 (annotations : ModuleAnnotations)
 -- ^ Annotations for module.
-(memory : elf.elfmem)
--- ^ Machine code memory
+(decoder : decodex86.decoder )
+-- ^ Machine code memory / decoder state
 (symbolAddrMap : RBMap String (elf.word elf.elf_class.ELF64) Lean.strLt)
 -- ^ Maps bytes to the symbol name
 (writeStderr : Bool)
@@ -178,7 +201,7 @@ instance : Monad ModuleVCG :=
 def liftIO {α} (m : IO α) : ModuleVCG α := 
   monadLift $ m.adaptExcept ModuleError.io
 
-instance ModuleVCG.MonadIO : MonadIO ModuleVCG := {monadLift := @liftIO}
+instance ModuleVCG.MonadIO : MonadIO ModuleVCG := {monadLift := @ModuleVCG.liftIO}
 instance : MonadReader ModuleVCGContext ModuleVCG :=
   inferInstanceAs (MonadReader ModuleVCGContext (ReaderT ModuleVCGContext (EIO ModuleError)))
 end ModuleVCG
@@ -219,11 +242,98 @@ def moduleCatch (m : ModuleVCG Unit) :  ModuleVCG Unit :=
 -- Annotated Block
 -------------------------------------------------------
 
+@[reducible]
+def BlockLabelValMap := RBMap llvm.block_label llvm.value (λ x y => x < y)
+
+
 structure AnnotatedBlock :=
 (annotation: BlockAnn)
 (label : llvm.block_label)
-(phiVarMap : RBMap String Unit Lean.strLt) -- FIXME
-(stmts : List Unit) -- FIXME
+(phiVarMap : RBMap llvm.ident (llvm.llvm_type × BlockLabelValMap) (λ x y => x<y))
+(stmts : List llvm.stmt)
+
+
+/--  Maps LLM block labels to their associated annotations. --/
+@[reducible]
+def ReachableBlockAnnMap := RBMap llvm.block_label AnnotatedBlock (λ x y => x<y)
+
+-------------------------------------------------------
+-- BlockVCG
+-------------------------------------------------------
+
+abbrev MemAddr := Nat
+
+-- Information that does not change during execution of a BlockVCG action.
+structure BlockVCGContext :=
+(mcModuleVCGContext : ModuleVCGContext)
+  -- ^ Information at module level about CFG.
+(llvmFunName : String)
+  -- ^ Annotations for the current function.
+(funBlkAnnotations : ReachableBlockAnnMap)
+  -- ^ Annotations for blocks in the CFG.
+(firstBlockLabel : llvm.block_label)
+  -- ^ Label for first block in this function
+(currentBlock : llvm.block_label)
+  -- ^ Label for block we are verifying.
+(callbackFns : ProverInterface)
+  -- ^ Functions for interacting with SMT solver.
+(mcBlockEndAddr : MemAddr)
+  -- ^ The end address of the block.
+(mcBlockMap : RBMap MemAddr MemoryAnn (λ x y => x < y))
+  -- ^ Map from addresses to annotations of events on that address.
+
+-- State that changes during execution of a BlockVCG action.
+structure BlockVCGState :=
+(mcCurAddr : MemAddr)
+  -- ^ Address of the current instruction
+(mcCurSize : Nat)
+  -- ^ Size of current instruction.
+--(mcX87Top : Nat) -- TODO...? later
+  -- ^ Top index in x86 stack (starts at 7 and grows down).
+(mcDF : Bool)
+  -- ^ Direction flag
+(mcCurRegs : x86.vcg.RegState)
+  -- ^ Map registers to the SMT term.
+(mcMemIndex : Nat)
+  -- ^ Index of last defined memory object.
+(mcEvents : List x86.vcg.Event)
+  -- ^ Unprocessed events from last instruction.
+(mcLocalIndex : Nat)
+  -- ^ Index of next local variable for machine code.
+-- (mcPendingAllocaOffsetMap : RBMap LocalIdent AllocaAnn (λ x y => x < y)) -- TODO use later
+  -- ^ This is a map from allocation names to the annotations about their
+  -- size and offset.
+(llvmInstIndex : Nat)
+  -- ^ Index of next LLVM instruction within block to execute
+  -- Used for error reporting
+--(activeAllocaSet : RBTree LocalIdent (λ x y => x < y)) -- TODO use later
+ -- ^ Set of allocation names that are active.
+(llvmIdentMap : RBMap llvm.ident (Sigma SMT.term) (fun x y => x < y))
+ -- ^ Mapping from llvm ident to their SMT equivalent.
+
+def BlockVCG := ReaderT BlockVCGContext (StateT BlockVCGState (ExceptT String IO))
+
+namespace BlockVCG
+
+instance : Monad BlockVCG :=
+  inferInstanceAs (Monad (ReaderT BlockVCGContext (StateT BlockVCGState (ExceptT String IO))))
+
+instance : MonadReader BlockVCGContext BlockVCG :=
+  inferInstanceAs (MonadReader BlockVCGContext (ReaderT BlockVCGContext (StateT BlockVCGState (ExceptT String IO))))
+
+instance : MonadState BlockVCGState BlockVCG :=
+  inferInstanceAs (MonadState BlockVCGState (ReaderT BlockVCGContext (StateT BlockVCGState (ExceptT String IO))))
+
+instance : MonadExcept String BlockVCG :=
+  inferInstanceAs (MonadExcept String (ReaderT BlockVCGContext (StateT BlockVCGState (ExceptT String IO))))
+
+instance : HasMonadLiftT IO BlockVCG :=
+  inferInstanceAs (HasMonadLiftT IO (ReaderT BlockVCGContext (StateT BlockVCGState (ExceptT String IO))))
+
+
+def liftIO {a : Type} (m : IO a) : BlockVCG a := monadLift m
+
+end BlockVCG
 
 
 end ReoptVCG

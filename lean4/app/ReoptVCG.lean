@@ -1,11 +1,12 @@
 import Galois.Init.Json
 import LeanLLVM.AST
-import LeanLLVM.LLVMLib
 import Main.Elf
 import ReoptVCG.Annotations
+import ReoptVCG.LoadLLVM
 import ReoptVCG.Types
 import SMTLIB.Syntax
 import X86Semantics.Common
+import DecodeX86.DecodeX86
 
 namespace ReoptVCG
 
@@ -13,11 +14,11 @@ open Lean (Json strLt)
 open Lean.Json (parseObjValAsString)
 
 open elf.elf_class (ELF64)
-open llvm (llvm_type llvm_type.prim_type prim_type prim_type.integer)
+open llvm (llvm_type llvm_type.prim_type llvm_type.ptr_to prim_type prim_type.integer)
 
 def exportModeCallbacks {α : Type} (outDir : String) (fn : FnName) (lbl : llvm.block_label) (action : ProverInterface → IO α) : IO α :=
 -- FIXME
-action $ ProverInterface.mk (λ _ => pure ()) (λ _ _ => pure ()) (λ _ _ => pure ())
+action $ ProverInterface.mk (λ _ => pure ()) (λ _ _ => pure ()) (λ _ _ => pure ()) (λ _ _ _ => pure ())
 
 
 -- This runs an action with a proof session generator, and reports
@@ -33,44 +34,97 @@ match e with
 | Except.ok a    => pure a
 | Except.error e => throw (IO.userError $ pfx ++ (toString e))
 
-/-- Callee saved registers. --/
-def x86CalleeSavedGPRegs : List x86.Reg64 := 
-[ x86.Reg64.rbp, 
-  x86.Reg64.rbx,
-  x86.Reg64.r12,
-  x86.Reg64.r13,
-  x86.Reg64.r14,
-  x86.Reg64.r15 ]
+-- | Use a map from symbol names to address to find address.
+def getMCAddrOfLLVMFunction
+(m : RBMap String (elf.word ELF64) Lean.strLt)
+-- ^ Map from symbol names in machine code
+-- to the address in the binary.
+(fnm : String)
+-- ^ Function name
+: Except String MCAddr := do
+match m.find? fnm with
+| Option.none => throw $ "Cannot find address of LLVM symbol: " ++ fnm
+| Option.some expectedAddr => pure $ MCAddr.mk expectedAddr
 
-/-- General purpose registers that may be used to pass arguments. --/
-def x86ArgGPRegs : List x86.Reg64 := 
-[ x86.Reg64.rdi, 
-  x86.Reg64.rsi,
-  x86.Reg64.rdx, 
-  x86.Reg64.rcx,
-  x86.Reg64.r8,
-  x86.Reg64.r9 ]
+
+def llvmTypeToSort : llvm_type → Option SMT.sort
+| llvm_type.prim_type (prim_type.integer lw) =>
+  Option.some $ SMT.sort.bitvec lw
+| llvm_type.ptr_to _ => Option.none
+| _ => Option.none
 
 
 /-- Maps between LLVM argument and machine code name. --/
 structure LLVMMCArgBinding :=
 (llvmArgName : llvm.ident)
-(smtSort: SMTLIB.sort)
-(register: x86.Reg64)
+(smtSort: SMT.sort)
+(register: x86.reg64)
 
 
 
-/-- Used to parse a single basic block in a function. --/
+/-- Verify a block satisfies its specification. --/
+def verifyBlock
+(funAnn : FunctionAnn)
+ -- ^ Annotations for function
+(argBindings : List LLVMMCArgBinding)
+(blockMap : ReachableBlockAnnMap)
+-- ^ Annotations on blocks.
+(firstLabel : llvm.block_label)
+ -- ^ Label of first block.
+(bAnn : AnnotatedBlock)
+: ModuleVCG Unit := do
+moduleThrow "TODO: implement verifyBlock"
+
+
+
+/-- Extract the phi statements from the list of statements, returning
+    either the name of the variable and type that could not be interpreted
+    or a map from from variable names to their types. --/
+def extractPhiStmtVars : 
+List (llvm.ident × llvm_type × BlockLabelValMap) →
+List llvm.stmt →
+(List (llvm.ident × llvm_type × BlockLabelValMap)
+ × List llvm.stmt) 
+| prev, (⟨Option.some nm, (llvm.instruction.phi lTy valLbs), _⟩::rest) =>
+let lblAndVals := valLbs.toList.map (λ p => (p.snd,p.fst));
+let valMap := RBMap.fromList lblAndVals (λ x y => x < y);
+extractPhiStmtVars ((nm, lTy, valMap)::prev) rest
+| prev, rest => (prev, rest)
+
+/-- Builds an RBMap from a list with llvm.ident keys. --/
+def llvmIdentRBMap {α : Type} (entries: List (llvm.ident × α))
+ : RBMap llvm.ident α (λ (x y:llvm.ident)=> x<y) :=
+RBMap.fromList entries (λ (x y:llvm.ident)=> x<y)
+
+/-- Used to parse a single basic block's annotation in a function annotation. --/
 def parseAnnotatedBlock
 (fnm:FnName) -- ^ Function whose block is being parsed.
-(blockMap:RBMap String Json strLt) -- ^ Block label to block annotation map.
+(blockMap:RBMap llvm.ident Json (λ x y => x<y)) -- ^ Block label to block annotation map.
 (b:llvm.basic_block) -- ^ Basic block of `fnm`.
-: ModuleVCG AnnotatedBlock :=
-blockError fnm b.label BlockError.missingAnnotations -- FIXME / TODO
-
-
-
-
+: ModuleVCG AnnotatedBlock := do
+let lbl := b.label;
+let (phiVarList, llvmStmts) := extractPhiStmtVars [] b.stmts.toList;
+let parseLLVMVar : (llvm.ident × llvm_type × BlockLabelValMap) → ModuleVCG (llvm.ident × SMT.sort) :=
+  (λ (p : (llvm.ident × llvm_type × BlockLabelValMap)) =>
+    let (nm, tp, _) := p;
+    match llvmTypeToSort tp with
+    | Option.some s => pure (nm, s)
+    | Option.none   => blockError fnm lbl $ BlockError.unsupportedPhiVarType nm tp);
+varTypes ← phiVarList.mapM parseLLVMVar;
+let llvmTyEnv := RBMap.ltMap varTypes;
+blockJson ← match blockMap.find? lbl.label with
+  | Option.some json => pure json
+  | Option.none => blockError fnm lbl BlockError.missingAnnotations;
+match parseBlockAnn llvmTyEnv blockJson with
+| Except.error errMsg => 
+  blockError fnm lbl $ BlockError.annParseFailure errMsg
+| Except.ok ann => do
+  let phiMap := RBMap.ltMap phiVarList;
+  pure $ {annotation := ann,
+          label := lbl,
+          phiVarMap := phiMap,
+          stmts := llvmStmts
+         }
 
 /-- Return the definition in the module with the given name. --/
 def getDefineByName (lMod:llvm.module) (name:String) : Option llvm.define :=
@@ -83,7 +137,7 @@ def parseLLVMArgs
 (fnm:FnName) : -- ^ Name of function for error purposes.
 List LLVMMCArgBinding → -- ^ Accumulator for parsed arguments.
 List (llvm.typed llvm.ident) → -- ^ Arguments to be parsed.
-List x86.Reg64 →  -- ^ Remaining registers available for arguments.
+List x86.reg64 →  -- ^ Remaining registers available for arguments.
 ModuleVCG (List LLVMMCArgBinding)
 | revArgs, [], _ => pure revArgs.reverse
 | revBinds, (⟨llvm_type.prim_type (prim_type.integer 64), nm⟩::restArgs), regs =>
@@ -91,23 +145,22 @@ ModuleVCG (List LLVMMCArgBinding)
   | [] => functionError fnm $ FnError.custom $ 
           "Maximum of "++(x86ArgGPRegs.length.repr)++" i64 arguments supported"
   | (reg::restRegs) =>
-    let binding := LLVMMCArgBinding.mk nm (SMTLIB.sort.bitvec 64) reg;
+    let binding := LLVMMCArgBinding.mk nm (SMT.sort.bv64) reg;
     parseLLVMArgs (binding::revBinds) restArgs restRegs
 | _, (⟨tp, nm⟩::restArgs), _ =>
   functionError fnm $ FnError.argTypeUnsupported nm tp
 
 /-- Builds a mapping from block labels to corresponding block annotation json objects. --/
-def buildBlockAnnMap (fAnn:FunctionAnn) : ModuleVCG (RBMap String Json strLt) := do
-let mkEntry : List (String × Json) → Json → ModuleVCG (List (String × Json)) := 
+def buildBlockAnnMap (fAnn:FunctionAnn) : ModuleVCG (RBMap llvm.ident Json (λ x y => x<y)) := do
+let mkEntry : List (llvm.ident × Json) → Json → ModuleVCG (List (llvm.ident × Json)) := 
   λ entries blockAnn => 
     match parseObjValAsString blockAnn "label" with
     | Except.error errMsg => 
       functionError fAnn.llvmFunName $ FnError.custom
       ("Encountered an error while parsing the block annotation: "
       ++ errMsg)
-    | Except.ok lbl => pure $ (lbl, blockAnn)::entries;
-entries ← fAnn.blocks.foldlM mkEntry [];
-pure $ RBMap.fromList entries Lean.strLt
+    | Except.ok lbl => pure $ (llvm.ident.named lbl, blockAnn)::entries;
+llvmIdentRBMap <$> fAnn.blocks.foldlM mkEntry []
 
 
 
@@ -116,35 +169,44 @@ def verifyFunction (lMod:llvm.module) (fAnn: FunctionAnn): ModuleVCG Unit := do
 modCtx ← read;
 let fnm := fAnn.llvmFunName;
 vcgLog $ "Analyzing " ++ fnm;
-lFun ← 
-  match getDefineByName lMod fnm with
+-- Get the LLVM `define` associated with the function name
+lFun ← match getDefineByName lMod fnm with
   | Option.some f => pure f
   | Option.none => functionError fnm FnError.notFound;
+-- Parse the LLVM args and assign them to registers
 argBindings ← parseLLVMArgs fnm [] lFun.args.toList x86ArgGPRegs;
+-- Build a mapping from block labels to the JSON block annotations
 blockMap ← buildBlockAnnMap fAnn;
-blks ← lFun.body.mapM (parseAnnotatedBlock fnm blockMap);
--- let blkMap = HMap.fromList [ (ppBlock (abLbl ab), ab) | ab <- blks ]
--- case defBody lFun of
---   [] ->
---     functionError fnm FunctionMissingEntryBlock
---   firstBlock:_ -> do
---     let Just entryLabel = bbLabel firstBlock
---     do firstBlockAnn <-
---          case findBlock blkMap entryLabel of
---            Just (Ann.ReachableBlock b, _) ->
---              pure b
---            Just (Ann.UnreachableBlock, _) -> do
---              functionError fnm FunctionEntryUnreachable
---            Nothing ->
---              blockError fnm entryLabel BlockMissingAnnotations
---        let Right addr = getMCAddrOfLLVMFunction (symbolAddrMap modCtx) fnm
---        when (toInteger addr /= toInteger (Ann.blockAddr firstBlockAnn)) $ do
---          moduleThrow $ printf "%s annotations list address of %s; symbol table reports address of %s."
---                              fnm (show (Ann.blockAddr firstBlockAnn)) (show addr)
---     -- Verify the blocks.
---     forM_ blks $ \ab -> do
---       moduleCatch $ verifyBlock funAnn argBindings blkMap entryLabel ab
-pure ()
+-- Parse each block annotation in the JSON
+blocks ← lFun.body.mapM (parseAnnotatedBlock fnm blockMap);
+-- Build a mapping from block labels to AnnotatedBlock
+let blockMap : RBMap llvm.block_label AnnotatedBlock (λ x y => x<y) := 
+  RBMap.fromList (blocks.toList.map (λ ab => (ab.label, ab))) (λ x y => x<y);
+-- Verify the first block is where the annotation indicated it should be, and return
+-- the label for the first block
+entryBlockLbl ← (match lFun.body.toList with
+  | [] => functionError fnm FnError.missingEntryBlock
+  | (firstBlock :: _) => match blockMap.find? firstBlock.label with
+    | Option.none => blockError fnm firstBlock.label BlockError.missingAnnotations
+    | Option.some ab => match ab.annotation with
+      | BlockAnn.unreachable => functionError fnm FnError.entryUnreachable
+      | BlockAnn.reachable firstBlockAnn =>
+        match getMCAddrOfLLVMFunction modCtx.symbolAddrMap fnm with
+        | Except.error errMsg =>
+          -- TODO(AMK) once we actually parse the addresses from the ELF file
+          -- we can raise an error if the two addresses don't match
+          pure ab.label
+          -- functionError fnm $ FnError.custom $ 
+          --   "Unable to find function machine code address: " ++ errMsg
+        | Except.ok addr =>
+          if (addr == firstBlockAnn.startAddr)
+          then pure ab.label
+          else moduleThrow $ 
+               fnm ++ " annotation address listed as " 
+                   ++ (firstBlockAnn.startAddr.addr.pp_hex
+                   ++ "; symbol table however lists address as " ++ addr.addr.pp_hex ++ "."));
+-- Verify each block.
+blocks.forM (λ ab => moduleCatch $ verifyBlock fAnn argBindings blockMap entryBlockLbl ab)
 
 
 /-- Returns the loaded and parsed annotation info and a Prover session based on the given VCGConfig.
@@ -184,22 +246,16 @@ match fileContents with
 | (⟨ELF64, (hdr, phdrs)⟩, elfMem) => do
   -- Check the Elf file is for a x86_64
   unless (hdr.machine == elf.machine.EM_X86_64) $
-    throw $ IO.userError $ "Expected elf header machine type EM_X86_64 but got `"++ hdr.machine.name ++"`.";
+    throw $ IO.userError $ 
+      "Expected elf header machine type EM_X86_64 but got `"++ hdr.machine.name ++"`.";
   -- Check the Elf file is a linux binary
   unless (hdr.info.osabi == elf.osabi.ELFOSABI_SYSV || hdr.info.osabi == elf.osabi.ELFOSABI_LINUX) $
     throw $ IO.userError $ "Expected Linux binary but got `"++ toString hdr.info.osabi.name ++"`.";
-  let fnSymAddrMap := RBMap.empty; -- FIXME actually get this info from elf
+  let fnSymAddrMap := RBMap.empty; -- TODO / FIXME actually get this info from the elf file
   pure (hdr, phdrs, elfMem, fnSymAddrMap)
 | (⟨ELF32, _⟩, _) => do
   throw $ IO.userError $ "Expected an elf class for a 64bit machine, not 32bit."
 
-
-/-- Load the LLVM module in the given file. --/
-def loadLLVMModule (filePath : String) : IO llvm.module := do
-ctx ← llvm.ffi.newContext;
-mb ← llvm.ffi.newMemoryBufferFromFile filePath;
-b ← llvm.ffi.parseBitcodeFile mb ctx;
-llvm.loadModule b
 
 /-- Build a mapping from type names to `some` underlying `llvm_type`
     or `none` if the type is `opaque` --/
@@ -210,18 +266,30 @@ let addEntry : LLVMTypeMap → llvm.type_decl → LLVMTypeMap := λ m tdecl =>
   | llvm.type_decl_body.defn t => m.insert tdecl.name $ Option.some t;
 m.types.foldl addEntry RBMap.empty
 
+def get_text_segment {c} (e : elf.ehdr c) (phdrs : List (elf.phdr c)) : Option (elf.phdr c) :=
+    phdrs.find? (fun p => p.flags.has_X)
+
 /-- Run a ReoptVCG instance w.r.t. the given configuration. --/
 def runVCG (cfg : VCGConfig) : IO UInt32 := do
 (ann, gen) ← setupWithConfig cfg;
 -- Load Elf file and emit warnings
+-- FIXME: cleanup
 (elfHdr, prgmHdrs, elfMem, fnSymAddrMap) ← loadElf ann.binFilePath;
+text_phdr <- (match get_text_segment elfHdr prgmHdrs with
+              | none     => throw $ IO.userError $ "No executable segment"
+              | (some p) => pure p);
+text_bytes <- (match elfMem.lookup_buffer (bitvec.of_nat 64 text_phdr.vaddr.toNat) with
+              | none        => throw $ IO.userError $ "No text region"
+              | some (_, b) => pure b);
+let entry := elfHdr.entry.toNat;
+let d := decodex86.mk_decoder text_bytes text_phdr.vaddr.toNat;
 -- Get LLVM module
 lMod ← loadLLVMModule ann.llvmFilePath;
 -- Create verification coontext for module.
 errorRef ← IO.mkRef 0;
 let modCtx : ModuleVCGContext := 
   { annotations := ann
-  , memory := elfMem
+  , decoder := d
   , symbolAddrMap := fnSymAddrMap
   , writeStderr := true
   , errorCount := errorRef

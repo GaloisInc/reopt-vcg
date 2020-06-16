@@ -32,7 +32,7 @@ end SExpr
 export SExpr.HasToSExpr (toSExpr)
 
 
-namespace SMTLIB
+namespace SMT
 
 open SExpr
 open SExpr.HasToSExpr
@@ -48,6 +48,42 @@ inductive sort : Type
 
 namespace sort
 
+def bv8  := bitvec 8
+def bv16 := bitvec 16
+def bv32 := bitvec 32
+def bv64 := bitvec 64
+
+
+-- protected def hasDecEq : ∀(a b : sort), Decidable (a = b)
+-- | smt_bool, bitvec _ => isFalse (λ h => sort.noConfusion h)
+-- | smt_bool, array _ _ => isFalse (λ h => sort.noConfusion h)
+-- | bitvec _, smt_bool => isFalse (λ h => sort.noConfusion h)
+-- | bitvec _, array _ _ => isFalse (λ h => sort.noConfusion h)
+-- | array _ _, bitvec _ => isFalse (λ h => sort.noConfusion h)
+-- | array _ _, smt_bool => isFalse (λ h => sort.noConfusion h)
+-- | smt_bool, smt_bool => isTrue rfl
+-- | bitvec x, bitvec y => 
+--   match decEq x y with
+--   | isTrue hxy => isTrue (Eq.subst hxy rfl)
+--   | isFalse nxy => isFalse (λ h => sort.noConfusion h (λ hxy => absurd hxy nxy))
+-- | array a b, array c d =>
+--   match hasDecEq a c with
+--   | isTrue hac  =>
+--     match hasDecEq b d with
+--     | isTrue hbd  => isTrue (Eq.subst hac (Eq.subst hbd rfl))
+--     | isFalse nbd => isFalse (λ h => sort.noConfusion h (λ _ hnb => absurd hnb nbd))
+--   | isFalse nac => isFalse (λ h => sort.noConfusion h (λ hac _ => absurd hac nac))
+
+-- instance : DecidableEq sort := sort.hasDecEq
+
+protected def beq : sort → sort → Bool
+| smt_bool, smt_bool => true
+| bitvec n, bitvec m => n == m
+| array a b, array c d => beq a c && beq b d
+| _, _ => false
+
+instance : HasBeq sort := ⟨sort.beq⟩
+
 protected
 def to_sexpr : sort -> SExpr
 | smt_bool => atom "Bool"
@@ -55,7 +91,32 @@ def to_sexpr : sort -> SExpr
 | array k v => SExpr.app (atom "Array") [to_sexpr k, to_sexpr v]
 
 instance : HasToSExpr sort := ⟨sort.to_sexpr⟩
+
+-- *MkDecEq> putStrLn $ mkDecEq "sort" [("smt_bool", []), ("bitvec", [False]), ("array", [True, True])] "decidable_eq"
+protected def decidable_eq : ∀(e e' : sort), Decidable (e = e')
+| smt_bool, smt_bool => isTrue rfl
+| (bitvec c1), (bitvec c1') => 
+ (match decEq c1 c1' with 
+  | (isTrue h1) => isTrue (h1 ▸ rfl)
+  | (isFalse nh) => isFalse (fun h => sort.noConfusion h $ fun h1' => absurd h1' nh))
+| (array c1 c2), (array c1' c2') => 
+ (match decidable_eq c1 c1', decidable_eq c2 c2' with 
+  | (isTrue h1), (isTrue h2) => isTrue (h1 ▸ h2 ▸ rfl)
+  | (isFalse nh), _ => isFalse (fun h => sort.noConfusion h $ fun h1' h2' => absurd h1' nh)
+  | (isTrue _), (isFalse nh) => isFalse (fun h => sort.noConfusion h $ fun h1' h2' => absurd h2' nh))
+| smt_bool, (bitvec _) => isFalse (fun h => sort.noConfusion h)
+| smt_bool, (array _ _) => isFalse (fun h => sort.noConfusion h)
+| (bitvec _), smt_bool => isFalse (fun h => sort.noConfusion h)
+| (bitvec _), (array _ _) => isFalse (fun h => sort.noConfusion h)
+| (array _ _), smt_bool => isFalse (fun h => sort.noConfusion h)
+| (array _ _), (bitvec _) => isFalse (fun h => sort.noConfusion h)
+
+instance : DecidableEq sort := sort.decidable_eq
           
+def toString (s:sort) := s.to_sexpr.sexpr
+
+instance : HasToString sort := ⟨sort.toString⟩
+
 end sort
 
 namespace Raw
@@ -452,6 +513,11 @@ def const_sort_to_type : const_sort -> Type
 | base s    => term s
 | fsort s t => term s -> const_sort_to_type t
 
+
+def mk_symbol (sym : symbol) (s : sort) : term s := 
+  Raw.term.identifier (Raw.identifier.symbol (Raw.const_sort.base s) sym)  
+
+
 namespace Raw.identifier
 
 -- inductive sorted_list (f : sort -> Type) : List sort -> Type 
@@ -505,6 +571,10 @@ def store  (k v : sort) : term (array k v) -> term k -> term v -> term (array k 
 -- BitVecs
 -- hex/binary literals
 def bvimm (n v : Nat) : term (bitvec n) := const (bitvec n) (binary n v)
+-- c.f. bitvec.of_int 
+def bvimm' (n : Nat) : Int -> term (bitvec n)
+| Int.ofNat x   => bvimm n x
+| Int.negSucc x => bvimm n (Nat.ldiff (2^n-1) x)
 
 def concat {n m : Nat} : term (bitvec n) -> term (bitvec m) -> term (bitvec (n + m)) := 
   binop (concat n m)
@@ -592,7 +662,7 @@ def inst_args_aux (res : sort) :
 | [],       body, acc    => pure (acc.reverse, body)
 | hd :: tl, f,    acc    => do   
   s <- freshSymbol "arg";  
-  let arg := Raw.term.identifier (Raw.identifier.symbol (Raw.const_sort.base hd) s);
+  let arg := mk_symbol s hd;
   inst_args_aux tl (f arg) (Sigma.mk hd (Raw.sorted_var.mk hd s) :: acc)
 
 def inst_args (res : sort) (args : List sort) (body : args_to_type args res) 
@@ -628,4 +698,4 @@ def ex1 : smtM Unit :=
 
 end
 
-end SMTLIB
+end SMT
