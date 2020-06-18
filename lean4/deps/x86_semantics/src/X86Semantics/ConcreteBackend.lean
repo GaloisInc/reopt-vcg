@@ -461,6 +461,8 @@ def concreteBackend : Backend :=
   , s_os_transition := linux.x86_64.syscall_handler
   , s_get_ip        := (fun (s : machine_state) => s.ip) <$> get
   , s_set_ip        := fun x => modify (fun s => { s with ip := x })
+  , s_cond_set_ip   := fun b x => when b $ modify (fun s => { s with ip := x })
+
   , s_read_cpuid    := linux.x86_64.read_cpuid
 
   } 

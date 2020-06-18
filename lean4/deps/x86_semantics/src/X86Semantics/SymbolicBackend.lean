@@ -338,7 +338,7 @@ def symbolicBackend (stdlib : StdLib) : Backend :=
   
   , s_mux_bool := fun (b : s_bool) (x y : s_bool) => SMT.smt_ite b x y
   , s_mux_bv   := fun {n : Nat} (b : s_bool) (x y : bitvec n) => SMT.smt_ite b x y
-  , s_mux_m    := fun (b : s_bool) x y => x -- FIXME!!!
+  , s_mux_m    := fun (b : s_bool) x y => throw "s_mux_m" -- FIXME!!!
   
   , s_not      := SMT.not
   , s_or       := SMT.or
@@ -401,6 +401,7 @@ def symbolicBackend (stdlib : StdLib) : Backend :=
   , s_os_transition := pure ()
   , s_get_ip        := (fun (s : machine_state) => s.ip) <$> get
   , s_set_ip        := fun x => modify (fun s => { s with ip := x })
+  , s_cond_set_ip   := fun b x => modify (fun s => { s with ip := SMT.smt_ite b x s.ip })
   , s_read_cpuid    := pure ()
 
   } 

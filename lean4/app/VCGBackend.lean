@@ -392,8 +392,9 @@ def backend : Backend :=
   , s_os_transition := pure ()
   , s_get_ip        := (fun (s : RegState) => s.ip) <$> get
   , s_set_ip        := fun x => modify (fun s => { s with ip := x })
+  -- FIXME: could just use mux_bv and get_ip
+  , s_cond_set_ip   := fun b x => modify (fun s => { s with ip := SMT.smt_ite b x s.ip })
   , s_read_cpuid    := pure ()
-
   } 
 
 end Internal

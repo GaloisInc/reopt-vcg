@@ -86,6 +86,8 @@ structure Backend : Type 1 :=
   (s_os_transition : monad Unit)
   (s_get_ip : monad (s_bv 64))
   (s_set_ip : s_bv 64 -> monad Unit)
+  (s_cond_set_ip : s_bool -> s_bv 64 -> monad Unit) -- We could combine this with the above.
+
   -- (s_cond_set_ip : s_bool -> s_bv 64 -> monad Unit)
   (s_read_cpuid : monad Unit)
 
