@@ -4,6 +4,8 @@ import LeanLLVM.PP
 import Main.Elf
 import ReoptVCG.Annotations
 import ReoptVCG.VCGBackend
+import ReoptVCG.MCStdLib
+
 import SMTLIB.Syntax
 import DecodeX86.DecodeX86
 
@@ -281,6 +283,8 @@ structure BlockVCGContext :=
   -- ^ The end address of the block.
 (mcBlockMap : RBMap MemAddr MemoryAnn (λ x y => x < y))
   -- ^ Map from addresses to annotations of events on that address.
+(mcMemOps : forall (s : SMT.sort), Option (x86.vcg.SupportedMemType s))
+  -- ^ Supported memory operations
 
 -- State that changes during execution of a BlockVCG action.
 structure BlockVCGState :=
@@ -294,8 +298,8 @@ structure BlockVCGState :=
   -- ^ Direction flag
 (mcCurRegs : x86.vcg.RegState)
   -- ^ Map registers to the SMT term.
-(mcMemIndex : Nat)
-  -- ^ Index of last defined memory object.
+(mcCurMem : x86.vcg.memory)
+  -- ^ Current memory object
 (mcEvents : List x86.vcg.Event)
   -- ^ Unprocessed events from last instruction.
 (mcLocalIndex : Nat)
@@ -310,6 +314,7 @@ structure BlockVCGState :=
  -- ^ Set of allocation names that are active.
 (llvmIdentMap : RBMap llvm.ident (Sigma SMT.term) (fun x y => x < y))
  -- ^ Mapping from llvm ident to their SMT equivalent.
+
 
 def BlockVCG := ReaderT BlockVCGContext (StateT BlockVCGState (ExceptT String IO))
 

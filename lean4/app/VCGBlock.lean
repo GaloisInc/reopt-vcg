@@ -133,78 +133,140 @@ def defineTerm {s : SMT.sort} (i : llvm.ident) (tm : SMT.term s) : BlockVCG (SMT
 section
 
 open x86.vcg (Event)
+open x86.vcg.Event
+open BlockVCG (liftIO)
 
--- -- | Execute the machine-code only events that occur before jumping to the given address
--- partial
--- def execMCOnlyEvents : MemAddr -> BlockVCG Unit := fun endAddr => do
---   evts <- (fun (s : BlockVCGState) => s.mcEvents) <$> get;
---   match evts with
---   | Event.Command cmd :: mevs => do
---       addCommand cmd;
---       modify (fun s => {w with mcEvents := mevs });
---       execMCOnlyEvents endAddr
---   | Event.Warning msg :: mevs -> do
---       liftIO $ IO.println msg
---       modify (fun s => {w with mcEvents := mevs });
---       execMCOnlyEvents endAddr
---   | Event.MCOnlyStackReadEvent mcAddr tp smtValVar :: mevs -> do
---       -- TODO: Fix this to the following
+def mcNextAddr (s : BlockVCGState) : MemAddr := s.mcCurAddr + s.mcCurSize
 
---       -- A MCOnlyStack read means the machine code reads memory, but
---       -- the llvm does not.
---       --
---       -- We currently check that these reads only access the stack as
---       -- the only current use of these annotations is to mark register
---       -- spills, return address read/writes, and frame pointer/callee saved
---       -- register saves/restores.
---       --
---       -- Checking this is on the stack also ensures there are no side effects
---       -- from mem-mapped IO reads since the stack should not be mem-mapped IO.
---       do thisIP <- (fun (s : BlovkVCGState) => s.mcCurAddr) <$> get;
---          proveTrue (evalRangeCheck onStack mcAddr (memReprBytes tp)) $
---            printf "Machine code read at %s is not within stack space." (show thisIP)
---       -- Define value from reading Macaw heap
---       supType <- getSupportedType tp
---       defineVarFromReadMCMem macawValVar mcAddr supType
---       -- Process future events.
---       modify $ \s -> s { mcEvents = mevs }
---       execMCOnlyEvents endAddr
---     -- Every LLVM write should have a machine code write (but not
---     -- necessarily vice versa), we pattern match on machine code
---     -- writes.
---     M.MCOnlyStackWriteEvent mcAddr tp macawVal:mevs -> do
---       -- We need to assert that this write will not be visible to LLVM.
---       do addr <- gets mcCurAddr
---          proveTrue (evalRangeCheck mcOnlyStackRange mcAddr (memReprBytes tp)) $
---            printf "Machine code write at %s is in unreserved stack space." (show addr)
---       -- Update stack with write.
---       mcWrite mcAddr tp macawVal
---       -- Process next events
---       modify $ \s -> s { mcEvents = mevs }
---       execMCOnlyEvents endAddr
---     -- This checks to see if the next instruction jumps to the next ip,
---     -- and if so it runs it.
---     (M.FetchAndExecuteEvent ectx regs:r) -> do
---       when (not (null r)) $ do
---         error "MC event after fetch and execute"
---       modify $ \s -> s { mcEvents = [] }
---       -- Update registers
---       setMCRegs ectx regs
---       -- Process next events
---       nextAddr <- gets mcNextAddr
---       case valueAsMemAddr (regs^.boundValue X86_IP) of
---         Just ipAddr | ipAddr == nextAddr && addrLt nextAddr endAddr -> do
---                         getNextEvents
---                         execMCOnlyEvents endAddr
---         _ -> do
---           pure ()
---     [] -> do
---       nextAddr <- gets mcNextAddr
---       when (addrLt nextAddr endAddr) $ do
---         getNextEvents
---         execMCOnlyEvents endAddr
---     _:_ -> do
---       pure ()
+-- | Get next events
+def getNextEvents : BlockVCG Unit := do
+  ctx <- read;
+  s <- get;
+  let addr := mcNextAddr s;
+  when (not (addr < ctx.mcBlockEndAddr)) $ do
+    throw $ "Unexpected end of machine code events.";
+  -- FIXMEL df, x87Top
+  (events, nextIdx, sz) <-
+    match x86.vcg.instructionEvents ctx.mcBlockMap s.mcCurRegs s.mcLocalIndex addr 
+            ctx.mcModuleVCGContext.decoder with
+    | Except.error e => throw e
+    | Except.ok    r => pure r;
+  -- Update local index and next addr
+  set $ { s with mcLocalIndex := nextIdx
+               , mcCurAddr := addr
+               , mcCurSize := sz
+               , mcEvents := events
+        }
+
+-- | Set machine code registers from reg state.
+def setMCRegs (regs : x86.vcg.RegState) : BlockVCG Unit :=
+  -- FIXME
+  -- topVal <- case regs^.boundValue X87_TopReg of
+  --             BVValue _w i | 0 <= i, i <= 7 -> pure $! fromInteger i
+  --             _ -> error "Unexpected X87_TOP value"
+  -- dfVal <- case regs^.boundValue DF of
+  --            BoolValue b -> pure b
+  --            _ -> error "Unexpected direction flag"
+  modify $ fun s => { s with mcCurRegs := regs }
+
+def getSupportedType (s : SMT.sort) : BlockVCG (x86.vcg.SupportedMemType s) := do
+  mops <- (fun (s : BlockVCGContext) => s.mcMemOps) <$> read;
+  match mops s with
+  | none => throw $ "Unexpected type " ++ toString s
+  | some supType => pure supType
+
+def mcWrite (addr : x86.vcg.memaddr) (s : SMT.sort) (val : SMT.term s) : BlockVCG Unit := do
+  curMem <- (fun (s : BlockVCGState) => s.mcCurMem) <$> get;
+  supType <- getSupportedType s;
+  nextMem <- BlockVCG.runsmtM $ SMT.define_fun "mem" [] x86.vcg.memory_t (supType.writeMem curMem addr val);
+  modify $ fun s => { s with mcCurMem := nextMem }
+
+def mcAssignRead (addr : x86.vcg.memaddr) (s : SMT.sort) (smtVar : SMT.term s) : BlockVCG Unit := do
+  curMem <- (fun (s : BlockVCGState) => s.mcCurMem) <$> get;
+  supType <- getSupportedType s;
+  let v := supType.readMem curMem addr;
+  addAssert (SMT.eq smtVar v)
+
+-- | Execute the machine-code only events that occur before jumping to the given address
+partial
+def execMCOnlyEvents : MemAddr -> BlockVCG Unit
+| endAddr => do
+  evts <- (fun (s : BlockVCGState) => s.mcEvents) <$> get;
+  match evts with
+  | Command cmd :: mevs => do
+      addCommand cmd;
+      modify (fun s => { s with mcEvents := mevs });
+      execMCOnlyEvents endAddr
+  | Warning msg :: mevs => do
+      liftIO $ IO.println msg;
+      modify (fun s => { s with mcEvents := mevs });
+      execMCOnlyEvents endAddr
+  | MCOnlyStackReadEvent mcAddr n smtValVar :: mevs => do
+      -- TODO: Fix this to the following
+
+      -- A MCOnlyStack read means the machine code reads memory, but
+      -- the llvm does not.
+      --
+      -- We currently check that these reads only access the stack as
+      -- the only current use of these annotations is to mark register
+      -- spills, return address read/writes, and frame pointer/callee saved
+      -- register saves/restores.
+      --
+      -- Checking this is on the stack also ensures there are no side effects
+      -- from mem-mapped IO reads since the stack should not be mem-mapped IO.
+
+      -- FIXME: add stack range stuff
+      -- do thisIP <- (fun (s : BlovkVCGState) => s.mcCurAddr) <$> get;
+      --    proveTrue (evalRangeCheck onStack mcAddr (memReprBytes tp)) $
+      --      printf "Machine code read at %s is not within stack space." (show thisIP)
+
+      -- Define value from reading Macaw heap
+      mcAssignRead mcAddr (SMT.sort.bitvec n) smtValVar;
+      -- Process future events.
+      modify (fun s => { s with mcEvents := mevs });
+      execMCOnlyEvents endAddr
+
+    -- Every LLVM write should have a machine code write (but not
+    -- necessarily vice versa), we pattern match on machine code
+    -- writes.
+  | MCOnlyStackWriteEvent mcAddr n smtVal :: mevs => do
+      -- We need to assert that this werite will not be visible to LLVM.
+
+      -- FIXME
+      -- do addr <- mcCurAddr <$> get;
+      --    proveTrue (evalRangeCheck mcOnlyStackRange mcAddr (memReprBytes tp)) $
+      --      printf "Machine code write at %s is in unreserved stack space." (show addr)
+      -- Update stack with write.
+      mcWrite mcAddr (SMT.sort.bitvec n) smtVal;
+      -- Process next events
+      modify $ fun s => {s with mcEvents := mevs };
+      execMCOnlyEvents endAddr
+    -- This checks to see if the next instruction jumps to the next ip,
+    -- and if so it runs it.
+  | FetchAndExecuteEvent regs :: mevs => do
+      when (not mevs.isEmpty) $ do
+        throw "MC event after fetch and execute";
+      modify $ fun s => { s with mcEvents := [] };
+      -- Update registers
+      setMCRegs regs;
+      -- Process next events
+      nextAddr <- mcNextAddr <$> get;
+      -- FIXME: assert the IP is nextAddr (no jmp etc.)
+      if nextAddr < endAddr 
+      then do getNextEvents; execMCOnlyEvents endAddr
+      else pure ()
+      -- case valueAsMemAddr (regs^.boundValue X86_IP) of
+      --   Just ipAddr | ipAddr == nextAddr && addrLt nextAddr endAddr -> do
+      --                   getNextEvents
+      --                   execMCOnlyEvents endAddr
+      --   _ -> do
+      --     pure ()
+  | [] => do
+      nextAddr <- mcNextAddr <$> get;
+      when (nextAddr < endAddr) $ do
+        getNextEvents;
+        execMCOnlyEvents endAddr
+  |  _ :: _ => pure ()
 
 -- -- | Get the next MC event that could interact with LLVM.
 -- popMCEvent :: HasCallStack => BlockVCG M.Event
