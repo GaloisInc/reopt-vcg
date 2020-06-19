@@ -285,15 +285,13 @@ end
 
 
 -- -- | Move to end of current block.
--- def mcExecuteToEnd : BlockVCG Unit := do
---   endAddr <- (fun (s : BlockVCGContext) => s.mcBlockEndAddr) <$> read;
---   execMCOnlyEvents endAddr
---   evts <- gets mcEvents
---   case evts of
---     [] -> do
---       pure ()
---     (h:_) -> do
---       error $ "Expecting end of block instead of " ++ show h
+def mcExecuteToEnd : BlockVCG Unit := do
+  endAddr <- (fun (s : BlockVCGContext) => s.mcBlockEndAddr) <$> read;
+  execMCOnlyEvents endAddr;
+  evts <- (fun (s : BlockVCGState) => s.mcEvents) <$> get;
+  match evts with
+  | [] => pure ()
+  | _ :: _ => throw $ "Expecting end of block"
 
 --------------------------------------------------------------------------------
 -- Literal constructors
@@ -302,7 +300,13 @@ def mkInt {w : Nat} (v : Int) (H : w > 0)
   : SMT.term (asSMTSort (llvm.llvm_type.prim_type (llvm.prim_type.integer w)) H) :=
   SMT.bvimm' w v
 
-def llvmReturn (mlret : Option (typed value)) : BlockVCG Unit := throw "unimplemented"
+--------------------------------------------------------------------------------
+-- Function calls
+
+def llvmReturn (mlret : Option (typed value)) : BlockVCG Unit := do
+  mcExecuteToEnd;
+  throw "unimplemented"
+  
   
 --------------------------------------------------------------------------------
 -- Arithmetic
@@ -331,8 +335,7 @@ open llvm.instruction
   
 def stepNextStmt (stmt : llvm.stmt) : BlockVCG Bool := do
   match stmt.instr with
-  | ret v    => llvmReturn (some v) $> false
-  | ret_void => llvmReturn none     $> false
+--   | alloca : llvm_type -> Option (typed value) -> Option Nat -> instruction
   | arith aop { type := lty, value := lhs } rhs => do
     if H : HasSMTSort lty then do
       lhsv <- primEval lty H lhs;
@@ -343,6 +346,9 @@ def stepNextStmt (stmt : llvm.stmt) : BlockVCG Bool := do
       | _, _, _, _ => throw "Unexpected sort";
       pure True
     else throw "Unexpected type"
+
+  | ret v    => llvmReturn (some v) $> false
+  | ret_void => llvmReturn none     $> false
   | _ => throw "unimplemented" 
   
 

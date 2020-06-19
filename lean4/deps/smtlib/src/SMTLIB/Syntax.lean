@@ -625,6 +625,11 @@ def bvsle        {n : Nat} : term (bitvec n) -> term (bitvec n) -> term smt_bool
 def bvsgt        {n : Nat} : term (bitvec n) -> term (bitvec n) -> term smt_bool := binop (bvsgt n) 
 def bvsge        {n : Nat} : term (bitvec n) -> term (bitvec n) -> term smt_bool := binop (bvsge n) 
 
+-- Pure version, doesn't touch the symbol name
+def smt_let {s t : sort} (v : symbol) (e : term s) (body : term s -> term t) : term t :=
+  let v_e := mk_symbol v s;
+  Raw.term.smt_let v e (body v_e)
+
 -- Scripts and Commands
 def script : Type := List command
 
