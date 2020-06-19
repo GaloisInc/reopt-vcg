@@ -63,7 +63,7 @@ end SupportedMemType
 
 -- FIXME: the name is wrong, maybe something like MCSMTContext or something?
 structure MCStdLib :=
-  (memOps : forall (s : sort), Option (SupportedMemType s))
+  (memOps        : forall (w : WordSize), SupportedMemType w.sort)
   (funStartRegs  : RegState)
   (blockStartMem : memory)
   (onStack       : memaddr -> bitvec 64 -> s_bool)

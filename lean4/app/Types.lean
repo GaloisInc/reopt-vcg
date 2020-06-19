@@ -283,22 +283,7 @@ structure BlockVCGContext :=
   -- ^ The end address of the block.
 (mcBlockMap : RBMap MemAddr MemoryAnn (λ x y => x < y))
   -- ^ Map from addresses to annotations of events on that address.
-(mcMemWordOps : forall (w : WordSize), (x86.vcg.SupportedMemType w.sort))
-  -- ^ Supported memory operations
-
-namespace BlockVCGContext
-open WordSize
-
-def mcMemOps (ctx : BlockVCGContext) (s : SMT.sort) : Option (x86.vcg.SupportedMemType s) :=
-match s with
-| SMT.sort.bitvec 8  => some $ ctx.mcMemWordOps word8
-| SMT.sort.bitvec 16 => some $ ctx.mcMemWordOps word16
-| SMT.sort.bitvec 32 => some $ ctx.mcMemWordOps word32
-| SMT.sort.bitvec 64 => some $ ctx.mcMemWordOps word64
-| _ => none
-
-
-end BlockVCGContext
+(mcStdLib     : x86.vcg.MCStdLib)
 
 -- State that changes during execution of a BlockVCG action.
 structure BlockVCGState :=

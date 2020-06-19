@@ -4,6 +4,7 @@ import LeanLLVM.LLVMLib
 import SMTLIB.Syntax
 import ReoptVCG.Types
 import ReoptVCG.VCGBackend
+import ReoptVCG.WordSize
 
 namespace ReoptVCG
 
@@ -169,11 +170,18 @@ def setMCRegs (regs : x86.vcg.RegState) : BlockVCG Unit :=
   --            _ -> error "Unexpected direction flag"
   modify $ fun s => { s with mcCurRegs := regs }
 
+section
+open WordSize
 def getSupportedType (s : SMT.sort) : BlockVCG (x86.vcg.SupportedMemType s) := do
-  mops <- (fun (s : BlockVCGContext) => s.mcMemOps) <$> read;
-  match mops s with
-  | none => throw $ "Unexpected type " ++ toString s
-  | some supType => pure supType
+  mcstd  <- BlockVCGContext.mcStdLib <$> read;
+  let mops := mcstd.memOps;
+  match s with
+  | SMT.sort.bitvec 8  => pure $ mops word8
+  | SMT.sort.bitvec 16 => pure $ mops word16
+  | SMT.sort.bitvec 32 => pure $ mops word32
+  | SMT.sort.bitvec 64 => pure $ mops word64
+  | _ => throw $ "Unexpected type " ++ toString s
+end
 
 def mcWrite (addr : x86.vcg.memaddr) (s : SMT.sort) (val : SMT.term s) : BlockVCG Unit := do
   curMem <- (fun (s : BlockVCGState) => s.mcCurMem) <$> get;
