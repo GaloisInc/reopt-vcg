@@ -3,6 +3,7 @@ import Galois.Data.SExp
 import SMTLIB.Syntax
 import LeanLLVM.AST
 import X86Semantics.Common
+import ReoptVCG.WordSize
 
 namespace ReoptVCG
 
@@ -43,28 +44,6 @@ match ss with
 | _ => Except.error $ "multiple s-expressions were found in the string: " ++ str
 
 
-inductive AddrWidth
-| w8  : AddrWidth
-| w16 : AddrWidth
-| w32 : AddrWidth
-| w64 : AddrWidth
-
-namespace AddrWidth
-
-def toNat : AddrWidth → Nat
-| w8  => 8
-| w16 => 16
-| w32 => 32
-| w64 => 64
-
-def fromNat : Nat → Option AddrWidth
-| 8  => some w8
-| 16 => some w16
-| 32 => some w32
-| 64 => some w64
-| _  => none
-
-end AddrWidth
 
 /-- An expression in the SMT bitvector theory with 
     variables/constants which may appear in 
@@ -83,7 +62,7 @@ inductive BlockExpr : sort → Type u
   --
   -- Note. We do not support all registers here, only the registers
   -- in `calleeSavedGPRegs`
-| mcStack (a : BlockExpr sort.bv64) (w:AddrWidth) : BlockExpr (sort.bitvec w.toNat)
+| mcStack (a : BlockExpr sort.bv64) (w:WordSize) : BlockExpr w.sort
   -- ^ @MCStack a w@ denotes @w@-bit value stored at the address @a@.
   --
   -- The width @w@ should be @8@, @16@, @32@, or @64@.
@@ -168,11 +147,11 @@ partial def fromSExp
         | SExp.list [SExp.atom (Atom.ident "_"),
                      SExp.atom (Atom.ident "BitVec"),
                      SExp.atom (Atom.nat w)] =>
-          match AddrWidth.fromNat w with
+          match WordSize.fromNat w with
           | some width => Except.ok width
           | none => Except.error "mcstack could not interpret memory type."
         | _ => Except.error "mcstack could not interpret memory type";
-    Except.ok ⟨sort.bitvec w.toNat, BlockExpr.mcStack (cast hEq a) w⟩
+    Except.ok ⟨w.sort, BlockExpr.mcStack (cast hEq a) w⟩
   else
     Except.error $ "Expected 64-bit address as first argument to mcstack"
                    ++ " but found a " ++ tp.toString
@@ -215,29 +194,6 @@ then
 else Except.error $ "expected " ++ input ++ " to be of type " ++ tp.toString
                   ++ ", but it is of type " ++ tp'.toString
 
-
-def typedNameToSMT (tp : sort) (nm : String) : term tp :=
-Raw.term.identifier $ Raw.identifier.symbol (Raw.const_sort.base tp) nm
-
--- Converts an Expr into an SMT expression. See `encodeExpr` and `exprToText` in
--- the Haskell.
-def toSMT : ∀ {tp : sort}, BlockExpr tp → term tp
--- encodeVar StackHigh = "stack_high"
-| tp, stackHigh => typedNameToSMT tp "stack_high" -- TODO check if this is right
--- encodeVar (InitGPReg64 r) = fromString (show r)
-| tp, initGPReg64 r => typedNameToSMT tp r.name -- TODO check if this is right
--- encodeVar (FnStartGPReg64 r) = encodeList ["fnstart", fromString (show r)]
-| tp, fnStartGPReg64 r => typedNameToSMT tp "TODO: toSMT fnstart"
--- encodeVar (MCStack e w) =
---  let tp = encodeList ["_", "BitVec", fromString (show w)]
---   in encodeList ["mcstack", encodeExpr e, tp]
-| tp, mcStack a w => typedNameToSMT tp "TODO: toSMT mcStack"
--- encodeVar (LLVMVar nm) = encodeList ["llvm", sexprFromText nm]
-| _, llvmVar nm tp => typedNameToSMT tp "TODO: toSMT llvmVar"
-| _, eq e1 e2 => SMT.eq (toSMT e1) (toSMT e2)
-| _, bvAdd e1 e2 => SMT.bvadd (toSMT e1) (toSMT e2)
-| _, bvSub e1 e2 => SMT.bvsub (toSMT e1) (toSMT e2)
-| _, bvDecimal n width => SMT.bvimm width n
 
 end BlockExpr
 

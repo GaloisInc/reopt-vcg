@@ -409,17 +409,38 @@ instance {cs : const_sort} : HasToSExpr (term cs) := ⟨fun tm => term.to_sexpr_
 
 end term
 
+inductive logic
+| all
+
+namespace logic
+
+def toString : logic → String
+| all => "ALL"
+
+end logic
+
+inductive option
+| produceModels : Bool → option
+
+namespace option
+
+def toString : option → String
+| produceModels b => ":produce-modules " ++ (if b then "true" else "false")
+
+end option
 
 
 -- Scripts and Commands (S3.9)
 
-inductive command : Type 
+inductive command
 | assert : term const_sort.smt_bool -> command
-
+| setLogic : logic → command
+| setOption : option → command
+| checkSatAssuming : List (term const_sort.smt_bool) → command
+| exit : command
 -- | check_sat : command
 
 -- Not supported yet
--- | ( check-sat-assuming ( ⟨prop_literal ⟩∗ ) )
 -- | ( declare-datatype ⟨symbol⟩ ⟨datatype_dec⟩)
 -- | ( declare-datatypes ( ⟨sort_dec ⟩n+1 ) ( ⟨datatype_dec ⟩n+1 ) ) | ( declare-fun ⟨symbol ⟩ ( ⟨sort ⟩∗ ) ⟨sort ⟩ )
 -- | ( declare-sort ⟨symbol ⟩ ⟨numeral ⟩ ) -- not yet supported
@@ -434,7 +455,6 @@ inductive command : Type
                 -> forall (s : sort), term (const_sort.base s) -> command
 
 -- | echo : String -> command
--- | exit : command
 -- | ( get-assertions )
 -- | ( get-assignment )
 -- | ( get-info ⟨info_flag ⟩ )
@@ -463,6 +483,14 @@ def to_sexpr : command -> SExpr
 | declare_fun s args r   => SExpr.app (atom "declare-fun") [toSExpr s, toSExpr (args.map toSExpr), toSExpr r]
 | define_fun  s args r b => SExpr.app (atom "define-fun") [toSExpr s, toSExpr (args.map to_sexpr_sigma), toSExpr r
                                                           , toSExpr b]
+| setLogic l =>
+  SExpr.app (atom "set-logic") [atom l.toString]
+| setOption opt =>
+  SExpr.app (atom "set-option") [atom opt.toString]
+| checkSatAssuming assumptions =>
+  SExpr.app (atom "check-sat-assuming") $ assumptions.map toSExpr
+| exit => SExpr.app (atom "exit") []
+
 instance : HasToSExpr command := ⟨command.to_sexpr⟩
 
 end command
@@ -691,10 +719,22 @@ def name_term (name : String) : forall {s : sort} (tm : term s), smtM (term s)
 
 def assert (b : term smt_bool) : smtM Unit := 
   modify (fun st => {st with script := (Raw.command.assert b) :: st.script })
+def setLogic (l : Raw.logic) : smtM Unit :=
+  modify (fun st => {st with script := (Raw.command.setLogic l) :: st.script })
+def setOption (o : Raw.option) : smtM Unit :=
+  modify (fun st => {st with script := (Raw.command.setOption o) :: st.script })
+def checkSatAssuming (bs : List (term smt_bool)) : smtM Unit :=
+  modify (fun st => {st with script := (Raw.command.checkSatAssuming bs) :: st.script })
+def exit : smtM Unit :=
+  modify (fun st => {st with script := Raw.command.exit :: st.script })
 
 def ex1 : smtM Unit :=
   do f <- declare_fun "f" [smt_bool, smt_bool] smt_bool;
      assert (f true false)
+
+def liftCommand (c : command) : smtM Unit :=
+  modify (fun st => {st with script := c :: st.script })
+
 
 -- #check true
 -- #check false
