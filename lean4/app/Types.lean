@@ -69,7 +69,7 @@ structure ProverInterface :=
 (addCommandCallback : command → IO Unit)
 (proveFalseCallback : term const_sort.smt_bool → String → IO Unit)
 (proveTrueCallback  : term const_sort.smt_bool → String → IO Unit)
-(blockErrorCallback : Int → Nat → String → IO Unit) -- what do we do there? Do nothing for now...?
+(blockErrorCallback : Nat → Nat → String → IO Unit) -- what do we do there? Do nothing for now...?
 
 structure ProverSessionGenerator :=
 (blockCallback : FnName → llvm.block_label → (ProverInterface → IO Unit) → IO Unit)
@@ -283,8 +283,22 @@ structure BlockVCGContext :=
   -- ^ The end address of the block.
 (mcBlockMap : RBMap MemAddr MemoryAnn (λ x y => x < y))
   -- ^ Map from addresses to annotations of events on that address.
-(mcMemOps : forall (s : SMT.sort), Option (x86.vcg.SupportedMemType s))
+(mcMemWordOps : forall (w : WordSize), (x86.vcg.SupportedMemType w.sort))
   -- ^ Supported memory operations
+
+namespace BlockVCGContext
+open WordSize
+
+def mcMemOps (ctx : BlockVCGContext) (s : SMT.sort) : Option (x86.vcg.SupportedMemType s) :=
+match s with
+| SMT.sort.bitvec 8  => some $ ctx.mcMemWordOps word8
+| SMT.sort.bitvec 16 => some $ ctx.mcMemWordOps word16
+| SMT.sort.bitvec 32 => some $ ctx.mcMemWordOps word32
+| SMT.sort.bitvec 64 => some $ ctx.mcMemWordOps word64
+| _ => none
+
+
+end BlockVCGContext
 
 -- State that changes during execution of a BlockVCG action.
 structure BlockVCGState :=

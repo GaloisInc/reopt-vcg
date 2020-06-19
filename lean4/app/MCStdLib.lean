@@ -1,6 +1,7 @@
 
 import SMTLIB.Syntax
 import ReoptVCG.VCGBackend
+import ReoptVCG.WordSize
 
 namespace x86
 namespace vcg
@@ -58,17 +59,15 @@ def make (nBytes : Nat) : smtM (SupportedMemType (SMT.sort.bitvec (8 * nBytes)))
 
 end SupportedMemType
 
-def mkMemOps : smtM (forall (s : sort), Option (SupportedMemType s)) := do 
+def mkMemOps : smtM (forall (w : WordSize), SupportedMemType w.sort) := do
   sm8  <- SupportedMemType.make 1;
   sm16 <- SupportedMemType.make 2;
   sm32 <- SupportedMemType.make 4;
   sm64 <- SupportedMemType.make 8;
-  pure $ fun s =>  match s with
-                   | SMT.sort.bitvec 8  => some sm8
-                   | SMT.sort.bitvec 16 => some sm16
-                   | SMT.sort.bitvec 32 => some sm32
-                   | SMT.sort.bitvec 64 => some sm64
-                   | _                  => none
-
+  pure $ fun w =>  match w with
+                   | WordSize.word8  => sm8
+                   | WordSize.word16 => sm16
+                   | WordSize.word32 => sm32
+                   | WordSize.word64 => sm64
 end vcg
 end x86
