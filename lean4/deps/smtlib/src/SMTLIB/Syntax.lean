@@ -1,14 +1,14 @@
 -- Following the SMTLIB reference v2.6 
 
 import Galois.Init.Nat
+import Galois.Data.SExp
+
+abbrev SExpr := WellFormedSExp.SExp String
 
 namespace SExpr
 
-structure SExpr := (sexpr : String)
-
-instance SExpr.HasToString : HasToString SExpr := ⟨fun (s : SExpr) => s.sexpr⟩
-
-def atom : String -> SExpr := SExpr.mk
+open WellFormedSExp
+open WellFormedSExp.SExp
 
 class HasToSExpr (a : Type) := (toSExpr : a -> SExpr)
 
@@ -17,29 +17,29 @@ open HasToSExpr
 instance SExpr.HasToSExpr : HasToSExpr SExpr := ⟨id⟩
 
 instance List.HasToSExpr {a : Type} [HasToSExpr a] : HasToSExpr (List a) :=
-  ⟨fun ss => SExpr.mk ("(" ++ ss.foldr (fun a s => (HasToSExpr.toSExpr a).sexpr ++ " " ++ s) ")")⟩
+⟨fun ss => list $ ss.map HasToSExpr.toSExpr⟩
 
-instance Nat.HasToSExpr : HasToSExpr Nat := ⟨fun n => SExpr.mk (toString n)⟩
-
-instance String.HasToSExpr : HasToSExpr String := ⟨fun s => SExpr.mk ("\"" ++ s ++ "\"")⟩
+instance Nat.HasToSExpr : HasToSExpr Nat := ⟨atom ∘ Nat.repr⟩
+instance String.HasToSExpr : HasToSExpr String := ⟨atom⟩
 
 protected
-def app (f : SExpr) (args : List SExpr) : SExpr := toSExpr (f :: args)
+def app (f : SExpr) (args : List SExpr) : SExpr := list (f :: args)
 
 end SExpr
-
 
 export SExpr.HasToSExpr (toSExpr)
 
 
 namespace SMT
 
+
+open WellFormedSExp
+open WellFormedSExp.SExp
 open SExpr
-open SExpr.HasToSExpr
 
 -- SMTLIB specific sexpr stuff
 def indexed (f : SExpr) (args : List SExpr) : SExpr :=
-  SExpr.app (atom "_") (f :: args)
+  list $ (atom "_")::f::args
 
 inductive sort : Type
 | smt_bool : sort
@@ -87,8 +87,8 @@ instance : HasBeq sort := ⟨sort.beq⟩
 protected
 def to_sexpr : sort -> SExpr
 | smt_bool => atom "Bool"
-| bitvec n => indexed (atom "BitVec") [toSExpr n]
-| array k v => SExpr.app (atom "Array") [to_sexpr k, to_sexpr v]
+| bitvec n => indexed (atom "BitVec") [atom n.repr]
+| array k v => list [atom "Array", to_sexpr k, to_sexpr v]
 
 instance : HasToSExpr sort := ⟨sort.to_sexpr⟩
 
@@ -112,9 +112,8 @@ protected def decidable_eq : ∀(e e' : sort), Decidable (e = e')
 | (array _ _), (bitvec _) => isFalse (fun h => sort.noConfusion h)
 
 instance : DecidableEq sort := sort.decidable_eq
-          
-def toString (s:sort) := s.to_sexpr.sexpr
 
+def toString (s:sort) : String := (sort.to_sexpr s).toString
 instance : HasToString sort := ⟨sort.toString⟩
 
 end sort

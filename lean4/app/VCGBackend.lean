@@ -56,6 +56,12 @@ def update_flag (idx : Fin 32) (f : s_bool -> s_bool) (s : RegState) : RegState 
   then { s with flags := Array.set s.flags (Eq.recOn h idx) (f (get_flag s idx)) }
   else s 
 
+def get_reg64  (s : RegState) (r : concrete_reg (bv gpreg_type.reg64.width)) : machine_word :=
+  match gpreg_type.reg64.width, r with
+  | _, concrete_reg.gpreg idx tp => s.get_gpreg idx
+
+
+
 def print_regs (s : RegState) : String :=
   let lines := List.zipWith (fun n (r : bitvec 64) => (n ++ ": " ++ toString (toSExpr r) ++ ", ")) reg.r64_names s.gpregs.toList;
   String.join lines
