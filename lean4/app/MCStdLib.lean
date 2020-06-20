@@ -62,6 +62,7 @@ def make (nBytes : Nat) : smtM (SupportedMemType (SMT.sort.bitvec (8 * nBytes)))
 end SupportedMemType
 
 -- FIXME: the name is wrong, maybe something like MCSMTContext or something?
+-- cf. `mcMemDecls`
 structure MCStdLib :=
   (memOps        : forall (w : WordSize), SupportedMemType w.sort)
   (funStartRegs  : RegState)

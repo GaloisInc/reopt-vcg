@@ -267,7 +267,7 @@ protected def repr {tp:type} (r:concrete_reg tp) : String :=
 
 end concrete_reg
 
-abbrev reg64 := concrete_reg (bv 64)
+abbrev reg64 := concrete_reg (bv gpreg_type.reg64.width)
 
 namespace reg64
 

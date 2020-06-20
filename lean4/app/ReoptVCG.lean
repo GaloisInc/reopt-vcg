@@ -3,6 +3,7 @@ import LeanLLVM.AST
 import Main.Elf
 import ReoptVCG.Annotations
 import ReoptVCG.LoadLLVM
+import ReoptVCG.SMT
 import ReoptVCG.Types
 import SMTLIB.Syntax
 import X86Semantics.Common
@@ -16,9 +17,6 @@ open Lean.Json (parseObjValAsString)
 open elf.elf_class (ELF64)
 open llvm (llvm_type llvm_type.prim_type llvm_type.ptr_to prim_type prim_type.integer)
 
-def exportModeCallbacks {α : Type} (outDir : String) (fn : FnName) (lbl : llvm.block_label) (action : ProverInterface → IO α) : IO α :=
--- FIXME
-action $ ProverInterface.mk (λ _ => pure ()) (λ _ _ => pure ()) (λ _ _ => pure ()) (λ _ _ _ => pure ())
 
 
 -- This runs an action with a proof session generator, and reports
@@ -227,7 +225,7 @@ match cfg.mode with
   outDirExists ← IO.isDir outDir;
   unless outDirExists $ throw $ IO.userError $ "Output directory `"++outDir++"` does not exists.";
   -- FIXME create the directory if it's missing? (It's not clear there's a lean4 API for that yet)
-  let psGen := ProverSessionGenerator.mk (exportModeCallbacks outDir) (pure ());
+  let psGen := ProverSessionGenerator.mk (exportCallbacks outDir) (pure ());
   pure (modAnn, psGen)
   
 

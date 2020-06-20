@@ -4,6 +4,7 @@ import Test.AnnotationParsing
 import Test.JsonRoundtrip
 import Test.LoadElf
 import Test.SExp
+import Test.SMTExport
 
 
 namespace Test
@@ -13,7 +14,8 @@ def tests : RBMap String (IO UInt32) (λ x y => x < y) :=
   [("AnnotationParsing.lean", AnnotationParsing.test),
    ("JsonRoundtrip.lean", JsonRoundtrip.test),
    ("LoadElf.lean", LoadElf.test),
-   ("SExp.lean", SExp.test)
+   ("SExp.lean", SExp.test),
+   ("SMTExport.lean", SMTExport.test)
   ]
   (λ x y => x < y)
 
