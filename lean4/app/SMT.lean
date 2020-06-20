@@ -3,55 +3,123 @@
 import ReoptVCG.SMTParser
 import ReoptVCG.MCStdLib
 import ReoptVCG.Types
+import ReoptVCG.VCGBackend
 import ReoptVCG.WordSize
 import SMTLIB.Syntax
+import X86Semantics.Common
 
 namespace ReoptVCG
 open SMT
-
+universe u
 
 /-- Abstracts out the _specifics_ of how certain BlockExpr terms
     should be emitted as SMT terms, so that the underlying SMT
     architecture can generate these ahead of time in whatever way is
     appropriate and then simply parameterize SMT generation of
     precondition expressions accordingly. --/
-structure BlockExprContext :=
-(stackHigh : term sort.bv64)
-(initGPReg64 : x86.reg64 → term sort.bv64)
-(memory : term (sort.array sort.bv64 sort.bv8))
-(fnStartRegState : x86.reg64 → term sort.bv64)
-(regState : x86.reg64 → term sort.bv64)
-(phiVarMap : ∀(nm:String) (tp:sort), term tp)
-(mcMemOps : ∀(w : WordSize), x86.vcg.SupportedMemType w.sort)
+class BlockExprEnv (α : Type u) :=
+(initGPReg64 : α → x86.reg64 → term sort.bv64)
+(fnStartRegState : α → x86.reg64 → term sort.bv64)
+(phiVarMap : α → ∀(nm:String), Option (Sigma term))
+(readMem : α → ∀(w : WordSize), x86.vcg.memaddr →  term w.sort)
+
+structure BlockVCGExprEnv :=
+(context : BlockVCGContext)
+(state : BlockVCGState)
+
+namespace BlockVCGExprEnv
+variable (e : BlockVCGExprEnv)
+
+def initGPReg64 (r : x86.reg64) : term sort.bv64 :=
+e.state.mcCurRegs.get_reg64 r
+
+def fnStartRegState (r : x86.reg64) : term sort.bv64 :=
+e.context.mcStdLib.funStartRegs.get_reg64 r
+
+def phiVarMap (nm : String) : Option (Sigma term) :=
+e.state.llvmIdentMap.find? (llvm.ident.named nm)
+
+def readMem (w:WordSize) (addr : x86.vcg.memaddr) : term w.sort :=
+(e.context.mcStdLib.memOps w).readMem e.state.mcCurMem addr
+
+end BlockVCGExprEnv
+
+instance BlockVCGExprEnv.isBlockExprEnv : BlockExprEnv BlockVCGExprEnv :=
+{initGPReg64 := BlockVCGExprEnv.initGPReg64,
+ fnStartRegState := BlockVCGExprEnv.fnStartRegState,
+ phiVarMap := BlockVCGExprEnv.phiVarMap,
+ readMem := BlockVCGExprEnv.readMem
+}
 
 namespace BlockExpr
 
--- Converts an Expr into an SMT term, cf. `evalPrecondition`
-def toSMT (ctx:BlockExprContext) : ∀ {tp : sort}, BlockExpr tp → term tp
-| _, stackHigh => ctx.stackHigh
-| _, initGPReg64 r => ctx.regState r
-| _, fnStartGPReg64 r => ctx.fnStartRegState r
-| _, mcStack a w => (ctx.mcMemOps w).readMem ctx.memory (toSMT a)
-| _, llvmVar nm tp => ctx.phiVarMap nm tp
-| _, eq e1 e2 => SMT.eq (toSMT e1) (toSMT e2)
-| _, bvAdd e1 e2 => SMT.bvadd (toSMT e1) (toSMT e2)
-| _, bvSub e1 e2 => SMT.bvsub (toSMT e1) (toSMT e2)
-| _, bvDecimal n width => SMT.bvimm width n
+-- Converts an Expr into an SMT term given an environment. AMK: it's currently in IO
+-- to handle some partiality (doh!) and because we want to use it in an IO context
+-- at the moment any, so it's a convenient hack for the moment. TODO: maybe we
+-- can guarantee all the SMT terms an llvmVar could be are inhabited and use lean4's
+-- panic! and at least not force this to be in IO.
+def toSMT {α : Type u} [BlockExprEnv α] (env: α) : ∀ {tp : sort}, BlockExpr tp → IO (term tp)
+| _, stackHigh => pure $ BlockExprEnv.fnStartRegState env x86.reg64.rsp
+| _, initGPReg64 r => pure $ BlockExprEnv.initGPReg64 env r
+| _, fnStartGPReg64 r => pure $ BlockExprEnv.fnStartRegState env r
+| _, mcStack a w => do
+  t ← toSMT a;
+  pure $ BlockExprEnv.readMem env w t
+| _, llvmVar nm tp =>
+  match BlockExprEnv.phiVarMap env nm with
+  | some ⟨tp', t⟩ =>
+    if h : tp = tp'
+    then
+      let hEq : term tp' = term tp := h ▸ rfl;
+      pure $ cast hEq t
+    else
+      throw $ IO.userError $
+      "Error while translating precondition to SMT! LLVM variable `"
+      ++ nm ++ "` had no entry in the phi variable map!"
+  | none => throw $ IO.userError $
+    "Error while translating precondition to SMT! LLVM variable `"
+    ++ nm ++ "` had no entry in the phi variable map!"
+| _, eq e1 e2 => do
+  t1 ← toSMT e1;
+  t2 ← toSMT e2;
+  pure $ SMT.eq t1 t2
+| _, bvAdd e1 e2 => do
+  t1 ← toSMT e1;
+  t2 ← toSMT e2;
+  pure $ SMT.bvadd t1 t2
+| _, bvSub e1 e2 => do
+  t1 ← toSMT e1;
+  t2 ← toSMT e2;
+  pure $ SMT.bvsub t1 t2
+| _, bvDecimal n width => pure $ SMT.bvimm width n
 
 end BlockExpr
 
+/-- Converts a BlockExpr into an SMT term in the BlockVCG context. --/
+def evalPrecondition {tp : sort} (expr : BlockExpr tp) : BlockVCG (term tp) := do
+ctx ← read;
+state ← get;
+let env := BlockVCGExprEnv.mk ctx state;
+BlockVCG.liftIO $ BlockExpr.toSMT env expr
 
+
+def ppBlockLabel (lbl:llvm.block_label) : String :=
+match lbl.label with
+| llvm.ident.named str => str
+| llvm.ident.anon n => "anon" ++ n.repr
 
 -- | Pretty print an error that occurs at the start of an instruction.
-def renderMCInstError (fnm blockLbl : String) (idx : Nat) (addr : Nat) (msg : String) : String:= fnm++"."++blockLbl++"."++idx.repr++"("++addr.ppHex++"). "++msg
+def renderMCInstError (fnm : String) (blockLbl : llvm.block_label) (idx : Nat) (addr : Nat) (msg : String) : String :=
+fnm++"."++(ppBlockLabel blockLbl)++"."++idx.repr++"("++addr.ppHex++"). "++msg
 
-def standaloneGoalFilename (fnName blockLabel : String) (goalIndex : Nat) : String :=
-fnName ++ "_" ++ blockLabel ++ "_" ++ goalIndex.repr ++ ".smt2"
+def standaloneGoalFilename (fnName : String) (lbl : llvm.block_label) (goalIndex : Nat) : String :=
+fnName ++ "_" ++ (ppBlockLabel lbl) ++ "_" ++ goalIndex.repr ++ ".smt2"
 
 /-- Write assert the negated goal and write out the resulting script
     of commands to a file. -/
 def exportCheckSatProblem
-(outputDir fnName blockLabel : String)
+(outputDir fnName : String)
+(blockLabel : llvm.block_label)
 (goalCounter : IO.Ref Nat)
 (cmdRef : IO.Ref (smtM Unit))
 (negatedGoal : term sort.smt_bool)
@@ -66,7 +134,8 @@ let (_, _, cmds) :=
             *> smtCtx
             *> checkSatAssuming [negatedGoal]
             *> exit);
-file ← IO.FS.Handle.mk (standaloneGoalFilename fnName blockLabel cnt) IO.FS.Mode.write;
+let filePath := outputDir ++ [System.FilePath.pathSeparator].asString ++ (standaloneGoalFilename fnName blockLabel cnt);
+file ← IO.FS.Handle.mk filePath IO.FS.Mode.write;
 -- TODO make these actual commands in our Lean4 SMT namespace
 file.putStr ("; "++ goalName ++ "\n");
 cmds.forM $ λ c => file.putStr $ (toString (toSExpr c)) ++ "\n"
@@ -74,7 +143,8 @@ cmds.forM $ λ c => file.putStr $ (toString (toSExpr c)) ++ "\n"
 
 def exportCallbacks
 {α}
-(outputDir fnName blockLabel : String)
+(outputDir fnName : String)
+(blockLabel : llvm.block_label)
 (action : ProverInterface → IO α)
 : IO α
 := do
@@ -82,7 +152,8 @@ goalCounter <- IO.mkRef 0;
 let initSmtM : smtM Unit := pure ();
 cmdRef <- IO.mkRef initSmtM;
 action
-  {addCommandCallback := λ cmd => cmdRef.modify (λ cmds => cmds *> liftCommand cmd),
+  {addSMTCallback := λ action => cmdRef.modify (λ cmds => cmds *> action),
+   addCommandCallback := λ cmd => cmdRef.modify (λ cmds => cmds *> liftCommand cmd),
    proveFalseCallback := λ p msg =>
     exportCheckSatProblem outputDir fnName blockLabel goalCounter cmdRef p msg,
    proveTrueCallback := λ p msg =>

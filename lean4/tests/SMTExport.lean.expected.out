@@ -1,0 +1,17 @@
+; false-is-false
+(set-logic ALL)
+(set-option :produce-modules true)
+(declare-fun |tt-0| () Bool)
+(define-fun |tt2-1| () Bool true)
+(declare-fun |ff-2| () Bool)
+(declare-fun |negb-3| (Bool) Bool)
+(define-fun |andb-4| ((|arg-5| Bool) (|arg-6| Bool)) Bool (and |arg-5| |arg-6|))
+(assert (eq |tt-0| true))
+(assert (eq |tt-0| |tt2-1|))
+(assert (eq |ff-2| false))
+(assert (eq (|negb-3| |ff-2|) true))
+(assert (eq (|negb-3| |tt-0|) false))
+(assert (|andb-4| |tt-0| (|negb-3| |ff-2|)))
+(check-sat-assuming false)
+(exit)
+

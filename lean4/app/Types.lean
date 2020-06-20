@@ -40,7 +40,7 @@ namespace ReoptVCG
 -- to the What4.Protocol.SMTLib2.Syntax module in Haskell, but...
 -- it's the "Raw" interface which feels a little off...
 
-open SMT.Raw
+open SMT
 
 
 @[reducible]
@@ -66,9 +66,10 @@ structure VCGConfig :=
 -- TODO / FIXME see comment below about moving away from IO          
 -- FIXME(AMK) don't use the raw interface to SMT
 structure ProverInterface :=
+(addSMTCallback     : SMT.smtM Unit → IO Unit)
 (addCommandCallback : command → IO Unit)
-(proveFalseCallback : term const_sort.smt_bool → String → IO Unit)
-(proveTrueCallback  : term const_sort.smt_bool → String → IO Unit)
+(proveFalseCallback : term sort.smt_bool → String → IO Unit)
+(proveTrueCallback  : term sort.smt_bool → String → IO Unit)
 (blockErrorCallback : Nat → Nat → String → IO Unit) -- what do we do there? Do nothing for now...?
 
 structure ProverSessionGenerator :=
