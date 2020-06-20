@@ -71,6 +71,18 @@ structure ProverInterface :=
 (proveTrueCallback  : term const_sort.smt_bool → String → IO Unit)
 (blockErrorCallback : Nat → Nat → String → IO Unit) -- what do we do there? Do nothing for now...?
 
+namespace ProverInterface
+
+open SMT (smtM)
+
+def runsmtM {a : Type} (p : ProverInterface) (nf : Nat) (m : smtM a) : IO (a × Nat) := 
+  match SMT.runsmtM nf m with
+  | (r, (nf', cmds)) => do
+    _ <- List.mapM p.addCommandCallback cmds;
+    pure (r, nf')
+  
+end ProverInterface
+
 structure ProverSessionGenerator :=
 (blockCallback : FnName → llvm.block_label → (ProverInterface → IO Unit) → IO Unit)
 (sessionComplete : IO Unit)
@@ -264,6 +276,7 @@ def ReachableBlockAnnMap := RBMap llvm.block_label AnnotatedBlock (λ x y => x<y
 -------------------------------------------------------
 
 abbrev MemAddr := Nat
+abbrev MCBlockAnnMap := RBMap MemAddr MemoryAnn (λ x y => x < y)
 
 -- Information that does not change during execution of a BlockVCG action.
 structure BlockVCGContext :=
@@ -281,7 +294,7 @@ structure BlockVCGContext :=
   -- ^ Functions for interacting with SMT solver.
 (mcBlockEndAddr : MemAddr)
   -- ^ The end address of the block.
-(mcBlockMap : RBMap MemAddr MemoryAnn (λ x y => x < y))
+(mcBlockMap : MCBlockAnnMap)
   -- ^ Map from addresses to annotations of events on that address.
 (mcStdLib     : x86.vcg.MCStdLib)
 
@@ -293,7 +306,7 @@ structure BlockVCGState :=
   -- ^ Size of current instruction.
 --(mcX87Top : Nat) -- TODO...? later
   -- ^ Top index in x86 stack (starts at 7 and grows down).
-(mcDF : Bool)
+-- (mcDF : Bool) -- FIXME
   -- ^ Direction flag
 (mcCurRegs : x86.vcg.RegState)
   -- ^ Map registers to the SMT term.
@@ -338,6 +351,13 @@ instance : HasMonadLiftT IO BlockVCG :=
 def liftIO {a : Type} (m : IO a) : BlockVCG a := monadLift m
 
 end BlockVCG
+
+-- FIXME: move
+/-- Lift an Except to IO, throwing any occurring error with the given prefix at the front of the message. --/
+def elseThrowPrefixed {ε α : Type} [HasToString ε] (e : Except ε α) (pfx : String) : IO α :=
+match e with
+| Except.ok a    => pure a
+| Except.error e => throw (IO.userError $ pfx ++ (toString e))
 
 
 end ReoptVCG

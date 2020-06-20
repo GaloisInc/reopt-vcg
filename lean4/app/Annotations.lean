@@ -263,6 +263,8 @@ MCAddr.casesOn a $ fun n => MCAddr.casesOn b $ fun m =>
   then isTrue (h ▸ rfl)
   else isFalse (fun h' => MCAddr.noConfusion h' (fun h' => absurd h' h))
 
+def MCAddr.toNat (a : MCAddr) : Nat := a.addr.toNat
+
 instance MCAddr.hasDecidableEq : DecidableEq MCAddr := MCAddr.decEq
 
 

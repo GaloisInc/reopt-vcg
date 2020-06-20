@@ -27,13 +27,6 @@ def interactiveSMTGenerator (annPath solverPath : String) (solverArgs : List Str
 -- FIXME
 pure $ ProverSessionGenerator.mk (λ _ _ _ => pure ()) (pure ())
 
-
-/-- Lift an Except to IO, throwing any occurring error with the given prefix at the front of the message. --/
-def elseThrowPrefixed {ε α : Type} [HasToString ε] (e : Except ε α) (pfx : String) : IO α :=
-match e with
-| Except.ok a    => pure a
-| Except.error e => throw (IO.userError $ pfx ++ (toString e))
-
 -- | Use a map from symbol names to address to find address.
 def getMCAddrOfLLVMFunction
 (m : RBMap String (elf.word ELF64) Lean.strLt)

@@ -137,11 +137,11 @@ namespace MCStdLib
 def rsp_idx : Fin 16 := 4
 
 -- FIXME: some of this is not used in the absence of allocas
-def make (pageSize : Nat) (guardPageCount : Nat) : smtM MCStdLib := do
+def make (ip : Nat) (pageSize : Nat) (guardPageCount : Nat) : smtM MCStdLib := do
   -- FIXME: add checks
   memOps <- mkMemOps;
 
-  funStartRegs <- RegState.declare_const;
+  funStartRegs <- RegState.declare_const ip;
   let stackHighTerm := funStartRegs.get_gpreg rsp_idx;
 
   blockStartMem <- SMT.declare_fun "init_mem" [] memory_t;

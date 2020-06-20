@@ -5,6 +5,7 @@ import SMTLIB.Syntax
 import ReoptVCG.Types
 import ReoptVCG.VCGBackend
 import ReoptVCG.WordSize
+import ReoptVCG.MCStdLib
 
 namespace ReoptVCG
 
@@ -308,6 +309,17 @@ def mkInt {w : Nat} (v : Int) (H : w > 0)
   : SMT.term (asSMTSort (llvm.llvm_type.prim_type (llvm.prim_type.integer w)) H) :=
   SMT.bvimm' w v
 
+
+-- --------------------------------------------------------------------------------
+-- -- Branch support
+
+-- -- | Register values initialized from annotations.
+-- def initBlockRegValues (ann : ReachableBlockAnn) : List (Fin 16 × SMT.term (SMT.sort.bitvec 64)) :=
+--   [ (Some X86_IP,     SMT.bvhexadecimal (toInteger (Ann.blockAddr blockAnn)) 64)
+--   -- , (Some X87_TopReg, SMT.bvdecimal (toInteger (Ann.blockX87Top blockAnn)) 3)
+--   -- , (Some DF,         if Ann.blockDFFlag blockAnn then SMT.true else SMT.false)
+--   ]
+
 --------------------------------------------------------------------------------
 -- Function calls
 
@@ -395,6 +407,64 @@ def stepNextStmt (stmt : llvm.stmt) : BlockVCG Bool := do
 --   | landing_pad : llvm_type -> Option (typed value) -> Bool -> List (clause × typed value) -> instruction
 --   | resume : typed value -> instruction
 end
+
   
+--------------------------------------------------------------------------------
+-- Runner
+
+namespace BlockVCG
+
+protected 
+def run {a : Type}
+        (mctx : ModuleVCGContext)
+        (funAnn : FunctionAnn)
+        (bmap : ReachableBlockAnnMap)
+        (firstBlock : llvm.block_label)
+        (firstAddr  : Nat) -- FIXME: maybe not strictly required
+        (thisBlock  : llvm.block_label)
+        (blockAnn   : ReachableBlockAnn)
+        (m : BlockVCG Unit) : IO Unit := do
+  mctx.proverGen.blockCallback funAnn.llvmFunName thisBlock $ fun prover => do
+    let blockStart := blockAnn.startAddr.toNat;
+    let sz := blockAnn.codeSize;
+    let blockMap : MCBlockAnnMap := 
+      (let mk (e : MCMemoryEvent) := (e.addr.toNat, e.info);
+       RBMap.ofList (List.map mk blockAnn.memoryEvents.toList));
+       
+    ((stdLib, blockRegs), nextFree) <- prover.runsmtM 0 (do
+      let ann := mctx.annotations;  
+      stdLib <- x86.vcg.MCStdLib.make firstAddr ann.pageSize ann.stackGuardPageCount;
+      blockRegs <-
+        if thisBlock = firstBlock 
+        then pure stdLib.funStartRegs
+        else x86.vcg.RegState.declare_const blockStart;
+      -- FIXME df etc.   
+      pure (stdLib, blockRegs));
+
+    let ctx := { BlockVCGContext
+               . mcModuleVCGContext := mctx
+               , llvmFunName := funAnn.llvmFunName
+               , funBlkAnnotations := bmap
+               , firstBlockLabel := firstBlock
+               , currentBlock    := thisBlock
+               , callbackFns     := prover
+               , mcBlockEndAddr  := blockStart + sz
+               , mcBlockMap      := blockMap
+               , mcStdLib        := stdLib
+               };
+    let s := { BlockVCGState
+             . mcCurAddr := blockStart
+             , mcCurSize := 0
+             , mcCurRegs := blockRegs
+             , mcCurMem  := stdLib.blockStartMem
+             , mcEvents  := []
+             , mcLocalIndex := nextFree
+             , llvmInstIndex := 0
+             , llvmIdentMap  := RBMap.empty -- FIXME: ???
+             };
+     r <- ((m.run ctx).run' s).run;
+     elseThrowPrefixed r "BlockVCG.run"
+
+end BlockVCG
 
 end ReoptVCG

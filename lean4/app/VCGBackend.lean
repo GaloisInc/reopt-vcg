@@ -68,11 +68,11 @@ def declare_const_aux {s : sort} (ns : List String) (sz : Nat) : smtM (Array (te
   let f    := fun n (_ : Nat) => SMT.declare_fun (List.getD n ns "el") [] s;
   Array.mapIdxM f base
 
-def declare_const : smtM RegState := do
+-- We normally havea concrete rip
+def declare_const (ip : Nat) : smtM RegState := do
   gprs  <- RegState.declare_const_aux reg.r64_names 16;
   flags <- RegState.declare_const_aux reg.flag_names 32;
-  ip    <- SMT.declare_fun "ip" [] (SMT.sort.bitvec 64);
-  pure { gpregs := gprs, flags := flags, ip := ip }
+  pure { gpregs := gprs, flags := flags, ip := SMT.bvimm _ ip }
 
 end RegState
 
