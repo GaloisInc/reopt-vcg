@@ -260,17 +260,23 @@ def moduleCatch (m : ModuleVCG Unit) :  ModuleVCG Unit :=
 @[reducible]
 def BlockLabelValMap := RBMap llvm.block_label llvm.value (λ x y => x < y)
 
+abbrev PhiVarMap := RBMap llvm.ident (llvm.llvm_type × BlockLabelValMap) (λ x y => x<y)
 
 structure AnnotatedBlock :=
 (annotation: BlockAnn)
 (label : llvm.block_label)
-(phiVarMap : RBMap llvm.ident (llvm.llvm_type × BlockLabelValMap) (λ x y => x<y))
+(phiVarMap : PhiVarMap)
 (stmts : List llvm.stmt)
 
 
 /--  Maps LLM block labels to their associated annotations. --/
 @[reducible]
 def ReachableBlockAnnMap := RBMap llvm.block_label AnnotatedBlock (λ x y => x<y)
+
+-- | Find a block with the given label in the config.
+def findBlock (m : ReachableBlockAnnMap) (lbl: llvm.block_label) : Option (BlockAnn × PhiVarMap) := do
+ab <- m.find? lbl;
+pure (ab.annotation, ab.phiVarMap)
 
 -------------------------------------------------------
 -- BlockVCG
@@ -329,27 +335,45 @@ structure BlockVCGState :=
  -- ^ Mapping from llvm ident to their SMT equivalent.
 
 
-def BlockVCG := ReaderT BlockVCGContext (StateT BlockVCGState (ExceptT String IO))
+inductive BlockVCGError
+| localErr : String → BlockVCGError
+-- ^ The was an error processing the current block which,
+--   has halted its verification, but it is reasonable to
+--   continue on with the next block's verification.
+| globalErr : String → BlockVCGError
+-- ^ There is a globally fatal error; it is not reasonable to continue
+-- verifying blocks.
+
+
+def BlockVCG := ReaderT BlockVCGContext (StateT BlockVCGState (ExceptT BlockVCGError IO))
 
 namespace BlockVCG
 
 instance : Monad BlockVCG :=
-  inferInstanceAs (Monad (ReaderT BlockVCGContext (StateT BlockVCGState (ExceptT String IO))))
+  inferInstanceAs (Monad (ReaderT BlockVCGContext (StateT BlockVCGState (ExceptT BlockVCGError IO))))
 
 instance : MonadReader BlockVCGContext BlockVCG :=
-  inferInstanceAs (MonadReader BlockVCGContext (ReaderT BlockVCGContext (StateT BlockVCGState (ExceptT String IO))))
+  inferInstanceAs (MonadReader BlockVCGContext (ReaderT BlockVCGContext (StateT BlockVCGState (ExceptT BlockVCGError IO))))
 
 instance : MonadState BlockVCGState BlockVCG :=
-  inferInstanceAs (MonadState BlockVCGState (ReaderT BlockVCGContext (StateT BlockVCGState (ExceptT String IO))))
+  inferInstanceAs (MonadState BlockVCGState (ReaderT BlockVCGContext (StateT BlockVCGState (ExceptT BlockVCGError IO))))
 
-instance : MonadExcept String BlockVCG :=
-  inferInstanceAs (MonadExcept String (ReaderT BlockVCGContext (StateT BlockVCGState (ExceptT String IO))))
+instance : MonadExcept BlockVCGError BlockVCG :=
+  inferInstanceAs (MonadExcept BlockVCGError (ReaderT BlockVCGContext (StateT BlockVCGState (ExceptT BlockVCGError IO))))
 
 instance : HasMonadLiftT IO BlockVCG :=
-  inferInstanceAs (HasMonadLiftT IO (ReaderT BlockVCGContext (StateT BlockVCGState (ExceptT String IO))))
+  inferInstanceAs (HasMonadLiftT IO (ReaderT BlockVCGContext (StateT BlockVCGState (ExceptT BlockVCGError IO))))
 
 
 def liftIO {a : Type} (m : IO a) : BlockVCG a := monadLift m
+
+-- | Thow an error to terminate the current block's verification, but continue with
+-- other blocks verification.
+def localThrow {a} (msg : String) : BlockVCG a := throw $ BlockVCGError.localErr msg
+
+-- | Thow an error to terminate all verification.
+def globalThrow {a} (msg : String) : BlockVCG a := throw $ BlockVCGError.globalErr msg
+
 
 end BlockVCG
 
