@@ -265,7 +265,9 @@ def runVCG (cfg : VCGConfig) : IO UInt32 := do
 (ann, gen) ← setupWithConfig cfg;
 -- Load Elf file and emit warnings
 -- FIXME: cleanup
+when cfg.verbose $ IO.println $ "Loading Elf file at `" ++ ann.binFilePath ++ "`...";
 (elfHdr, prgmHdrs, elfMem, fnSymAddrMap) ← loadElf ann.binFilePath;
+when cfg.verbose $ IO.println $ "Elf file loaded!";
 text_phdr <- (match get_text_segment elfHdr prgmHdrs with
               | none     => throw $ IO.userError $ "No executable segment"
               | (some p) => pure p);
@@ -274,8 +276,11 @@ text_bytes <- (match elfMem.lookup_buffer (bitvec.of_nat 64 text_phdr.vaddr.toNa
               | some (_, b) => pure b);
 let entry := elfHdr.entry.toNat;
 let d := decodex86.mk_decoder text_bytes text_phdr.vaddr.toNat;
+when cfg.verbose $ IO.println $ "Decoder built...";
 -- Get LLVM module
+when cfg.verbose $ IO.println $ "Loading LLVM module at `"++ann.llvmFilePath++"`";
 lMod ← loadLLVMModule ann.llvmFilePath;
+when cfg.verbose $ IO.println $ "LLVM module loaded!";
 -- Create verification coontext for module.
 errorRef ← IO.mkRef 0;
 let modCtx : ModuleVCGContext := 
@@ -288,6 +293,7 @@ let modCtx : ModuleVCGContext :=
   , moduleTypeMap := mkLLVMTypeMap lMod
   };
 -- Run verification.
+when cfg.verbose $ IO.println $ "Running VCG for the module...";
 _ ← runModuleVCG modCtx (do
   ann.functions.forM (λ funAnn => do
     moduleCatch $ verifyFunction lMod funAnn));
