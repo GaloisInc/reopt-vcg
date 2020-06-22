@@ -69,6 +69,19 @@ structure MCStdLib :=
   (blockStartMem : memory)
   (onStack       : memaddr -> bitvec 64 -> s_bool)
 
+namespace MCStdLib
+
+def memOpsBySort (m : MCStdLib) (s : SMT.sort) : Option (SupportedMemType s) :=
+let mops := m.memOps;
+match s with
+| SMT.sort.bitvec 8  => some $ mops WordSize.word8
+| SMT.sort.bitvec 16 => some $ mops WordSize.word16
+| SMT.sort.bitvec 32 => some $ mops WordSize.word32
+| SMT.sort.bitvec 64 => some $ mops WordSize.word64
+| _ => none
+
+end MCStdLib
+
 --------------------------------------------------------------------------------
 -- Memory operations
 

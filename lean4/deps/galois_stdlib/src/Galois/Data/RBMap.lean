@@ -17,6 +17,20 @@ variable {lt : α → α → Bool}
 
 @[specialize] def values : RBMap α β lt → List β
 | ⟨t, _⟩ => t.revFold (fun ps _k v => v::ps) []
+
+
+@[inline] def map {σ : Type w} (f : α → β → σ) : RBMap α β lt → RBMap α σ lt
+| ⟨t, _⟩ => t.fold (λ acc k v => acc.insert k (f k v)) RBMap.empty
+
 end
+
+end RBMap
+
+namespace RBMap
+
+-- It's not happy about the universes on this one if we try and add the level parameters (and even use max/ULift/etc) =\
+@[inline] def mapM {α β σ : Type} {lt : α → α → Bool} {m : Type → Type} [Monad m] (f : α → β → m σ) : RBMap α β lt → m (RBMap α σ lt)
+| ⟨t, _⟩ => t.mfold (λ acc k v => acc.insert k <$> (f k v)) RBMap.empty
+
 
 end RBMap
