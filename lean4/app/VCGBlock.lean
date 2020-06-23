@@ -1,12 +1,15 @@
 
 import LeanLLVM.AST
 import LeanLLVM.LLVMLib
+import LeanLLVM.PP
 import SMTLIB.Syntax
 import X86Semantics.Common -- for reg names
 import ReoptVCG.Types
 import ReoptVCG.VCGBackend
 import ReoptVCG.WordSize
 import ReoptVCG.MCStdLib
+import ReoptVCG.SMT
+
 
 namespace ReoptVCG
 
@@ -14,8 +17,37 @@ open llvm (llvm_type typed prim_type value)
 open SMT (smtM)
 open SMT.sort (smt_bool)
 open x86 (reg64)
+open BlockVCG (globalThrow)
 
 namespace BlockVCG
+
+
+-- | Stop verifying this block.
+def haltBlock {α} (msg : String) : BlockVCG α :=
+localThrow msg
+
+-- | This prepends the LLVM and machine code location information for
+-- display to user.
+def prependLocation (msg : String) : BlockVCG String := do
+fnName ← BlockVCGContext.llvmFunName <$> read;
+lbl ← BlockVCGContext.currentBlock <$> read;
+instIdx ← BlockVCGState.llvmInstIndex <$> get;
+curAddr ← BlockVCGState.mcCurAddr <$> get;
+pure $ renderMCInstError fnName lbl instIdx curAddr msg
+
+
+-- | Report an error at the given location and stop verification of
+-- this block. FIXME this currently uses a callback (which will report an error via IO)
+-- _and_ calls `haltBlock`, which will return a local error with an error message. At
+-- some point we probably just want to use the latter when we move away from using IO
+-- as much.
+def fatalBlockError {α} (msg : String) : BlockVCG α := do
+thisInst ← BlockVCGState.llvmInstIndex <$> get;
+curAddr ← BlockVCGState.mcCurAddr <$> get;
+callback <- ProverInterface.blockErrorCallback <$> BlockVCGContext.callbackFns <$> read;
+liftIO $ callback thisInst curAddr msg;
+haltBlock msg
+
 
 def addCommand (cmd : SMT.command) : BlockVCG Unit := do
   prover <- (fun (s : BlockVCGContext) => s.callbackFns) <$> read;
@@ -106,17 +138,17 @@ def asSMTSort' (tp : llvm_type) : Option SMT.sort :=
 def coerceToSMTSort (ty : llvm_type) : BlockVCG SMT.sort :=
   match asSMTSort' ty with
   | some tp => pure tp
-  | none    => throw ("Unexpected type ")
+  | none    => BlockVCG.globalThrow $ "Unexpected type " ++ (pp.render $ llvm.pp_type ty)
 
 --------------------------------------------------------------------------------
 -- Ident <-> SMT
 
 def lookupIdent (i : llvm.ident) (s : SMT.sort) : BlockVCG (SMT.term s) := do
-  m <- (fun (s : BlockVCGState) => s.llvmIdentMap) <$> get;
+  m <- BlockVCGState.llvmIdentMap <$> get;
   match m.find? i with
   | some (Sigma.mk s' tm) => 
-    if H : s' = s then pure (Eq.recOn H tm) else throw ("Sort mismatch for " ++ i.asString)
-  | none => throw ("Unknown ident: " ++ i.asString)
+    if H : s' = s then pure (Eq.recOn H tm) else BlockVCG.globalThrow ("Sort mismatch for " ++ i.asString)
+  | none => BlockVCG.globalThrow ("Unknown ident: " ++ i.asString)
 
 def freshIdent (i : llvm.ident) (s : SMT.sort) : BlockVCG (SMT.term s) := do
   sym <- BlockVCG.runsmtM (SMT.freshSymbol i.asString);
@@ -138,7 +170,7 @@ section
 
 open x86.vcg (Event)
 open x86.vcg.Event
-open BlockVCG (liftIO)
+open BlockVCG (liftIO globalThrow)
 
 def mcNextAddr (s : BlockVCGState) : MemAddr := s.mcCurAddr + s.mcCurSize
 
@@ -148,12 +180,12 @@ def getNextEvents : BlockVCG Unit := do
   s <- get;
   let addr := mcNextAddr s;
   when (not (addr < ctx.mcBlockEndAddr)) $ do
-    throw $ "Unexpected end of machine code events.";
+    globalThrow $ "Unexpected end of machine code events.";
   -- FIXMEL df, x87Top
   (events, nextIdx, sz) <-
     match x86.vcg.instructionEvents ctx.mcBlockMap s.mcCurRegs s.mcLocalIndex addr 
             ctx.mcModuleVCGContext.decoder with
-    | Except.error e => throw e
+    | Except.error e => globalThrow e
     | Except.ok    r => pure r;
   -- Update local index and next addr
   set $ { s with mcLocalIndex := nextIdx
@@ -173,18 +205,13 @@ def setMCRegs (regs : x86.vcg.RegState) : BlockVCG Unit :=
   --            _ -> error "Unexpected direction flag"
   modify $ fun s => { s with mcCurRegs := regs }
 
-section
-open WordSize
+
 def getSupportedType (s : SMT.sort) : BlockVCG (x86.vcg.SupportedMemType s) := do
   mcstd  <- BlockVCGContext.mcStdLib <$> read;
-  let mops := mcstd.memOps;
-  match s with
-  | SMT.sort.bitvec 8  => pure $ mops word8
-  | SMT.sort.bitvec 16 => pure $ mops word16
-  | SMT.sort.bitvec 32 => pure $ mops word32
-  | SMT.sort.bitvec 64 => pure $ mops word64
-  | _ => throw $ "Unexpected type " ++ toString s
-end
+  let mops := mcstd.memOpsBySort;
+  match mops s with
+  | some ops => pure ops
+  | none => globalThrow $ "Unexpected type " ++ toString s
 
 def mcWrite (addr : x86.vcg.memaddr) (s : SMT.sort) (val : SMT.term s) : BlockVCG Unit := do
   curMem <- (fun (s : BlockVCGState) => s.mcCurMem) <$> get;
@@ -259,7 +286,7 @@ def execMCOnlyEvents : MemAddr -> BlockVCG Unit
     -- and if so it runs it.
   | FetchAndExecuteEvent regs :: mevs => do
       when (not mevs.isEmpty) $ do
-        throw "MC event after fetch and execute";
+        globalThrow "MC event after fetch and execute";
       modify $ fun s => { s with mcEvents := [] };
       -- Update registers
       setMCRegs regs;
@@ -305,7 +332,7 @@ def mcExecuteToEnd : BlockVCG Unit := do
   evts <- (fun (s : BlockVCGState) => s.mcEvents) <$> get;
   match evts with
   | [] => pure ()
-  | _ :: _ => throw $ "Expecting end of block"
+  | _ :: _ => BlockVCG.globalThrow $ "Expecting end of block"
 
 --------------------------------------------------------------------------------
 -- Literal constructors
@@ -320,19 +347,23 @@ open llvm.value
 def primEval : forall (tp : llvm_type) (H :HasSMTSort tp), value -> BlockVCG (SMT.term (asSMTSort tp H))
 | tp, H, ident i => lookupIdent i (asSMTSort tp H)
 | llvm.llvm_type.prim_type (llvm.prim_type.integer w), H, integer i => pure (mkInt i H)
-| _, _, _ => throw "unimplemented"
+| _, _, _ => BlockVCG.globalThrow "unimplemented"
 
 end
 
 -- --------------------------------------------------------------------------------
 -- -- Branch support
 
--- -- | Register values initialized from annotations.
+
+-- AMK: `initBlockRegValues` is used in the Haskell implementation of `verifyBlockPreconditions`
+--      ... but for ours I just use a helper `checkInitRegVals` since there isn't an obvious
+--      analogue to the `X86Reg` from flexdis86 (i.e., a way to index the IP, X87 top reg, and DF)..
 -- def initBlockRegValues (ann : ReachableBlockAnn) : List (Fin 16 × SMT.term (SMT.sort.bitvec 64)) :=
 --   [ (Some X86_IP,     SMT.bvhexadecimal (toInteger (Ann.blockAddr blockAnn)) 64)
 --   -- , (Some X87_TopReg, SMT.bvdecimal (toInteger (Ann.blockX87Top blockAnn)) 3)
 --   -- , (Some DF,         if Ann.blockDFFlag blockAnn then SMT.true else SMT.false)
 --   ]
+
 
 --------------------------------------------------------------------------------
 -- Function calls
@@ -389,8 +420,8 @@ def llvmReturn (mlret : Option (typed value)) : BlockVCG Unit := do
                   let mret0 := SMT.extract (i - 1) 0 rax;
                   let mret := @Eq.recOn _ _ (fun a _ => SMT.term (SMT.sort.bitvec a)) _ pf' mret0;
                   proveEq lret mret "Return values match"
-          else throw "Unexpected return value"
-      | _ => throw "Unexpected return value")
+          else globalThrow "Unexpected return value"
+      | _ => globalThrow "Unexpected return value")
   
 --------------------------------------------------------------------------------
 -- Arithmetic
@@ -409,9 +440,92 @@ def arithOpFunc {n : Nat} : llvm.arith_op
 
 end
 
+def tryPrimEval (tp : llvm_type) (v:value) : BlockVCG (Sigma SMT.term) :=
+if h : HasSMTSort tp
+then do
+  t ← primEval tp h v;
+  pure $ ⟨asSMTSort tp h, t⟩
+else
+  BlockVCG.globalThrow $ "unable to evaluate llvm term "++(pp.render $ llvm.pp_value v)++" at type "++(pp.render $ llvm.pp_type tp)
+
+
+--------------------------------------------------------------------------------
+-- Block Precondition Verification
+
+
+namespace BlockVCG
+
+
+def checkInitRegVals
+(blockAnn : ReachableBlockAnn)
+-- ^ Message to preface verification comments/messages/etc
+(goalFn : SMT.term SMT.sort.smt_bool → SMT.term SMT.sort.smt_bool)
+ : BlockVCG Unit := do
+-- Check the instruction pointer
+let expectedIp : SMT.term SMT.sort.bv64 := SMT.bvimm 64 blockAnn.startAddr.toNat;
+actualIp ← SMT.bvimm 64 <$> BlockVCGState.mcCurAddr <$> get;
+proveTrue (goalFn (SMT.eq expectedIp actualIp)) "Checking the IP register.";
+-- Check x87Top value
+--let expectedX87Top : SMT.term SMT.sort.bv64 := SMT.bv 64 blockAnn.startAddr.toNat;
+-- (Some X87_TopReg, SMT.bvdecimal (toInteger (Ann.blockX87Top blockAnn)) 3)
+-- FIXME check BlockVCGState.mcX87Top value against expected ^
+-- Check the direction flag
+--let expectedDF : SMT.term SMT.sort.bv64 := SMT.bvimm 64 blockAnn.startAddr.toNat;
+-- (Some DF,         if Ann.blockDFFlag blockAnn then SMT.true else SMT.false)
+-- FIXME check BlockVCGState.mcDF value against expected ^
+pure ()
+
+-- cf. `verifyBlockPreconditions`
+def verifyPreconditions
+(prefixDescr : String)
+-- ^ Message to preface verification comments/messages/etc
+(goalFn : SMT.term SMT.sort.smt_bool → SMT.term SMT.sort.smt_bool)
+-- ^ Function applied to predicates before verification allowing us
+-- to conditionally validate some of the preconditions.
+(lbl : llvm.block_label)
+-- ^ LLVM label of the block we are jumping to.
+: BlockVCG Unit := do
+blkMap ← BlockVCGContext.funBlkAnnotations <$> read;
+match findBlock blkMap lbl with
+| none =>
+  fatalBlockError $ "Target block "++(ppBlockLabel lbl)++" lacks annotations."
+| some (BlockAnn.unreachable, _) =>
+  proveTrue (goalFn SMT.false) $ "Target block "++(ppBlockLabel lbl)++"is unreachable."
+| some (BlockAnn.reachable tgtBlockAnn, varMap) => do
+  firstLabel ← BlockVCGContext.firstBlockLabel <$> read;
+  -- Ensure we're not in the first block
+  when (lbl == firstLabel) $ globalThrow "LLVM should not jump to first label in function.";
+  -- Check initialized register values
+  checkInitRegVals tgtBlockAnn goalFn;
+  srcLbl <- BlockVCGContext.currentBlock <$> read;
+  -- Resolve terms for SMT variables which can appear in precondition statements.
+  let resolvePhiVarVal : llvm.ident → (llvm.llvm_type × BlockLabelValMap) → BlockVCG (Sigma SMT.term) :=
+    λ nm val => let (tp, valMap) := val;
+                match valMap.find? srcLbl with
+                | some v => tryPrimEval tp v
+                | none => globalThrow $ "Could not find initial value of llvm variable `"++nm.asString++"`.";
+  phiTermMap ← varMap.mapM resolvePhiVarVal;
+  let evalVar : String → Option (Sigma SMT.term) := λ nm => phiTermMap.find? $ llvm.ident.named nm;
+  -- Verify each precondition
+  tgtBlockAnn.preconds.forM (λ precondExpr => do
+                               p ← evalPrecondition evalVar precondExpr;
+                               proveTrue (goalFn p) $ prefixDescr++" precondition: "++precondExpr.toString)
+  -- Check allocations are preserved. -- FIXME actually do this when we get to reasoning about allocas.
+  -- curAllocas <- gets mcPendingAllocaOffsetMap
+  -- when (Ann.blockAllocas tgtBlockAnn /= curAllocas) $ do
+  --   fatalBlockError $ printf "Allocations in jump to %s do not match." (ppBlock lbl)
+
+
+end BlockVCG
+
+
+
+--------------------------------------------------------------------------------
+-- stepNextStmt
+
 section
 open llvm.instruction
-  
+
 def stepNextStmt (stmt : llvm.stmt) : BlockVCG Bool := do
   match stmt.instr with
 --   | alloca : llvm_type -> Option (typed value) -> Option Nat -> instruction
@@ -422,13 +536,13 @@ def stepNextStmt (stmt : llvm.stmt) : BlockVCG Bool := do
       match asSMTSort lty H, stmt.assign, lhsv, rhsv with
       | _, none, _, _ => pure ()
       | SMT.sort.bitvec n, some i, l, r => defineTerm i (arithOpFunc aop l r) $> ()
-      | _, _, _, _ => throw "Unexpected sort";
+      | _, _, _, _ => BlockVCG.globalThrow "Unexpected sort";
       pure True
-    else throw "Unexpected type"
+    else BlockVCG.globalThrow "Unexpected type"
 
   | ret v    => llvmReturn (some v) $> false
   | ret_void => llvmReturn none     $> false
-  | _ => throw "unimplemented" 
+  | _ => BlockVCG.globalThrow "(stepNextStmt) unimplemented"
   
 
 --   | bit : bit_op -> typed value -> value -> instruction
@@ -473,6 +587,7 @@ end
 
 namespace BlockVCG
 
+-- cf. `runBlockVCG`
 protected 
 def run {a : Type}
         (mctx : ModuleVCGContext)
@@ -522,7 +637,13 @@ def run {a : Type}
              , llvmIdentMap  := RBMap.empty -- FIXME: ???
              };
      r <- ((m.run ctx).run' s).run;
-     elseThrowPrefixed r "BlockVCG.run"
+     match r with
+     | Except.ok _ => pure ()
+     | Except.error e => match e with
+       | BlockVCGError.localErr msg =>
+         IO.println $ "Local error encountered during BlockVCG.run: " ++ msg
+       | BlockVCGError.globalErr msg =>
+         throw $ IO.userError $ "Fatal error encountered in BlockVCG.run: " ++ msg
 
 end BlockVCG
 

@@ -1,5 +1,5 @@
 
-
+import Galois.Data.SExp
 import ReoptVCG.SMTParser
 import ReoptVCG.MCStdLib
 import ReoptVCG.Types
@@ -20,10 +20,11 @@ universe u
 class BlockExprEnv (α : Type u) :=
 (initGPReg64 : α → x86.reg64 → term sort.bv64)
 (fnStartRegState : α → x86.reg64 → term sort.bv64)
-(phiVarMap : α → ∀(nm:String), Option (Sigma term))
+(evalVar : α → String → Option (Sigma term))
 (readMem : α → ∀(w : WordSize), x86.vcg.memaddr →  term w.sort)
 
 structure BlockVCGExprEnv :=
+(evalVar : String → Option (Sigma term))
 (context : BlockVCGContext)
 (state : BlockVCGState)
 
@@ -36,9 +37,6 @@ e.state.mcCurRegs.get_reg64 r
 def fnStartRegState (r : x86.reg64) : term sort.bv64 :=
 e.context.mcStdLib.funStartRegs.get_reg64 r
 
-def phiVarMap (nm : String) : Option (Sigma term) :=
-e.state.llvmIdentMap.find? (llvm.ident.named nm)
-
 def readMem (w:WordSize) (addr : x86.vcg.memaddr) : term w.sort :=
 (e.context.mcStdLib.memOps w).readMem e.state.mcCurMem addr
 
@@ -47,18 +45,26 @@ end BlockVCGExprEnv
 instance BlockVCGExprEnv.isBlockExprEnv : BlockExprEnv BlockVCGExprEnv :=
 {initGPReg64 := BlockVCGExprEnv.initGPReg64,
  fnStartRegState := BlockVCGExprEnv.fnStartRegState,
- phiVarMap := BlockVCGExprEnv.phiVarMap,
+ evalVar := BlockVCGExprEnv.evalVar,
  readMem := BlockVCGExprEnv.readMem
 }
 
 namespace BlockExpr
+
+open WellFormedSExp
+
+def toSExp : ∀ {tp : sort}, BlockExpr tp → SExp String
+| _, _ => SExp.atom "TODO BlockExpr.toSExp"
+
+def toString : ∀ {tp : sort}, BlockExpr tp → String
+| _, e => (BlockExpr.toSExp e).toString
 
 -- Converts an Expr into an SMT term given an environment. AMK: it's currently in IO
 -- to handle some partiality (doh!) and because we want to use it in an IO context
 -- at the moment any, so it's a convenient hack for the moment. TODO: maybe we
 -- can guarantee all the SMT terms an llvmVar could be are inhabited and use lean4's
 -- panic! and at least not force this to be in IO.
-def toSMT {α : Type u} [BlockExprEnv α] (env: α) : ∀ {tp : sort}, BlockExpr tp → IO (term tp)
+def toSMT {α : Type u} [BlockExprEnv α] (env: α) : ∀ {tp : sort}, BlockExpr tp → Except BlockVCGError (term tp)
 | _, stackHigh => pure $ BlockExprEnv.fnStartRegState env x86.reg64.rsp
 | _, initGPReg64 r => pure $ BlockExprEnv.initGPReg64 env r
 | _, fnStartGPReg64 r => pure $ BlockExprEnv.fnStartRegState env r
@@ -66,17 +72,17 @@ def toSMT {α : Type u} [BlockExprEnv α] (env: α) : ∀ {tp : sort}, BlockExpr
   t ← toSMT a;
   pure $ BlockExprEnv.readMem env w t
 | _, llvmVar nm tp =>
-  match BlockExprEnv.phiVarMap env nm with
+  match BlockExprEnv.evalVar env nm with
   | some ⟨tp', t⟩ =>
     if h : tp = tp'
     then
       let hEq : term tp' = term tp := h ▸ rfl;
       pure $ cast hEq t
     else
-      throw $ IO.userError $
+      Except.error $ BlockVCGError.globalErr $
       "Error while translating precondition to SMT! LLVM variable `"
       ++ nm ++ "` had no entry in the phi variable map!"
-  | none => throw $ IO.userError $
+  | none => Except.error $ BlockVCGError.globalErr $
     "Error while translating precondition to SMT! LLVM variable `"
     ++ nm ++ "` had no entry in the phi variable map!"
 | _, eq e1 e2 => do
@@ -96,11 +102,13 @@ def toSMT {α : Type u} [BlockExprEnv α] (env: α) : ∀ {tp : sort}, BlockExpr
 end BlockExpr
 
 /-- Converts a BlockExpr into an SMT term in the BlockVCG context. --/
-def evalPrecondition {tp : sort} (expr : BlockExpr tp) : BlockVCG (term tp) := do
+def evalPrecondition {tp : sort} (evalVar : String → Option (Sigma term)) (expr : BlockExpr tp) : BlockVCG (term tp) := do
 ctx ← read;
 state ← get;
-let env := BlockVCGExprEnv.mk ctx state;
-BlockVCG.liftIO $ BlockExpr.toSMT env expr
+let env := BlockVCGExprEnv.mk evalVar ctx state;
+match BlockExpr.toSMT env expr with
+| Except.error err => throw err
+| Except.ok res => pure res
 
 
 def ppBlockLabel (lbl:llvm.block_label) : String :=
