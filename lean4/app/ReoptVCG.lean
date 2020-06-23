@@ -276,7 +276,7 @@ text_bytes <- (match elfMem.lookup_buffer (bitvec.of_nat 64 text_phdr.vaddr.toNa
               | some (_, b) => pure b);
 let entry := elfHdr.entry.toNat;
 let d := decodex86.mk_decoder text_bytes text_phdr.vaddr.toNat;
-when cfg.verbose $ IO.println $ "Decoder built...";
+when cfg.verbose $ IO.println $ "x86 decoder built...";
 -- Get LLVM module
 when cfg.verbose $ IO.println $ "Loading LLVM module at `"++ann.llvmFilePath++"`";
 lMod ← loadLLVMModule ann.llvmFilePath;

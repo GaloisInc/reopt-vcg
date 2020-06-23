@@ -9,7 +9,7 @@ namespace ReoptVCG
 def loadLLVMModule (filePath : String) : IO llvm.module := do
 ctx ← llvm.ffi.newContext;
 mb ← llvm.ffi.newMemoryBufferFromFile filePath;
-b ← llvm.ffi.parseBitcodeFile mb ctx;
+b ← llvm.ffi.parseAssembly mb ctx;
 llvm.loadModule b
 
 end ReoptVCG
