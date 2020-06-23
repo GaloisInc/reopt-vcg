@@ -428,6 +428,7 @@ def llvmReturn (mlret : Option (typed value)) : BlockVCG Unit := do
 
 section
 open llvm.value
+open llvm.icmp_op
 
 def arithOpFunc {n : Nat} : llvm.arith_op
                           -> SMT.term (SMT.sort.bitvec n)
@@ -437,6 +438,31 @@ def arithOpFunc {n : Nat} : llvm.arith_op
 | llvm.arith_op.sub _ _, x, y => SMT.bvsub x y
 | llvm.arith_op.mul _ _, x, y => SMT.bvmul x y
 | _, _, _ =>  SMT.bvimm _ 0 -- FIXME
+
+
+def bitOpFunc {n : Nat} : llvm.bit_op
+                        -> SMT.term (SMT.sort.bitvec n)
+                        -> SMT.term (SMT.sort.bitvec n)
+                        -> SMT.term (SMT.sort.bitvec n)
+| llvm.bit_op.and, x, y => SMT.bvand x y
+| llvm.bit_op.or, x, y  => SMT.bvor x y
+| llvm.bit_op.xor, x, y => SMT.bvxor x y
+| _, _, _ =>  SMT.bvimm _ 0 -- FIXME
+
+def icmpOpFunc {n : Nat} : llvm.icmp_op
+                         -> SMT.term (SMT.sort.bitvec n)
+                         -> SMT.term (SMT.sort.bitvec n)
+                         -> SMT.term smt_bool
+| ieq, x, y  => SMT.eq x y
+| ine, x, y  => SMT.not (SMT.eq x y)
+| iugt, x, y => SMT.bvugt x y
+| iuge, x, y => SMT.bvuge x y 
+| iult, x, y => SMT.bvult x y 
+| iule, x, y => SMT.bvule x y 
+| isgt, x, y => SMT.bvsgt x y 
+| isge, x, y => SMT.bvsge x y 
+| islt, x, y => SMT.bvslt x y 
+| isle, x, y => SMT.bvsle x y 
 
 end
 
@@ -525,9 +551,11 @@ end BlockVCG
 
 section
 open llvm.instruction
+open BlockVCG (verifyPreconditions)
 
 def stepNextStmt (stmt : llvm.stmt) : BlockVCG Bool := do
   match stmt.instr with
+  | phi _ _ => globalThrow "Unexpected phi in stepNextStmt"
 --   | alloca : llvm_type -> Option (typed value) -> Option Nat -> instruction
   | arith aop { type := lty, value := lhs } rhs => do
     if H : HasSMTSort lty then do
@@ -539,15 +567,50 @@ def stepNextStmt (stmt : llvm.stmt) : BlockVCG Bool := do
       | _, _, _, _ => BlockVCG.globalThrow "Unexpected sort";
       pure True
     else BlockVCG.globalThrow "Unexpected type"
+  | bit bop { type := lty, value := lhs } rhs => do
+    if H : HasSMTSort lty then do
+      lhsv <- primEval lty H lhs;
+      rhsv <- primEval lty H rhs; 
+      match asSMTSort lty H, stmt.assign, lhsv, rhsv with
+      | _, none, _, _ => pure ()
+      | SMT.sort.bitvec n, some i, l, r => defineTerm i (bitOpFunc bop l r) $> ()
+      | _, _, _, _ => BlockVCG.globalThrow "Unexpected sort";
+      pure True
+    else BlockVCG.globalThrow "Unexpected type"
+--   | call (tailcall : Bool) : Option llvm_type -> value -> Array (typed value) -> instruction
+--   | conv : conv_op -> typed value -> llvm_type -> instruction
+  | icmp bop { type := lty, value := lhs } rhs => do
+    if H : HasSMTSort lty then do
+      lhsv <- primEval lty H lhs;
+      rhsv <- primEval lty H rhs; 
+      match asSMTSort lty H, stmt.assign, lhsv, rhsv with
+      | _, none, _, _ => pure ()
+      | SMT.sort.bitvec n, some i, l, r => 
+        defineTerm i (SMT.smt_ite (icmpOpFunc bop l r) (SMT.bvimm 1 1) (SMT.bvimm 1 0)) $> ()
+      | _, _, _, _ => BlockVCG.globalThrow "Unexpected sort";
+      pure True
+    else BlockVCG.globalThrow "Unexpected type"
+
+  | br { type := _lty, value := cnd } tlbl flbl => do
+    mcExecuteToEnd;
+    let pf : HasSMTSort (llvm.llvm_type.prim_type (llvm.prim_type.integer 1)) := rfl;
+    cndTerm <- primEval _ pf cnd;
+    let c := SMT.eq cndTerm (SMT.bvimm _ 1);
+    verifyPreconditions "true branch"  (SMT.impl c)           tlbl;
+    verifyPreconditions "false branch" (SMT.impl (SMT.not c)) flbl;
+    pure False
+  
+  | jump lbl := do
+    mcExecuteToEnd;
+    verifyPreconditions "jump"  (fun x => x) lbl;
+    pure False
 
   | ret v    => llvmReturn (some v) $> false
   | ret_void => llvmReturn none     $> false
   | _ => BlockVCG.globalThrow "(stepNextStmt) unimplemented"
   
 
---   | bit : bit_op -> typed value -> value -> instruction
 --   | conv : conv_op -> typed value -> llvm_type -> instruction
---   | call (tailcall : Bool) : Option llvm_type -> value -> Array (typed value) -> instruction
 --   | alloca : llvm_type -> Option (typed value) -> Option Nat -> instruction
 --   | load : typed value -> Option atomic_ordering -> Option Nat /- align -/ -> instruction
 --   | store : typed value -> typed value -> Option Nat /- align -/ -> instruction
@@ -558,9 +621,7 @@ def stepNextStmt (stmt : llvm.stmt) : BlockVCG Bool := do
 --   | atomic_rw (volatile : bool) : atomic_rw_op -> typed value -> typed value
 --             -> option string -> atomic_ordering -> instruction
 -- -/
---   | icmp : icmp_op -> typed value -> value -> instruction
 --   | fcmp : fcmp_op -> typed value -> value -> instruction
---   | phi : llvm_type -> Array (value × block_label) -> instruction
 --   | gep (bounds : Bool) : typed value -> Array (typed value) -> instruction
 --   | select : typed value -> typed value -> value -> instruction
 --   | extract_value : typed value -> List Nat -> instruction
@@ -568,8 +629,6 @@ def stepNextStmt (stmt : llvm.stmt) : BlockVCG Bool := do
 --   | extract_elt : typed value -> value -> instruction
 --   | insert_elt : typed value -> typed value -> value -> instruction
 --   | shuffle_vector : typed value -> value -> typed value -> instruction
---   | jump : block_label -> instruction
---   | br : typed value -> block_label -> block_label -> instruction
 --   | invoke : llvm_type -> value -> List (typed value) -> block_label -> block_label -> instruction
 --   | comment : String -> instruction
 --   | unreachable
