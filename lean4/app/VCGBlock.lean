@@ -2,6 +2,7 @@
 import LeanLLVM.AST
 import LeanLLVM.LLVMLib
 import SMTLIB.Syntax
+import X86Semantics.Common -- for reg names
 import ReoptVCG.Types
 import ReoptVCG.VCGBackend
 import ReoptVCG.WordSize
@@ -12,6 +13,7 @@ namespace ReoptVCG
 open llvm (llvm_type typed prim_type value)
 open SMT (smtM)
 open SMT.sort (smt_bool)
+open x86 (reg64)
 
 namespace BlockVCG
 
@@ -190,10 +192,13 @@ def mcWrite (addr : x86.vcg.memaddr) (s : SMT.sort) (val : SMT.term s) : BlockVC
   nextMem <- BlockVCG.runsmtM $ SMT.define_fun "mem" [] x86.vcg.memory_t (supType.writeMem curMem addr val);
   modify $ fun s => { s with mcCurMem := nextMem }
 
-def mcAssignRead (addr : x86.vcg.memaddr) (s : SMT.sort) (smtVar : SMT.term s) : BlockVCG Unit := do
-  curMem <- (fun (s : BlockVCGState) => s.mcCurMem) <$> get;
+def mcRead (addr : x86.vcg.memaddr) (s : SMT.sort) : BlockVCG (SMT.term s) := do
+  curMem <- BlockVCGState.mcCurMem <$> get;
   supType <- getSupportedType s;
-  let v := supType.readMem curMem addr;
+  pure (supType.readMem curMem addr)
+
+def mcAssignRead (addr : x86.vcg.memaddr) (s : SMT.sort) (smtVar : SMT.term s) : BlockVCG Unit := do
+  v <- mcRead addr s;
   addAssert (SMT.eq smtVar v)
 
 -- | Execute the machine-code only events that occur before jumping to the given address
@@ -309,6 +314,15 @@ def mkInt {w : Nat} (v : Int) (H : w > 0)
   : SMT.term (asSMTSort (llvm.llvm_type.prim_type (llvm.prim_type.integer w)) H) :=
   SMT.bvimm' w v
 
+section
+open llvm.value
+
+def primEval : forall (tp : llvm_type) (H :HasSMTSort tp), value -> BlockVCG (SMT.term (asSMTSort tp H))
+| tp, H, ident i => lookupIdent i (asSMTSort tp H)
+| llvm.llvm_type.prim_type (llvm.prim_type.integer w), H, integer i => pure (mkInt i H)
+| _, _, _ => throw "unimplemented"
+
+end
 
 -- --------------------------------------------------------------------------------
 -- -- Branch support
@@ -323,10 +337,60 @@ def mkInt {w : Nat} (v : Int) (H : w > 0)
 --------------------------------------------------------------------------------
 -- Function calls
 
+-- In initial state
+def stackHighTerm : BlockVCG x86.vcg.memaddr := do
+  stdLib <- BlockVCGContext.mcStdLib <$> read;
+  pure (stdLib.funStartRegs.get_reg64 x86.reg64.rsp)
+
+-- In initial state
+def returnAddrTerm : BlockVCG x86.vcg.memaddr := do
+  stdLib <- BlockVCGContext.mcStdLib <$> read;
+  -- FIXME
+  sht <- stackHighTerm;
+  let addrOp := stdLib.memOps WordSize.word64;
+  pure (addrOp.readMem stdLib.blockStartMem sht)
+
+
+axiom VCGBlock_sorry: forall P, P
+
 def llvmReturn (mlret : Option (typed value)) : BlockVCG Unit := do
   mcExecuteToEnd;
-  throw "unimplemented"
+  regs <- BlockVCGState.mcCurRegs <$> get;
+  _ <- (do sht  <- stackHighTerm;
+           proveEq (regs.get_reg64 x86.reg64.rsp) sht 
+             "Stack height at return matches init.");
+  _ <- (do ra <- returnAddrTerm;
+           proveEq regs.ip ra "Return address matches entry value.");
   
+  -- FIXME checkDirectionFlagClear
+  stdLib <- BlockVCGContext.mcStdLib <$> read;
+  let rEq r := proveEq (regs.get_reg64 r) (stdLib.funStartRegs.get_reg64 r)
+                  ("Value of " ++ r.name ++ " at return is preserved.");
+  List.forM rEq x86CalleeSavedGPRegs;
+  
+  match mlret with
+  | none => pure ()
+  | some { type := llvmTy, value := v } =>
+      let rax := regs.get_reg64 x86.reg64.rax;
+      (match llvmTy with
+      | ty@(llvm.llvm_type.ptr_to _) => do
+          let pf : HasSMTSort ty := True.intro;
+          lret <- primEval ty pf v;
+          proveEq lret rax "Return values match"
+      | ty@(llvm.llvm_type.prim_type (llvm.prim_type.integer 64)) => do
+          let pf : HasSMTSort ty := rfl; -- 0 < 64 = true, unfortunately
+          lret <- primEval ty pf v;
+          proveEq lret rax "Return values match"
+      | ty@(llvm.llvm_type.prim_type (llvm.prim_type.integer i)) => do
+          if H : 0 < i /\ i < 64                                     
+          then do let pf : HasSMTSort ty := H.left;
+                  lret <- primEval ty pf v;
+                  let pf' : (i - 1 + 1) - 0 = i := VCGBlock_sorry _;
+                  let mret0 := SMT.extract (i - 1) 0 rax;
+                  let mret := @Eq.recOn _ _ (fun a _ => SMT.term (SMT.sort.bitvec a)) _ pf' mret0;
+                  proveEq lret mret "Return values match"
+          else throw "Unexpected return value"
+      | _ => throw "Unexpected return value")
   
 --------------------------------------------------------------------------------
 -- Arithmetic
@@ -342,11 +406,6 @@ def arithOpFunc {n : Nat} : llvm.arith_op
 | llvm.arith_op.sub _ _, x, y => SMT.bvsub x y
 | llvm.arith_op.mul _ _, x, y => SMT.bvmul x y
 | _, _, _ =>  SMT.bvimm _ 0 -- FIXME
-
-def primEval : forall (tp : llvm_type) (H :HasSMTSort tp), value -> BlockVCG (SMT.term (asSMTSort tp H))
-| tp, H, ident i => lookupIdent i (asSMTSort tp H)
-| llvm.llvm_type.prim_type (llvm.prim_type.integer w), H, integer i => pure (mkInt i H)
-| _, _, _ => throw "unimplemented"
 
 end
 
