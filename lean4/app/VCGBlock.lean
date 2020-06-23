@@ -600,7 +600,7 @@ def stepNextStmt (stmt : llvm.stmt) : BlockVCG Bool := do
     verifyPreconditions "false branch" (SMT.impl (SMT.not c)) flbl;
     pure False
   
-  | jump lbl := do
+  | jump lbl => do
     mcExecuteToEnd;
     verifyPreconditions "jump"  (fun x => x) lbl;
     pure False
