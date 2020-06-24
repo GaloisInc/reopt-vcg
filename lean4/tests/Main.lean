@@ -1,6 +1,7 @@
 
 import Init.Data.RBMap
 import Test.AnnotationParsing
+import Test.Hex
 import Test.JsonRoundtrip
 import Test.LoadElf
 import Test.SExp
@@ -12,6 +13,7 @@ namespace Test
 def tests : RBMap String (IO UInt32) (λ x y => x < y) :=
   RBMap.fromList 
   [("AnnotationParsing.lean", AnnotationParsing.test),
+   ("Hex.lean", Hex.test),
    ("JsonRoundtrip.lean", JsonRoundtrip.test),
    ("LoadElf.lean", LoadElf.test),
    ("SExp.lean", SExp.test),
