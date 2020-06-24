@@ -273,10 +273,12 @@ def execMCOnlyEvents : MemAddr -> BlockVCG Unit
       -- Checking this is on the stack also ensures there are no side effects
       -- from mem-mapped IO reads since the stack should not be mem-mapped IO.
 
-      -- FIXME: add stack range stuff
-      -- do thisIP <- (fun (s : BlovkVCGState) => s.mcCurAddr) <$> get;
-      --    proveTrue (evalRangeCheck onStack mcAddr (memReprBytes tp)) $
-      --      printf "Machine code read at %s is not within stack space." (show thisIP)
+      (do thisIP <- BlockVCGState.mcCurAddr <$> get;
+          stdLib <- BlockVCGContext.mcStdLib <$> read;
+          -- FIXME: assert 8 dvd n
+          -- FIMXE: make this take a Nat?
+          proveTrue (stdLib.onStack mcAddr (SMT.bvimm _ (n / 8)))
+            ("Machine code read at " ++ thisIP.ppHex ++ " is not within stack space."));
 
       -- Define value from reading Macaw heap
       mcAssignRead mcAddr (SMT.sort.bitvec n) smtValVar;
@@ -292,7 +294,13 @@ def execMCOnlyEvents : MemAddr -> BlockVCG Unit
 
       -- We need to assert that this werite will not be visible to LLVM.
 
-      -- FIXME
+      -- FIXME - once we have allocas this will need to be mcOnlyStackRange
+      (do thisIP <- BlockVCGState.mcCurAddr <$> get;
+          stdLib <- BlockVCGContext.mcStdLib <$> read;
+          -- FIXME: assert 8 dvd n
+          proveTrue (stdLib.onStack mcAddr (SMT.bvimm _ (n / 8)))
+            ("Machine code write at " ++ thisIP.ppHex ++ " is in unreserved stack space."));
+
       -- do addr <- mcCurAddr <$> get;
       --    proveTrue (evalRangeCheck mcOnlyStackRange mcAddr (memReprBytes tp)) $
       --      printf "Machine code write at %s is in unreserved stack space." (show addr)
@@ -311,9 +319,9 @@ def execMCOnlyEvents : MemAddr -> BlockVCG Unit
       setMCRegs regs;
       -- Process next events
       nextAddr <- mcNextAddr <$> get;
-      -- FIXME: assert the IP is nextAddr (no jmp etc.)
       -- BlockVCG.liftIO $ IO.println ("execMCOnlyEvents: fetch and exec case: " ++ nextAddr.ppHex ++ " " ++ endAddr.ppHex);
-      
+
+      -- FIXME: this is fragile ...
       match SMT.bvAsConst regs.ip with
       | some nextAddr' =>
         if nextAddr = nextAddr' ∧ nextAddr < endAddr
