@@ -297,7 +297,7 @@ def to_sexpr : forall {cs : const_sort}, builtin_identifier cs -> SExpr
 | _, and                  => atom "and"
 | _, or                   => atom "or"
 | _, xor                  => atom "xor"
-| _, eq       _           => atom "eq"
+| _, eq       _           => atom "="
 | _, smt_ite  _           => atom "smt_ite"
 | _, distinct _ _         => atom "distinct"
 
@@ -406,7 +406,7 @@ def to_sexpr_aux : forall {cs : const_sort} (t : term cs), List SExpr -> SExpr
 | _, identifier ident, args  => SExpr.app (toSExpr ident) args
 | _, app f x, args           => to_sexpr_aux f (to_sexpr_aux x [] :: args)
 | _, smt_let v e body, _     => toSExpr [atom "let"
-                                        , toSExpr [toSExpr v, to_sexpr_aux e []]
+                                        , toSExpr [toSExpr [toSExpr v, to_sexpr_aux e []]]
                                         , to_sexpr_aux body []]
 | _, smt_forall v body, _    => SExpr.app (atom "forall") [toSExpr [toSExpr v], to_sexpr_aux body []]
 | _, smt_exists v body, _    => SExpr.app (atom "exists") [toSExpr [toSExpr v], to_sexpr_aux body []]
@@ -496,7 +496,7 @@ def to_sexpr : command -> SExpr
   SExpr.app (atom "set-option") [atom opt.toString]
 | checkSatAssuming assumptions =>
   SExpr.app (atom "check-sat-assuming") $ assumptions.map toSExpr
-| comment content => atom $ content ++ "\n"
+| comment content => atom $ "; " ++ content ++ "\n"
 | exit => SExpr.app (atom "exit") []
 
 instance : HasToSExpr command := ⟨command.to_sexpr⟩

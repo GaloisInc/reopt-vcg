@@ -623,6 +623,15 @@ def add : instruction := do
      of .= sadd_overflows tmp src;
      af .= uadd4_overflows tmp src;
      dest .= tmp
+   pat_end;
+   -- FIXME: this gets around a limitation where the rax is implicit
+   pattern fun (src : bv 64) => do
+     tmp <- eval $ ⇑rax + src;
+     set_result_flags tmp;
+     cf .= uadd_overflows tmp src;
+     of .= sadd_overflows tmp src;
+     af .= uadd4_overflows tmp src;
+     rax .= tmp
    pat_end
 
 ------------------------------------------------------------------------

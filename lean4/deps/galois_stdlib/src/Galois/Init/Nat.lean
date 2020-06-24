@@ -64,10 +64,16 @@ String
 protected def ppHexAtWidth (n width:Nat) : String :=
 "0x" ++ (ppHexAtWidthAux [] width n)
 
-  
+protected def ppHexAux : List Char → Nat → Nat → String
+| prev, 0, _ => prev.asString
+| prev, w, 0 => prev.asString
+| prev, (Nat.succ w), x =>
+  let c := (Nat.land x 0xf).digitChar;
+  ppHexAux (c::prev) w (Nat.shiftr x 4)
+
 /-- Pretty-print Nat in hexadecimal with a `0x` prefix. --/
-protected def ppHex (n:Nat) : String :=
-"0x" ++ (ppHexAtWidthAux [] ((n / 16) + 1) n)
+protected def ppHex (v : Nat) : String := 
+  if v = 0 then "0x0" else "0x" ++ Nat.ppHexAux [] v v -- the first v is just for termination
 
 private def hexCharToNat : Char → Option Nat
 | '0' => Option.some 0

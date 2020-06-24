@@ -188,14 +188,17 @@ def getNextEvents : BlockVCG Unit := do
   ctx <- read;
   s <- get;
   let addr := mcNextAddr s;
-  when (not (addr < ctx.mcBlockEndAddr)) $ do
+  when (not (addr < ctx.mcBlockEndAddr)) $ 
     globalThrow $ "Unexpected end of machine code events.";
   -- FIXMEL df, x87Top
+  -- BlockVCG.liftIO $ IO.println ("Decoding at " ++ addr.ppHex);
+
   (events, nextIdx, sz) <-
     match x86.vcg.instructionEvents ctx.mcBlockMap s.mcCurRegs s.mcLocalIndex addr 
             ctx.mcModuleVCGContext.decoder with
     | Except.error e => globalThrow e
     | Except.ok    r => pure r;
+
   -- Update local index and next addr
   set $ { s with mcLocalIndex := nextIdx
                , mcCurAddr := addr
@@ -244,9 +247,10 @@ def mcAssignRead (addr : x86.vcg.memaddr) (s : SMT.sort) (smtVar : SMT.term s) :
 partial
 def execMCOnlyEvents : MemAddr -> BlockVCG Unit
 | endAddr => do
-  evts <- (fun (s : BlockVCGState) => s.mcEvents) <$> get;
+  evts <- BlockVCGState.mcEvents <$> get;
   match evts with
   | Command cmd :: mevs => do
+      -- BlockVCG.liftIO $ IO.println ("execMCOnlyEvents: Command");
       addCommand cmd;
       modify (fun s => { s with mcEvents := mevs });
       execMCOnlyEvents endAddr
@@ -255,6 +259,7 @@ def execMCOnlyEvents : MemAddr -> BlockVCG Unit
       modify (fun s => { s with mcEvents := mevs });
       execMCOnlyEvents endAddr
   | MCOnlyStackReadEvent mcAddr n smtValVar :: mevs => do
+      -- BlockVCG.liftIO $ IO.println ("execMCOnlyEvents: MCOnlyStackReadEvent");
       -- TODO: Fix this to the following
 
       -- A MCOnlyStack read means the machine code reads memory, but
@@ -283,6 +288,8 @@ def execMCOnlyEvents : MemAddr -> BlockVCG Unit
     -- necessarily vice versa), we pattern match on machine code
     -- writes.
   | MCOnlyStackWriteEvent mcAddr n smtVal :: mevs => do
+      -- BlockVCG.liftIO $ IO.println ("execMCOnlyEvents: MCOnlyStackWriteEvent");
+
       -- We need to assert that this werite will not be visible to LLVM.
 
       -- FIXME
@@ -297,14 +304,15 @@ def execMCOnlyEvents : MemAddr -> BlockVCG Unit
     -- This checks to see if the next instruction jumps to the next ip,
     -- and if so it runs it.
   | FetchAndExecuteEvent regs :: mevs => do
-      when (not mevs.isEmpty) $ do
-        globalThrow "MC event after fetch and execute";
+      -- BlockVCG.liftIO $ IO.println ("execMCOnlyEvents: fetch and exec case");
+      when (not mevs.isEmpty) $ globalThrow "MC event after fetch and execute";
       modify $ fun s => { s with mcEvents := [] };
       -- Update registers
       setMCRegs regs;
       -- Process next events
       nextAddr <- mcNextAddr <$> get;
       -- FIXME: assert the IP is nextAddr (no jmp etc.)
+      -- BlockVCG.liftIO $ IO.println ("execMCOnlyEvents: fetch and exec case: " ++ nextAddr.ppHex ++ " " ++ endAddr.ppHex);
       if nextAddr < endAddr 
       then do getNextEvents; execMCOnlyEvents endAddr
       else pure ()
@@ -315,11 +323,13 @@ def execMCOnlyEvents : MemAddr -> BlockVCG Unit
       --   _ -> do
       --     pure ()
   | [] => do
+      -- BlockVCG.liftIO $ IO.println ("execMCOnlyEvents: empty case");      
       nextAddr <- mcNextAddr <$> get;
       when (nextAddr < endAddr) $ do
         getNextEvents;
         execMCOnlyEvents endAddr
-  |  _ :: _ => pure ()
+  |  e :: _ => do -- BlockVCG.liftIO $ IO.println ("execMCOnlyEvents: done at " ++ repr e);
+                  pure ()
 
 -- -- | Get the next MC event that could interact with LLVM.
 -- popMCEvent :: HasCallStack => BlockVCG M.Event
@@ -344,7 +354,7 @@ def mcExecuteToEnd : BlockVCG Unit := do
   evts <- (fun (s : BlockVCGState) => s.mcEvents) <$> get;
   match evts with
   | [] => pure ()
-  | _ :: _ => BlockVCG.globalThrow $ "Expecting end of block"
+  | e :: _ => BlockVCG.globalThrow $ "Expecting end of block, got " ++ repr e
 
 --------------------------------------------------------------------------------
 -- Literal constructors
@@ -647,7 +657,15 @@ def stepNextStmt (stmt : llvm.stmt) : BlockVCG Bool := do
       | _, _, _, _ => BlockVCG.globalThrow "Unexpected sort";
       pure True
     else BlockVCG.globalThrow "Unexpected type"
---   | call (tailcall : Bool) : Option llvm_type -> value -> Array (typed value) -> instruction
+  | call tailcall o_ty f args => do
+    match f with 
+    | llvm.value.symbol s => 
+      llvmInvoke tailcall s args (match o_ty, stmt.assign with 
+                                  | some ty, some i => some (i, ty)
+                                  | _, _ => none)
+    | _ => globalThrow "VCG currently only supports direct calls.";
+    pure True
+
 --   | conv : conv_op -> typed value -> llvm_type -> instruction
   | icmp bop { type := lty, value := lhs } rhs => do
     if H : HasSMTSort lty then do

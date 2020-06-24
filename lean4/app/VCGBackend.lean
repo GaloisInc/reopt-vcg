@@ -24,7 +24,7 @@ open ReoptVCG (MemoryAnn)
 abbrev bitvec (n : Nat) := term (SMT.sort.bitvec n)
 def s_bool              := term SMT.sort.smt_bool
 
-def memaddr := bitvec 64
+abbrev memaddr := bitvec 64
 def byte    := bitvec 8
 
 def machine_word := bitvec 64
@@ -122,14 +122,19 @@ inductive Event
 
 namespace Event
 
--- protected
--- def repr : Event -> String
---   | Command c   => toString (toSExpr c)
---   | Warning w   => "Warning: "  ++ w
---   | Read _ _    => "Read"
---   | Write _ _ _ => "Write"
+protected
+def repr : Event -> String
+| Command c => "Command " ++ toString (toSExpr c)
+| Warning s => "Warning " ++ s
+| MCOnlyStackReadEvent addr n b => "MCOnlyStackReadEvent " ++ toString (toSExpr addr)
+| JointStackReadEvent addr n b i => "JointStackReadEvent " ++ toString (toSExpr addr)
+| NonStackReadEvent _ _ _ => "NonStackReadEvent"
+| MCOnlyStackWriteEvent _ _ _ => "MCOnlyStackWriteEvent"
+| JointStackWriteEvent _ _ _ _ => "JointStackWriteEvent"
+| NonStackWriteEvent _ _ _ => "NonStackWriteEvent"
+| FetchAndExecuteEvent _   => "FetchAndExecuteEvent"
 
--- instance : HasRepr Event := ⟨Event.repr⟩
+instance : HasRepr Event := ⟨Event.repr⟩
 
 end Event
 
@@ -434,8 +439,8 @@ def instructionEvents ( evtMap : RBMap Nat MemoryAnn (fun x y => decide (x < y))
        match r with
        | Except.ok ((_, s''), os'') =>
              let fAndE := Event.FetchAndExecuteEvent s'';
-             Except.ok (List.reverse (fAndE :: os''.revEvents), os''.nextFresh, nextIP)
-       | Except.error err => Except.error err
+             Except.ok (List.reverse (fAndE :: os''.revEvents), os''.nextFresh, i.nbytes)
+       | Except.error err => Except.error (err ++ " " ++ repr i)
 
 end vcg
 end x86
