@@ -70,7 +70,7 @@ inductive BlockExpr : sort → Type u
   -- Our memory model only tracks the mc-only variables, so if the
   -- address is not a stack-only variable, then the value just
   -- means some arbitrary value.
-| llvmVar (nm : String) (tp : sort) : BlockExpr tp
+| llvmVar (nm : llvm.ident) (tp : sort) : BlockExpr tp
   -- ^ This denotes the value of an LLVM Phi variable when the
   -- block starts.
 | eq    {tp : sort} : BlockExpr tp → BlockExpr tp → BlockExpr sort.smt_bool
@@ -165,8 +165,9 @@ partial def fromSExp
 | SExp.list [SExp.atom (Atom.ident "llvm"), llvmExpr] =>
   match llvmExpr with
   | SExp.atom (Atom.ident llvmName) =>
-    match llvmTyEnv.find? (llvm.ident.named llvmName) with
-    | some tp => Except.ok ⟨tp, BlockExpr.llvmVar llvmName tp⟩
+    let nm := llvm.ident.named llvmName;
+    match llvmTyEnv.find? nm with
+    | some tp => Except.ok ⟨tp, BlockExpr.llvmVar nm tp⟩
     | none => Except.error $ "Could not interpret llvm variable " ++ llvmExpr.toString
                            ++ "\nKnown variables: " ++ (llvmTyEnv.keys.map ppLLVMIdent).toString
   | _ => Except.error $ "Could not interpret llvm variable " ++ llvmExpr.toString

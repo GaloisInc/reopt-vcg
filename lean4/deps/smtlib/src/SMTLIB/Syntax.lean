@@ -436,6 +436,7 @@ inductive command
 | setLogic : logic → command
 | setOption : option → command
 | checkSatAssuming : List (term const_sort.smt_bool) → command
+| comment : String → command
 | exit : command
 -- | check_sat : command
 
@@ -488,6 +489,7 @@ def to_sexpr : command -> SExpr
   SExpr.app (atom "set-option") [atom opt.toString]
 | checkSatAssuming assumptions =>
   SExpr.app (atom "check-sat-assuming") $ assumptions.map toSExpr
+| comment content => atom $ content ++ "\n"
 | exit => SExpr.app (atom "exit") []
 
 instance : HasToSExpr command := ⟨command.to_sexpr⟩

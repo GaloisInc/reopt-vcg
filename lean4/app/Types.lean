@@ -385,4 +385,12 @@ match e with
 | Except.error e => throw (IO.userError $ pfx ++ (toString e))
 
 
+
+/-- Maps between LLVM argument and machine code name. --/
+structure LLVMMCArgBinding :=
+(llvmArgName : llvm.ident)
+(smtSort: SMT.sort)
+(register: x86.reg64)
+
+
 end ReoptVCG
