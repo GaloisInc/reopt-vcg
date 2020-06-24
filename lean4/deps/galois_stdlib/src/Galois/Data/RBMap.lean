@@ -18,9 +18,16 @@ variable {lt : α → α → Bool}
 @[specialize] def values : RBMap α β lt → List β
 | ⟨t, _⟩ => t.revFold (fun ps _k v => v::ps) []
 
-
 @[inline] def map {σ : Type w} (f : α → β → σ) : RBMap α β lt → RBMap α σ lt
 | ⟨t, _⟩ => t.fold (λ acc k v => acc.insert k (f k v)) RBMap.empty
+
+/-- Appends two RBMaps, with the second argument's entries overwriting
+    any entries in the first argument where applicable. --/
+@[specialize] def append (lhs rhs : RBMap α β lt) : RBMap α β lt :=
+if lhs.isEmpty then rhs
+else rhs.fold (λ m k v => m.insert k v) lhs
+
+instance : HasAppend (RBMap α β lt) := ⟨RBMap.append⟩
 
 end
 
