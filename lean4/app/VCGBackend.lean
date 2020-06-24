@@ -60,7 +60,10 @@ def get_reg64  (s : RegState) (r : concrete_reg (bv gpreg_type.reg64.width)) : m
   match gpreg_type.reg64.width, r with
   | _, concrete_reg.gpreg idx tp => s.get_gpreg idx
 
-
+def update_reg64  (r : concrete_reg (bv gpreg_type.reg64.width)) 
+                  (f : machine_word -> machine_word) (s : RegState) : RegState :=
+  match gpreg_type.reg64.width, r with
+  | _, concrete_reg.gpreg idx tp => update_gpreg idx f s
 
 def print_regs (s : RegState) : String :=
   let lines := List.zipWith (fun n (r : bitvec 64) => (n ++ ": " ++ toString (toSExpr r) ++ ", ")) reg.r64_names s.gpregs.toList;

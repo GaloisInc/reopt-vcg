@@ -18,9 +18,9 @@ open SMT (smtM)
 open SMT.sort (smt_bool)
 open x86 (reg64)
 open BlockVCG (globalThrow)
+open x86.vcg (RegState)
 
 namespace BlockVCG
-
 
 -- | Stop verifying this block.
 def haltBlock {α} (msg : String) : BlockVCG α :=
@@ -151,7 +151,7 @@ def lookupIdent (i : llvm.ident) (s : SMT.sort) : BlockVCG (SMT.term s) := do
   | none => BlockVCG.globalThrow ("Unknown ident: " ++ i.asString)
 
 def freshIdent (i : llvm.ident) (s : SMT.sort) : BlockVCG (SMT.term s) := do
-  sym <- BlockVCG.runsmtM (SMT.freshSymbol i.asString);
+  sym <- BlockVCG.runsmtM (SMT.freshSymbol i.asString); -- FIXME: this should be primitive in SMT
   let tm := SMT.mk_symbol sym s;
   modify (fun s => {s with llvmIdentMap := s.llvmIdentMap.insert i (Sigma.mk _ tm)});
   pure tm
@@ -212,6 +212,9 @@ def getSupportedType (s : SMT.sort) : BlockVCG (x86.vcg.SupportedMemType s) := d
   match mops s with
   | some ops => pure ops
   | none => globalThrow $ "Unexpected type " ++ toString s
+
+def declareMem : BlockVCG x86.vcg.memory :=
+  BlockVCG.runsmtM $ SMT.declare_fun "mem" [] x86.vcg.memory_t
 
 def mcWrite (addr : x86.vcg.memaddr) (s : SMT.sort) (val : SMT.term s) : BlockVCG Unit := do
   curMem <- (fun (s : BlockVCGState) => s.mcCurMem) <$> get;
@@ -384,6 +387,33 @@ def returnAddrTerm : BlockVCG x86.vcg.memaddr := do
 
 axiom VCGBlock_sorry: forall P, P
 
+-- Converts a machine word to be the same width as a given LLVM type.  In the monad to allow failure
+def wordAsType (w : x86.vcg.bitvec 64) (ty : llvm_type)
+  : BlockVCG (PSigma (fun (H : HasSMTSort ty) => SMT.term (asSMTSort ty H))) := 
+  match ty with 
+| ty@(llvm.llvm_type.ptr_to _) => do
+  let pf : HasSMTSort ty := True.intro;
+  pure (PSigma.mk pf w)
+| ty@(llvm.llvm_type.prim_type (llvm.prim_type.integer 64)) => do
+  let pf : HasSMTSort ty := rfl; -- proves 0 < 64 = true, sort of grossly
+  pure (PSigma.mk pf w)
+| ty@(llvm.llvm_type.prim_type (llvm.prim_type.integer i)) => do
+  if H : 0 < i /\ i < 64                                     
+  then do let pf : HasSMTSort ty := H.left;
+           let pf' : (i - 1 + 1) - 0 = i := VCGBlock_sorry _;
+           let smcv0 := SMT.extract (i - 1) 0 w;
+           let r := @Eq.recOn _ _ (fun a _ => SMT.term (SMT.sort.bitvec a)) _ pf' smcv0;
+           pure (PSigma.mk pf r)
+   else globalThrow "Unexpected sort in wordAsType"
+| _ => globalThrow "Unexpected sort in wordAsType"
+  
+def proveRegRel (msg : String) (w : x86.vcg.bitvec 64)
+  : llvm.typed llvm.value ->  BlockVCG Unit
+| { type := ty, value := v } => do  
+  PSigma.mk pf mcv <- wordAsType w ty;
+  lv <- primEval ty pf v;
+  proveEq lv mcv msg
+
 def llvmReturn (mlret : Option (typed value)) : BlockVCG Unit := do
   mcExecuteToEnd;
   regs <- BlockVCGState.mcCurRegs <$> get;
@@ -401,28 +431,60 @@ def llvmReturn (mlret : Option (typed value)) : BlockVCG Unit := do
   
   match mlret with
   | none => pure ()
-  | some { type := llvmTy, value := v } =>
-      let rax := regs.get_reg64 x86.reg64.rax;
-      (match llvmTy with
-      | ty@(llvm.llvm_type.ptr_to _) => do
-          let pf : HasSMTSort ty := True.intro;
-          lret <- primEval ty pf v;
-          proveEq lret rax "Return values match"
-      | ty@(llvm.llvm_type.prim_type (llvm.prim_type.integer 64)) => do
-          let pf : HasSMTSort ty := rfl; -- 0 < 64 = true, unfortunately
-          lret <- primEval ty pf v;
-          proveEq lret rax "Return values match"
-      | ty@(llvm.llvm_type.prim_type (llvm.prim_type.integer i)) => do
-          if H : 0 < i /\ i < 64                                     
-          then do let pf : HasSMTSort ty := H.left;
-                  lret <- primEval ty pf v;
-                  let pf' : (i - 1 + 1) - 0 = i := VCGBlock_sorry _;
-                  let mret0 := SMT.extract (i - 1) 0 rax;
-                  let mret := @Eq.recOn _ _ (fun a _ => SMT.term (SMT.sort.bitvec a)) _ pf' mret0;
-                  proveEq lret mret "Return values match"
-          else globalThrow "Unexpected return value"
-      | _ => globalThrow "Unexpected return value")
+  | some v =>
+    proveRegRel "Return values match" (regs.get_reg64 x86.reg64.rax) v
   
+def llvmInvoke (isTailCall : Bool) (fsym : llvm.symbol) (args : Array (typed value)) 
+    (lRet : Option (llvm.ident × llvm_type)) : BlockVCG Unit := do
+  when isTailCall $ globalThrow "Tail calls are unimplemented";
+  regs <- BlockVCGState.mcCurRegs <$> get;
+
+  --------------------
+  -- Pre call
+
+  -- FIXME assertFnNameEq fsym regs.ip
+  when (args.size > x86ArgGPRegs.length) $ 
+    globalThrow "Too many arguments";
+
+  let proveOne v (r : x86.reg64) := 
+    proveRegRel ("Checking argument matches register " ++ r.repr) (regs.get_reg64 r) v;
+  List.forM₂ proveOne args.toList x86ArgGPRegs;
+
+  -- FIXME checkDirectionFlagClear;
+  postCallRIP  <- mcNextAddr <$> get;
+
+  -- FIXME: generalise returnAddrTerm?
+  -- Check stored return value matches next instruction
+  (do addrOnStack <- mcRead (regs.get_reg64 x86.reg64.rsp) _;
+      proveEq addrOnStack (SMT.bvimm 64 postCallRIP) "Check return address matches next instruction.");
+        
+  --------------------
+  -- Post call
+
+  -- Construct new register after the call.
+  let postCallRSP := SMT.bvadd (regs.get_reg64 x86.reg64.rsp) (SMT.bvimm _ 8);
+  -- create a 
+  newRegs <- (do rs <- BlockVCG.runsmtM $ x86.vcg.RegState.declare_const postCallRIP;
+                 let rs_with_rsp := x86.vcg.RegState.update_reg64 x86.reg64.rsp (fun _ => postCallRSP) rs;
+                 let copy_reg s r := x86.vcg.RegState.update_reg64 r (fun _ => regs.get_reg64 r) s;
+                 pure (List.foldl copy_reg rs_with_rsp x86CalleeSavedGPRegs));
+
+  modify $ fun s => {s with mcCurRegs := newRegs };
+
+  -- Update machine code memory to post-call memory.
+  (do newMem <- declareMem;
+      oldMem <- BlockVCGState.mcCurMem <$> get;
+      sht    <- stackHighTerm;
+      addAssert $ SMT.eqrange newMem oldMem postCallRSP (SMT.bvadd sht (SMT.bvimm _ 7));
+      modify $ fun s => {s with mcCurMem := newMem });
+
+  -- Assign returned value by assigning LLVM variable
+  match lRet with
+  | none => pure ()
+  | some (i, ty) => do
+    PSigma.mk pf mcv <- wordAsType (regs.get_reg64 x86.reg64.rax) ty;
+    defineTerm i mcv $> ()
+
 --------------------------------------------------------------------------------
 -- Arithmetic
 

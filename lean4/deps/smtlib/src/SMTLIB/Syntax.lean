@@ -195,7 +195,10 @@ abbrev binop (a : sort) (b : sort) (c : sort) : const_sort :=
   const_sort.fsort a (const_sort.fsort b (const_sort.base c))
 
 abbrev ternop (a : sort) (b : sort) (c : sort) (d : sort) : const_sort :=
-  const_sort.fsort a (const_sort.fsort b (const_sort.fsort c (const_sort.base d)))
+  const_sort.fsort a (binop b c d)
+
+abbrev quadop (a : sort) (b : sort) (c : sort) (d : sort) (e : sort) : const_sort :=
+  const_sort.fsort a (ternop b c d e)
 
 end builtin_identifier
 
@@ -227,6 +230,9 @@ inductive builtin_identifier : const_sort -> Type
 -- * Arrays
 | select (k v : sort) : builtin_identifier (binop (array k v) k v)
 | store  (k v : sort) : builtin_identifier (ternop (array k v) k v (array k v))
+
+-- CVC4 specific
+| eqrange (k v : sort) : builtin_identifier (quadop (array k v) (array k v) k k smt_bool)
 
 -- * BitVecs
 -- hex/binary literals
@@ -297,6 +303,7 @@ def to_sexpr : forall {cs : const_sort}, builtin_identifier cs -> SExpr
 
 | _, select _ _           => atom "select"
 | _, store  _ _           => atom "store"
+| _, eqrange _ _          => atom "eqrange"
 
 -- * BitVecs
 -- hex/binary literals
@@ -571,9 +578,15 @@ def binop {a b c : sort} (i : Raw.builtin_identifier (Raw.builtin_identifier.bin
 
 private
 def ternop {a b c d : sort} 
-           (i : Raw.builtin_identifier (Raw.const_sort.fsort a (Raw.builtin_identifier.binop b c d))) 
+           (i : Raw.builtin_identifier (Raw.builtin_identifier.ternop a b c d))
            (x : term a) (y : term b) (z : term c) : term d 
            := app (app (app (identifier (builtin i)) x) y) z
+
+private
+def quadop {a b c d e : sort} 
+           (i : Raw.builtin_identifier (Raw.builtin_identifier.quadop a b c d e))
+           (w : term a) (x : term b) (y : term c) (z : term d) : term e
+           := app (app (app (app (identifier (builtin i)) w) x) y) z
 
 -- Builtin terms
 def true  : term smt_bool                           := identifier (builtin true)
@@ -594,6 +607,9 @@ def select (k v : sort) : term (array k v) -> term k -> term v :=
 
 def store  (k v : sort) : term (array k v) -> term k -> term v -> term (array k v) :=
   ternop (store k v)
+
+def eqrange  {k v : sort} : term (array k v) -> term (array k v) -> term k -> term k -> term smt_bool
+    := quadop (eqrange k v)
 
 -- BitVecs
 -- hex/binary literals
