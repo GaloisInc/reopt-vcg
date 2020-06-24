@@ -1,5 +1,6 @@
 HERE := $(realpath $(dir $(realpath $(lastword $(MAKEFILE_LIST)))))
 LOCALFILES := AnnotationParsing.lean\
+ Hex.lean\
  JsonRoundtrip.lean\
  LoadElf.lean\
  SExp.lean\
