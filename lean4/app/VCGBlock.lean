@@ -84,6 +84,11 @@ def proveEq {s : SMT.sort} (x y : SMT.term s) (msg : String) : BlockVCG Unit := 
   -- Add command for future proofs
   addAssert (SMT.eq x y)
 
+-- | Add assertion that the propositon is true without requiring it to be proven.
+def addComment (str : String) : BlockVCG Unit :=
+  addCommand $ SMT.Raw.command.comment str -- FIXME?
+
+
 end BlockVCG
 
 export BlockVCG (addCommand proveTrue proveEq addAssert)
@@ -161,6 +166,10 @@ def defineTerm {s : SMT.sort} (i : llvm.ident) (tm : SMT.term s) : BlockVCG (SMT
   modify (fun s => {s with llvmIdentMap := s.llvmIdentMap.insert i (Sigma.mk _ sym)});
   pure sym
 
+def declareTerm (i : llvm.ident) (s : SMT.sort) : BlockVCG (SMT.term s) := do
+  sym <- BlockVCG.runsmtM (SMT.declare_fun i.asString [] s);
+  modify (fun s => {s with llvmIdentMap := s.llvmIdentMap.insert i (Sigma.mk _ sym)});
+  pure sym
 
 
 --------------------------------------------------------------------------------
@@ -593,10 +602,9 @@ match findBlock blkMap lbl with
                 | some v => tryPrimEval tp v
                 | none => globalThrow $ "Could not find initial value of llvm variable `"++nm.asString++"`.";
   phiTermMap ← varMap.mapM resolvePhiVarVal;
-  let evalVar : String → Option (Sigma SMT.term) := λ nm => phiTermMap.find? $ llvm.ident.named nm;
   -- Verify each precondition
   tgtBlockAnn.preconds.forM (λ precondExpr => do
-                               p ← evalPrecondition evalVar precondExpr;
+                               p ← evalPrecondition phiTermMap.find? precondExpr;
                                proveTrue (goalFn p) $ prefixDescr++" precondition: "++precondExpr.toString)
   -- Check allocations are preserved. -- FIXME actually do this when we get to reasoning about allocas.
   -- curAllocas <- gets mcPendingAllocaOffsetMap
@@ -710,12 +718,11 @@ namespace BlockVCG
 
 -- cf. `runBlockVCG`
 protected 
-def run {a : Type}
-        (mctx : ModuleVCGContext)
+def run (mctx : ModuleVCGContext)
         (funAnn : FunctionAnn)
         (bmap : ReachableBlockAnnMap)
         (firstBlock : llvm.block_label)
-        (firstAddr  : Nat) -- FIXME: maybe not strictly required
+        (firstAddr  : MCAddr) -- FIXME: maybe not strictly required
         (thisBlock  : llvm.block_label)
         (blockAnn   : ReachableBlockAnn)
         (m : BlockVCG Unit) : IO Unit := do
@@ -728,7 +735,7 @@ def run {a : Type}
        
     ((stdLib, blockRegs), nextFree) <- prover.runsmtM 0 (do
       let ann := mctx.annotations;  
-      stdLib <- x86.vcg.MCStdLib.make firstAddr ann.pageSize ann.stackGuardPageCount;
+      stdLib <- x86.vcg.MCStdLib.make firstAddr.addr.toNat ann.pageSize ann.stackGuardPageCount;
       blockRegs <-
         if thisBlock = firstBlock 
         then pure stdLib.funStartRegs
@@ -767,5 +774,58 @@ def run {a : Type}
          throw $ IO.userError $ "Fatal error encountered in BlockVCG.run: " ++ msg
 
 end BlockVCG
+
+-- | Verify c over LLVM stmts
+--
+-- Note. This is written to take a function rather than directly call
+-- @stepNextStmtg@ so that the call stack is cleaner.
+def checkEachStmt : List llvm.stmt → BlockVCG Unit
+| [] => BlockVCG.globalThrow "We have reached end of LLVM events without a block terminator."
+| (stmt::stmts) => do
+  BlockVCG.addComment $ "LLVM: " ++ (pp.render $ llvm.pp_stmt stmt);
+  continue ← stepNextStmt stmt;
+  modify (λ s => {s with llvmInstIndex := s.llvmInstIndex + 1 });
+  if continue then
+    checkEachStmt stmts
+   else
+    unless stmts.isEmpty $ BlockVCG.globalThrow "Expected return to be last LLVM statement."
+
+def defineArgBinding (b : LLVMMCArgBinding) : BlockVCG Unit := do
+funStartRegs ← (x86.vcg.MCStdLib.funStartRegs ∘ BlockVCGContext.mcStdLib) <$> read;
+let val : SMT.term SMT.sort.bv64 := funStartRegs.get_reg64 b.register;
+_ ← defineTerm b.llvmArgName val;
+pure ()
+
+def definePhiVar (nm : llvm.ident) (entry : llvm.llvm_type × BlockLabelValMap) : BlockVCG Unit := do
+let (tp, _) := entry;
+s ← coerceToSMTSort tp;
+_ ← declareTerm nm s;
+pure ()
+
+/-- Verify a reachable block satisfies its specification. cf `verifyBlock` --/
+def verifyReachableBlock
+(blockAnn : ReachableBlockAnn)
+(args : List LLVMMCArgBinding)
+(phiVarMap : PhiVarMap)
+(stmts : List llvm.stmt)
+: BlockVCG Unit := do
+-- Add LLVM declarations for all existing allocations.
+-- FIXME we skip alloca stuff for now, FYI.
+-- forM_ (Ann.blockAllocas blockAnn) $ \a  -> do
+--   when (Ann.allocaExisting a) $ do
+--     allocaDeclarations (Ann.allocaIdent a) (SMT.bvdecimal (toInteger (Ann.allocaSize a)) 64)
+--
+-- Declare LLVM arguments in terms of the registers at function start.
+args.forM defineArgBinding;
+-- Declare phi variables
+phiVarMap.mfor definePhiVar;
+llvmIdentTermMap ← BlockVCGState.llvmIdentMap <$> get;
+-- -- Assume preconditions
+blockAnn.preconds.forM (λ pExpr => do
+                          pTerm ← evalPrecondition llvmIdentTermMap.find? pExpr;
+                          addAssert pTerm);
+-- -- Start processing LLVM statements
+checkEachStmt stmts
+
 
 end ReoptVCG

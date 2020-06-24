@@ -20,11 +20,11 @@ universe u
 class BlockExprEnv (α : Type u) :=
 (initGPReg64 : α → x86.reg64 → term sort.bv64)
 (fnStartRegState : α → x86.reg64 → term sort.bv64)
-(evalVar : α → String → Option (Sigma term))
+(evalVar : α → llvm.ident → Option (Sigma term))
 (readMem : α → ∀(w : WordSize), x86.vcg.memaddr →  term w.sort)
 
 structure BlockVCGExprEnv :=
-(evalVar : String → Option (Sigma term))
+(evalVar : llvm.ident → Option (Sigma term)) -- FIXME, this may just be state.llvmIdentMap.find? =\
 (context : BlockVCGContext)
 (state : BlockVCGState)
 
@@ -81,10 +81,10 @@ def toSMT {α : Type u} [BlockExprEnv α] (env: α) : ∀ {tp : sort}, BlockExpr
     else
       Except.error $ BlockVCGError.globalErr $
       "Error while translating precondition to SMT! LLVM variable `"
-      ++ nm ++ "` had no entry in the phi variable map!"
+      ++ nm.asString ++ "` had no entry in the phi variable map!"
   | none => Except.error $ BlockVCGError.globalErr $
     "Error while translating precondition to SMT! LLVM variable `"
-    ++ nm ++ "` had no entry in the phi variable map!"
+    ++ nm.asString ++ "` had no entry in the phi variable map!"
 | _, eq e1 e2 => do
   t1 ← toSMT e1;
   t2 ← toSMT e2;
@@ -102,7 +102,7 @@ def toSMT {α : Type u} [BlockExprEnv α] (env: α) : ∀ {tp : sort}, BlockExpr
 end BlockExpr
 
 /-- Converts a BlockExpr into an SMT term in the BlockVCG context. --/
-def evalPrecondition {tp : sort} (evalVar : String → Option (Sigma term)) (expr : BlockExpr tp) : BlockVCG (term tp) := do
+def evalPrecondition {tp : sort} (evalVar : llvm.ident → Option (Sigma term)) (expr : BlockExpr tp) : BlockVCG (term tp) := do
 ctx ← read;
 state ← get;
 let env := BlockVCGExprEnv.mk evalVar ctx state;

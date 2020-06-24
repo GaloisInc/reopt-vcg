@@ -2,6 +2,7 @@ import Galois.Init.Json
 import LeanLLVM.AST
 import Main.Elf
 import ReoptVCG.Annotations
+import ReoptVCG.VCGBlock
 import ReoptVCG.LoadLLVM
 import ReoptVCG.SMT
 import ReoptVCG.Types
@@ -45,13 +46,6 @@ def llvmTypeToSort : llvm_type → Option SMT.sort
 | _ => Option.none
 
 
-/-- Maps between LLVM argument and machine code name. --/
-structure LLVMMCArgBinding :=
-(llvmArgName : llvm.ident)
-(smtSort: SMT.sort)
-(register: x86.reg64)
-
-
 
 /-- Verify a block satisfies its specification. --/
 def verifyBlock
@@ -62,9 +56,22 @@ def verifyBlock
 -- ^ Annotations on blocks.
 (firstLabel : llvm.block_label)
  -- ^ Label of first block.
-(bAnn : AnnotatedBlock)
+(firstAddr : MCAddr)
+ -- ^ Address of first block.
+(aBlock : AnnotatedBlock)
 : ModuleVCG Unit := do
-moduleThrow "TODO: implement verifyBlock"
+-- Get annotations for this block
+match aBlock.annotation with
+-- We only need to verify unreachable blocks are not reachable.
+| BlockAnn.unreachable => pure ()
+| BlockAnn.reachable blockAnn => do
+  -- Check allocations do not overlap with each other.
+  -- FIXME we're ignoring alloca stuff for now, FYI
+  -- checkAllocaOverlap aBlock.label (Map.elems (Ann.blockAllocas blockAnn))
+  -- Start running verification condition generator.
+  mCtx ← read;
+  let verify := verifyReachableBlock blockAnn argBindings aBlock.phiVarMap aBlock.stmts;
+  ModuleVCG.liftIO $ verify.run mCtx funAnn blockMap firstLabel firstAddr aBlock.label blockAnn
 
 
 
@@ -175,7 +182,7 @@ let blockMap : RBMap llvm.block_label AnnotatedBlock (λ x y => x<y) :=
   RBMap.fromList (blocks.toList.map (λ ab => (ab.label, ab))) (λ x y => x<y);
 -- Verify the first block is where the annotation indicated it should be, and return
 -- the label for the first block
-entryBlockLbl ← (match lFun.body.toList with
+(entryBlockLbl, entryBlockAddr) ← (match lFun.body.toList with
   | [] => functionError fnm FnError.missingEntryBlock
   | (firstBlock :: _) => match blockMap.find? firstBlock.label with
     | Option.none => blockError fnm firstBlock.label BlockError.missingAnnotations
@@ -186,18 +193,18 @@ entryBlockLbl ← (match lFun.body.toList with
         | Except.error errMsg =>
           -- TODO(AMK) once we actually parse the addresses from the ELF file
           -- we can raise an error if the two addresses don't match
-          pure ab.label
+          pure (ab.label, MCAddr.mk (UInt64.ofNat 0))
           -- functionError fnm $ FnError.custom $ 
           --   "Unable to find function machine code address: " ++ errMsg
         | Except.ok addr =>
           if (addr == firstBlockAnn.startAddr)
-          then pure ab.label
+          then pure (ab.label, addr)
           else moduleThrow $ 
                fnm ++ " annotation address listed as " 
                    ++ (firstBlockAnn.startAddr.addr.pp_hex
                    ++ "; symbol table however lists address as " ++ addr.addr.pp_hex ++ "."));
 -- Verify each block.
-blocks.forM (λ ab => moduleCatch $ verifyBlock fAnn argBindings blockMap entryBlockLbl ab)
+blocks.forM (λ ab => moduleCatch $ verifyBlock fAnn argBindings blockMap entryBlockLbl entryBlockAddr ab)
 
 
 /-- Returns the loaded and parsed annotation info and a Prover session based on the given VCGConfig.
