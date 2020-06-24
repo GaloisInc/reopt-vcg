@@ -788,8 +788,8 @@ def event.eval : event -> @evaluator backend Unit
     evaluator.run_M (backend.s_set_ip new_ip)
   | (event.branch c addr) => do
     new_ip <- expression.eval addr;
-    b      <- expression.eval c;    
-    evaluator.run_M (backend.s_mux_m b (backend.s_set_ip new_ip) (pure () : M backend Unit))
+    b      <- expression.eval c;
+    evaluator.run_M (backend.s_cond_set_ip b new_ip)
   | event.hlt => throw "halt"
   | (event.xchg addr1 addr2) => throw "xchg"
   | event.cpuid => evaluator.run_M backend.s_read_cpuid

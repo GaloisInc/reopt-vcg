@@ -730,6 +730,14 @@ def sub_def : instruction := do
      of .= ssub_overflows tmp src;
      af .= usub4_overflows tmp src;
      dest .= tmp
+   pat_end;
+   pattern fun (src : bv 64) => do
+     tmp ← eval $ ⇑rax - src;
+     set_result_flags tmp;
+     cf .= usub_overflows tmp src;
+     of .= ssub_overflows tmp src;
+     af .= usub4_overflows tmp src;
+     rax .= tmp
    pat_end
 
 ------------------------------------------------------------------------
