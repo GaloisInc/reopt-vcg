@@ -495,7 +495,7 @@ def to_sexpr : command -> SExpr
 | setOption opt =>
   SExpr.app (atom "set-option") [atom opt.toString]
 | checkSatAssuming assumptions =>
-  SExpr.app (atom "check-sat-assuming") $ assumptions.map toSExpr
+  list [(atom "check-sat-assuming"), list $ assumptions.map toSExpr]
 | comment content => atom $ "; " ++ content ++ "\n"
 | exit => SExpr.app (atom "exit") []
 

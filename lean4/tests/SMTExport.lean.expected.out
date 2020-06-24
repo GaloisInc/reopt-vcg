@@ -12,6 +12,6 @@
 (assert (= (|negb-3| |ff-2|) true))
 (assert (= (|negb-3| |tt-0|) false))
 (assert (|andb-4| |tt-0| (|negb-3| |ff-2|)))
-(check-sat-assuming false)
+(check-sat-assuming (false))
 (exit)
 
