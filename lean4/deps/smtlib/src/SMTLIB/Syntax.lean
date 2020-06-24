@@ -621,6 +621,10 @@ def bvimm' (n : Nat) : Int -> term (bitvec n)
 | Int.ofNat x   => bvimm n x
 | Int.negSucc x => bvimm n (Nat.ldiff (2^n-1) x)
 
+def bvAsConst {n : Nat} : term (bitvec n) -> Option Nat 
+| const _ (binary _ v) => some v
+| _                    => none
+
 def concat {n m : Nat} : term (bitvec n) -> term (bitvec m) -> term (bitvec (n + m)) := 
   binop (concat n m)
 def extract {n : Nat} (i : Nat) (j : Nat) : term (bitvec n) -> term (bitvec (i + 1 - j)) :=

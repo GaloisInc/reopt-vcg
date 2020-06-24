@@ -313,15 +313,13 @@ def execMCOnlyEvents : MemAddr -> BlockVCG Unit
       nextAddr <- mcNextAddr <$> get;
       -- FIXME: assert the IP is nextAddr (no jmp etc.)
       -- BlockVCG.liftIO $ IO.println ("execMCOnlyEvents: fetch and exec case: " ++ nextAddr.ppHex ++ " " ++ endAddr.ppHex);
-      if nextAddr < endAddr 
-      then do getNextEvents; execMCOnlyEvents endAddr
-      else pure ()
-      -- case valueAsMemAddr (regs^.boundValue X86_IP) of
-      --   Just ipAddr | ipAddr == nextAddr && addrLt nextAddr endAddr -> do
-      --                   getNextEvents
-      --                   execMCOnlyEvents endAddr
-      --   _ -> do
-      --     pure ()
+      
+      match SMT.bvAsConst regs.ip with
+      | some nextAddr' =>
+        if nextAddr = nextAddr' ∧ nextAddr < endAddr
+        then do getNextEvents; execMCOnlyEvents endAddr
+        else pure ()
+      | none => pure ()
   | [] => do
       -- BlockVCG.liftIO $ IO.println ("execMCOnlyEvents: empty case");      
       nextAddr <- mcNextAddr <$> get;

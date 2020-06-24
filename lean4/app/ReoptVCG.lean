@@ -307,10 +307,10 @@ _ ← runModuleVCG modCtx (do
 -- print out results
 errorCnt ← errorRef.get;
 if errorCnt > 0 then do
-  _ ← IO.println "Errors during verification.";
+  _ ← IO.println (repr errorCnt ++ " errors during verification.");
   pure 1
-else do
+else (do
   _ ← gen.sessionComplete;
-  pure 0
+  pure 0)
 
 end ReoptVCG

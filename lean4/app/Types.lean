@@ -245,11 +245,11 @@ def moduleThrow {α} (errMsg : String) : ModuleVCG α :=
 
 -- Catch a VCG error, print it to the screen and keep going.
 def moduleCatch (m : ModuleVCG Unit) :  ModuleVCG Unit :=
-  λ ctx => do
-    catch (m.run ctx) $ λ (e : ModuleError) =>
+  λ ctx =>
+    catch (m.run ctx) $ λ (e : ModuleError) => (do
       when ctx.writeStderr $
         IO.println $ "Error: " ++ e.pp; -- FIXME use stderr or similar?
-      ctx.errorCount.modify (λ n => n + 1)
+      ctx.errorCount.modify (λ n => n + 1))
 
 
 
