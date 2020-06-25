@@ -137,11 +137,12 @@ cnt ← goalCounter.get;
 smtCtx ← cmdRef.get;
 goalCounter.modify Nat.succ;
 let (_, _, cmds) := 
-  runsmtM 0 (setLogic Raw.logic.all
-            *> setOption (Raw.option.produceModels true)
-            *> smtCtx
-            *> checkSatAssuming [negatedGoal]
-            *> exit);
+  runsmtM IdGen.empty
+  (setLogic Raw.logic.all
+   *> setOption (Raw.option.produceModels true)
+   *> smtCtx
+   *> checkSatAssuming [negatedGoal]
+   *> exit);
 let filePath := outputDir ++ [System.FilePath.pathSeparator].asString ++ (standaloneGoalFilename fnName blockLabel cnt);
 file ← IO.FS.Handle.mk filePath IO.FS.Mode.write;
 -- TODO make these actual commands in our Lean4 SMT namespace

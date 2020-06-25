@@ -13,7 +13,7 @@ axiom I_am_really_sorry3 : ∀(P : Prop),  P
 
 open mc_semantics
 open mc_semantics.type
-open SMT (sort term smtM command)
+open SMT (sort term smtM command IdGen IdGen.empty)
 
 abbrev bitvec (n : Nat) := term (SMT.sort.bitvec n)
 def s_bool              := term SMT.sort.smt_bool
@@ -251,10 +251,10 @@ end Event
 
 structure os_state :=
   (current_ip : machine_word)
-  (nextFresh  : Nat)
+  (idGen  : IdGen)
   (trace : List Event)
 
-def os_state.empty : os_state := os_state.mk (SMT.bvimm _ 0) 0 []
+def os_state.empty : os_state := os_state.mk (SMT.bvimm _ 0) IdGen.empty []
 
 -- Stacking like this makes it easier to derive MonadState
 def base_system_m := (StateT os_state (ExceptT String Id))
@@ -290,9 +290,9 @@ def run {a : Type} (m : system_m a) (os : os_state) (s : machine_state)
 
 def runsmtM {a : Type} (m : smtM a) : system_m a := do
   let run' := fun (s : os_state) => 
-                  (let r := SMT.runsmtM s.nextFresh m;
+                  (let r := SMT.runsmtM s.idGen m;
                   (r.fst, {s with trace := (List.map Event.Command r.snd.snd.reverse) ++ s.trace
-                          , nextFresh   := r.snd.fst}));
+                          , idGen   := r.snd.fst}));
   monadLift (modifyGet run' : base_system_m a)
 
 def name_term {s : sort} (name : Option String) (tm : term s) : system_m (term s) :=

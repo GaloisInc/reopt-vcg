@@ -15,7 +15,12 @@ open ReoptVCG
 
 def smtCommands1 : SMT.smtM Unit := do
 tt ← SMT.declare_fun "tt" [] SMT.sort.smt_bool;
+tt0 ← SMT.declare_fun "tt" [] SMT.sort.smt_bool;
 tt2 ← SMT.name_term "tt2" SMT.true;
+tt2_0 ← SMT.name_term "tt2_0" SMT.true;
+tt2_1 ← SMT.name_term "tt2" SMT.true;
+tt2_2 ← SMT.name_term "tt2" SMT.true;
+tt2_0_0 ← SMT.name_term "tt2_0" SMT.true;
 ff ← SMT.declare_fun "ff" [] SMT.sort.smt_bool;
 negb ← SMT.declare_fun "negb" [SMT.sort.smt_bool] SMT.sort.smt_bool;
 andb ← SMT.define_fun "andb" [SMT.sort.smt_bool, SMT.sort.smt_bool] SMT.sort.smt_bool (λ x y => SMT.and x y);

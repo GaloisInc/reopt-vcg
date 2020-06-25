@@ -14,7 +14,7 @@ import ReoptVCG.SMT
 namespace ReoptVCG
 
 open llvm (llvm_type typed prim_type value)
-open SMT (smtM)
+open SMT (smtM IdGen.empty)
 open SMT.sort (smt_bool)
 open x86 (reg64)
 open BlockVCG (globalThrow)
@@ -55,9 +55,9 @@ def addCommand (cmd : SMT.command) : BlockVCG Unit := do
 
 def runsmtM {a : Type} (m : smtM a) : BlockVCG a := do
   let run' := fun (s : BlockVCGState) => 
-                  (let r  := SMT.runsmtM s.mcLocalIndex m;
+                  (let r  := SMT.runsmtM s.idGen m;
                        ((r.fst, r.snd.snd.reverse)
-                       , {s with mcLocalIndex := r.snd.fst}));
+                       , {s with idGen := r.snd.fst}));
   (r, cmds) <- modifyGet run';
   _ <- List.mapM addCommand cmds;
   pure r
@@ -193,14 +193,14 @@ def getNextEvents : BlockVCG Unit := do
   -- FIXMEL df, x87Top
   -- BlockVCG.liftIO $ IO.println ("Decoding at " ++ addr.ppHex);
 
-  (events, nextIdx, sz) <-
-    match x86.vcg.instructionEvents ctx.mcBlockMap s.mcCurRegs s.mcLocalIndex addr 
+  (events, idGen', sz) <-
+    match x86.vcg.instructionEvents ctx.mcBlockMap s.mcCurRegs s.idGen addr
             ctx.mcModuleVCGContext.decoder with
     | Except.error e => globalThrow e
     | Except.ok    r => pure r;
 
   -- Update local index and next addr
-  set $ { s with mcLocalIndex := nextIdx
+  set $ { s with idGen := idGen'
                , mcCurAddr := addr
                , mcCurSize := sz
                , mcEvents := events
@@ -757,7 +757,7 @@ def run (mctx : ModuleVCGContext)
       (let mk (e : MCMemoryEvent) := (e.addr.toNat, e.info);
        RBMap.ofList (List.map mk blockAnn.memoryEvents.toList));
        
-    ((stdLib, blockRegs), nextFree) <- prover.runsmtM 0 (do
+    ((stdLib, blockRegs), idGen') <- prover.runsmtM IdGen.empty (do
       let ann := mctx.annotations;  
       stdLib <- x86.vcg.MCStdLib.make firstAddr.addr.toNat ann.pageSize ann.stackGuardPageCount;
       blockRegs <-
@@ -784,9 +784,9 @@ def run (mctx : ModuleVCGContext)
              , mcCurRegs := blockRegs
              , mcCurMem  := stdLib.blockStartMem
              , mcEvents  := []
-             , mcLocalIndex := nextFree
+             , idGen := idGen'
              , llvmInstIndex := 0
-             , llvmIdentMap  := RBMap.empty -- FIXME: ???
+             , llvmIdentMap  := RBMap.empty
              };
      r <- ((m.run ctx).run' s).run;
      match r with

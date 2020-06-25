@@ -17,7 +17,7 @@ axiom I_am_really_sorry4 : ∀(P : Prop),  P
 
 open mc_semantics
 open mc_semantics.type
-open SMT (sort term smtM command)
+open SMT (sort term smtM command IdGen)
 
 open ReoptVCG (MemoryAnn)
 
@@ -241,7 +241,7 @@ namespace Internal
 
 structure vcg_state :=
   (eventInfo  : Option MemoryAnn)
-  (nextFresh  : Nat)  
+  (idGen  : IdGen)
   (revEvents : List Event)
 
 -- def vcg_state.empty : vcg_state := vcg_state.mk 0 []
@@ -279,9 +279,9 @@ def run {a : Type} (m : system_m a) (os : vcg_state) (s : RegState)
 
 def runsmtM {a : Type} (m : smtM a) : system_m a := do
   let run' := fun (s : vcg_state) => 
-                  (let r := SMT.runsmtM s.nextFresh m;
+                  (let r := SMT.runsmtM s.idGen m;
                   (r.fst, {s with revEvents := (List.map Event.Command r.snd.snd.reverse) ++ s.revEvents
-                          , nextFresh   := r.snd.fst}));
+                          , idGen := r.snd.fst}));
   monadLift (modifyGet run' : base_system_m a)
 
 def name_term {s : sort} (name : Option String) (tm : term s) : system_m (term s) :=
@@ -419,12 +419,12 @@ def instructionEvents ( evtMap : RBMap Nat MemoryAnn (fun x y => decide (x < y))
                       -- ^ Map from addresses to annotations of events on that address.
                       ( s : RegState )
                       -- ^ Initial values for registers
-                      ( nextFresh : Nat)
-                      -- ^ Next Local variable index
+                      ( idGen : IdGen)
+                      -- ^ Used to generate unique/fresh identifiers for SMT terms.
                       ( ip : Nat )
                       ( d : decodex86.decoder )  
                       -- ^ Location to explore
-                      : Except String (List Event × Nat × Nat) :=
+                      : Except String (List Event × IdGen × Nat) :=
   let inst := decodex86.decode d ip;
   match inst with 
   | (Sum.inl b) => throw "Unknown byte"
@@ -434,12 +434,12 @@ def instructionEvents ( evtMap : RBMap Nat MemoryAnn (fun x y => decide (x < y))
        let s'  := { s with ip := SMT.bvimm _ nextIP };
        let evt := evtMap.find? ip;
        let r := (eval_instruction backend i).run            
-                { nextFresh := nextFresh, eventInfo := evt, revEvents := [] }
+                { idGen := idGen, eventInfo := evt, revEvents := [] }
                 s';
        match r with
        | Except.ok ((_, s''), os'') =>
              let fAndE := Event.FetchAndExecuteEvent s'';
-             Except.ok (List.reverse (fAndE :: os''.revEvents), os''.nextFresh, i.nbytes)
+             Except.ok (List.reverse (fAndE :: os''.revEvents), os''.idGen, i.nbytes)
        | Except.error err => Except.error (err ++ " " ++ repr i)
 
 end vcg
