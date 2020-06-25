@@ -28,7 +28,7 @@ for example in *.ann; do
   echo ">> Generating SMT queries..."
   ../build/reopt-vcg ${example} --export ${actualDir}
   actualSmtQueryCount=$(ls -lR ${actualDir} | wc -l)
-  expectedSmtQueryCount=$(ls -lR ${actualDir} | wc -l)
+  expectedSmtQueryCount=$(ls -lR ${expectedDir} | wc -l)
   if [[ ${actualSmtQueryCount} == ${expectedSmtQueryCount} ]]
   then
     echo ">> Done generating all ${actualSmtQueryCount} SMT queries."
