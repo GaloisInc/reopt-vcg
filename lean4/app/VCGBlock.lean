@@ -576,8 +576,9 @@ def checkInitRegVals
  : BlockVCG Unit := do
 -- Check the instruction pointer
 let expectedIp : SMT.term SMT.sort.bv64 := SMT.bvimm 64 blockAnn.startAddr.toNat;
-actualIp ← SMT.bvimm 64 <$> BlockVCGState.mcCurAddr <$> get;
-proveTrue (goalFn (SMT.eq expectedIp actualIp)) "Checking the IP register.";
+regs <- BlockVCGState.mcCurRegs <$> get;               
+proveTrue (goalFn (SMT.eq expectedIp regs.ip)) "Checking the IP register.";
+
 -- Check x87Top value
 --let expectedX87Top : SMT.term SMT.sort.bv64 := SMT.bv 64 blockAnn.startAddr.toNat;
 -- (Some X87_TopReg, SMT.bvdecimal (toInteger (Ann.blockX87Top blockAnn)) 3)
