@@ -52,8 +52,8 @@ for example in *.ann; do
   then
     echo ">> ${failCnt} queries out of ${actualSmtQueryCount} failed for ${example}:"
     for ((i = 0 ; i < failCnt ; i++ )); do
-      echo ">> ${failFiles[0]} produced: "
-      echo "${failResults[1]}"
+      echo ">> ${failFiles[i]} produced: "
+      echo "${failResults[i]}"
     done
   fi
 
