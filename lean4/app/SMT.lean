@@ -53,8 +53,24 @@ namespace BlockExpr
 
 open WellFormedSExp
 
+def ppLLVMIdent : llvm.ident → String
+| llvm.ident.named nm => nm
+| llvm.ident.anon n => "%"++(repr n)
+
 def toSExp : ∀ {tp : sort}, BlockExpr tp → SExp String
-| _, _ => SExp.atom "TODO BlockExpr.toSExp"
+| _, stackHigh => SExp.atom "stack_high"
+| _, initGPReg64 r => SExp.atom r.name
+| _, fnStartGPReg64 r => SExp.list [SExp.atom "fnstart", SExp.atom r.name]
+| _, mcStack a w =>
+  SExp.list [SExp.atom "mcstack",
+             toSExp a,
+             SExp.list [SExp.atom "_", SExp.atom "BitVec", SExp.atom (repr w.bits)]
+            ]
+| _, llvmVar nm tp => SExp.list [SExp.atom "llvm", SExp.atom (ppLLVMIdent nm)]
+| _, eq e1 e2 => SExp.list [SExp.atom "=", toSExp e1, toSExp e2]
+| _, bvAdd e1 e2 => SExp.list [SExp.atom "bvadd", toSExp e1, toSExp e2]
+| _, bvSub e1 e2 => SExp.list [SExp.atom "bvsub", toSExp e1, toSExp e2]
+| _, bvDecimal n width => SExp.list [SExp.atom "_", SExp.atom ("bv"++(repr n)), SExp.atom (repr width)]
 
 def toString : ∀ {tp : sort}, BlockExpr tp → String
 | _, e => (BlockExpr.toSExp e).toString
