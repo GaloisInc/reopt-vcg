@@ -293,12 +293,12 @@ def to_sexpr : forall {cs : const_sort}, builtin_identifier cs -> SExpr
 | _, true                 => atom "true"
 | _, false                => atom "false"
 | _, not                  => atom "not"
-| _, impl                 => atom "impl"
+| _, impl                 => atom "=>"
 | _, and                  => atom "and"
 | _, or                   => atom "or"
 | _, xor                  => atom "xor"
 | _, eq       _           => atom "="
-| _, smt_ite  _           => atom "smt_ite"
+| _, smt_ite  _           => atom "ite"
 | _, distinct _ _         => atom "distinct"
 
 | _, select _ _           => atom "select"
@@ -430,8 +430,8 @@ inductive option
 
 namespace option
 
-def toString : option → String
-| produceModels b => ":produce-modules " ++ (if b then "true" else "false")
+def toSExprs : option → List SExpr
+| produceModels b => [atom ":produce-models", (if b then (atom "true") else (atom "false"))]
 
 end option
 
@@ -493,7 +493,7 @@ def to_sexpr : command -> SExpr
 | setLogic l =>
   SExpr.app (atom "set-logic") [atom l.toString]
 | setOption opt =>
-  SExpr.app (atom "set-option") [atom opt.toString]
+  SExpr.app (atom "set-option") opt.toSExprs
 | checkSatAssuming assumptions =>
   list [(atom "check-sat-assuming"), list $ assumptions.map toSExpr]
 | comment content => atom $ "; " ++ content ++ "\n"
