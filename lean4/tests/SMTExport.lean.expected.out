@@ -1,6 +1,6 @@
 ; false-is-false
 (set-logic ALL)
-(set-option :produce-modules true)
+(set-option :produce-models true)
 (declare-fun |tt-0| () Bool)
 (define-fun |tt2-1| () Bool true)
 (declare-fun |ff-2| () Bool)
