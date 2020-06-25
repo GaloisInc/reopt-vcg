@@ -2,6 +2,7 @@
 
 import Galois.Init.Nat
 import Galois.Data.SExp
+import SMTLIB.IdGen
 
 abbrev SExpr := WellFormedSExp.SExp String
 
@@ -28,7 +29,7 @@ def app (f : SExpr) (args : List SExpr) : SExpr := list (f :: args)
 end SExpr
 
 export SExpr.HasToSExpr (toSExpr)
-
+export SMT.IdGen
 
 namespace SMT
 
@@ -683,21 +684,23 @@ def smt_let {s t : sort} (v : symbol) (e : term s) (body : term s -> term t) : t
 def script : Type := List command
 
 structure SMTState :=
-  (nextFreshId : Nat)
-  (script      : script)
+  (idGen  : IdGen)
+  (script : script)
 
 def smtM := StateM SMTState
 
 instance : Monad smtM := inferInstanceAs (Monad (StateM SMTState))
 instance : MonadState SMTState smtM := inferInstanceAs (MonadState SMTState (StateM SMTState))
 
-def freshSymbol (base : String) : smtM String := do
-  n <- modifyGet (fun st => (st.nextFreshId, { st with nextFreshId := st.nextFreshId + 1 }));
-  pure ("|" ++ base ++ "-" ++ repr n ++ "|")
+/-- Generate a fresh symbol in the monad, if possible simply using the suggested string.  --/
+def freshSymbol (suggestedStr : String) : smtM String := do
+  (idGen', sym) ← (λ (g:IdGen) => g.genId suggestedStr) <$> SMTState.idGen <$> get;
+  modify (λ s => {s with idGen := idGen'});
+  pure sym
 
-def runsmtM {a : Type} (next : Nat) (m : smtM a) : (a × (Nat × script)) := 
-  let r := StateT.run m { nextFreshId := next, script := [] };
-  (r.fst, (r.snd.nextFreshId, r.snd.script.reverse))
+def runsmtM {a : Type} (idGen : IdGen) (m : smtM a) : (a × IdGen × script) :=
+  let r := StateT.run m { idGen := idGen, script := [] };
+  (r.fst, (r.snd.idGen, r.snd.script.reverse))
 
 theorem const_sort_to_type_fold {res : sort} : forall {args : List sort}, 
  const_sort_to_type (List.foldr fsort (base res) args) = args_to_type args res -- := sorryAx _

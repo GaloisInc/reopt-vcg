@@ -76,11 +76,11 @@ namespace ProverInterface
 
 open SMT (smtM)
 
-def runsmtM {a : Type} (p : ProverInterface) (nf : Nat) (m : smtM a) : IO (a × Nat) := 
-  match SMT.runsmtM nf m with
-  | (r, (nf', cmds)) => do
+def runsmtM {a : Type} (p : ProverInterface) (idGen : IdGen) (m : smtM a) : IO (a × IdGen) :=
+  match SMT.runsmtM idGen m with
+  | (r, (idGen', cmds)) => do
     _ <- List.mapM p.addCommandCallback cmds;
-    pure (r, nf')
+    pure (r, idGen')
   
 end ProverInterface
 
@@ -321,8 +321,8 @@ structure BlockVCGState :=
   -- ^ Current memory object
 (mcEvents : List x86.vcg.Event)
   -- ^ Unprocessed events from last instruction.
-(mcLocalIndex : Nat)
-  -- ^ Index of next local variable for machine code.
+(idGen : IdGen)
+  -- ^ Used to generate unique/fresh local variables for machine code SMT terms.
 -- (mcPendingAllocaOffsetMap : RBMap LocalIdent AllocaAnn (λ x y => x < y)) -- TODO use later
   -- ^ This is a map from allocation names to the annotations about their
   -- size and offset.

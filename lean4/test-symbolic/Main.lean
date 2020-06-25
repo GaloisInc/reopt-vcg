@@ -30,10 +30,11 @@ def bytesToByteArray (xs : List String) : ByteArray :=
 def doit (bs : List String) : IO Unit := do
   let text_bytes := bytesToByteArray bs;
   let d := decodex86.mk_decoder text_bytes 0;
-  let ((init_s, stdlib), (nextFresh, init_script)) :=
-      SMT.runsmtM 0 (do init_s <- machine_state.declare_const;
-                           stdlib <- StdLib.make;
-                           pure (init_s, stdlib));
+  let ((init_s, stdlib), (idGen', init_script)) :=
+      SMT.runsmtM SMT.IdGen.empty
+        (do init_s <- machine_state.declare_const;
+            stdlib <- StdLib.make;
+            pure (init_s, stdlib));
   IO.println "Prelude:";
   _ <- init_script.mapM (fun c => IO.println (toString (toSExpr c)));
   IO.println "\nInstruction:";
@@ -46,7 +47,7 @@ def doit (bs : List String) : IO Unit := do
        -- let os' := {os with current_ip := s.ip};
        -- IO.println (repr i);
        let r := (eval_instruction (symbolicBackend stdlib) i).run            
-                { os_state.empty with nextFresh := nextFresh }
+                { os_state.empty with idGen := idGen' }
                 init_s;
        match r with
        | Except.ok ((_, s''), os'') => do  

@@ -1,4 +1,4 @@
 HERE := $(abspath $(dir $(realpath $(lastword $(MAKEFILE_LIST)))))
-LOCALFILES := src/SMTLIB/Syntax.lean
+LOCALFILES := src/SMTLIB/Syntax.lean src/SMTLIB/IdGen.lean
 LEANFILES += $(patsubst %,${HERE}/%,${LOCALFILES})
 LEAN_PATH := ${LEAN_PATH}:SMTLIB=${HERE}/src/SMTLIB
