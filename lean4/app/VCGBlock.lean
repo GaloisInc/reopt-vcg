@@ -282,7 +282,7 @@ def execMCOnlyEvents : MemAddr -> BlockVCG Unit
           -- FIXME: assert 8 dvd n
           -- FIMXE: make this take a Nat?
           proveTrue (stdLib.onStack mcAddr (SMT.bvimm _ (n / 8)))
-            ("Machine code read at " ++ thisIP.ppHex ++ " is not within stack space."));
+            ("machine code read at " ++ thisIP.ppHex ++ " is not within stack space."));
 
       -- Define value from reading Macaw heap
       mcAssignRead mcAddr (SMT.sort.bitvec n) smtValVar;
@@ -303,11 +303,11 @@ def execMCOnlyEvents : MemAddr -> BlockVCG Unit
           stdLib <- BlockVCGContext.mcStdLib <$> read;
           -- FIXME: assert 8 dvd n
           proveTrue (stdLib.onStack mcAddr (SMT.bvimm _ (n / 8)))
-            ("Machine code write at " ++ thisIP.ppHex ++ " is in unreserved stack space."));
+            ("machine code write at " ++ thisIP.ppHex ++ " is in unreserved stack space."));
 
       -- do addr <- mcCurAddr <$> get;
       --    proveTrue (evalRangeCheck mcOnlyStackRange mcAddr (memReprBytes tp)) $
-      --      printf "Machine code write at %s is in unreserved stack space." (show addr)
+      --      printf "machine code write at %s is in unreserved stack space." (show addr)
       -- Update stack with write.
       mcWrite mcAddr (SMT.sort.bitvec n) smtVal;
       -- Process next events
@@ -448,20 +448,20 @@ def llvmReturn (mlret : Option (typed value)) : BlockVCG Unit := do
   regs <- BlockVCGState.mcCurRegs <$> get;
   _ <- (do sht  <- stackHighTerm;
            proveEq (regs.get_reg64 x86.reg64.rsp) (SMT.bvadd sht (SMT.bvimm _ 8))
-             "Stack height at return matches init.");
+             "stack height at return matches init.");
   _ <- (do ra <- returnAddrTerm;
-           proveEq regs.ip ra "Return address matches entry value.");
+           proveEq regs.ip ra "return address matches entry value.");
   
   -- FIXME checkDirectionFlagClear
   stdLib <- BlockVCGContext.mcStdLib <$> read;
   let rEq r := proveEq (regs.get_reg64 r) (stdLib.funStartRegs.get_reg64 r)
-                  ("Value of " ++ r.name ++ " at return is preserved.");
+                  ("value of " ++ r.name ++ " at return is preserved.");
   List.forM rEq x86CalleeSavedGPRegs;
   
   match mlret with
   | none => pure ()
   | some v =>
-    proveRegRel "Return values match" (regs.get_reg64 x86.reg64.rax) v
+    proveRegRel "return values match" (regs.get_reg64 x86.reg64.rax) v
   
 def llvmInvoke (isTailCall : Bool) (fsym : llvm.symbol) (args : Array (typed value)) 
     (lRet : Option (llvm.ident × llvm_type)) : BlockVCG Unit := do
@@ -479,7 +479,7 @@ def llvmInvoke (isTailCall : Bool) (fsym : llvm.symbol) (args : Array (typed val
     globalThrow "Too many arguments";
 
   let proveOne v (r : x86.reg64) := 
-    proveRegRel ("Checking argument matches register " ++ r.repr) (regs.get_reg64 r) v;
+    proveRegRel ("argument matches register " ++ r.repr) (regs.get_reg64 r) v;
   List.forM₂ proveOne args.toList x86ArgGPRegs;
 
   -- FIXME checkDirectionFlagClear;
@@ -488,7 +488,7 @@ def llvmInvoke (isTailCall : Bool) (fsym : llvm.symbol) (args : Array (typed val
   -- FIXME: generalise returnAddrTerm?
   -- Check stored return value matches next instruction
   (do addrOnStack <- mcRead (regs.get_reg64 x86.reg64.rsp) _;
-      proveEq addrOnStack (SMT.bvimm 64 postCallRIP) "Check return address matches next instruction.");
+      proveEq addrOnStack (SMT.bvimm 64 postCallRIP) "return address matches next instruction.");
         
   --------------------
   -- Post call
@@ -612,7 +612,7 @@ match findBlock blkMap lbl with
 | none =>
   fatalBlockError $ "Target block "++(ppBlockLabel lbl)++" lacks annotations."
 | some (BlockAnn.unreachable, _) =>
-  proveTrue (goalFn SMT.false) $ "Target block "++(ppBlockLabel lbl)++"is unreachable."
+  proveTrue (goalFn SMT.false) $ "target block "++(ppBlockLabel lbl)++"is unreachable."
 | some (BlockAnn.reachable tgtBlockAnn, varMap) => do
   firstLabel ← BlockVCGContext.firstBlockLabel <$> read;
   -- Ensure we're not in the first block
@@ -621,7 +621,7 @@ match findBlock blkMap lbl with
   (do regs <- BlockVCGState.mcCurRegs <$> get;
       let expected := SMT.bvimm 64 tgtBlockAnn.startAddr.toNat;
       proveTrue (goalFn (SMT.eq expected regs.ip))
-        ("Checking " ++ prefixDescr ++ " register rip."));
+        (prefixDescr ++ " register rip."));
 
   -- checkInitRegVals tgtBlockAnn goalFn;
 

@@ -33,7 +33,7 @@ SMT.assert $ andb tt (negb ff)
 
 def proverAction1 (p : ProverInterface) : IO Unit := do
 p.addSMTCallback smtCommands1;
-p.proveFalseCallback SMT.false "false-is-false"
+p.proveFalseCallback SMT.false "false-is-false\n(true-is-true?)"
 
 def testExportCallbacks : IO Unit := do
 let outDir := ".";

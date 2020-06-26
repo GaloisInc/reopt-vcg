@@ -1,6 +1,7 @@
 -- Following the SMTLIB reference v2.6 
 
 import Galois.Init.Nat
+import Galois.Data.List
 import Galois.Data.SExp
 import SMTLIB.IdGen
 
@@ -497,10 +498,16 @@ def to_sexpr : command -> SExpr
   SExpr.app (atom "set-option") opt.toSExprs
 | checkSatAssuming assumptions =>
   list [(atom "check-sat-assuming"), list $ assumptions.map toSExpr]
-| comment content => atom $ "; " ++ content ++ "\n"
+| comment content =>
+  let body : List Char := content.data.joinMap (λ c => if c == '\n' then ['\n',';',' '] else [c]);
+  atom $ "; " ++ body.asString ++ "\n"
 | exit => SExpr.app (atom "exit") []
 
 instance : HasToSExpr command := ⟨command.to_sexpr⟩
+
+def isComment : command → Bool
+| comment _ => true
+| _ => false
 
 end command
 
@@ -748,10 +755,14 @@ def name_term (name : String) {s : sort} (tm : term s) : smtM (term s) :=
 
 def assert (b : term smt_bool) : smtM Unit := 
   modify (fun st => {st with script := (Raw.command.assert b) :: st.script })
+def comment (content : String) : smtM Unit :=
+  modify (fun st => {st with script := (Raw.command.comment content) :: st.script })
 def setLogic (l : Raw.logic) : smtM Unit :=
   modify (fun st => {st with script := (Raw.command.setLogic l) :: st.script })
 def setOption (o : Raw.option) : smtM Unit :=
   modify (fun st => {st with script := (Raw.command.setOption o) :: st.script })
+def setProduceModels (b : Bool) : smtM Unit :=
+  modify (fun st => {st with script := (Raw.command.setOption (Raw.option.produceModels b)) :: st.script})
 def checkSatAssuming (bs : List (term smt_bool)) : smtM Unit :=
   modify (fun st => {st with script := (Raw.command.checkSatAssuming bs) :: st.script })
 def exit : smtM Unit :=
@@ -764,6 +775,21 @@ def ex1 : smtM Unit :=
 def liftCommand (c : command) : smtM Unit :=
   modify (fun st => {st with script := c :: st.script })
 
+
+inductive CheckSatResult
+| sat : CheckSatResult
+| unsat : CheckSatResult
+| unknown : CheckSatResult
+| unsupported : CheckSatResult
+| unrecognized : String → CheckSatResult
+
+def parseCheckSatResult (rawStr : String) : CheckSatResult :=
+match rawStr.trim with
+| "sat" => CheckSatResult.sat
+| "unsat" => CheckSatResult.unsat
+| "unknown" => CheckSatResult.unknown
+| "unsupported" => CheckSatResult.unsupported
+| other => CheckSatResult.unrecognized other
 
 -- #check true
 -- #check false

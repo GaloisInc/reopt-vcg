@@ -33,6 +33,14 @@ constant handle.write (h : @& handle) (data : @& ByteArray) : IO Unit := arbitra
 @[extern 4 "galois_io_prim_handle_do_lseek"]
 constant handle.lseek (h : @& handle) (off : Int) (whence : Whence): IO Nat := arbitrary _
 
+@[extern 2 "galois_io_prim_system"]
+constant system (command : @& String) : IO Unit := arbitrary _
+
 end Prim
+
+section
+variables {m : Type → Type} [Monad m] [MonadIO m]
+@[inline] def system (command : String) : m Unit :=  IO.Prim.liftIO (IO.Prim.system command)
+end
 end IO
 end Galois

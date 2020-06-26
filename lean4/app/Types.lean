@@ -64,7 +64,7 @@ structure VCGConfig :=
 (verbose : Bool)
 
 -- TODO / FIXME see comment below about moving away from IO          
--- FIXME(AMK) don't use the raw interface to SMT
+-- FIXME(AMK) don't use the raw interface to SMT?
 structure ProverInterface :=
 (addSMTCallback     : SMT.smtM Unit → IO Unit)
 (addCommandCallback : command → IO Unit)
@@ -86,7 +86,7 @@ end ProverInterface
 
 structure ProverSessionGenerator :=
 (blockCallback : FnName → llvm.block_label → (ProverInterface → IO Unit) → IO Unit)
-(sessionComplete : IO Unit)
+(sessionComplete : IO UInt32)
 
 @[reducible]
 def LLVMTypeMap := RBMap String (Option llvm.llvm_type) Lean.strLt
