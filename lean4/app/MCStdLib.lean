@@ -155,7 +155,7 @@ def make (ip : Nat) (pageSize : Nat) (guardPageCount : Nat) : smtM MCStdLib := d
   -- FIXME: add checks
   memOps <- mkMemOps;
 
-  funStartRegs <- RegState.declare_const ip;
+  funStartRegs <- RegState.declare_const "fnstart_" ip;
   let stackHighTerm := funStartRegs.get_gpreg rsp_idx;
 
   blockStartMem <- SMT.declare_fun "init_mem" [] memory_t;

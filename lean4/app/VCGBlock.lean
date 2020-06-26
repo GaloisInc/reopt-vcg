@@ -91,7 +91,7 @@ def addComment (str : String) : BlockVCG Unit :=
 
 end BlockVCG
 
-export BlockVCG (addCommand proveTrue proveEq addAssert)
+export BlockVCG (addCommand proveTrue proveEq addAssert addComment)
 
 --------------------------------------------------------------------------------
 -- Type <-> SMT
@@ -193,6 +193,8 @@ def getNextEvents : BlockVCG Unit := do
   -- FIXMEL df, x87Top
   -- BlockVCG.liftIO $ IO.println ("Decoding at " ++ addr.ppHex);
 
+  addComment ("MC: at " ++ addr.ppHex);
+
   (events, idGen', sz) <-
     match x86.vcg.instructionEvents ctx.mcBlockMap s.mcCurRegs s.idGen addr
             ctx.mcModuleVCGContext.decoder with
@@ -205,6 +207,8 @@ def getNextEvents : BlockVCG Unit := do
                , mcCurSize := sz
                , mcEvents := events
         }
+
+
 
 -- | Set machine code registers from reg state.
 def setMCRegs (regs : x86.vcg.RegState) : BlockVCG Unit :=
@@ -462,6 +466,9 @@ def llvmReturn (mlret : Option (typed value)) : BlockVCG Unit := do
 def llvmInvoke (isTailCall : Bool) (fsym : llvm.symbol) (args : Array (typed value)) 
     (lRet : Option (llvm.ident × llvm_type)) : BlockVCG Unit := do
   when isTailCall $ globalThrow "Tail calls are unimplemented";
+
+  BlockVCGContext.mcBlockEndAddr <$> read >>= execMCOnlyEvents;
+
   regs <- BlockVCGState.mcCurRegs <$> get;
 
   --------------------
@@ -489,7 +496,8 @@ def llvmInvoke (isTailCall : Bool) (fsym : llvm.symbol) (args : Array (typed val
   -- Construct new register after the call.
   let postCallRSP := SMT.bvadd (regs.get_reg64 x86.reg64.rsp) (SMT.bvimm _ 8);
   -- create a 
-  newRegs <- (do rs <- BlockVCG.runsmtM $ x86.vcg.RegState.declare_const postCallRIP;
+  newRegs <- (do rs <- BlockVCG.runsmtM $ 
+                       x86.vcg.RegState.declare_const ("a" ++ postCallRIP.ppHex  ++ "_")  postCallRIP;
                  let rs_with_rsp := x86.vcg.RegState.update_reg64 x86.reg64.rsp (fun _ => postCallRSP) rs;
                  let copy_reg s r := x86.vcg.RegState.update_reg64 r (fun _ => regs.get_reg64 r) s;
                  pure (List.foldl copy_reg rs_with_rsp x86CalleeSavedGPRegs));
@@ -507,7 +515,7 @@ def llvmInvoke (isTailCall : Bool) (fsym : llvm.symbol) (args : Array (typed val
   match lRet with
   | none => pure ()
   | some (i, ty) => do
-    PSigma.mk pf mcv <- wordAsType (regs.get_reg64 x86.reg64.rax) ty;
+    PSigma.mk pf mcv <- wordAsType (newRegs.get_reg64 x86.reg64.rax) ty;
     defineTerm i mcv $> ()
 
 --------------------------------------------------------------------------------
@@ -770,7 +778,7 @@ def run (mctx : ModuleVCGContext)
       blockRegs <-
         if thisBlock = firstBlock 
         then pure stdLib.funStartRegs
-        else x86.vcg.RegState.declare_const blockStart;
+        else x86.vcg.RegState.declare_const ("a" ++ blockStart.ppHex ++ "_")  blockStart;
       -- FIXME df etc.   
       pure (stdLib, blockRegs));
 

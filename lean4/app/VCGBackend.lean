@@ -72,15 +72,15 @@ def print_regs (s : RegState) : String :=
 -- Constructs a new machine state where all the elements are fresh constants
 -- FIXME: could use sz = ns.length
 protected 
-def declare_const_aux {s : sort} (ns : List String) (sz : Nat) : smtM (Array (term s)) := do
+def declare_const_aux {s : sort} (pfx : String) (ns : List String) (sz : Nat) : smtM (Array (term s)) := do
   let base := mkArray sz 0;
-  let f    := fun n (_ : Nat) => SMT.declare_fun (List.getD n ns "el") [] s;
+  let f    := fun n (_ : Nat) => SMT.declare_fun (pfx ++ List.getD n ns "el") [] s;
   Array.mapIdxM f base
 
 -- We normally havea concrete rip
-def declare_const (ip : Nat) : smtM RegState := do
-  gprs  <- RegState.declare_const_aux reg.r64_names 16;
-  flags <- RegState.declare_const_aux reg.flag_names 32;
+def declare_const (pfx : String) (ip : Nat) : smtM RegState := do
+  gprs  <- RegState.declare_const_aux pfx reg.r64_names 16;
+  flags <- RegState.declare_const_aux pfx reg.flag_names 32;
   pure { gpregs := gprs, flags := flags, ip := SMT.bvimm _ ip }
 
 end RegState
