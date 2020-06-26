@@ -923,12 +923,12 @@ def ret : instruction :=
  definst "retq" $ do
    pattern do
      addr ← eval $ expression.read (bv 64) rsp;
-     rsp .= rsp + 8;
+     rsp .= rsp + nat_to_bv 8;
      record_event (event.jmp addr)
    pat_end;
    pattern fun (off : bv 16) => do
      addr ← eval $ expression.read (bv 64) rsp;
-     rsp .= rsp + (8 + uext off 64);
+     rsp .= rsp + (nat_to_bv 8 + uext off 64);
      record_event (event.jmp addr)
    pat_end
 

@@ -447,7 +447,7 @@ def llvmReturn (mlret : Option (typed value)) : BlockVCG Unit := do
   mcExecuteToEnd;
   regs <- BlockVCGState.mcCurRegs <$> get;
   _ <- (do sht  <- stackHighTerm;
-           proveEq (regs.get_reg64 x86.reg64.rsp) sht 
+           proveEq (regs.get_reg64 x86.reg64.rsp) (SMT.bvadd sht (SMT.bvimm _ 8))
              "Stack height at return matches init.");
   _ <- (do ra <- returnAddrTerm;
            proveEq regs.ip ra "Return address matches entry value.");

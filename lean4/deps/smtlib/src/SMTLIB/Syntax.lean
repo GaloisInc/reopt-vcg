@@ -734,12 +734,17 @@ def define_fun (s : String) (args : List sort) (res : sort) (body : args_to_type
   do modify (fun st => {st with script := (define_fun s' args' res body') :: st.script });
      pure (Eq.mp const_sort_to_type_fold ident.expand_ident)
 
+def is_atomic : forall {s : const_sort}, Raw.term s -> Bool
+| _, Raw.term.const _ _      => Bool.true
+| _, Raw.term.identifier _   => Bool.true
+| _, Raw.term.app _ _        => Bool.false
+| _, Raw.term.smt_let _ _ _  => Bool.false
+| _, Raw.term.smt_forall _ _ => Bool.false
+| _, Raw.term.smt_exists _ _ => Bool.false
+
 -- Names the const if it is non-trivial, otherwise returns the original term
-def name_term (name : String) : forall {s : sort} (tm : term s), smtM (term s)
--- FIXME
--- | ._, tm@(Raw.term.const _ _)     => pure tm
--- | ._, tm@(Raw.term.identifier _)  => pure tm
-| s, tm                          => define_fun name [] s tm
+def name_term (name : String) {s : sort} (tm : term s) : smtM (term s) :=
+  if is_atomic tm then pure tm else  define_fun name [] s tm
 
 def assert (b : term smt_bool) : smtM Unit := 
   modify (fun st => {st with script := (Raw.command.assert b) :: st.script })
