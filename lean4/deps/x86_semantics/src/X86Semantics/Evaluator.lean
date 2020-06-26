@@ -503,7 +503,7 @@ def prim.eval : ∀{tp : type}, prim tp -> @evaluator backend (@value backend tp
   -- `(usbb_overflows i)` true if unsigned sub overflows,
   -- the bit is a borrow bit.
   | ._, (prim.usbb_overflows i) => pure (fun x y b =>
-        backend.s_bvult (backend.s_bvsub _ (backend.s_bvsub _ x y) (backend.bit_to_bitvec _ b)) x)
+        backend.s_bvult (backend.s_bvsub _ x (backend.bit_to_bitvec _ b)) y)
   -- `(neg tp)` Two's Complement negation.
   | ._, (prim.neg i) => pure (backend.s_bvneg i)
 

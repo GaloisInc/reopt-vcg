@@ -26,13 +26,13 @@ def store_byte (mem : memory) (addr : memaddr) (b : byte) : memory := SMT.store 
 protected
 def store_bytes (m : memory) (addr : memaddr) (bs : List byte) : memory := 
     let f (a : memory × memaddr) b : memory × memaddr := 
-      match a with | (m', addr') => (m.store_byte addr' b, SMT.bvadd addr' (SMT.bvimm 64 1));
+      match a with | (m', addr') => (m'.store_byte addr' b, SMT.bvadd addr' (SMT.bvimm 64 1));
     (List.foldl f (m, addr) bs).fst
 
 protected
 def read_bytes (m : memory) (addr : memaddr) (n : Nat) : List byte :=
     let f i := m.read_byte (SMT.bvadd addr (SMT.bvimm 64 i));
-    List.map f (Nat.upto0_lt n)
+    List.map f (Nat.upto0_lt n).reverse
 
 def store_word {n : Nat} (m : memory) (addr : memaddr) (b : bitvec (8 * n)) : memory := 
   m.store_bytes addr (b.split_list 8).reverse 

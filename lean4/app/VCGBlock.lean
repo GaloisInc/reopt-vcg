@@ -569,25 +569,25 @@ else
 namespace BlockVCG
 
 
-def checkInitRegVals
-(blockAnn : ReachableBlockAnn)
--- ^ Message to preface verification comments/messages/etc
-(goalFn : SMT.term SMT.sort.smt_bool → SMT.term SMT.sort.smt_bool)
- : BlockVCG Unit := do
--- Check the instruction pointer
-let expectedIp : SMT.term SMT.sort.bv64 := SMT.bvimm 64 blockAnn.startAddr.toNat;
-regs <- BlockVCGState.mcCurRegs <$> get;               
-proveTrue (goalFn (SMT.eq expectedIp regs.ip)) "Checking the IP register.";
+-- def checkInitRegVals
+-- (blockAnn : ReachableBlockAnn)
+-- -- ^ Message to preface verification comments/messages/etc
+-- (goalFn : SMT.term SMT.sort.smt_bool → SMT.term SMT.sort.smt_bool)
+--  : BlockVCG Unit := do
+-- -- Check the instruction pointer
+-- let expectedIp : SMT.term SMT.sort.bv64 := SMT.bvimm 64 blockAnn.startAddr.toNat;
+-- regs <- BlockVCGState.mcCurRegs <$> get;               
+-- proveTrue (goalFn (SMT.eq expectedIp regs.ip)) "Checking the IP register.";
 
--- Check x87Top value
---let expectedX87Top : SMT.term SMT.sort.bv64 := SMT.bv 64 blockAnn.startAddr.toNat;
--- (Some X87_TopReg, SMT.bvdecimal (toInteger (Ann.blockX87Top blockAnn)) 3)
--- FIXME check BlockVCGState.mcX87Top value against expected ^
--- Check the direction flag
---let expectedDF : SMT.term SMT.sort.bv64 := SMT.bvimm 64 blockAnn.startAddr.toNat;
--- (Some DF,         if Ann.blockDFFlag blockAnn then SMT.true else SMT.false)
--- FIXME check BlockVCGState.mcDF value against expected ^
-pure ()
+-- -- Check x87Top value
+-- --let expectedX87Top : SMT.term SMT.sort.bv64 := SMT.bv 64 blockAnn.startAddr.toNat;
+-- -- (Some X87_TopReg, SMT.bvdecimal (toInteger (Ann.blockX87Top blockAnn)) 3)
+-- -- FIXME check BlockVCGState.mcX87Top value against expected ^
+-- -- Check the direction flag
+-- --let expectedDF : SMT.term SMT.sort.bv64 := SMT.bvimm 64 blockAnn.startAddr.toNat;
+-- -- (Some DF,         if Ann.blockDFFlag blockAnn then SMT.true else SMT.false)
+-- -- FIXME check BlockVCGState.mcDF value against expected ^
+-- pure ()
 
 -- cf. `verifyBlockPreconditions`
 def verifyPreconditions
@@ -609,8 +609,14 @@ match findBlock blkMap lbl with
   firstLabel ← BlockVCGContext.firstBlockLabel <$> read;
   -- Ensure we're not in the first block
   when (lbl == firstLabel) $ globalThrow "LLVM should not jump to first label in function.";
-  -- Check initialized register values
-  checkInitRegVals tgtBlockAnn goalFn;
+  -- Check initialized register values (just rip for now)
+  (do regs <- BlockVCGState.mcCurRegs <$> get;
+      let expected := SMT.bvimm 64 tgtBlockAnn.startAddr.toNat;
+      proveTrue (goalFn (SMT.eq expected regs.ip))
+        ("Checking " ++ prefixDescr ++ " register rip."));
+
+  -- checkInitRegVals tgtBlockAnn goalFn;
+
   srcLbl <- BlockVCGContext.currentBlock <$> read;
   -- Resolve terms for SMT variables which can appear in precondition statements.
   let resolvePhiVarVal : llvm.ident → (llvm.llvm_type × BlockLabelValMap) → BlockVCG (Sigma SMT.term) :=
