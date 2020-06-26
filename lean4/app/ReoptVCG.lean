@@ -19,13 +19,6 @@ open elf.elf_class (ELF64)
 open llvm (llvm_type llvm_type.prim_type llvm_type.ptr_to prim_type prim_type.integer)
 
 
-
--- This runs an action with a proof session generator, and reports
--- the final proof results.
-def interactiveSMTGenerator (annPath solverPath : String) (solverArgs : List String) : IO ProverSessionGenerator :=
--- FIXME
-pure $ ProverSessionGenerator.mk (λ _ _ _ => pure ()) (pure ())
-
 -- | Use a map from symbol names to address to find address.
 def getMCAddrOfLLVMFunction
 (m : RBMap String (elf.word ELF64) Lean.strLt)
@@ -232,7 +225,7 @@ match cfg.mode with
   outDirExists ← IO.isDir outDir;
   unless outDirExists $ throw $ IO.userError $ "Output directory `"++outDir++"` does not exists.";
   -- FIXME create the directory if it's missing? (It's not clear there's a lean4 API for that yet)
-  let psGen := ProverSessionGenerator.mk (exportCallbacks outDir) (pure ());
+  let psGen := ProverSessionGenerator.mk (exportCallbacks outDir) (pure 0);
   pure (modAnn, psGen)
   
 
@@ -309,8 +302,6 @@ errorCnt ← errorRef.get;
 if errorCnt > 0 then do
   _ ← IO.println (repr errorCnt ++ " errors during verification.");
   pure 1
-else (do
-  _ ← gen.sessionComplete;
-  pure 0)
+else gen.sessionComplete
 
 end ReoptVCG

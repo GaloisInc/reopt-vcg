@@ -2,6 +2,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <cstdlib>
 
 #include "runtime/apply.h"
 #include "runtime/io.h"
@@ -138,3 +139,11 @@ galois_io_prim_handle_do_lseek(b_obj_arg hdl_obj, obj_arg off_obj, uint8 whence,
 // }
 // }
 // }
+
+
+extern "C" obj_res
+galois_io_prim_system(b_obj_arg command_str_obj, obj_arg) {
+  std::string command = string_to_std(command_str_obj);
+  std::system(command.c_str());
+  return set_io_result(box(0));
+}
