@@ -134,8 +134,8 @@ match lbl.label with
 | llvm.ident.anon n => "anon" ++ n.repr
 
 -- | Pretty print an error that occurs at the start of an instruction.
-def renderMCInstError (fnm : String) (blockLbl : llvm.block_label) (idx : Nat) (addr : Nat) (msg : String) : String :=
-fnm++"."++(ppBlockLabel blockLbl)++"."++idx.repr++"("++addr.ppHex++"). "++msg
+def renderMCInstError (fnm : String) (blockLbl : llvm.block_label) (llvmInstrIdx : Nat) (addr : Nat) (msg : String) : String :=
+fnm++"."++(ppBlockLabel blockLbl)++"."++llvmInstrIdx.repr++" @ "++addr.ppHex++": "++msg
 
 def standaloneGoalFilename (fnName : String) (lbl : llvm.block_label) (goalIndex : Nat) : String :=
 fnName ++ "_" ++ (ppBlockLabel lbl) ++ "_" ++ goalIndex.repr ++ ".smt2"
