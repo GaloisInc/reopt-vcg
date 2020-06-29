@@ -1,6 +1,5 @@
 ; false-is-false
 ; (true-is-true?)
-
 (set-logic ALL)
 (set-option :produce-models true)
 (declare-fun tt () Bool)

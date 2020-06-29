@@ -795,6 +795,12 @@ match rawStr.trim with
 -- #check false
 -- #eval toString (List.map toSExpr (runsmtM ex1))
 
+/-- Converts a command to a string terminated by a newline.--/
+def command.toLine (c:command) : String :=
+let cStr := (WellFormedSExp.SExp.toString (toSExpr c));
+if c.isComment
+then cStr
+else cStr ++ "\n"
 
 end
 
