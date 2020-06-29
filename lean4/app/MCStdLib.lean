@@ -190,11 +190,9 @@ def make (ip : Nat) (pageSize : Nat) (guardPageCount : Nat) : smtM MCStdLib := d
   -- Assert that stack pointer is at least 8 below stack high
   SMT.assert $ SMT.bvult stackHighTerm (SMT.bvsub stack_max (SMT.bvimm _ 8));
 
-  -- FIXME: using isAligned yields 'unknown' whereas extract gives 'unsat'
   -- High water stack pointer includes 8 bytes for return address.
   -- The return address top must be aligned to a 16-byte boundary.
-  -- SMT.assert $ isAligned (SMT.bvadd stackHighTerm (SMT.bvimm _ 8)) 16;
-  SMT.assert $ SMT.eq (SMT.extract 3 0 stackHighTerm) (SMT.bvimm _ 8);
+  SMT.assert $ isAligned (SMT.bvadd stackHighTerm (SMT.bvimm _ 8)) 16;
 
   -- ++ concatMap allocaMCBaseEndDecls allocas -- FIXME
   -- Declare mcOnlyStackRange
