@@ -213,12 +213,11 @@ when cfg.verbose $
 match cfg.mode with
 -- Default: just use cvc4 with default args.
 | VerificationMode.defaultMode => do
-  let args := ["--lang=smt2", "--dedicated-eqrange-quant", "--incremental"];
-  psGen ← interactiveSMTGenerator cfg.annFile "cvc4" args;
+  psGen ← interactiveSMTGenerator cfg.annFile "cvc4" defaultCVC4Args;
   pure (modAnn, psGen)
 -- Use the user-specified solver and args.
 | VerificationMode.runSolverMode solverCmd solverArgs => do
-  psGen ← interactiveSMTGenerator cfg.annFile "cvc4" solverArgs;
+  psGen ← interactiveSMTGenerator cfg.annFile solverCmd solverArgs;
   pure (modAnn, psGen)
 -- Output into the specified directory.
 | VerificationMode.exportMode outDir => do
