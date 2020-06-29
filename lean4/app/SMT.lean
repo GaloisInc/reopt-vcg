@@ -192,7 +192,7 @@ goalCounter.modify Nat.succ;
 let (_, _, cmds) := runsmtM IdGen.empty (checkNegatedGoalInContext goalName negatedGoal smtCtx);
 let filePath := System.mkFilePath [outputDir, standaloneGoalFilename fnName blockLabel cnt];
 file ← IO.FS.Handle.mk filePath IO.FS.Mode.write;
-cmds.forM $ λ c => file.putStr $ (toString (toSExpr c)) ++ "\n"
+cmds.forM (λ c => file.putStr c.toLine)
 
 
 def defaultAddSMTCallback (cmdRef : IO.Ref (smtM Unit)) : SMT.smtM Unit → IO Unit :=
@@ -271,7 +271,7 @@ IO.print $ "  Verifying " ++ propName ++ "... ";
 smtCtx ← cmdRef.get;
 let (_, _, cmds) := runsmtM IdGen.empty (checkNegatedGoalInContext propName negGoal smtCtx);
 IO.FS.withFile smtFilePath IO.FS.Mode.write (λ file => do
-  cmds.forM (λ c => do file.putStr (toString (toSExpr c)); unless c.isComment $ file.putStr "\n");
+  cmds.forM (λ c => file.putStr c.toLine);
   file.flush);
 Galois.IO.system $ ictx.solverCommand++" "++smtFilePath++" > " ++resultFilePath;
 smtResult ← IO.FS.lines resultFilePath;
