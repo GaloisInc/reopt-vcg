@@ -13,6 +13,14 @@ namespace ReoptVCG
 open SMT
 universe u
 
+def defaultCVC4Args : List String :=
+-- N.B., as of CVC4 46591b1c92fc9ecd4a0997242030a1a48166301b the `--arrays-exp` flag
+-- enables `--fmf-bound` by default to help with some `sat` queries; it shouldn't affect
+-- `unsat` queries allegedly but appears to currently (i.e., some which should produce
+-- `unsat` instead produce `unknown`) so we manually pass the `--no-fmf-bound` flag to
+-- avoid the `unknown`s.
+["--lang=smt2", "--arrays-exp", "--no-fmf-bound", "--incremental"]
+
 /-- Abstracts out the _specifics_ of how certain BlockExpr terms
     should be emitted as SMT terms, so that the underlying SMT
     architecture can generate these ahead of time in whatever way is
@@ -278,10 +286,12 @@ smtResult ← IO.FS.lines resultFilePath;
 -- FIXME, this assumes the file has a single word in it essentially... might want to
 -- make it slightly more complicated if
 let printExportInstructions : IO Unit := (do
+  let filePath := "<dir>" ++ [System.FilePath.pathSeparator].asString++(standaloneGoalFilename ictx.fnName ictx.blockLabel cnt);
   -- FIXME print to stderr after next lean4 bump
   IO.println $ "    To see the output, run `reopt-vcg "++ictx.annFile++" --export <dir>`";
-  IO.println $ "    The SMT query will be stored in <dir>"
-               ++[System.FilePath.pathSeparator].asString++(standaloneGoalFilename ictx.fnName ictx.blockLabel cnt));
+  IO.println $ "    The SMT query will be stored in "++filePath;
+  IO.println $ "    The default invocation of CVC4 for these queries is as follows:";
+  IO.println $ "      `" ++ (String.intercalate " " ("cvc4"::defaultCVC4Args ++ [filePath]))++"`");
 match smtResult.get? 0 with
 | none => do
   -- FIXME print to stderr on next lean4 bump (these and all below printlns in this function)
