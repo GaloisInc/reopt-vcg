@@ -40,7 +40,7 @@ for example in *.ann; do
   echo ">> Querying CVC4..."
   failCnt=0
   for q in ${actualDir}/*.smt2; do
-    result=$(cvc4 ${q})
+    result=$(cvc4 --lang=smt2 --arrays-exp --no-fmf-bound ${q})
     if [[ $result != "unsat" ]]; then
       failFiles[$failCnt]=$q
       failResults[$failCnt]=$result
