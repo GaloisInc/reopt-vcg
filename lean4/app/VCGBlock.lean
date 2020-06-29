@@ -69,18 +69,18 @@ def addAssert (p : SMT.term smt_bool) : BlockVCG Unit :=
 -- | @proveTrue p msg@ adds a proof obligation @p@ is true for all
 -- interpretations of constants with the message @msg@.
 def proveTrue (p : SMT.term smt_bool) (msg : String) : BlockVCG Unit := do
-  -- annMsg <- prependLocation msg
-  prover <- (fun (s : BlockVCGContext) => s.callbackFns) <$> read;
-  liftIO $ prover.proveTrueCallback p msg;
+  annMsg <- prependLocation msg;
+  prover <- BlockVCGContext.callbackFns <$> read;
+  liftIO $ prover.proveTrueCallback p annMsg;
   -- Add command for future proofs
   addAssert p
 
 -- | @proveEq x y msg@ add a proof obligation named @msg@ asserting
 -- that @x@ equals @y@.
 def proveEq {s : SMT.sort} (x y : SMT.term s) (msg : String) : BlockVCG Unit := do
-  prover <- (fun (s : BlockVCGContext) => s.callbackFns) <$> read;
-  --  annMsg <- prependLocation msg
-  liftIO $ prover.proveTrueCallback (SMT.eq x y) msg; -- FIXME: was proveFalseCallback/SMT.distinct
+  prover <- BlockVCGContext.callbackFns <$> read;
+  annMsg <- prependLocation msg;
+  liftIO $ prover.proveTrueCallback (SMT.eq x y) annMsg; -- FIXME: was proveFalseCallback/SMT.distinct
   -- Add command for future proofs
   addAssert (SMT.eq x y)
 
