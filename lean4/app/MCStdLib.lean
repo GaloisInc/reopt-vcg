@@ -53,9 +53,9 @@ namespace SupportedMemType
 
 def make (nBytes : Nat) : smtM (SupportedMemType (SMT.sort.bitvec (8 * nBytes))) := do
   let n := 8 * nBytes;
-  rm <- SMT.define_fun ("mem_read" ++ repr n) [memory_t, SMT.sort.bitvec 64] (SMT.sort.bitvec n) 
+  rm <- SMT.define_fun ("mem_readbv" ++ repr n) [memory_t, SMT.sort.bitvec 64] (SMT.sort.bitvec n) 
            (memory.read_word nBytes);
-  wm <- SMT.define_fun ("mem_write" ++ repr n) [memory_t, SMT.sort.bitvec 64, SMT.sort.bitvec n] memory_t
+  wm <- SMT.define_fun ("mem_writebv" ++ repr n) [memory_t, SMT.sort.bitvec 64, SMT.sort.bitvec n] memory_t
            memory.store_word;
   pure { readMem := rm, writeMem := wm }
 
@@ -189,9 +189,13 @@ def make (ip : Nat) (pageSize : Nat) (guardPageCount : Nat) : smtM MCStdLib := d
 
   -- Assert that stack pointer is at least 8 below stack high
   SMT.assert $ SMT.bvult stackHighTerm (SMT.bvsub stack_max (SMT.bvimm _ 8));
+
+  -- FIXME: using isAligned yields 'unknown' whereas extract gives 'unsat'
   -- High water stack pointer includes 8 bytes for return address.
   -- The return address top must be aligned to a 16-byte boundary.
-  SMT.assert $ isAligned (SMT.bvadd stackHighTerm (SMT.bvimm _ 8)) 16;
+  -- SMT.assert $ isAligned (SMT.bvadd stackHighTerm (SMT.bvimm _ 8)) 16;
+  SMT.assert $ SMT.eq (SMT.extract 3 0 stackHighTerm) (SMT.bvimm _ 8);
+
   -- ++ concatMap allocaMCBaseEndDecls allocas -- FIXME
   -- Declare mcOnlyStackRange
   -- defineMCOnlyStackRange onStack
