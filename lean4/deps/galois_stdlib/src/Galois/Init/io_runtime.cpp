@@ -10,8 +10,7 @@
 using namespace lean;
 
 static obj_res set_io_error_errno(void) {
-    object *msg = mk_string(strerror(errno));
-    return set_io_error(msg);
+  return set_io_error(strerror(errno));
 }
 
 ////////////////////////////////////////////////////////////////////////
