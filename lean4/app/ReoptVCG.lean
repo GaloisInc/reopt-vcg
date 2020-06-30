@@ -16,7 +16,7 @@ open Lean (Json strLt)
 open Lean.Json (parseObjValAsString)
 
 open elf.elf_class (ELF64)
-open llvm (llvm_type llvm_type.prim_type llvm_type.ptr_to prim_type prim_type.integer)
+open LLVM (LLVMType LLVMType.prim LLVMType.ptr PrimType PrimType.integer)
 
 
 -- | Use a map from symbol names to address to find address.
@@ -32,10 +32,10 @@ match m.find? fnm with
 | Option.some expectedAddr => pure $ MCAddr.mk expectedAddr
 
 
-def llvmTypeToSort : llvm_type → Option SMT.sort
-| llvm_type.prim_type (prim_type.integer lw) =>
+def llvmTypeToSort : LLVMType → Option SMT.sort
+| LLVMType.prim (PrimType.integer lw) =>
   Option.some $ SMT.sort.bitvec lw
-| llvm_type.ptr_to _ => Option.none
+| LLVMType.ptr _ => Option.none
 | _ => Option.none
 
 
@@ -47,7 +47,7 @@ def verifyBlock
 (argBindings : List LLVMMCArgBinding)
 (blockMap : ReachableBlockAnnMap)
 -- ^ Annotations on blocks.
-(firstLabel : llvm.block_label)
+(firstLabel : LLVM.BlockLabel)
  -- ^ Label of first block.
 (firstAddr : MCAddr)
  -- ^ Address of first block.
@@ -72,31 +72,31 @@ match aBlock.annotation with
     either the name of the variable and type that could not be interpreted
     or a map from from variable names to their types. --/
 def extractPhiStmtVars : 
-List (llvm.ident × llvm_type × BlockLabelValMap) →
-List llvm.stmt →
-(List (llvm.ident × llvm_type × BlockLabelValMap)
- × List llvm.stmt) 
-| prev, (⟨Option.some nm, (llvm.instruction.phi lTy valLbs), _⟩::rest) =>
+List (LLVM.Ident × LLVMType × BlockLabelValMap) →
+List LLVM.Stmt →
+(List (LLVM.Ident × LLVMType × BlockLabelValMap)
+ × List LLVM.Stmt)
+| prev, (⟨Option.some nm, (LLVM.Instruction.phi lTy valLbs), _⟩::rest) =>
 let lblAndVals := valLbs.toList.map (λ p => (p.snd,p.fst));
 let valMap := RBMap.fromList lblAndVals (λ x y => x < y);
 extractPhiStmtVars ((nm, lTy, valMap)::prev) rest
 | prev, rest => (prev, rest)
 
-/-- Builds an RBMap from a list with llvm.ident keys. --/
-def llvmIdentRBMap {α : Type} (entries: List (llvm.ident × α))
- : RBMap llvm.ident α (λ (x y:llvm.ident)=> x<y) :=
-RBMap.fromList entries (λ (x y:llvm.ident)=> x<y)
+/-- Builds an RBMap from a list with LLVM.Ident keys. --/
+def llvmIdentRBMap {α : Type} (entries: List (LLVM.Ident × α))
+ : RBMap LLVM.Ident α (λ (x y:LLVM.Ident)=> x<y) :=
+RBMap.fromList entries (λ (x y:LLVM.Ident)=> x<y)
 
 /-- Used to parse a single basic block's annotation in a function annotation. --/
 def parseAnnotatedBlock
 (fnm:FnName) -- ^ Function whose block is being parsed.
-(blockMap:RBMap llvm.ident Json (λ x y => x<y)) -- ^ Block label to block annotation map.
-(b:llvm.basic_block) -- ^ Basic block of `fnm`.
+(blockMap:RBMap LLVM.Ident Json (λ x y => x<y)) -- ^ Block label to block annotation map.
+(b:LLVM.BasicBlock) -- ^ Basic block of `fnm`.
 : ModuleVCG AnnotatedBlock := do
 let lbl := b.label;
 let (phiVarList, llvmStmts) := extractPhiStmtVars [] b.stmts.toList;
-let parseLLVMVar : (llvm.ident × llvm_type × BlockLabelValMap) → ModuleVCG (llvm.ident × SMT.sort) :=
-  (λ (p : (llvm.ident × llvm_type × BlockLabelValMap)) =>
+let parseLLVMVar : (LLVM.Ident × LLVMType × BlockLabelValMap) → ModuleVCG (LLVM.Ident × SMT.sort) :=
+  (λ (p : (LLVM.Ident × LLVMType × BlockLabelValMap)) =>
     let (nm, tp, _) := p;
     match llvmTypeToSort tp with
     | Option.some s => pure (nm, s)
@@ -118,7 +118,7 @@ match parseBlockAnn llvmTyEnv blockJson with
          }
 
 /-- Return the definition in the module with the given name. --/
-def getDefineByName (lMod:llvm.module) (name:String) : Option llvm.define :=
+def getDefineByName (lMod:LLVM.Module) (name:String) : Option LLVM.Define :=
 lMod.defines.find? (λ d => d.name.symbol == name)
 
 
@@ -127,11 +127,11 @@ lMod.defines.find? (λ d => d.name.symbol == name)
 def parseLLVMArgs
 (fnm:FnName) : -- ^ Name of function for error purposes.
 List LLVMMCArgBinding → -- ^ Accumulator for parsed arguments.
-List (llvm.typed llvm.ident) → -- ^ Arguments to be parsed.
+List (LLVM.Typed LLVM.Ident) → -- ^ Arguments to be parsed.
 List x86.reg64 →  -- ^ Remaining registers available for arguments.
 ModuleVCG (List LLVMMCArgBinding)
 | revArgs, [], _ => pure revArgs.reverse
-| revBinds, (⟨llvm_type.prim_type (prim_type.integer 64), nm⟩::restArgs), regs =>
+| revBinds, (⟨LLVMType.prim (PrimType.integer 64), nm⟩::restArgs), regs =>
   match regs with
   | [] => functionError fnm $ FnError.custom $ 
           "Maximum of "++(x86ArgGPRegs.length.repr)++" i64 arguments supported"
@@ -142,21 +142,21 @@ ModuleVCG (List LLVMMCArgBinding)
   functionError fnm $ FnError.argTypeUnsupported nm tp
 
 /-- Builds a mapping from block labels to corresponding block annotation json objects. --/
-def buildBlockAnnMap (fAnn:FunctionAnn) : ModuleVCG (RBMap llvm.ident Json (λ x y => x<y)) := do
-let mkEntry : List (llvm.ident × Json) → Json → ModuleVCG (List (llvm.ident × Json)) := 
+def buildBlockAnnMap (fAnn:FunctionAnn) : ModuleVCG (RBMap LLVM.Ident Json (λ x y => x<y)) := do
+let mkEntry : List (LLVM.Ident × Json) → Json → ModuleVCG (List (LLVM.Ident × Json)) :=
   λ entries blockAnn => 
     match parseObjValAsString blockAnn "label" with
     | Except.error errMsg => 
       functionError fAnn.llvmFunName $ FnError.custom
       ("Encountered an error while parsing the block annotation: "
       ++ errMsg)
-    | Except.ok lbl => pure $ (llvm.ident.named lbl, blockAnn)::entries;
+    | Except.ok lbl => pure $ (LLVM.Ident.named lbl, blockAnn)::entries;
 llvmIdentRBMap <$> fAnn.blocks.foldlM mkEntry []
 
 
 
 /-- Verify a particular function satisfies its specification. --/
-def verifyFunction (lMod:llvm.module) (fAnn: FunctionAnn): ModuleVCG Unit := do
+def verifyFunction (lMod:LLVM.Module) (fAnn: FunctionAnn): ModuleVCG Unit := do
 modCtx ← read;
 let fnm := fAnn.llvmFunName;
 vcgLog $ "Analyzing " ++ fnm;
@@ -171,7 +171,7 @@ blockMap ← buildBlockAnnMap fAnn;
 -- Parse each block annotation in the JSON
 blocks ← lFun.body.mapM (parseAnnotatedBlock fnm blockMap);
 -- Build a mapping from block labels to AnnotatedBlock
-let blockMap : RBMap llvm.block_label AnnotatedBlock (λ x y => x<y) := 
+let blockMap : RBMap LLVM.BlockLabel AnnotatedBlock (λ x y => x<y) :=
   RBMap.fromList (blocks.toList.map (λ ab => (ab.label, ab))) (λ x y => x<y);
 -- Verify the first block is where the annotation indicated it should be, and return
 -- the label for the first block
@@ -247,13 +247,13 @@ match fileContents with
   throw $ IO.userError $ "Expected an elf class for a 64bit machine, not 32bit."
 
 
-/-- Build a mapping from type names to `some` underlying `llvm_type`
+/-- Build a mapping from type names to `some` underlying `LLVMType`
     or `none` if the type is `opaque` --/
-def mkLLVMTypeMap(m:llvm.module): LLVMTypeMap :=
-let addEntry : LLVMTypeMap → llvm.type_decl → LLVMTypeMap := λ m tdecl => 
+def mkLLVMTypeMap(m:LLVM.Module): LLVMTypeMap :=
+let addEntry : LLVMTypeMap → LLVM.TypeDecl → LLVMTypeMap := λ m tdecl =>
   match tdecl.decl with
-  | llvm.type_decl_body.opaque => m.insert tdecl.name Option.none
-  | llvm.type_decl_body.defn t => m.insert tdecl.name $ Option.some t;
+  | LLVM.TypeDeclBody.opaque => m.insert tdecl.name Option.none
+  | LLVM.TypeDeclBody.defn t => m.insert tdecl.name $ Option.some t;
 m.types.foldl addEntry RBMap.empty
 
 def get_text_segment {c} (e : elf.ehdr c) (phdrs : List (elf.phdr c)) : Option (elf.phdr c) :=

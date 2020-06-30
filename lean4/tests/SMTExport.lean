@@ -38,7 +38,7 @@ p.proveFalseCallback SMT.false "false-is-false\n(true-is-true?)"
 def testExportCallbacks : IO Unit := do
 let outDir := ".";
 let outFnNm := "foo";
-let blockLbl := llvm.block_label.mk $ llvm.ident.named "bar";
+let blockLbl := LLVM.BlockLabel.mk $ LLVM.Ident.named "bar";
 exportCallbacks outDir outFnNm blockLbl proverAction1;
 let outFile := outDir ++ [System.FilePath.pathSeparator].asString ++ (standaloneGoalFilename outFnNm blockLbl 0);
 outFileContents ← IO.FS.readFile outFile;

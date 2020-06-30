@@ -10,28 +10,28 @@ import SMTLIB.Syntax
 import DecodeX86.DecodeX86
 
 -- TODO move these (or similar fns) to lean-llvm
-def llvm.ident.pp := pp.render ∘ llvm.pp_ident
-def llvm.llvm_type.pp := pp.render ∘ llvm.pp_type
-def llvm.block_label.pp := pp.render ∘ llvm.pp_label
+def LLVM.Ident.pp : LLVM.Ident → String := LLVM.Doc.render ∘ LLVM.HasPP.pp
+def LLVM.LLVMType.pp : LLVM.LLVMType → String := LLVM.Doc.render ∘ LLVM.HasPP.pp
+def LLVM.BlockLabel.pp : LLVM.BlockLabel → String := LLVM.Doc.render ∘ LLVM.HasPP.pp
 
-namespace llvm
+namespace LLVM
 
-namespace block_label
+namespace BlockLabel
 
-def lt : forall (x y : block_label), Prop
+def lt : forall (x y : BlockLabel), Prop
   | { label := x }, {label := y } => x < y
 
-instance : HasLess block_label := ⟨lt⟩
+instance : HasLess BlockLabel := ⟨lt⟩
  
-instance decideableBlockLabelLt : ∀(x y:block_label), Decidable (x < y)
+instance decideableBlockLabelLt : ∀(x y:BlockLabel), Decidable (x < y)
 | { label := x }, { label := y } =>
-  (match ident.decideLt x y with
+  (match Ident.decideLt x y with
    | Decidable.isTrue  p => Decidable.isTrue p
    | Decidable.isFalse p => Decidable.isFalse p
    )
 
-end block_label
-end llvm
+end BlockLabel
+end LLVM
 
 namespace ReoptVCG
 
@@ -85,11 +85,11 @@ def runsmtM {a : Type} (p : ProverInterface) (idGen : IdGen) (m : smtM a) : IO (
 end ProverInterface
 
 structure ProverSessionGenerator :=
-(blockCallback : FnName → llvm.block_label → (ProverInterface → IO Unit) → IO Unit)
+(blockCallback : FnName → LLVM.BlockLabel → (ProverInterface → IO Unit) → IO Unit)
 (sessionComplete : IO UInt32)
 
 @[reducible]
-def LLVMTypeMap := RBMap String (Option llvm.llvm_type) Lean.strLt
+def LLVMTypeMap := RBMap String (Option LLVM.LLVMType) Lean.strLt
 
 
 structure ModuleVCGContext :=
@@ -122,7 +122,7 @@ structure ModuleVCGContext :=
 /-- Errors that are tied to a specific function. --/
 inductive FnError
 | notFound : FnError
-| argTypeUnsupported : llvm.ident -> llvm.llvm_type -> FnError
+| argTypeUnsupported : LLVM.Ident -> LLVM.LLVMType -> FnError
 | missingEntryBlock : FnError
 | entryUnreachable : FnError 
 | custom : String -> FnError
@@ -148,7 +148,7 @@ end FnError
 inductive BlockError
 | annParseFailure : String → BlockError
 | missingAnnotations : BlockError
-| unsupportedPhiVarType : llvm.ident → llvm.llvm_type → BlockError
+| unsupportedPhiVarType : LLVM.Ident → LLVM.LLVMType → BlockError
 | blockAddrInvalid : elf.word elf.elf_class.ELF64 → BlockError
 
 namespace BlockError
@@ -167,7 +167,7 @@ end BlockError
 inductive ModuleError
 | custom : String → ModuleError
 | function : FnName → FnError → ModuleError
-| block : FnName → llvm.block_label → BlockError → ModuleError
+| block : FnName → LLVM.BlockLabel → BlockError → ModuleError
 | io : IO.Error -> ModuleError
 
 namespace ModuleError
@@ -235,7 +235,7 @@ def functionError {α} (fnm : FnName) (e : FnError) : ModuleVCG α :=
   throw $ ModuleError.function fnm e
 
 -- A warning that stops execution until catch.
-def blockError {α} (fnm : FnName) (lbl : llvm.block_label) (e : BlockError) : ModuleVCG α :=
+def blockError {α} (fnm : FnName) (lbl : LLVM.BlockLabel) (e : BlockError) : ModuleVCG α :=
   throw $ ModuleError.block fnm lbl e
 
 -- A warning that stops execution until catch.
@@ -258,23 +258,23 @@ def moduleCatch (m : ModuleVCG Unit) :  ModuleVCG Unit :=
 -------------------------------------------------------
 
 @[reducible]
-def BlockLabelValMap := RBMap llvm.block_label llvm.value (λ x y => x < y)
+def BlockLabelValMap := RBMap LLVM.BlockLabel LLVM.Value (λ x y => x < y)
 
-abbrev PhiVarMap := RBMap llvm.ident (llvm.llvm_type × BlockLabelValMap) (λ x y => x<y)
+abbrev PhiVarMap := RBMap LLVM.Ident (LLVM.LLVMType × BlockLabelValMap) (λ x y => x<y)
 
 structure AnnotatedBlock :=
 (annotation: BlockAnn)
-(label : llvm.block_label)
+(label : LLVM.BlockLabel)
 (phiVarMap : PhiVarMap)
-(stmts : List llvm.stmt)
+(stmts : List LLVM.Stmt)
 
 
 /--  Maps LLM block labels to their associated annotations. --/
 @[reducible]
-def ReachableBlockAnnMap := RBMap llvm.block_label AnnotatedBlock (λ x y => x<y)
+def ReachableBlockAnnMap := RBMap LLVM.BlockLabel AnnotatedBlock (λ x y => x<y)
 
 -- | Find a block with the given label in the config.
-def findBlock (m : ReachableBlockAnnMap) (lbl: llvm.block_label) : Option (BlockAnn × PhiVarMap) := do
+def findBlock (m : ReachableBlockAnnMap) (lbl: LLVM.BlockLabel) : Option (BlockAnn × PhiVarMap) := do
 ab <- m.find? lbl;
 pure (ab.annotation, ab.phiVarMap)
 
@@ -293,9 +293,9 @@ structure BlockVCGContext :=
   -- ^ Annotations for the current function.
 (funBlkAnnotations : ReachableBlockAnnMap)
   -- ^ Annotations for blocks in the CFG.
-(firstBlockLabel : llvm.block_label)
+(firstBlockLabel : LLVM.BlockLabel)
   -- ^ Label for first block in this function
-(currentBlock : llvm.block_label)
+(currentBlock : LLVM.BlockLabel)
   -- ^ Label for block we are verifying.
 (callbackFns : ProverInterface)
   -- ^ Functions for interacting with SMT solver.
@@ -331,7 +331,7 @@ structure BlockVCGState :=
   -- Used for error reporting
 --(activeAllocaSet : RBTree LocalIdent (λ x y => x < y)) -- TODO use later
  -- ^ Set of allocation names that are active.
-(llvmIdentMap : RBMap llvm.ident (Sigma SMT.term) (fun x y => x < y))
+(llvmIdentMap : RBMap LLVM.Ident (Sigma SMT.term) (fun x y => x < y))
  -- ^ Mapping from llvm ident to their SMT equivalent.
 
 
@@ -388,7 +388,7 @@ match e with
 
 /-- Maps between LLVM argument and machine code name. --/
 structure LLVMMCArgBinding :=
-(llvmArgName : llvm.ident)
+(llvmArgName : LLVM.Ident)
 (smtSort: SMT.sort)
 (register: x86.reg64)
 

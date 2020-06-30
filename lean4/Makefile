@@ -30,6 +30,13 @@ BUILDDIR ?= build
 LEAN ?= lean
 LEANC ?= leanc
 
+# FIXME: move to llvm-tablegen-support submake
+# LLVM_BUILD_ROOT ?= ${HOME}/galois/vadds/llvm-stuff/llvm-build
+# LLVM_CONFIG = ${LLVM_BUILD_ROOT}/bin/llvm-config
+LLVM_CONFIG ?= llvm-config
+LLVM_INCLUDE = $(shell $(LLVM_CONFIG) --includedir)
+
+
 # Up one directory from the executable we should be able to find
 # the `lib` directory with Lean files in it
 LEANDIR := ${realpath ${dir ${shell which ${LEAN}}}/..}
@@ -70,13 +77,6 @@ DEPFILES := ${patsubst %.lean,%.d,${LEANFILES_REL} test-symbolic/Main.lean app/M
 
 OLEANFILES   := ${patsubst %.lean,%.olean,${LEANFILES_REL}}
 CPPLEANFILES := ${patsubst %.lean,$(BUILDDIR)/%.cpp,${LEANFILES_REL}}
-
-
-# FIXME: move to llvm-tablegen-support submake
-# LLVM_BUILD_ROOT ?= ${HOME}/galois/vadds/llvm-stuff/llvm-build
-# LLVM_CONFIG = ${LLVM_BUILD_ROOT}/bin/llvm-config
-LLVM_CONFIG ?= llvm-config
-LLVM_INCLUDE = $(shell $(LLVM_CONFIG) --includedir)
 
 CXXFLAGS += -fPIC -ggdb3
 
