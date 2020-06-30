@@ -40,10 +40,10 @@ match Lean.Json.parse fileContents with
     | _ => throw $ IO.userError $ "Expected two function annotations but found " ++ modAnn.functions.length.repr
 
 
-def fibLLVMTyEnvEntries : List (llvm.ident × SMT.sort) :=
-["t1", "t4", "t5", "t8", "t9", "t12", "t13", "t15"].map (λ nm => (llvm.ident.named nm, SMT.sort.bv64))
+def fibLLVMTyEnvEntries : List (LLVM.Ident × SMT.sort) :=
+["t1", "t4", "t5", "t8", "t9", "t12", "t13", "t15"].map (λ nm => (LLVM.Ident.named nm, SMT.sort.bv64))
 
-def fibLLVMTyEnv : RBMap llvm.ident SMT.sort (λ x y => x<y) := 
+def fibLLVMTyEnv : RBMap LLVM.Ident SMT.sort (λ x y => x<y) :=
 RBMap.fromList fibLLVMTyEnvEntries (λ x y => x<y)
 
 -- Parse and check a few very basic structural properties about the return block annotations

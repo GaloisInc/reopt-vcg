@@ -14,11 +14,11 @@ import ReoptVCG.SMTParser
 import SMTLIB.Syntax
 import X86Semantics.Common
 
-namespace llvm
+namespace LLVM
 namespace ident
-instance : HasToString ident := ⟨ident.asString⟩
+instance : HasToString Ident := ⟨Ident.asString⟩
 end ident
-end llvm
+end LLVM
 
 namespace ReoptVCG
 

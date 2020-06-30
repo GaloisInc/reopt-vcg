@@ -29,11 +29,11 @@ def defaultCVC4Args : List String :=
 class BlockExprEnv (α : Type u) :=
 (initGPReg64 : α → x86.reg64 → term sort.bv64)
 (fnStartRegState : α → x86.reg64 → term sort.bv64)
-(evalVar : α → llvm.ident → Option (Sigma term))
+(evalVar : α → LLVM.Ident → Option (Sigma term))
 (readMem : α → ∀(w : WordSize), x86.vcg.memaddr →  term w.sort)
 
 structure BlockVCGExprEnv :=
-(evalVar : llvm.ident → Option (Sigma term)) -- FIXME, this may just be state.llvmIdentMap.find? =\
+(evalVar : LLVM.Ident → Option (Sigma term)) -- FIXME, this may just be state.llvmIdentMap.find? =\
 (context : BlockVCGContext)
 (state : BlockVCGState)
 
@@ -62,9 +62,9 @@ namespace BlockExpr
 
 open WellFormedSExp
 
-def ppLLVMIdent : llvm.ident → String
-| llvm.ident.named nm => nm
-| llvm.ident.anon n => "%"++(repr n)
+def ppLLVMIdent : LLVM.Ident → String
+| LLVM.Ident.named nm => nm
+| LLVM.Ident.anon n => "%"++(repr n)
 
 def toSExp : ∀ {tp : sort}, BlockExpr tp → SExp String
 | _, stackHigh => SExp.atom "stack_high"
@@ -127,7 +127,7 @@ def toSMT {α : Type u} [BlockExprEnv α] (env: α) : ∀ {tp : sort}, BlockExpr
 end BlockExpr
 
 /-- Converts a BlockExpr into an SMT term in the BlockVCG context. --/
-def evalPrecondition {tp : sort} (evalVar : llvm.ident → Option (Sigma term)) (expr : BlockExpr tp) : BlockVCG (term tp) := do
+def evalPrecondition {tp : sort} (evalVar : LLVM.Ident → Option (Sigma term)) (expr : BlockExpr tp) : BlockVCG (term tp) := do
 ctx ← read;
 state ← get;
 let env := BlockVCGExprEnv.mk evalVar ctx state;
@@ -136,16 +136,16 @@ match BlockExpr.toSMT env expr with
 | Except.ok res => pure res
 
 
-def ppBlockLabel (lbl:llvm.block_label) : String :=
+def ppBlockLabel (lbl:LLVM.BlockLabel) : String :=
 match lbl.label with
-| llvm.ident.named str => str
-| llvm.ident.anon n => "anon" ++ n.repr
+| LLVM.Ident.named str => str
+| LLVM.Ident.anon n => "anon" ++ n.repr
 
 -- | Pretty print an error that occurs at the start of an instruction.
-def renderMCInstError (fnm : String) (blockLbl : llvm.block_label) (llvmInstrIdx : Nat) (addr : Nat) (msg : String) : String :=
+def renderMCInstError (fnm : String) (blockLbl : LLVM.BlockLabel) (llvmInstrIdx : Nat) (addr : Nat) (msg : String) : String :=
 fnm++"."++(ppBlockLabel blockLbl)++"."++llvmInstrIdx.repr++" @ "++addr.ppHex++": "++msg
 
-def standaloneGoalFilename (fnName : String) (lbl : llvm.block_label) (goalIndex : Nat) : String :=
+def standaloneGoalFilename (fnName : String) (lbl : LLVM.BlockLabel) (goalIndex : Nat) : String :=
 fnName ++ "_" ++ (ppBlockLabel lbl) ++ "_" ++ goalIndex.repr ++ ".smt2"
 
 /-- Return the absolute path to the directory where we can stash
@@ -169,7 +169,7 @@ else do
                                    ++ "must be specified in the environment variable `TEMP` (or `TMP`)."
 
 /-- Like `standaloneGoalFilename`, but gives an absolute path to a filename in the OS's temporary directory.--/
-def temporaryStandaloneGoalFilepath (fnName : String) (lbl : llvm.block_label) (goalIndex : Nat) : IO String := do
+def temporaryStandaloneGoalFilepath (fnName : String) (lbl : LLVM.BlockLabel) (goalIndex : Nat) : IO String := do
 tempDir ← getTemporaryDirectory;
 pure $ System.mkFilePath [tempDir, standaloneGoalFilename fnName lbl goalIndex]
 
@@ -188,7 +188,7 @@ exit
     of commands to a file. -/
 def exportCheckSatProblem
 (outputDir fnName : String)
-(blockLabel : llvm.block_label)
+(blockLabel : LLVM.BlockLabel)
 (goalCounter : IO.Ref Nat)
 (cmdRef : IO.Ref (smtM Unit))
 (negatedGoal : term sort.smt_bool)
@@ -212,7 +212,7 @@ def defaultAddCommandCallback (cmdRef : IO.Ref (smtM Unit)) : command → IO Uni
 def exportCallbacks
 {α}
 (outputDir fnName : String)
-(blockLabel : llvm.block_label)
+(blockLabel : LLVM.BlockLabel)
 (action : ProverInterface → IO α)
 : IO α
 := do
@@ -241,7 +241,7 @@ structure InteractiveContext :=
 -- ^ Annotation file (for error-reporting purposes)
 (fnName : FnName)
 -- ^ Name of function to verify
-(blockLabel : llvm.block_label)
+(blockLabel : LLVM.BlockLabel)
 -- ^ Label of block
 (allGoalCounter : IO.Ref Nat)
 -- ^ Counter for all goals (i.e., the total number)
@@ -339,7 +339,7 @@ def newInteractiveSession
 (solverArgs : List String)
 (allGoalCounter verifiedGoalCounter errorCounter : IO.Ref Nat)
 (fnName : FnName)
-(lbl : llvm.block_label)
+(lbl : LLVM.BlockLabel)
 (action : ProverInterface → IO Unit)
 : IO Unit := do
 -- Create Goal counter for just this block.

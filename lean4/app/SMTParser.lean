@@ -70,7 +70,7 @@ inductive BlockExpr : sort → Type u
   -- Our memory model only tracks the mc-only variables, so if the
   -- address is not a stack-only variable, then the value just
   -- means some arbitrary value.
-| llvmVar (nm : llvm.ident) (tp : sort) : BlockExpr tp
+| llvmVar (nm : LLVM.Ident) (tp : sort) : BlockExpr tp
   -- ^ This denotes the value of an LLVM Phi variable when the
   -- block starts.
 | eq    {tp : sort} : BlockExpr tp → BlockExpr tp → BlockExpr sort.smt_bool
@@ -81,13 +81,13 @@ inductive BlockExpr : sort → Type u
 | bvDecimal (v w : Nat) : BlockExpr (sort.bitvec w)
 
 /-- Map from LLVM ident names to their sorts--/
-abbrev LLVMTyEnv := RBMap llvm.ident SMT.sort (λ x y => x<y)
+abbrev LLVMTyEnv := RBMap LLVM.Ident SMT.sort (λ x y => x<y)
 
 namespace BlockExpr
 
-private def ppLLVMIdent : llvm.ident → String
-| llvm.ident.named nm => nm
-| llvm.ident.anon n => n.repr
+private def ppLLVMIdent : LLVM.Ident → String
+| LLVM.Ident.named nm => nm
+| LLVM.Ident.anon n => n.repr
 
 -- was `evalExpr`
 partial def fromSExp
@@ -165,7 +165,7 @@ partial def fromSExp
 | SExp.list [SExp.atom (Atom.ident "llvm"), llvmExpr] =>
   match llvmExpr with
   | SExp.atom (Atom.ident llvmName) =>
-    let nm := llvm.ident.named llvmName;
+    let nm := LLVM.Ident.named llvmName;
     match llvmTyEnv.find? nm with
     | some tp => Except.ok ⟨tp, BlockExpr.llvmVar nm tp⟩
     | none => Except.error $ "Could not interpret llvm variable " ++ llvmExpr.toString

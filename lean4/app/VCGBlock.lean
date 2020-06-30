@@ -13,7 +13,7 @@ import ReoptVCG.SMT
 
 namespace ReoptVCG
 
-open llvm (llvm_type typed prim_type value)
+open LLVM (LLVMType Typed PrimType Value)
 open SMT (smtM IdGen.empty)
 open SMT.sort (smt_bool)
 open x86 (reg64)
@@ -97,76 +97,76 @@ export BlockVCG (addCommand proveTrue proveEq addAssert addComment)
 -- Type <-> SMT
 
 @[reducible]
-def HasSMTSort : llvm_type -> Prop
-| llvm.llvm_type.ptr_to _  => True
-| llvm.llvm_type.prim_type pt  => 
+def HasSMTSort : LLVMType -> Prop
+| LLVM.LLVMType.ptr _  => True
+| LLVM.LLVMType.prim pt  =>
   match pt with
-  | llvm.prim_type.integer i => i > 0
+  | LLVM.PrimType.integer i => i > 0
   | _ => False
 | _ => False
 
 -- | Convert LLVM type to SMT sort.
-def asSMTSort : forall (tp : llvm_type) (pf : HasSMTSort tp), SMT.sort
-| llvm.llvm_type.ptr_to _, _  => SMT.sort.bitvec 64
-| llvm.llvm_type.prim_type (llvm.prim_type.integer i), _ => SMT.sort.bitvec i
+def asSMTSort : forall (tp : LLVMType) (pf : HasSMTSort tp), SMT.sort
+| LLVM.LLVMType.ptr _, _  => SMT.sort.bitvec 64
+| LLVM.LLVMType.prim (LLVM.PrimType.integer i), _ => SMT.sort.bitvec i
 
 namespace HasSMTSort
 
-open llvm.llvm_type
-open llvm.prim_type
+open LLVM.LLVMType
+open LLVM.PrimType
 
 protected 
-def dec : forall (tp : llvm_type), Decidable (HasSMTSort tp)
-| ptr_to t  => isTrue True.intro
-| prim_type pt => 
+def dec : forall (tp : LLVMType), Decidable (HasSMTSort tp)
+| ptr t  => isTrue True.intro
+| prim pt =>
   match pt with 
   | integer i    => Nat.decLt _ _
   | label        => isFalse (fun x => x) 
   | token        => isFalse (fun x => x) 
   | void         => isFalse (fun x => x) 
-  | float_type _ => isFalse (fun x => x) 
+  | floatType  _ => isFalse (fun x => x)
   | x86mmx       => isFalse (fun x => x) 
   | metadata     => isFalse (fun x => x) 
 | alias _        => isFalse (fun x => x)  
 | array _ _      => isFalse (fun x => x)  
-| fun_ty _ _ _   => isFalse (fun x => x)  
+| funType _ _ _  => isFalse (fun x => x)
 | struct _ _     => isFalse (fun x => x)  
 | vector _ _     => isFalse (fun x => x)  
 
-instance {tp : llvm_type} : Decidable (HasSMTSort tp) := HasSMTSort.dec tp
+instance {tp : LLVMType} : Decidable (HasSMTSort tp) := HasSMTSort.dec tp
 
 end HasSMTSort
 
-def asSMTSort' (tp : llvm_type) : Option SMT.sort :=
+def asSMTSort' (tp : LLVMType) : Option SMT.sort :=
   if H : HasSMTSort tp then some (asSMTSort tp H) else none
 
-def coerceToSMTSort (ty : llvm_type) : BlockVCG SMT.sort :=
+def coerceToSMTSort (ty : LLVMType) : BlockVCG SMT.sort :=
   match asSMTSort' ty with
   | some tp => pure tp
-  | none    => BlockVCG.globalThrow $ "Unexpected type " ++ (pp.render $ llvm.pp_type ty)
+  | none    => BlockVCG.globalThrow $ "Unexpected type " ++ (ppLLVM ty)
 
 --------------------------------------------------------------------------------
 -- Ident <-> SMT
 
-def lookupIdent (i : llvm.ident) (s : SMT.sort) : BlockVCG (SMT.term s) := do
+def lookupIdent (i : LLVM.Ident) (s : SMT.sort) : BlockVCG (SMT.term s) := do
   m <- BlockVCGState.llvmIdentMap <$> get;
   match m.find? i with
   | some (Sigma.mk s' tm) => 
     if H : s' = s then pure (Eq.recOn H tm) else BlockVCG.globalThrow ("Sort mismatch for " ++ i.asString)
   | none => BlockVCG.globalThrow ("Unknown ident: " ++ i.asString)
 
-def freshIdent (i : llvm.ident) (s : SMT.sort) : BlockVCG (SMT.term s) := do
+def freshIdent (i : LLVM.Ident) (s : SMT.sort) : BlockVCG (SMT.term s) := do
   sym <- BlockVCG.runsmtM (SMT.freshSymbol i.asString); -- FIXME: this should be primitive in SMT
   let tm := SMT.mk_symbol sym s;
   modify (fun s => {s with llvmIdentMap := s.llvmIdentMap.insert i (Sigma.mk _ tm)});
   pure tm
 
-def defineTerm {s : SMT.sort} (i : llvm.ident) (tm : SMT.term s) : BlockVCG (SMT.term s) := do
+def defineTerm {s : SMT.sort} (i : LLVM.Ident) (tm : SMT.term s) : BlockVCG (SMT.term s) := do
   sym <- BlockVCG.runsmtM (SMT.define_fun i.asString [] s tm);
   modify (fun s => {s with llvmIdentMap := s.llvmIdentMap.insert i (Sigma.mk _ sym)});
   pure sym
 
-def declareTerm (i : llvm.ident) (s : SMT.sort) : BlockVCG (SMT.term s) := do
+def declareTerm (i : LLVM.Ident) (s : SMT.sort) : BlockVCG (SMT.term s) := do
   sym <- BlockVCG.runsmtM (SMT.declare_fun i.asString [] s);
   modify (fun s => {s with llvmIdentMap := s.llvmIdentMap.insert i (Sigma.mk _ sym)});
   pure sym
@@ -370,15 +370,15 @@ def mcExecuteToEnd : BlockVCG Unit := do
 -- Literal constructors
 
 def mkInt {w : Nat} (v : Int) (H : w > 0)
-  : SMT.term (asSMTSort (llvm.llvm_type.prim_type (llvm.prim_type.integer w)) H) :=
+  : SMT.term (asSMTSort (LLVM.LLVMType.prim (LLVM.PrimType.integer w)) H) :=
   SMT.bvimm' w v
 
 section
-open llvm.value
+open LLVM.Value
 
-def primEval : forall (tp : llvm_type) (H :HasSMTSort tp), value -> BlockVCG (SMT.term (asSMTSort tp H))
+def primEval : forall (tp : LLVMType) (H :HasSMTSort tp), Value -> BlockVCG (SMT.term (asSMTSort tp H))
 | tp, H, ident i => lookupIdent i (asSMTSort tp H)
-| llvm.llvm_type.prim_type (llvm.prim_type.integer w), H, integer i => pure (mkInt i H)
+| LLVM.LLVMType.prim (LLVM.PrimType.integer w), H, integer i => pure (mkInt i H)
 | _, _, _ => BlockVCG.globalThrow "unimplemented"
 
 end
@@ -417,16 +417,16 @@ def returnAddrTerm : BlockVCG x86.vcg.memaddr := do
 axiom VCGBlock_sorry: forall P, P
 
 -- Converts a machine word to be the same width as a given LLVM type.  In the monad to allow failure
-def wordAsType (w : x86.vcg.bitvec 64) (ty : llvm_type)
+def wordAsType (w : x86.vcg.bitvec 64) (ty : LLVMType)
   : BlockVCG (PSigma (fun (H : HasSMTSort ty) => SMT.term (asSMTSort ty H))) := 
   match ty with 
-| ty@(llvm.llvm_type.ptr_to _) => do
+| ty@(LLVM.LLVMType.ptr _) => do
   let pf : HasSMTSort ty := True.intro;
   pure (PSigma.mk pf w)
-| ty@(llvm.llvm_type.prim_type (llvm.prim_type.integer 64)) => do
+| ty@(LLVM.LLVMType.prim (LLVM.PrimType.integer 64)) => do
   let pf : HasSMTSort ty := rfl; -- proves 0 < 64 = true, sort of grossly
   pure (PSigma.mk pf w)
-| ty@(llvm.llvm_type.prim_type (llvm.prim_type.integer i)) => do
+| ty@(LLVM.LLVMType.prim (LLVM.PrimType.integer i)) => do
   if H : 0 < i /\ i < 64                                     
   then do let pf : HasSMTSort ty := H.left;
            let pf' : (i - 1 + 1) - 0 = i := VCGBlock_sorry _;
@@ -437,13 +437,13 @@ def wordAsType (w : x86.vcg.bitvec 64) (ty : llvm_type)
 | _ => globalThrow "Unexpected sort in wordAsType"
   
 def proveRegRel (msg : String) (w : x86.vcg.bitvec 64)
-  : llvm.typed llvm.value ->  BlockVCG Unit
+  : LLVM.Typed LLVM.Value ->  BlockVCG Unit
 | { type := ty, value := v } => do  
   PSigma.mk pf mcv <- wordAsType w ty;
   lv <- primEval ty pf v;
   proveEq lv mcv msg
 
-def llvmReturn (mlret : Option (typed value)) : BlockVCG Unit := do
+def llvmReturn (mlret : Option (Typed Value)) : BlockVCG Unit := do
   mcExecuteToEnd;
   regs <- BlockVCGState.mcCurRegs <$> get;
   _ <- (do sht  <- stackHighTerm;
@@ -463,8 +463,8 @@ def llvmReturn (mlret : Option (typed value)) : BlockVCG Unit := do
   | some v =>
     proveRegRel "return values match" (regs.get_reg64 x86.reg64.rax) v
   
-def llvmInvoke (isTailCall : Bool) (fsym : llvm.symbol) (args : Array (typed value)) 
-    (lRet : Option (llvm.ident × llvm_type)) : BlockVCG Unit := do
+def llvmInvoke (isTailCall : Bool) (fsym : LLVM.Symbol) (args : Array (Typed Value))
+    (lRet : Option (LLVM.Ident × LLVMType)) : BlockVCG Unit := do
   when isTailCall $ globalThrow "Tail calls are unimplemented";
 
   BlockVCGContext.mcBlockEndAddr <$> read >>= execMCOnlyEvents;
@@ -522,29 +522,29 @@ def llvmInvoke (isTailCall : Bool) (fsym : llvm.symbol) (args : Array (typed val
 -- Arithmetic
 
 section
-open llvm.value
-open llvm.icmp_op
+open LLVM.Value
+open LLVM.ICmpOp
 
-def arithOpFunc {n : Nat} : llvm.arith_op
+def arithOpFunc {n : Nat} : LLVM.ArithOp
                           -> SMT.term (SMT.sort.bitvec n)
                           -> SMT.term (SMT.sort.bitvec n)
                           -> SMT.term (SMT.sort.bitvec n)
-| llvm.arith_op.add _ _, x, y => SMT.bvadd x y
-| llvm.arith_op.sub _ _, x, y => SMT.bvsub x y
-| llvm.arith_op.mul _ _, x, y => SMT.bvmul x y
+| LLVM.ArithOp.add _ _, x, y => SMT.bvadd x y
+| LLVM.ArithOp.sub _ _, x, y => SMT.bvsub x y
+| LLVM.ArithOp.mul _ _, x, y => SMT.bvmul x y
 | _, _, _ =>  SMT.bvimm _ 0 -- FIXME
 
 
-def bitOpFunc {n : Nat} : llvm.bit_op
+def bitOpFunc {n : Nat} : LLVM.BitOp
                         -> SMT.term (SMT.sort.bitvec n)
                         -> SMT.term (SMT.sort.bitvec n)
                         -> SMT.term (SMT.sort.bitvec n)
-| llvm.bit_op.and, x, y => SMT.bvand x y
-| llvm.bit_op.or, x, y  => SMT.bvor x y
-| llvm.bit_op.xor, x, y => SMT.bvxor x y
+| LLVM.BitOp.and, x, y => SMT.bvand x y
+| LLVM.BitOp.or, x, y  => SMT.bvor x y
+| LLVM.BitOp.xor, x, y => SMT.bvxor x y
 | _, _, _ =>  SMT.bvimm _ 0 -- FIXME
 
-def icmpOpFunc {n : Nat} : llvm.icmp_op
+def icmpOpFunc {n : Nat} : LLVM.ICmpOp
                          -> SMT.term (SMT.sort.bitvec n)
                          -> SMT.term (SMT.sort.bitvec n)
                          -> SMT.term smt_bool
@@ -561,13 +561,13 @@ def icmpOpFunc {n : Nat} : llvm.icmp_op
 
 end
 
-def tryPrimEval (tp : llvm_type) (v:value) : BlockVCG (Sigma SMT.term) :=
+def tryPrimEval (tp : LLVMType) (v:Value) : BlockVCG (Sigma SMT.term) :=
 if h : HasSMTSort tp
 then do
   t ← primEval tp h v;
   pure $ ⟨asSMTSort tp h, t⟩
 else
-  BlockVCG.globalThrow $ "unable to evaluate llvm term "++(pp.render $ llvm.pp_value v)++" at type "++(pp.render $ llvm.pp_type tp)
+  BlockVCG.globalThrow $ "unable to evaluate llvm term "++(ppLLVM v)++" at type "++(ppLLVM tp)
 
 
 --------------------------------------------------------------------------------
@@ -604,7 +604,7 @@ def verifyPreconditions
 (goalFn : SMT.term SMT.sort.smt_bool → SMT.term SMT.sort.smt_bool)
 -- ^ Function applied to predicates before verification allowing us
 -- to conditionally validate some of the preconditions.
-(lbl : llvm.block_label)
+(lbl : LLVM.BlockLabel)
 -- ^ LLVM label of the block we are jumping to.
 : BlockVCG Unit := do
 blkMap ← BlockVCGContext.funBlkAnnotations <$> read;
@@ -627,7 +627,7 @@ match findBlock blkMap lbl with
 
   srcLbl <- BlockVCGContext.currentBlock <$> read;
   -- Resolve terms for SMT variables which can appear in precondition statements.
-  let resolvePhiVarVal : llvm.ident → (llvm.llvm_type × BlockLabelValMap) → BlockVCG (Sigma SMT.term) :=
+  let resolvePhiVarVal : LLVM.Ident → (LLVM.LLVMType × BlockLabelValMap) → BlockVCG (Sigma SMT.term) :=
     λ nm val => let (tp, valMap) := val;
                 match valMap.find? srcLbl with
                 | some v => tryPrimEval tp v
@@ -651,13 +651,13 @@ end BlockVCG
 -- stepNextStmt
 
 section
-open llvm.instruction
+open LLVM.Instruction
 open BlockVCG (verifyPreconditions)
 
-def stepNextStmt (stmt : llvm.stmt) : BlockVCG Bool := do
+def stepNextStmt (stmt : LLVM.Stmt) : BlockVCG Bool := do
   match stmt.instr with
   | phi _ _ => globalThrow "Unexpected phi in stepNextStmt"
---   | alloca : llvm_type -> Option (typed value) -> Option Nat -> instruction
+--   | alloca : LLVMType -> Option (typed value) -> Option Nat -> instruction
   | arith aop { type := lty, value := lhs } rhs => do
     if H : HasSMTSort lty then do
       lhsv <- primEval lty H lhs;
@@ -680,14 +680,14 @@ def stepNextStmt (stmt : llvm.stmt) : BlockVCG Bool := do
     else BlockVCG.globalThrow "Unexpected type"
   | call tailcall o_ty f args => do
     match f with 
-    | llvm.value.symbol s => 
+    | LLVM.Value.symbol s =>
       llvmInvoke tailcall s args (match o_ty, stmt.assign with 
                                   | some ty, some i => some (i, ty)
                                   | _, _ => none)
     | _ => globalThrow "VCG currently only supports direct calls.";
     pure True
 
---   | conv : conv_op -> typed value -> llvm_type -> instruction
+--   | conv : conv_op -> typed value -> LLVMType -> instruction
   | icmp bop { type := lty, value := lhs } rhs => do
     if H : HasSMTSort lty then do
       lhsv <- primEval lty H lhs;
@@ -702,7 +702,7 @@ def stepNextStmt (stmt : llvm.stmt) : BlockVCG Bool := do
 
   | br { type := _lty, value := cnd } tlbl flbl => do
     mcExecuteToEnd;
-    let pf : HasSMTSort (llvm.llvm_type.prim_type (llvm.prim_type.integer 1)) := rfl;
+    let pf : HasSMTSort (LLVM.LLVMType.prim (LLVM.PrimType.integer 1)) := rfl;
     cndTerm <- primEval _ pf cnd;
     let c := SMT.eq cndTerm (SMT.bvimm _ 1);
     verifyPreconditions "true branch"  (SMT.impl c)           tlbl;
@@ -715,12 +715,12 @@ def stepNextStmt (stmt : llvm.stmt) : BlockVCG Bool := do
     pure False
 
   | ret v    => llvmReturn (some v) $> false
-  | ret_void => llvmReturn none     $> false
+  | retVoid  => llvmReturn none     $> false
   | _ => BlockVCG.globalThrow "(stepNextStmt) unimplemented"
   
 
---   | conv : conv_op -> typed value -> llvm_type -> instruction
---   | alloca : llvm_type -> Option (typed value) -> Option Nat -> instruction
+--   | conv : conv_op -> typed value -> LLVMType -> instruction
+--   | alloca : LLVMType -> Option (typed value) -> Option Nat -> instruction
 --   | load : typed value -> Option atomic_ordering -> Option Nat /- align -/ -> instruction
 --   | store : typed value -> typed value -> Option Nat /- align -/ -> instruction
 -- /-
@@ -738,14 +738,14 @@ def stepNextStmt (stmt : llvm.stmt) : BlockVCG Bool := do
 --   | extract_elt : typed value -> value -> instruction
 --   | insert_elt : typed value -> typed value -> value -> instruction
 --   | shuffle_vector : typed value -> value -> typed value -> instruction
---   | invoke : llvm_type -> value -> List (typed value) -> block_label -> block_label -> instruction
+--   | invoke : LLVMType -> value -> List (typed value) -> block_label -> block_label -> instruction
 --   | comment : String -> instruction
 --   | unreachable
 --   | unwind
---   | va_arg : typed value -> llvm_type -> instruction
+--   | va_arg : typed value -> LLVMType -> instruction
 --   | indirect_br : typed value -> List block_label -> instruction
 --   | switch : typed value -> block_label -> List (Nat × block_label) -> instruction
---   | landing_pad : llvm_type -> Option (typed value) -> Bool -> List (clause × typed value) -> instruction
+--   | landing_pad : LLVMType -> Option (typed value) -> Bool -> List (clause × typed value) -> instruction
 --   | resume : typed value -> instruction
 end
 
@@ -760,9 +760,9 @@ protected
 def run (mctx : ModuleVCGContext)
         (funAnn : FunctionAnn)
         (bmap : ReachableBlockAnnMap)
-        (firstBlock : llvm.block_label)
+        (firstBlock : LLVM.BlockLabel)
         (firstAddr  : MCAddr) -- FIXME: maybe not strictly required
-        (thisBlock  : llvm.block_label)
+        (thisBlock  : LLVM.BlockLabel)
         (blockAnn   : ReachableBlockAnn)
         (m : BlockVCG Unit) : IO Unit := do
   mctx.proverGen.blockCallback funAnn.llvmFunName thisBlock $ fun prover => do
@@ -818,10 +818,10 @@ end BlockVCG
 --
 -- Note. This is written to take a function rather than directly call
 -- @stepNextStmtg@ so that the call stack is cleaner.
-def checkEachStmt : List llvm.stmt → BlockVCG Unit
+def checkEachStmt : List LLVM.Stmt → BlockVCG Unit
 | [] => BlockVCG.globalThrow "We have reached end of LLVM events without a block terminator."
 | (stmt::stmts) => do
-  BlockVCG.addComment $ "LLVM: " ++ (pp.render $ llvm.pp_stmt stmt);
+  BlockVCG.addComment $ "LLVM: " ++ (ppLLVM stmt);
   continue ← stepNextStmt stmt;
   modify (λ s => {s with llvmInstIndex := s.llvmInstIndex + 1 });
   if continue then
@@ -835,7 +835,7 @@ let val : SMT.term SMT.sort.bv64 := funStartRegs.get_reg64 b.register;
 _ ← defineTerm b.llvmArgName val;
 pure ()
 
-def definePhiVar (nm : llvm.ident) (entry : llvm.llvm_type × BlockLabelValMap) : BlockVCG Unit := do
+def definePhiVar (nm : LLVM.Ident) (entry : LLVM.LLVMType × BlockLabelValMap) : BlockVCG Unit := do
 let (tp, _) := entry;
 s ← coerceToSMTSort tp;
 _ ← declareTerm nm s;
@@ -846,7 +846,7 @@ def verifyReachableBlock
 (blockAnn : ReachableBlockAnn)
 (args : List LLVMMCArgBinding)
 (phiVarMap : PhiVarMap)
-(stmts : List llvm.stmt)
+(stmts : List LLVM.Stmt)
 : BlockVCG Unit := do
 -- Add LLVM declarations for all existing allocations.
 -- FIXME we skip alloca stuff for now, FYI.
