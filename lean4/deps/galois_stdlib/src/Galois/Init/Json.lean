@@ -1,6 +1,6 @@
 
-import Init.Lean.Data.Json
-import Init.Data.RBMap
+import Lean.Data.Json
+import Std.Data.RBMap
 universes u
 
 -- Missing stuff

@@ -15,4 +15,4 @@ LOCALFILES := src/Galois/Category/Coe1.lean\
 LOCAL_CXX  := src/Galois/Init/io_runtime.cpp
 LEANFILES += $(patsubst %,${HERE}/%,${LOCALFILES})
 EXTRACXXFILES += $(patsubst %,${HERE}/%,${LOCAL_CXX})
-LEAN_PATH := ${LEAN_PATH}:Galois=${HERE}/src/Galois
+LEAN_PATH += :${HERE}/src

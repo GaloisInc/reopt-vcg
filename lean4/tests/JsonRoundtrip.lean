@@ -1,7 +1,7 @@
 
 import ReoptVCG.Annotations
-import Init.Lean.Data.Json
-import Init.Lean.Data.Json.FromToJson
+import Lean.Data.Json
+import Lean.Data.Json.FromToJson
 import Galois.Init.Json
 
 namespace Test

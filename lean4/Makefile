@@ -41,10 +41,9 @@ LLVM_INCLUDE = $(shell $(LLVM_CONFIG) --includedir)
 # the `lib` directory with Lean files in it
 LEANDIR := ${realpath ${dir ${shell which ${LEAN}}}/..}
 
-
 # Set the Lean Path (i.e., the key-value pairs of Lean packages and their locations)
 # to include the Init definitions from Lean
-LEAN_PATH := Init=${LEANDIR}/lib/lean/Init
+# LEAN_PATH := ${LEANDIR}/lib/lean
 
 # This forces LEANFILES to be strict
 LEANFILES := 
@@ -76,33 +75,34 @@ EXTRAOBJFILES := ${patsubst ${SRCROOT}/%.cpp,${BUILDDIR}/%.o,${EXTRACXXFILES}}
 DEPFILES := ${patsubst %.lean,%.d,${LEANFILES_REL} test-symbolic/Main.lean app/Main.lean}
 
 OLEANFILES   := ${patsubst %.lean,%.olean,${LEANFILES_REL}}
-CPPLEANFILES := ${patsubst %.lean,$(BUILDDIR)/%.cpp,${LEANFILES_REL}}
+CLEANFILES := ${patsubst %.lean,$(BUILDDIR)/%.c,${LEANFILES_REL}}
 
 CXXFLAGS += -fPIC -ggdb3
+CFLAGS   += -fPIC -ggdb3
 
 export LEAN_PATH
 $(shell echo "#!/bin/bash" > set_LEAN_PATH.sh)
 $(shell echo "export LEAN_PATH=${LEAN_PATH}" >> set_LEAN_PATH.sh)
 
 
-MAKEDEPEND = $(LEAN) --deps $< | sed 's@${SRCROOT}/@@p' | sort -u | xargs echo "$(BUILDDIR)/$*.cpp $*.olean:" > $@
+MAKEDEPEND = $(LEAN) --deps $< | sed 's@${SRCROOT}/@@p' | sort -u | xargs echo "$(BUILDDIR)/$*.c $*.olean:" > $@
 
 
 depend: ${DEPFILES}
 
-$(BUILDDIR)/sim : ${CPPLEANFILES} ${EXTRAOBJFILES} build/simulator/Main.cpp
+$(BUILDDIR)/sim : ${CLEANFILES} ${EXTRAOBJFILES} build/simulator/Main.cpp
 	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cxxflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86 asmparser` -lstdc++ -lm
 
-$(BUILDDIR)/test-sym : ${CPPLEANFILES} ${EXTRAOBJFILES} build/test-symbolic/Main.cpp
+$(BUILDDIR)/test-sym : ${CLEANFILES} ${EXTRAOBJFILES} build/test-symbolic/Main.cpp
 	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cxxflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86 asmparser` -lstdc++ -lm
 
-$(BUILDDIR)/driver: ${CPPLEANFILES} ${EXTRAOBJFILES} build/deps/lean-llvm/src/Driver.cpp
+$(BUILDDIR)/driver: ${CLEANFILES} ${EXTRAOBJFILES} build/deps/lean-llvm/src/Driver.cpp
 	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cxxflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86 asmparser` -lstdc++ -lm
 
-$(BUILDDIR)/reopt-vcg : ${CPPLEANFILES} ${EXTRAOBJFILES} build/app/Main.cpp
+$(BUILDDIR)/reopt-vcg : ${CLEANFILES} ${EXTRAOBJFILES} build/app/Main.cpp
 	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cxxflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86 asmparser` -lstdc++ -lm
 
-$(BUILDDIR)/reopt-vcg-unit-test : ${CPPLEANFILES} ${EXTRAOBJFILES} build/tests/Main.cpp
+$(BUILDDIR)/reopt-vcg-unit-test : ${CLEANFILES} ${EXTRAOBJFILES} build/tests/Main.cpp
 	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cxxflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86 asmparser` -lstdc++ -lm
 
 
@@ -113,7 +113,7 @@ $(BUILDDIR)/reopt-vcg-unit-test : ${CPPLEANFILES} ${EXTRAOBJFILES} build/tests/M
 # could do this when making the olean
 $(BUILDDIR)/%.cpp %.olean: %.lean
 	@mkdir -p ${dir $(BUILDDIR)/$*.cpp}
-	$(LEAN) --cpp="$(BUILDDIR)/$*.cpp.tmp" --make $<
+	$(LEAN) --c="$(BUILDDIR)/$*.cpp.tmp" --make $<
 	mv $(BUILDDIR)/$*.cpp.tmp $(BUILDDIR)/$*.cpp
 
 $(BUILDDIR)/%.o: %.cpp

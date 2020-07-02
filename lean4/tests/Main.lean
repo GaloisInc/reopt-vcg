@@ -1,5 +1,5 @@
 
-import Init.Data.RBMap
+import Std.Data.RBMap
 import Test.AnnotationParsing
 import Test.Hex
 import Test.JsonRoundtrip
