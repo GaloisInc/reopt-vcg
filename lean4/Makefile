@@ -120,7 +120,7 @@ quiet_cmd_LEAN = LEAN $<
       cmd_LEAN = $(LEAN) --o=$(OLEANDIR)/$*.olean --c="$(OBJDIR)/$*.c" $<
 
 # could do this when making the olean
-$(OBJDIR)/%.c $(OLEANDIR)/%.olean: %.lean | ${OLEANDIRS} $(OBJDIRS)
+$(OBJDIR)/%.c $(OLEANDIR)/%.olean: %.lean | ${OLEANDIRS} $(CLEANDIRS)
 	$(call cmd,LEAN)
 
 # mv $(BUILDDIR)/$*.cpp.tmp $(BUILDDIR)/$*.cpp
