@@ -1,4 +1,3 @@
-HERE := $(abspath $(dir $(realpath $(lastword $(MAKEFILE_LIST)))))
-LOCALFILES := src/SMTLIB/Syntax.lean src/SMTLIB/IdGen.lean
-LEANFILES += $(patsubst %,${HERE}/%,${LOCALFILES})
-LEAN_PATH := ${LEAN_PATH}:SMTLIB=${HERE}/src/SMTLIB
+LOCAL_LEAN := src/SMTLIB/Syntax.lean src/SMTLIB/IdGen.lean
+
+$(eval $(call add-package,src,${LOCAL_LEAN},))

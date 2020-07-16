@@ -1,6 +1,6 @@
+# -*- makefile -*-
 
-HERE := $(abspath $(dir $(realpath $(lastword $(MAKEFILE_LIST)))))
-LOCALFILES := src/Galois/Category/Coe1.lean\
+LOCAL_LEAN := src/Galois/Category/Coe1.lean\
   src/Galois/Data/Array.lean\
   src/Galois/Data/Bitvec.lean\
   src/Galois/Data/ByteArray.lean\
@@ -13,6 +13,6 @@ LOCALFILES := src/Galois/Category/Coe1.lean\
   src/Galois/Init/Nat.lean\
   src/Galois/Init/Json.lean
 LOCAL_CXX  := src/Galois/Init/io_runtime.cpp
-LEANFILES += $(patsubst %,${HERE}/%,${LOCALFILES})
-EXTRACXXFILES += $(patsubst %,${HERE}/%,${LOCAL_CXX})
-LEAN_PATH += :${HERE}/src
+
+# $(info $(call add-package,src,${LOCAL_LEAN},${LOCAL_CXX}))
+$(eval $(call add-package,src,${LOCAL_LEAN},${LOCAL_CXX}))

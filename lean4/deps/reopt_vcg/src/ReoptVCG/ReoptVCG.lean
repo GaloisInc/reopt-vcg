@@ -1,6 +1,6 @@
 import Galois.Init.Json
 import LeanLLVM.AST
-import Main.Elf
+import ReoptVCG.Elf
 import ReoptVCG.Annotations
 import ReoptVCG.VCGBlock
 import ReoptVCG.LoadLLVM
