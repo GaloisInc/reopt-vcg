@@ -9,7 +9,7 @@ import Lean.Data.Json.Printer
 import Lean.Data.Json.FromToJson
 import Std.Data.RBMap
 import LeanLLVM.AST
-import Main.Elf
+import ReoptVCG.Elf
 import ReoptVCG.SMTParser
 import SMTLIB.Syntax
 import X86Semantics.Common

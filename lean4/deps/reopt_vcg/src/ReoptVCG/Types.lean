@@ -1,7 +1,7 @@
 import Galois.Data.ByteArray
 import LeanLLVM.AST
 import LeanLLVM.PP
-import Main.Elf
+import ReoptVCG.Elf
 import ReoptVCG.Annotations
 import ReoptVCG.VCGBackend
 import ReoptVCG.MCStdLib

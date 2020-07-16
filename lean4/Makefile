@@ -1,6 +1,8 @@
 
 # http://make.mad-scientist.net/papers/advanced-auto-dependency-generation/#tldr
 
+# make V=1 will print verbosely
+
 # IMPORTANT:
 #
 # 1. Please AVOID DOUBLE SLASHES (e.g., `//`) and other seemingly
@@ -17,12 +19,8 @@
 # with that sort of extra "noise" in it will _not_ be considered the
 # same target as the same path without such seemingly innocuous noise.
 
-
-# Determine the root directory for the source files (e.g., `.../reopt-vcg/lean4`)
-SRCROOT := $(abspath $(dir $(realpath $(firstword $(MAKEFILE_LIST)))))
-
-# Where do we put the build files?
 BUILDDIR ?= build
+
 # $(shell mkdir -p $(DEPDIR) >/dev/null)
 
 # Names of the Lean executables if they're not explicitly
@@ -36,46 +34,55 @@ LEANC ?= leanc
 LLVM_CONFIG ?= llvm-config
 LLVM_INCLUDE = $(shell $(LLVM_CONFIG) --includedir)
 
-
 # Up one directory from the executable we should be able to find
 # the `lib` directory with Lean files in it
 LEANDIR := ${realpath ${dir ${shell which ${LEAN}}}/..}
 
-# Set the Lean Path (i.e., the key-value pairs of Lean packages and their locations)
-# to include the Init definitions from Lean
-# LEAN_PATH := ${LEANDIR}/lib/lean
+# Determine the root directory for the source files (e.g., `.../reopt-vcg/lean4`)
 
-# This forces LEANFILES to be strict
-LEANFILES := 
-EXTRACXXFILES :=
+makefile-directory = $(abspath $(dir $(realpath $(lastword $(MAKEFILE_LIST)))))
 
-TARGET := $(BUILDDIR)/sim $(BUILDDIR)/test-sym $(BUILDDIR)/driver $(BUILDDIR)/reopt-vcg $(BUILDDIR)/reopt-vcg-unit-test
+SRCROOT := $(call makefile-directory)
 
-all: $(TARGET)
+include scripts/Makefile.include
 
+# TARGET := $(BUILDDIR)/sim $(BUILDDIR)/test-sym $(BUILDDIR)/driver $(BUILDDIR)/reopt-vcg $(BUILDDIR)/reopt-vcg-unit-test
+
+# make sure this is the first target
+.PHONY: all realall
+all: realall
+
+# Libraries
 include deps/galois_stdlib/Makefile.include
 include deps/smtlib/Makefile.include
 include deps/lean-llvm/Makefile.include
 include deps/llvm-tablegen-support/Makefile.include
 include deps/x86_semantics/Makefile.include
-include simulator/Makefile.include
-include test-symbolic/Makefile.include
-include app/Makefile.include
-include tests/Makefile.include
+include deps/reopt_vcg/Makefile.include
 
+# Executables
+# include simulator/Makefile.include
+# include test-symbolic/Makefile.include
+# include app/Makefile.include
+# include tests/Makefile.include
 
-# The paths populating LEANFILES from the various above includes are absolute,
-# but we need them to be relative to the root dir for the rest to work.
-LEANFILES_REL := ${patsubst ${SRCROOT}/%,%,${LEANFILES}}
-EXTRAOBJFILES := ${patsubst ${SRCROOT}/%.cpp,${BUILDDIR}/%.o,${EXTRACXXFILES}}
+EXTRAOBJFILES := $(addprefix ${EXTRAOBJDIR}/,$(patsubst %.c,%.o,$(patsubst $.cpp,%.o,$(EXTRACFILES))))
+EXTRAOBJDIRS  := $(call build-dirs,$(EXTRAOBJFILES))
+
+# all the output directories we need
+build-dirs = $(sort $(foreach ld,$(1),$(dir $(ld))))
 
 # For every Lean file `Foo.lean` there should be a `Foo.d` with an entry
 # `Foo.c Foo.olean: DEPENDENCY1.olean ... DEPENDENCYN.olean` describing the
 # N files that lean file depends on
-DEPFILES := ${patsubst %.lean,%.d,${LEANFILES_REL} test-symbolic/Main.lean app/Main.lean}
+DEPFILES := $(addprefix $(DEPDIR)/,$(LEANFILES:.lean=.d)) $(addprefix $(DEPDIR)/,app/Main.d)# test-symbolic/Main.lean app/Main.lean}
+DEPDIRS  := $(call build-dirs,$(DEPFILES))
 
-OLEANFILES   := ${patsubst %.lean,%.olean,${LEANFILES_REL}}
-CLEANFILES := ${patsubst %.lean,$(BUILDDIR)/%.c,${LEANFILES_REL}}
+OLEANFILES := $(addprefix $(OLEANDIR)/,$(LEANFILES:.lean=.olean))
+OLEANDIRS  := $(call build-dirs,$(OLEANFILES))
+
+CLEANFILES := $(addprefix $(OBJDIR)/,$(LEANFILES:.lean=.c))
+CLEANDIRS  := $(call build-dirs,$(CLEANFILES))
 
 CXXFLAGS += -fPIC -ggdb3
 CFLAGS   += -fPIC -ggdb3
@@ -84,39 +91,42 @@ export LEAN_PATH
 $(shell echo "#!/bin/bash" > set_LEAN_PATH.sh)
 $(shell echo "export LEAN_PATH=${LEAN_PATH}" >> set_LEAN_PATH.sh)
 
-
-MAKEDEPEND = $(LEAN) --deps $< | sed 's@${SRCROOT}/@@p' | sort -u | xargs echo "$(BUILDDIR)/$*.c $*.olean:" > $@
-
+realall: $(OLEANFILES) 
 
 depend: ${DEPFILES}
 
-$(BUILDDIR)/sim : ${CLEANFILES} ${EXTRAOBJFILES} build/simulator/Main.cpp
+# $(BUILDDIR)/sim : ${CLEANFILES} ${EXTRAOBJFILES} build/simulator/Main.cpp
+# 	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cxxflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86 asmparser` -lstdc++ -lm
+
+# $(BINDIR)/test-sym : ${CLEANFILES} ${EXTRAOBJFILES} build/test-symbolic/Main.cpp
+# 	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cxxflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86 asmparser` -lstdc++ -lm
+
+# $(BUILDDIR)/driver: ${CLEANFILES} ${EXTRAOBJFILES} build/deps/lean-llvm/src/Driver.cpp
+# 	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cxxflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86 asmparser` -lstdc++ -lm
+
+$(BINDIR)/reopt-vcg : ${CLEANFILES} ${EXTRAOBJFILES} build/app/Main.c | ${BINDIR}
 	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cxxflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86 asmparser` -lstdc++ -lm
 
-$(BUILDDIR)/test-sym : ${CLEANFILES} ${EXTRAOBJFILES} build/test-symbolic/Main.cpp
-	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cxxflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86 asmparser` -lstdc++ -lm
+# $(BUILDDIR)/reopt-vcg-unit-test : ${CLEANFILES} ${EXTRAOBJFILES} build/tests/Main.cpp
+# 	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cxxflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86 asmparser` -lstdc++ -lm
 
-$(BUILDDIR)/driver: ${CLEANFILES} ${EXTRAOBJFILES} build/deps/lean-llvm/src/Driver.cpp
-	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cxxflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86 asmparser` -lstdc++ -lm
+${OLEANDIRS} ${CLEANDIRS} ${DEPDIRS} ${EXTRAOBJDIRS} ${BINDIR}:
+	$(call cmd,MKDIR)
 
-$(BUILDDIR)/reopt-vcg : ${CLEANFILES} ${EXTRAOBJFILES} build/app/Main.cpp
-	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cxxflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86 asmparser` -lstdc++ -lm
+$(DEPDIR)/%.d: %.lean | ${OLEANDIRS} $(DEPDIRS)
+	$(call cmd,MAKEDEPEND)
 
-$(BUILDDIR)/reopt-vcg-unit-test : ${CLEANFILES} ${EXTRAOBJFILES} build/tests/Main.cpp
-	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cxxflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86 asmparser` -lstdc++ -lm
-
-
-
-%.d: %.lean
-	$(MAKEDEPEND)
+quiet_cmd_LEAN = LEAN $<
+      cmd_LEAN = $(LEAN) --o=$(OLEANDIR)/$*.olean --c="$(OBJDIR)/$*.c" $<
 
 # could do this when making the olean
-$(BUILDDIR)/%.cpp %.olean: %.lean
-	@mkdir -p ${dir $(BUILDDIR)/$*.cpp}
-	$(LEAN) --c="$(BUILDDIR)/$*.cpp.tmp" --make $<
-	mv $(BUILDDIR)/$*.cpp.tmp $(BUILDDIR)/$*.cpp
+$(OBJDIR)/%.c $(OLEANDIR)/%.olean: %.lean | ${OLEANDIRS} $(OBJDIRS)
+	$(call cmd,LEAN)
 
-$(BUILDDIR)/%.o: %.cpp
+# mv $(BUILDDIR)/$*.cpp.tmp $(BUILDDIR)/$*.cpp
+
+# | ${EXTRAOBJDIRS}
+$(EXTRAOBJDIR)/%.o: %.cpp
 	@mkdir -p $(@D)
 	$(CXX) $(CXXFLAGS) -o $@ -c $^
 
@@ -126,10 +136,7 @@ $(BUILDDIR)/deps/llvm-tablegen-support/src/%: CXXFLAGS += -g -O3 -I deps/llvm-ta
 
 $(BUILDDIR)/deps/lean-llvm/src/%: CXXFLAGS += -g -O3 -I deps/llvm-tablegen-support/src/ -I deps/llvm-tablegen-support/llvm-files/ `${LLVM_CONFIG} --cxxflags` -I${LEANDIR}/include/ -I${LEANDIR}/include/runtime -std=c++14 -fexceptions
 
-
-
 clean:
 	rm -f ${DEPFILES} ${OLEANFILES}
-
 
 include ${DEPFILES}
