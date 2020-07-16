@@ -1,4 +1,6 @@
 
+import Std.Data.PersistentHashMap
+open Std (PHashMap)
 
 namespace SMT
 
@@ -186,7 +188,7 @@ private def reservedIdList : List String :=
 "!="
 ]
 
-private def reservedIdTable : PHashMap String Unit := reservedIdList.foldl (λ m kw => m.insert kw ()) PersistentHashMap.empty
+private def reservedIdTable : PHashMap String Unit := reservedIdList.foldl (λ m kw => m.insert kw ()) Std.PersistentHashMap.empty
 
 private def isReservedId (x:String) : Bool := reservedIdTable.contains x
 
@@ -226,7 +228,7 @@ def genId (idGen : IdGen) (suggestedName : String) : (IdGen × String) :=
   (⟨idGen.usedIds.insert sym tries⟩, name)
 
 
-def empty : IdGen := IdGen.mk PersistentHashMap.empty
+def empty : IdGen := IdGen.mk Std.PersistentHashMap.empty
 
 end IdGen
 

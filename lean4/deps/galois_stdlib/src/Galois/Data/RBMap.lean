@@ -1,4 +1,7 @@
 
+import Std.Data.RBMap
+
+namespace Std
 namespace RBMap
 universes u v w
 variables {α : Type u} {β : Type v}
@@ -41,3 +44,4 @@ namespace RBMap
 
 
 end RBMap
+end Std

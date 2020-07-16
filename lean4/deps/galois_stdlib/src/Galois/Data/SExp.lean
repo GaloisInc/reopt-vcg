@@ -47,25 +47,25 @@ Sigma (ParseState α) →
 Except String (SExp α × String)
 | [], state => 
   match state with
-  | ⟨_, init _⟩ => parseFail $ "input was empty"
+  | ⟨_, init⟩ => parseFail $ "input was empty"
   | ⟨_, inAtom x xs aPrev⟩ =>
     match aPrev with
-    | init _ => do
+    | init => do
       a ← parseAtom $ revStr x xs;
       pure (atom a, "")
     | inList _ _ => parseFail "missing closing parenthesis"
   | ⟨_, inList _ _⟩ => parseFail "missing closing parenthesis"
 | (c::cs), state =>
   match state with
-  | ⟨_, init _⟩ =>
-    if c.isWhitespace then readAux cs ⟨Tag.nonAtom, init α⟩
-    else if c == '(' then readAux cs $ ⟨Tag.nonAtom, inList [] (init α)⟩
+  | ⟨_, init⟩ =>
+    if c.isWhitespace then readAux cs ⟨Tag.nonAtom, init⟩
+    else if c == '(' then readAux cs $ ⟨Tag.nonAtom, inList [] init⟩
     else if c == ')' then parseFail "unexpected closing parenthesis"
-    else readAux cs $ ⟨Tag.atom, inAtom c [] (init α)⟩
+    else readAux cs $ ⟨Tag.atom, inAtom c [] init⟩
   | ⟨_, inAtom x xs prev⟩ =>
     if c.isWhitespace then 
       match prev with
-      | init _ => do
+      | init => do
         a ← parseAtom $ revStr x xs;
         pure (atom a, "")
       | inList ys ysPrev => do
@@ -74,16 +74,16 @@ Except String (SExp α × String)
     else if c == '(' then do
         a ← parseAtom $ revStr x xs;
         match prev with
-        | init _ => pure (atom a, (c::cs).asString)
+        | init => pure (atom a, (c::cs).asString)
         | inList zs zsPrev => readAux cs $ ⟨Tag.nonAtom, inList [] (inList (atom a::zs) zsPrev)⟩
     else if c == ')' then do
         a ← (parseAtom $ revStr x xs).map atom;
         match prev with
-        | init _ => pure (a, (c::cs).asString)
+        | init => pure (a, (c::cs).asString)
         | inList ys ysPrev =>
           let l := list (a::ys).reverse;
           match ysPrev with
-          | init _ => pure (l, cs.asString)
+          | init => pure (l, cs.asString)
           | inList zs zsPrev => readAux cs $ ⟨Tag.nonAtom, inList (l::zs) zsPrev⟩
     else readAux cs $ ⟨Tag.atom, inAtom c (x::xs) prev⟩
   | ⟨_, inList xs xsPrev⟩ =>
@@ -91,7 +91,7 @@ Except String (SExp α × String)
     else if c == '(' then readAux cs $ ⟨Tag.nonAtom, inList [] $ inList xs xsPrev⟩
     else if c == ')' then
       match xsPrev with
-      | init _ => pure (list xs.reverse, cs.asString)
+      | init => pure (list xs.reverse, cs.asString)
       | inList zs zsPrev => readAux cs $ ⟨Tag.nonAtom, inList ((list xs.reverse)::zs) zsPrev⟩
     else readAux cs $ ⟨Tag.atom, inAtom c [] $ inList xs xsPrev⟩
 
@@ -105,7 +105,7 @@ def read
 (parseAtom : String → Except String α)
 (str: String) 
 : Except String (SExp α × String) :=
-readAux parseAtom str.data ⟨Tag.nonAtom, init α⟩
+readAux parseAtom str.data ⟨Tag.nonAtom, init⟩
 
 /-- Like `read` but does not return the remainder of the input string. --/
 def readSExp
@@ -123,7 +123,7 @@ def readSExps
 (parseAtom : String → Except String α)
 (str: String)
 : Except String (List (SExp α)) := do
-(ss, _) ← readAux parseAtom (str.data ++ [')']) ⟨Tag.nonAtom, inList [] (init α)⟩;
+(ss, _) ← readAux parseAtom (str.data ++ [')']) ⟨Tag.nonAtom, inList [] init⟩;
 match ss with
 | atom a => pure [ss]
  -- ^ not technically possible given how the parser works but that's not locally obvious

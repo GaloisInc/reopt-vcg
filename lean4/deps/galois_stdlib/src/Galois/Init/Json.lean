@@ -3,6 +3,8 @@ import Lean.Data.Json
 import Std.Data.RBMap
 universes u
 
+open Std (RBMap)
+
 -- Missing stuff
 namespace Lean.Json
 
@@ -111,8 +113,8 @@ partial def isEqv : Json → Json → Bool
   | Option.none, Option.none => true
   | Option.some ⟨k1,v1⟩, Option.some ⟨k2,v2⟩ =>
     if k1 = k2 && isEqv v1 v2 then
-      let o1 := obj $ RBNode.erase Lean.strLt k1 kvs1;
-      let o2 := obj $ RBNode.erase Lean.strLt k2 kvs2;
+      let o1 := obj $ Std.RBNode.erase Lean.strLt k1 kvs1;
+      let o2 := obj $ Std.RBNode.erase Lean.strLt k2 kvs2;
       isEqv o1 o2
     else 
       false
