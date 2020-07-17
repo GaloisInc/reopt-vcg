@@ -247,6 +247,17 @@ def mcAssignRead (addr : x86.vcg.memaddr) (s : SMT.sort) (smtVar : SMT.term s) :
   v <- mcRead addr s;
   addAssert (SMT.eq smtVar v)
 
+
+-- FIXME: When well founded recursion is enabled, we want
+--       `execMCOnlyEvents` to be non-partial. It seems the measure
+--       for termination is more or less that at each call the pair
+--       `(BlockVCG.mcCurAddr, BlockVCG.mcEvents.length)` takes a
+--       non-zero step towards `(endAddr, 0)`. I.e., that at each
+--       step, BlockVCG.mcEvents.length decreases, or `mcCurAddr` is
+--       incremented but does not pass `endAddr`. This relies on the
+--       `getNextEvents` function incrementing `mcCurAddr` in the
+--       current `BlockVCG` context and that `mcCurSize` is always
+--       non-zero.
 -- | Execute the machine-code only events that occur before jumping to the given address
 partial
 def execMCOnlyEvents : MemAddr -> BlockVCG Unit
