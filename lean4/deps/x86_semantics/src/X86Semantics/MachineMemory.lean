@@ -1,7 +1,10 @@
 
+import Std.Data.RBMap
 import Galois.Init.Nat
 import Galois.Data.Bitvec
 import X86Semantics.BufferMap
+
+open Std (RBMap)
 
 @[reducible]
 def memaddr  := bitvec 64
@@ -45,14 +48,14 @@ def region := ByteArray
 --   array.to_buffer (array.map' (fun (c : char) => bitvec.of_nat _ c.val) b.to_array)
 
 /- Construction -/
-def empty : memory := memory.mk buffer_map.empty (mkRBMap _ _ (fun x y => decide (bitvec.ult x y)))
+def empty : memory := memory.mk buffer_map.empty (Std.mkRBMap _ _ (fun x y => decide (bitvec.ult x y)))
 
 def from_init (i : init_memory) : memory := { empty with init := i }
 
 /- Reading and writing -/
 
 def store_bytes (m : memory) (addr : memaddr) (bs : List byte) : memory := 
-  { m with mem := (List.foldl (fun (v : mutable_memory × memaddr) b => (RBMap.insert v.fst v.snd b, v.snd + 1)) (m.mem, addr) bs).fst }
+  { m with mem := (List.foldl (fun (v : mutable_memory × memaddr) b => (Std.RBMap.insert v.fst v.snd b, v.snd + 1)) (m.mem, addr) bs).fst }
  
 -- lemma {u v} option.bind.is_some {a : Type u} {b : Type v} {v : option a} {f : a -> option b} {x : b}:
 --   option.bind v f = some x -> (∃v', v = some v' ∧ f v' = some x) :=
