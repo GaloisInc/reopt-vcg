@@ -76,13 +76,14 @@ build-dirs = $(sort $(foreach ld,$(1),$(dir $(ld))))
 # `Foo.c Foo.olean: DEPENDENCY1.olean ... DEPENDENCYN.olean` describing the
 # N files that lean file depends on
 DEPFILES := $(addprefix $(DEPDIR)/,$(LEANFILES:.lean=.d)) $(addprefix $(DEPDIR)/,app/Main.d)# test-symbolic/Main.lean app/Main.lean}
-DEPDIRS  := $(call build-dirs,$(DEPFILES))
+DEPDIRS  := $(call build-dirs,$(DEPFILES)) 
 
-OLEANFILES := $(addprefix $(OLEANDIR)/,$(LEANFILES:.lean=.olean))
+OLEANFILES := $(addprefix $(OLEANDIR)/,$(LEANFILES:.lean=.olean)) $(addprefix $(OLEANDIR)/,app/Main.olean)
 OLEANDIRS  := $(call build-dirs,$(OLEANFILES))
 
 CLEANFILES := $(addprefix $(OBJDIR)/,$(LEANFILES:.lean=.c))
-CLEANDIRS  := $(call build-dirs,$(CLEANFILES))
+# we don't stick Main.c in CLEANFILES as we don't want them all linked in to all apps
+CLEANDIRS  := $(call build-dirs,$(CLEANFILES) $(addprefix $(OBJDIR)/,app/Main.c))
 
 CXXFLAGS += -fPIC -ggdb3
 CFLAGS   += -fPIC -ggdb3
@@ -91,7 +92,7 @@ export LEAN_PATH
 $(shell echo "#!/bin/bash" > set_LEAN_PATH.sh)
 $(shell echo "export LEAN_PATH=${LEAN_PATH}" >> set_LEAN_PATH.sh)
 
-realall: $(OLEANFILES) 
+realall: $(BINDIR)/reopt-vcg
 
 depend: ${DEPFILES}
 
@@ -130,11 +131,11 @@ $(EXTRAOBJDIR)/%.o: %.cpp
 	@mkdir -p $(@D)
 	$(CXX) $(CXXFLAGS) -o $@ -c $^
 
-$(BUILDDIR)/deps/galois_stdlib/src/Galois/Init/%: CXXFLAGS += -I${LEANDIR}/include -std=c++14
+$(EXTRAOBJDIR)/deps/galois_stdlib/src/Galois/Init/%: CXXFLAGS += -I${LEANDIR}/include -std=c++14
 
-$(BUILDDIR)/deps/llvm-tablegen-support/src/%: CXXFLAGS += -g -O3 -I deps/llvm-tablegen-support/src/ -I deps/llvm-tablegen-support/llvm-files/ `${LLVM_CONFIG} --cxxflags` -I${LEANDIR}/include/ -I${LEANDIR}/include/runtime -std=c++14 -fexceptions
+$(EXTRAOBJDIR)/deps/llvm-tablegen-support/src/%: CXXFLAGS += -g -O3 -I deps/llvm-tablegen-support/src/ -I deps/llvm-tablegen-support/llvm-files/ `${LLVM_CONFIG} --cxxflags` -I${LEANDIR}/include/ -I${LEANDIR}/include/runtime -std=c++14 -fexceptions
 
-$(BUILDDIR)/deps/lean-llvm/src/%: CXXFLAGS += -g -O3 -I deps/llvm-tablegen-support/src/ -I deps/llvm-tablegen-support/llvm-files/ `${LLVM_CONFIG} --cxxflags` -I${LEANDIR}/include/ -I${LEANDIR}/include/runtime -std=c++14 -fexceptions
+$(EXTRAOBJDIR)/deps/lean-llvm/src/%: CXXFLAGS += -g -O3 -I deps/llvm-tablegen-support/src/ -I deps/llvm-tablegen-support/llvm-files/ `${LLVM_CONFIG} --cxxflags` -I${LEANDIR}/include/ -I${LEANDIR}/include/runtime -std=c++14 -fexceptions
 
 clean:
 	rm -f ${DEPFILES} ${OLEANFILES}

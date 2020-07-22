@@ -12,6 +12,8 @@ import X86Semantics.BufferMap
 import Galois.Init.Io
 import Galois.Init.Nat
 
+open Std (RBMap)
+
 def repeat {α : Type} {m : Type → Type} [Applicative m] : Nat → m α → m (List α)
 | 0, m => pure []
 | (Nat.succ n),  m => List.cons <$> m <*> repeat n m
@@ -181,7 +183,7 @@ def ELFOSABI_STANDALONE := osabi.mk 255
 
 
 private def nameMap : RBMap osabi String osabi.lt :=
-RBMap.fromList
+Std.RBMap.fromList
   [ (ELFOSABI_SYSV, "SYSV")
   , (ELFOSABI_HPUX, "HPUX")
   , (ELFOSABI_NETBSD, "NETBSD")
@@ -487,14 +489,14 @@ end phdr
 
 def read_phdr : ∀(c:elf_class), file_reader (phdr c)
 | ELF32 => do
-  tp ← elf_file_data.read;
-  offset ← elf_file_data.read;
-  vaddr  ← elf_file_data.read;
-  paddr  ← elf_file_data.read;
-  filesz ← elf_file_data.read;
-  memsz  ← elf_file_data.read;
-  flags ← elf_file_data.read;
-  align  ← elf_file_data.read;
+  tp ← elf_file_data.read _;
+  offset ← elf_file_data.read _;
+  vaddr  ← elf_file_data.read _;
+  paddr  ← elf_file_data.read _;
+  filesz ← elf_file_data.read _;
+  memsz  ← elf_file_data.read _;
+  flags ← elf_file_data.read _;
+  align  ← elf_file_data.read _;
   pure { phdr_type := tp
        , flags := flags
        , offset := offset
@@ -505,14 +507,14 @@ def read_phdr : ∀(c:elf_class), file_reader (phdr c)
        , align := align
        }
 | ELF64 => do
-  tp ← elf_file_data.read;
-  flags ← elf_file_data.read;
-  offset ← elf_file_data.read;
-  vaddr  ← elf_file_data.read;
-  paddr  ← elf_file_data.read;
-  filesz ← elf_file_data.read;
-  memsz  ← elf_file_data.read;
-  align  ← elf_file_data.read;
+  tp ← elf_file_data.read _;
+  flags ← elf_file_data.read _;
+  offset ← elf_file_data.read _;
+  vaddr  ← elf_file_data.read _;
+  paddr  ← elf_file_data.read _;
+  filesz ← elf_file_data.read _;
+  memsz  ← elf_file_data.read _;
+  align  ← elf_file_data.read _;
   pure { phdr_type := tp
        , flags := flags
        , offset := offset
@@ -759,7 +761,7 @@ def EM_RISCV       := machine.mk 243
 -- ^ RISC-V
 
 private def nameMap : RBMap machine String machine.lt :=
-RBMap.fromList 
+Std.RBMap.fromList 
   [ (EM_NONE, "EM_NONE") 
   , (EM_M32, "EM_M32")
   , (EM_SPARC, "EM_SPARC")
@@ -924,20 +926,20 @@ end ehdr
 
 -- Read the remainder of the elf header after the first 16 bytes for the info.
 def read_ehdr_remainder (i : info) : file_reader (ehdr i.elf_class) := do
-  tp ← elf_file_data.read;
-  mach ← elf_file_data.read;
+  tp ← elf_file_data.read _;
+  mach ← elf_file_data.read _;
   ver ← file_reader.read_u32;
   when (ver ≠ 1) (throw $ "Unexpected version: " ++ repr ver.toNat);
-  entry ← elf_file_data.read;
-  phoff ← elf_file_data.read;
-  shoff ← elf_file_data.read;
-  flags ← elf_file_data.read;
+  entry ← elf_file_data.read _;
+  phoff ← elf_file_data.read _;
+  shoff ← elf_file_data.read _;
+  flags ← elf_file_data.read _;
   _ehsize ← file_reader.read_u16;
   _phentsize ← file_reader.read_u16;
-  phnum ← elf_file_data.read;
+  phnum ← elf_file_data.read _;
   _shentsize ← file_reader.read_u16;
-  shnum ← elf_file_data.read;
-  shstrndx ← elf_file_data.read;
+  shnum ← elf_file_data.read _;
+  shstrndx ← elf_file_data.read _;
   pure { elf_data := i.elf_data
        , osabi    := i.osabi
        , abi_version := i.abi_version

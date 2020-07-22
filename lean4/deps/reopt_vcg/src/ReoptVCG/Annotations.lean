@@ -2,7 +2,7 @@ import Galois.Data.RBMap
 import Galois.Data.SExp
 import Galois.Init.Json
 import Galois.Init.Nat
-import Std.Data.UInt
+import Init.Data.UInt
 import Lean.Data.Json
 import Lean.Data.Json.Basic
 import Lean.Data.Json.Printer
@@ -13,6 +13,8 @@ import ReoptVCG.Elf
 import ReoptVCG.SMTParser
 import SMTLIB.Syntax
 import X86Semantics.Common
+
+open Std (RBMap)
 
 namespace LLVM
 namespace ident
@@ -45,9 +47,9 @@ pure $ FunctionAnn.mk name blocks
 def FunctionAnn.fromJson (js : Json) : Option FunctionAnn := (parseFunctionAnn js).toOption
 
 def FunctionAnn.toJson (fnAnn : FunctionAnn) : Json :=
-toJson $ RBMap.fromList [ ("llvm_name", toJson fnAnn.llvmFunName)
-                        , ("blocks", toJson fnAnn.blocks)]
-                        Lean.strLt
+toJson $ Std.RBMap.fromList [ ("llvm_name", toJson fnAnn.llvmFunName)
+                            , ("blocks", toJson fnAnn.blocks)]
+                            Lean.strLt
 
 instance FunctionAnn.hasFromJson : HasFromJson FunctionAnn := ⟨FunctionAnn.fromJson⟩
 instance FunctionAnn.hasToJson : HasToJson FunctionAnn := ⟨FunctionAnn.toJson⟩
@@ -90,12 +92,12 @@ def ModuleAnnotations.fromJson (js : Json) : Option ModuleAnnotations :=
 (parseAnnotations js).toOption
 
 def ModuleAnnotations.toJson (ann : ModuleAnnotations) : Json :=
-toJson $ RBMap.fromList [ ("llvm_path", toJson ann.llvmFilePath)
-                        , ("binary_path", toJson ann.binFilePath)
-                        , ("page_size", toJson ann.pageSize)
-                        , ("stack_guard_pages", toJson ann.stackGuardPageCount)
-                        , ("functions", toJson ann.functions.toArray)
-                        ]
+toJson $ Std.RBMap.fromList [ ("llvm_path", toJson ann.llvmFilePath)
+                            , ("binary_path", toJson ann.binFilePath)
+                            , ("page_size", toJson ann.pageSize)
+                            , ("stack_guard_pages", toJson ann.stackGuardPageCount)
+                            , ("functions", toJson ann.functions.toArray)
+                            ]
                         Lean.strLt
 
 instance ModuleAnnotations.hasFromJson : HasFromJson ModuleAnnotations :=
@@ -198,12 +200,12 @@ def AllocaAnn.fromJson (js : Json) : Option AllocaAnn :=
 (parseAllocaAnn js).toOption
 
 def AllocaAnn.toJson (ann : AllocaAnn) : Json := 
-toJson $ RBMap.fromList [ ("llvm_ident", toJson ann.ident)
-                        , ("offset", toJson ann.binOffset)
-                        , ("size", toJson ann.size)
-                        , ("existing", toJson ann.existing)
-                        ]
-                        Lean.strLt
+toJson $ Std.RBMap.fromList [ ("llvm_ident", toJson ann.ident)
+                            , ("offset", toJson ann.binOffset)
+                            , ("size", toJson ann.size)
+                            , ("existing", toJson ann.existing)
+                            ]
+                            Lean.strLt
 
 instance AllocaAnn.hasFromJson : HasFromJson AllocaAnn :=
 ⟨AllocaAnn.fromJson⟩
@@ -407,7 +409,7 @@ x87Top ← parseObjValAsNatD js "x87_top" ReachableBlockAnn.x87TopDefault;
 dfFlag ← parseObjValAsBoolD js "df_flag" ReachableBlockAnn.dfFlagDefault;
 preconds ← parseObjValAsArrWithD (parsePrecondition llvmMap) js "preconditions" ReachableBlockAnn.precondsDefault;
 allocas ← parseObjValAsArrWithD parseAllocaAnn js "allocas" ReachableBlockAnn.allocasArrayDefault;
-let allocaMap := RBMap.fromList (allocas.toList.map (λ a => (a.ident, a))) (λ x y => x<y);
+let allocaMap := Std.RBMap.fromList (allocas.toList.map (λ a => (a.ident, a))) (λ x y => x<y);
 memoryEvents ← parseObjValAsArrWithD parseMCMemoryEvent js "mem_events" ReachableBlockAnn.memoryEventsDefault;
 pure $ {startAddr := addr,
         codeSize := size,
@@ -428,11 +430,11 @@ else pure BlockAnn.unreachable
 
 def BlockAnn.toJson (block_label:String) : BlockAnn → Json
 | BlockAnn.unreachable =>
-  toJson $ RBMap.fromList [("label", toJson block_label),
-                           ("reachable", toJson false)]
-                        Lean.strLt
+  toJson $ Std.RBMap.fromList [("label", toJson block_label),
+                              ("reachable", toJson false)]
+                              Lean.strLt
 | BlockAnn.reachable ann =>
-  toJson $ RBMap.fromList 
+  toJson $ Std.RBMap.fromList 
            [("label", toJson block_label),
             ("addr", toJson ann.startAddr),
             ("size", toJson ann.codeSize),

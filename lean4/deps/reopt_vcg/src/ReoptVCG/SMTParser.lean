@@ -5,6 +5,8 @@ import LeanLLVM.AST
 import X86Semantics.Common
 import ReoptVCG.WordSize
 
+open Std (RBMap)
+
 namespace ReoptVCG
 
 section
