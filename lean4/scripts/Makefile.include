@@ -1,0 +1,79 @@
+# -*- makefile -*-
+
+# This file includes all the supporting make definitions etc. for building a collection of lean packages.
+
+# Where do we put the build files?
+
+OLEANDIR    := ${BUILDDIR}/build/olean
+DEPDIR      := ${BUILDDIR}/build/d
+OBJDIR      := ${BUILDDIR}/build/compiled
+EXTRAOBJDIR := ${BUILDDIR}/build/extraobjs
+BINDIR      := ${BUILDDIR}/bin
+
+# These are exported by the Makefile.includes (see add-package)
+LEAN_PATH :=
+LEANFILES :=
+OLEANPKGDIRS :=
+DEPDIRS :=
+EXTRACFILES :=
+
+TARGETS :=
+
+# helper functions
+
+# Supporting functions
+relsrcpath = $(patsubst ${SRCROOT}/%,%,$(1))
+
+# this ensures there are no duplicates (which breaks make)
+add-dirs   = $(sort $(1) $(2))
+
+# Names aren't important, just don't use those defined above.  ALl filenames and dirs should be
+# relative to the directory the Makefile.include is in
+#
+# PKGROOT    := src
+# LOCAL_LEAN := src/Foo/Bar/Baz.lean src/Foo/Bat/Boo.lean
+# LOCAL_CXX  := src/ffi/ffi.cpp src/ffi/helpers.c
+# $(call add-package,${PKGROOT},${LOCAL_LEAN},${LOCAL_CXX})
+
+define add-package
+# Get the (absolute) directory of the current Makefile.include and
+# make it relative to SRCROOT, contains any trailing /
+HERE    := $$(call relsrcpath,$$(call makefile-directory))
+
+# Add the package root to the LEAN_PATH
+LEAN_PATH :=${LEAN_PATH}:${OLEANDIR}/$$(HERE)/$(1)
+
+LOCAL_LEANFILES := $$(addprefix $${HERE}/,$(2))
+LEANFILES += $${LOCAL_LEANFILES}
+
+EXTRACFILES  += $$(addprefix $${HERE},$(3))
+
+endef
+
+# define add-target =
+# TARGETS += $(BINDIR)/$(1)
+
+# endef
+
+# We follow roughly how the linux kernel make does this --- we print
+# out the command before we invoke it, and what we print depend on the
+# value of $(quiet) --- if we have verbose makes (V is defined) we
+# print out the command, otherwise we print out the quiet_command
+
+ifeq ($(V),1)
+  quiet=
+else
+  quiet=quiet_
+endif
+
+define cmd
+@echo "\t$($(quiet)cmd_$(1))"
+@$(call cmd_$(1))
+endef
+
+      cmd_MAKEDEPEND = $(LEAN) --deps $< | sed 's@${SRCROOT}/@@p' | sort -u | xargs echo "$(OBJDIR)/$*.c $(OLEANDIR)/$*.olean:" > $@
+quiet_cmd_MAKEDEPEND = DEPEND $<
+
+      cmd_MKDIR    = mkdir -p $@
+quiet_cmd_MKDIR    = MKDIR $@
+
