@@ -36,7 +36,7 @@ namespace one_of
 
 -- FIXME: fix this when we get tactics
 def to_nat {l:List Nat} : one_of l → Nat
-| (one_of.elem x) => x
+| (one_of.elem _ x) => x
 
 instance (l:List Nat) : HasCoe (one_of l) Nat :=
 ⟨ one_of.to_nat ⟩
@@ -317,7 +317,7 @@ namespace reg
 protected
 def repr : ∀{tp:type}, reg tp -> String
 | _, (concrete r) => r.repr
-| _, (arg idx)    => "arg" ++ idx.repr
+| _, (arg _ idx)    => "arg" ++ idx.repr
 
 end reg
 
@@ -331,7 +331,7 @@ inductive addr (tp:type) : Type
 namespace addr
 
 protected def repr {tp:type} : addr tp → String
-| (arg idx) => idx.repr
+| (arg _ idx) => idx.repr
 
 end addr
 
@@ -636,11 +636,11 @@ def bit_xor           (x y : expression bit)                         : expressio
 def bv_nat (w:Nat) (x : Nat) : expression (bv w) := prim.bv_nat w x
 
 def read_addr {tp:type} : addr tp → expression tp
-| (addr.arg idx) => expression.read_arg idx tp
+| (addr.arg _ idx) => expression.read_arg idx tp
 
 def of_reg {tp:type} : reg tp → expression tp
 | (reg.concrete r) => expression.get_reg r
-| (reg.arg a) => expression.read_arg a tp
+| (reg.arg _ a) => expression.read_arg a tp
 
 instance addr_is_expression (tp:type) : HasCoe (addr tp) (expression tp) :=
 ⟨ expression.read_addr ⟩
@@ -710,11 +710,11 @@ inductive lhs : type → Type
 namespace lhs
 
 def of_addr {tp:type} : addr tp → lhs tp
-| (addr.arg idx) => lhs.write_arg idx tp
+| (addr.arg _ idx) => lhs.write_arg idx tp
 
 def of_reg {tp:type} : reg tp → lhs tp
 | (reg.concrete r) => lhs.set_reg r
-| (reg.arg idx) => lhs.write_arg idx tp
+| (reg.arg _ idx) => lhs.write_arg idx tp
 
 end lhs
 
@@ -893,12 +893,12 @@ class is_bound_var (tp:Type) :=
 
 instance reg_is_bound_var (tp:type) : is_bound_var (reg tp) :=
 { to_binding := binding.reg tp
-, mk_arg := fun i => reg.arg i
+, mk_arg := fun i => reg.arg _ i
 }
 
 instance addr_is_bound_var (tp:type) : is_bound_var (addr tp) :=
 { to_binding := binding.addr tp
-, mk_arg := fun i => addr.arg i
+, mk_arg := fun i => addr.arg _ i
 }
 
 instance imm_is_bound_var (tp:type) : is_bound_var (imm tp) :=
@@ -951,7 +951,7 @@ protected
 def next_local_index : semantics Nat :=
   { monad := do
       s ← get;
-      set { local_variable_count := s.local_variable_count + 1, .. s };
+      set { s with local_variable_count := s.local_variable_count + 1 };
       pure s.local_variable_count
   }
 
@@ -1022,10 +1022,10 @@ instance pi_is_pattern_def
   [is_bound_var tp]
   (ctx:context)
   (β:tp → Type)
-  [pattern_def (context.insert (is_bound_var.to_binding tp) ctx) (β (is_bound_var.mk_arg ctx.length))]
+  [pattern_def (context.insert (is_bound_var.to_binding tp) ctx) (β (is_bound_var.mk_arg _ ctx.length))]
 : pattern_def ctx (∀(w: tp), β w) :=
 { define := fun f => do
-    pattern_def.define (context.insert (is_bound_var.to_binding tp) ctx) (f (is_bound_var.mk_arg ctx.length))
+    pattern_def.define (context.insert (is_bound_var.to_binding tp) ctx) (f (is_bound_var.mk_arg _ ctx.length))
 }
 
 class one_of_pattern_def (ctx : context) (ls : List Nat) (sls : List Nat) -- (pf : isSuffixOf sls ls)
@@ -1040,12 +1040,12 @@ instance nil_one_of_pattern_def
 instance cons_one_of_pattern_def
   (ctx : context) (ls : List Nat) (v : Nat) (sls : List Nat) (tpc: one_of ls -> Type)
   [ h : one_of_pattern_def ctx ls sls tpc ]
-  [ pattern_def ctx (tpc (one_of.elem v)) ]
+  [ pattern_def ctx (tpc (one_of.elem _ v)) ]
 : one_of_pattern_def ctx ls (v :: sls) tpc :=
 { list_define := fun f => 
               -- we reverse at the end, so this ensures order is preserved
               List.append (@one_of_pattern_def.list_define ctx ls sls tpc h f)
-                          (pattern_def.define ctx (f (one_of.elem v)))
+                          (pattern_def.define ctx (f (one_of.elem _ v)))
                           
 }
 

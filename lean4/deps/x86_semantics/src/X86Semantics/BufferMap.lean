@@ -15,7 +15,7 @@ universe u
 variables {k : Type u} {distance : k -> k -> Int}
 
 /- construction -/
-def empty : buffer_map k distance := buffer_map.mk distance []
+def empty : buffer_map k distance := buffer_map.mk []
 
 /- lookup -/
 def in_entry (key : k) (e : entry k) : Prop :=
@@ -50,7 +50,7 @@ def lookup_buffer (m : buffer_map k distance) := @buffer_map.lookup_buffer' k di
 
 -- FIXME: add overlap check
 def insert (m : buffer_map k distance) (start : k) (value : ByteArray) : buffer_map k distance :=
-  buffer_map.mk distance ({ start := start, value := value } :: m.entries)
+  buffer_map.mk ({ start := start, value := value } :: m.entries)
 
 end 
 

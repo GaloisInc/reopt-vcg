@@ -1,4 +1,7 @@
 
+import Std.Data.RBMap
+open Std (RBMap)
+
 namespace decodex86
 
 @[reducible]
@@ -235,7 +238,7 @@ instance unknown_bytes_has_repr : HasRepr unknown_byte := ⟨fun i => "???" ++ r
 
 def operand_memtyp_map : RBMap String Nat (fun s1 s2 => decide (s1 < s2)) :=
   List.foldl (fun m (v : String × Nat) => m.insert v.fst v.snd) 
-       RBMap.empty
+       Std.RBMap.empty
        [("anymem"       , 0  )   -- ??
        ,("f128mem"      , 128) 
        ,("f256mem"      , 256) 
