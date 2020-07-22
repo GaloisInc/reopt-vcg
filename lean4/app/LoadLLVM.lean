@@ -1,5 +1,6 @@
 
 import LeanLLVM.LLVMLib
+import LeanLLVM.Load
 
 namespace ReoptVCG
 
@@ -9,7 +10,9 @@ namespace ReoptVCG
 def loadLLVMModule (filePath : String) : IO LLVM.Module := do
 ctx ← LLVM.FFI.newContext;
 mb ← LLVM.FFI.newMemoryBufferFromFile filePath;
-b ← LLVM.FFI.parseAssembly mb ctx;
-LLVM.loadModule b
+b ← LLVM.parseAssembly mb ctx "e-m:e-i64:64-f80:128-n8:16:32:64-S128";
+match b with
+| Except.ok m => LLVM.loadModule m
+| Except.error msg => throw $ IO.userError $ "Failed to load LLVM module at `" ++ filePath ++ "`: " ++ msg
 
 end ReoptVCG

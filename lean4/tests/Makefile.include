@@ -3,6 +3,7 @@ LOCALFILES := AnnotationParsing.lean\
  Hex.lean\
  JsonRoundtrip.lean\
  LoadElf.lean\
+ LoadLLVM.lean\
  SExp.lean\
  SMTExport.lean
 LEANFILES += $(patsubst %,${HERE}/%,${LOCALFILES})
