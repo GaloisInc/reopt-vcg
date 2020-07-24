@@ -415,7 +415,7 @@ end Internal
 
 open Internal
 
-def instructionEvents ( evtMap : RBMap Nat MemoryAnn (fun x y => decide (x < y)) )
+def instructionEvents ( evtMap : Std.RBMap Nat MemoryAnn (fun x y => decide (x < y)) )
                       -- ^ Map from addresses to annotations of events on that address.
                       ( s : RegState )
                       -- ^ Initial values for registers

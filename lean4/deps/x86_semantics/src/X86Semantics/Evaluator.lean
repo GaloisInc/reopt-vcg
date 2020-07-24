@@ -1,9 +1,13 @@
 -- Evaluates actions in an environment.
 import Galois.Data.Bitvec
+import Std.Data.RBMap
 import X86Semantics.Common
 import X86Semantics.BackendAPI
 
 -- import .sexpr
+
+open Std (RBMap RBMap.fromList)
+
 
 axiom I_am_really_sorry : ∀(P : Prop),  P 
 
@@ -220,7 +224,7 @@ def run {a : Type} (m : evaluator a) (s : evaluator_state)
     (m.run s).run
 
 def run' {a : Type} (m : evaluator a) (e : environment) : M backend a :=
-  do r <- m.run { evaluator_state . environment := e, locals := {} };
+  do r <- m.run { environment := e, locals := {} };
      match r with
      | Except.ok v    => pure v.fst
      | Except.error e => throw e
@@ -330,12 +334,12 @@ def arg_value.set_value : @arg_value backend -> ∀{tp : type}, @value backend t
   | _, _, _ => throw "arg_value.set_value: not an lvalue"
 
 def addr.read : ∀{tp : type}, addr tp -> @evaluator backend (@value backend tp)
-  | tp, (addr.arg idx) => do 
+  | tp, (addr.arg _ idx) => do 
       av <- evaluator.arg_at_idx idx;
       arg_value.to_value av tp
 
 def addr.set : ∀{tp : type}, addr tp -> @value backend tp -> @evaluator backend Unit
-  | tp, (addr.arg idx), v => do 
+  | tp, (addr.arg _ idx), v => do 
       av <- evaluator.arg_at_idx idx; -- FIXME: we should really check if this is a memloc first.
       arg_value.set_value av v
 

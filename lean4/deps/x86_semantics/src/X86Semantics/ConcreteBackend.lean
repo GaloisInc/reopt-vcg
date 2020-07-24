@@ -1,5 +1,6 @@
 import Init.System.IO
 import Galois.Data.Bitvec
+import Std.Data.RBMap
 import X86Semantics.Common
 import X86Semantics.BackendAPI
 import X86Semantics.MachineMemory
@@ -10,7 +11,7 @@ namespace x86
 
 open mc_semantics
 open mc_semantics.type
-
+open Std (RBMap RBMap.fromList)
 
 axiom I_am_really_sorry2 : ∀(P : Prop),  P 
 
@@ -161,43 +162,47 @@ structure os_state :=
 def os_state.empty : os_state := os_state.mk 0 []
 
 -- Stacking like this makes it easier to derive MonadState
-def base_system_m := (StateT os_state (ExceptT String IO))
-def system_m := StateT machine_state base_system_m
+abbrev base_system_m := StateT os_state IO
+abbrev system_m := StateT machine_state base_system_m
 
-instance : Monad base_system_m :=
-  inferInstanceAs (Monad (StateT os_state (ExceptT String IO)))
 
-instance : MonadState os_state base_system_m :=
-  inferInstanceAs (MonadState os_state (StateT os_state (ExceptT String IO)))
+namespace base_system_m
 
-instance : MonadExcept String base_system_m :=
-  inferInstanceAs (MonadExcept String (StateT os_state (ExceptT String IO)))
+instance : MonadIO base_system_m :=
+  inferInstanceAs (MonadIO (StateT os_state IO))
 
-instance  : MonadIO base_system_m :=
-  inferInstanceAs (MonadIO (StateT os_state (ExceptT String IO)))
+end base_system_m
 
-instance system_m.Monad : Monad system_m :=
-  inferInstanceAs (Monad (StateT machine_state base_system_m))
+namespace system_m
 
-instance system_m.MonadState : MonadState machine_state system_m :=
-  inferInstanceAs (MonadState machine_state (StateT machine_state base_system_m))
-
-instance system_m.MonadExcept : MonadExcept String system_m :=
-  inferInstanceAs (MonadExcept String (StateT machine_state base_system_m))
-
-instance : HasMonadLiftT base_system_m system_m :=
-  inferInstanceAs (HasMonadLiftT base_system_m (StateT machine_state base_system_m))
-
-instance system_m.MonadIO : MonadIO system_m :=
+instance : MonadIO system_m :=
   inferInstanceAs (MonadIO (StateT machine_state base_system_m))
 
-def system_m.run {a : Type} (m : system_m a) (os : os_state) (s : machine_state) 
-  : IO (Except String ((a × machine_state) × os_state)) := do
-  ((m.run s).run os).run
+def throwString {α} (err : String) : system_m α := throw $ IO.userError err
+def catchString {α} (m : system_m α) (h : String → system_m α) : system_m α := 
+let handler : IO.Error → system_m α := 
+  λ e => match e with
+         | IO.Error.userError msg => h msg
+         | _ => throw e;
+catch m handler
 
--- def system_m.run' {a : Type} (m : system_m a) (s : machine_state) : IO (Except String a) := 
---   do x <- m.run os_state.empty s;
---      pure 
+-- FIXME `MonadIO` now requires a `MonadExcept IO.Error` instance,
+-- which means we now have two `MonadExcept _` instances for system_m,
+-- which can be a pain to deal with.
+instance : MonadExcept String system_m :=
+  {throw := @system_m.throwString,
+   catch := @system_m.catchString }
+
+end system_m
+
+
+def system_m.run {a : Type} (m : system_m a) (os : os_state) (s : machine_state) 
+  : IO (Except String ((a × machine_state) × os_state)) :=
+λ rw => match ((m.run s).run os).run rw with
+  | EStateM.Result.ok a rw'    => EStateM.Result.ok (Except.ok a) rw'
+  | EStateM.Result.error (IO.Error.userError msg) rw' => EStateM.Result.ok (Except.error msg) rw'
+  | EStateM.Result.error e rw' => EStateM.Result.error e rw'
+
 
 def emit_trace_event (e : trace_event) : system_m Unit :=
   monadLift (modify (fun (s : os_state) => { s with trace := (s.current_ip, e) :: s.trace }) : base_system_m Unit)
