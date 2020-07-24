@@ -89,7 +89,7 @@ structure ProverSessionGenerator :=
 (sessionComplete : IO UInt32)
 
 @[reducible]
-def LLVMTypeMap := RBMap String (Option LLVM.LLVMType) Lean.strLt
+def LLVMTypeMap := Std.RBMap String (Option LLVM.LLVMType) Lean.strLt
 
 
 structure ModuleVCGContext :=
@@ -97,7 +97,7 @@ structure ModuleVCGContext :=
 -- ^ Annotations for module.
 (decoder : decodex86.decoder )
 -- ^ Machine code memory / decoder state
-(symbolAddrMap : RBMap String (elf.word elf.elf_class.ELF64) Lean.strLt)
+(symbolAddrMap : Std.RBMap String (elf.word elf.elf_class.ELF64) Lean.strLt)
 -- ^ Maps bytes to the symbol name
 (writeStderr : Bool)
 -- ^ Controls whether logs, warnings or errors
@@ -183,12 +183,25 @@ def toIOError : ModuleError → IO.Error
 | e => IO.userError $ "Uncaught module VCG error: " ++ e.pp
 
 
+instance HasExceptModuleError : MonadExcept ModuleError (EIO ModuleError) :=
+inferInstanceAs (MonadExcept ModuleError (EIO ModuleError))
+
 def liftIO {α} (m : EIO IO.Error α) : EIO ModuleError α := 
   m.adaptExcept io
 
+instance : HasMonadLiftT IO (EIO ModuleError) := {monadLift := @ModuleError.liftIO}
 
-instance : MonadIO (EIO ModuleError) := {monadLift := @liftIO}
+def throwIO {α} (err : IO.Error) : EIO ModuleError α := throw $ ModuleError.io err
+def catchIO {α} (m : EIO ModuleError α) (h : IO.Error → EIO ModuleError α) : EIO ModuleError α := 
+let handler : ModuleError → EIO ModuleError α := 
+  λ e => match e with
+         | ModuleError.io e => h e
+         | _ => throw e;
+catch m handler
 
+instance HasExceptIO : MonadExcept IO.Error (EIO ModuleError) :=
+  {throw := @ModuleError.throwIO,
+   catch := @ModuleError.catchIO }
 
 end ModuleError
 
@@ -205,6 +218,7 @@ end ModuleError
 def ModuleVCG := ReaderT ModuleVCGContext (EIO ModuleError)
 
 namespace ModuleVCG
+
 instance : Functor ModuleVCG := 
   inferInstanceAs (Functor (ReaderT ModuleVCGContext (EIO ModuleError)))
 instance : Applicative ModuleVCG :=
@@ -212,13 +226,37 @@ instance : Applicative ModuleVCG :=
 instance : Monad ModuleVCG :=
   inferInstanceAs (Monad (ReaderT ModuleVCGContext (EIO ModuleError)))
 
+instance HasExceptIO : MonadExcept IO.Error ModuleVCG := 
+@ReaderT.MonadExcept _ _ _ _ _ ModuleError.HasExceptIO
+
+instance HasExceptModuleError : MonadExcept ModuleError ModuleVCG := 
+@ReaderT.MonadExcept _ _ _ _ _ ModuleError.HasExceptModuleError
+
+
 -- Run "standard" IO by wrapping any exceptions thrown in our Module.Error.IO wrapper.
 def liftIO {α} (m : IO α) : ModuleVCG α := 
   monadLift $ m.adaptExcept ModuleError.io
 
-instance ModuleVCG.MonadIO : MonadIO ModuleVCG := {monadLift := @ModuleVCG.liftIO}
+instance : HasMonadLiftT IO ModuleVCG := {monadLift := @ModuleVCG.liftIO}
 instance : MonadReader ModuleVCGContext ModuleVCG :=
   inferInstanceAs (MonadReader ModuleVCGContext (ReaderT ModuleVCGContext (EIO ModuleError)))
+
+def throwIO {α} (err : IO.Error) : ModuleVCG α := throw $ ModuleError.io err
+def catchIO {α} (m : ModuleVCG α) (h : IO.Error → ModuleVCG α) : ModuleVCG α := 
+let handler : ModuleError → ModuleVCG α := 
+  λ e => match e with
+         | ModuleError.io e => h e
+         | _ => throw e;
+catch m handler
+
+instance : MonadExcept IO.Error ModuleVCG :=
+  {throw := @ModuleVCG.throwIO,
+   catch := @ModuleVCG.catchIO }
+
+
+instance : MonadIO ModuleVCG :=
+  inferInstanceAs (MonadIO (ReaderT ModuleVCGContext (EIO ModuleError)))
+
 end ModuleVCG
 
 
@@ -232,15 +270,15 @@ def vcgLog (msg : String) : ModuleVCG Unit := do
 
 -- A warning that stops execution until catch.
 def functionError {α} (fnm : FnName) (e : FnError) : ModuleVCG α :=
-  throw $ ModuleError.function fnm e
+throw $ ModuleError.function fnm e
 
 -- A warning that stops execution until catch.
 def blockError {α} (fnm : FnName) (lbl : LLVM.BlockLabel) (e : BlockError) : ModuleVCG α :=
-  throw $ ModuleError.block fnm lbl e
+  @throw _ _ ModuleVCG.ExceptModule _ $ ModuleError.block fnm lbl e
 
 -- A warning that stops execution until catch.
 def moduleThrow {α} (errMsg : String) : ModuleVCG α :=
-  throw $ ModuleError.custom errMsg
+  @throw _ _ ModuleVCG.ExceptModule _ $ ModuleError.custom errMsg
 
 
 -- Catch a VCG error, print it to the screen and keep going.
@@ -258,9 +296,9 @@ def moduleCatch (m : ModuleVCG Unit) :  ModuleVCG Unit :=
 -------------------------------------------------------
 
 @[reducible]
-def BlockLabelValMap := RBMap LLVM.BlockLabel LLVM.Value (λ x y => x < y)
+def BlockLabelValMap := Std.RBMap LLVM.BlockLabel LLVM.Value (λ x y => x < y)
 
-abbrev PhiVarMap := RBMap LLVM.Ident (LLVM.LLVMType × BlockLabelValMap) (λ x y => x<y)
+abbrev PhiVarMap := Std.RBMap LLVM.Ident (LLVM.LLVMType × BlockLabelValMap) (λ x y => x<y)
 
 structure AnnotatedBlock :=
 (annotation: BlockAnn)
@@ -271,7 +309,7 @@ structure AnnotatedBlock :=
 
 /--  Maps LLM block labels to their associated annotations. --/
 @[reducible]
-def ReachableBlockAnnMap := RBMap LLVM.BlockLabel AnnotatedBlock (λ x y => x<y)
+def ReachableBlockAnnMap := Std.RBMap LLVM.BlockLabel AnnotatedBlock (λ x y => x<y)
 
 -- | Find a block with the given label in the config.
 def findBlock (m : ReachableBlockAnnMap) (lbl: LLVM.BlockLabel) : Option (BlockAnn × PhiVarMap) := do
@@ -283,7 +321,7 @@ pure (ab.annotation, ab.phiVarMap)
 -------------------------------------------------------
 
 abbrev MemAddr := Nat
-abbrev MCBlockAnnMap := RBMap MemAddr MemoryAnn (λ x y => x < y)
+abbrev MCBlockAnnMap := Std.RBMap MemAddr MemoryAnn (λ x y => x < y)
 
 -- Information that does not change during execution of a BlockVCG action.
 structure BlockVCGContext :=
@@ -331,7 +369,7 @@ structure BlockVCGState :=
   -- Used for error reporting
 --(activeAllocaSet : RBTree LocalIdent (λ x y => x < y)) -- TODO use later
  -- ^ Set of allocation names that are active.
-(llvmIdentMap : RBMap LLVM.Ident (Sigma SMT.term) (fun x y => x < y))
+(llvmIdentMap : Std.RBMap LLVM.Ident (Sigma SMT.term) (fun x y => x < y))
  -- ^ Mapping from llvm ident to their SMT equivalent.
 
 
