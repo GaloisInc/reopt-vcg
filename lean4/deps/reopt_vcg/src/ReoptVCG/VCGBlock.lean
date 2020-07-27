@@ -516,7 +516,8 @@ def llvmInvoke (isTailCall : Bool) (fsym : LLVM.Symbol) (args : Array (Typed Val
   | none => pure ()
   | some (i, ty) => do
     PSigma.mk pf mcv <- wordAsType (newRegs.get_reg64 x86.reg64.rax) ty;
-    defineTerm i mcv $> ()
+    _ <- defineTerm i mcv;
+    pure ()
 
 --------------------------------------------------------------------------------
 -- Arithmetic
@@ -664,9 +665,11 @@ def stepNextStmt (stmt : LLVM.Stmt) : BlockVCG Bool := do
       rhsv <- primEval lty H rhs; 
       match asSMTSort lty H, stmt.assign, lhsv, rhsv with
       | _, none, _, _ => pure ()
-      | SMT.sort.bitvec n, some i, l, r => defineTerm i (arithOpFunc aop l r) $> ()
+      | SMT.sort.bitvec n, some i, l, r => do 
+        _<- defineTerm i (arithOpFunc aop l r); 
+        pure ()
       | _, _, _, _ => BlockVCG.globalThrow "Unexpected sort";
-      pure True
+      pure true
     else BlockVCG.globalThrow "Unexpected type"
   | bit bop { type := lty, value := lhs } rhs => do
     if H : HasSMTSort lty then do
@@ -674,9 +677,11 @@ def stepNextStmt (stmt : LLVM.Stmt) : BlockVCG Bool := do
       rhsv <- primEval lty H rhs; 
       match asSMTSort lty H, stmt.assign, lhsv, rhsv with
       | _, none, _, _ => pure ()
-      | SMT.sort.bitvec n, some i, l, r => defineTerm i (bitOpFunc bop l r) $> ()
+      | SMT.sort.bitvec n, some i, l, r => do 
+        _ <- defineTerm i (bitOpFunc bop l r);
+        pure ()
       | _, _, _, _ => BlockVCG.globalThrow "Unexpected sort";
-      pure True
+      pure true
     else BlockVCG.globalThrow "Unexpected type"
   | call tailcall o_ty f args => do
     match f with 
@@ -685,7 +690,7 @@ def stepNextStmt (stmt : LLVM.Stmt) : BlockVCG Bool := do
                                   | some ty, some i => some (i, ty)
                                   | _, _ => none)
     | _ => globalThrow "VCG currently only supports direct calls.";
-    pure True
+    pure true
 
 --   | conv : conv_op -> typed value -> LLVMType -> instruction
   | icmp bop { type := lty, value := lhs } rhs => do
@@ -694,10 +699,11 @@ def stepNextStmt (stmt : LLVM.Stmt) : BlockVCG Bool := do
       rhsv <- primEval lty H rhs; 
       match asSMTSort lty H, stmt.assign, lhsv, rhsv with
       | _, none, _, _ => pure ()
-      | SMT.sort.bitvec n, some i, l, r => 
-        defineTerm i (SMT.smt_ite (icmpOpFunc bop l r) (SMT.bvimm 1 1) (SMT.bvimm 1 0)) $> ()
+      | SMT.sort.bitvec n, some i, l, r => do 
+        _ <- defineTerm i (SMT.smt_ite (icmpOpFunc bop l r) (SMT.bvimm 1 1) (SMT.bvimm 1 0)); 
+        pure ()
       | _, _, _, _ => BlockVCG.globalThrow "Unexpected sort";
-      pure True
+      pure true
     else BlockVCG.globalThrow "Unexpected type"
 
   | br { type := _lty, value := cnd } tlbl flbl => do
@@ -707,15 +713,15 @@ def stepNextStmt (stmt : LLVM.Stmt) : BlockVCG Bool := do
     let c := SMT.eq cndTerm (SMT.bvimm _ 1);
     verifyPreconditions "true branch"  (SMT.impl c)           tlbl;
     verifyPreconditions "false branch" (SMT.impl (SMT.not c)) flbl;
-    pure False
+    pure false
   
   | jump lbl => do
     mcExecuteToEnd;
     verifyPreconditions "jump"  (fun x => x) lbl;
-    pure False
+    pure false
 
-  | ret v    => llvmReturn (some v) $> false
-  | retVoid  => llvmReturn none     $> false
+  | ret v    => do llvmReturn (some v); pure false
+  | retVoid  => do llvmReturn none; pure false
   | _ => BlockVCG.globalThrow "(stepNextStmt) unimplemented"
   
 
@@ -770,7 +776,7 @@ def run (mctx : ModuleVCGContext)
     let sz := blockAnn.codeSize;
     let blockMap : MCBlockAnnMap := 
       (let mk (e : MCMemoryEvent) := (e.addr.toNat, e.info);
-       RBMap.ofList (List.map mk blockAnn.memoryEvents.toList));
+       Std.RBMap.ofList (List.map mk blockAnn.memoryEvents.toList));
        
     ((stdLib, blockRegs), idGen') <- prover.runsmtM IdGen.empty (do
       let ann := mctx.annotations;  
@@ -782,27 +788,27 @@ def run (mctx : ModuleVCGContext)
       -- FIXME df etc.   
       pure (stdLib, blockRegs));
 
-    let ctx := { BlockVCGContext
-               . mcModuleVCGContext := mctx
-               , llvmFunName := funAnn.llvmFunName
-               , funBlkAnnotations := bmap
-               , firstBlockLabel := firstBlock
-               , currentBlock    := thisBlock
-               , callbackFns     := prover
-               , mcBlockEndAddr  := blockStart + sz
-               , mcBlockMap      := blockMap
-               , mcStdLib        := stdLib
-               };
-    let s := { BlockVCGState
-             . mcCurAddr := blockStart
-             , mcCurSize := 0
-             , mcCurRegs := blockRegs
-             , mcCurMem  := stdLib.blockStartMem
-             , mcEvents  := []
-             , idGen := idGen'
-             , llvmInstIndex := 0
-             , llvmIdentMap  := RBMap.empty
-             };
+    let ctx : BlockVCGContext := 
+      { mcModuleVCGContext := mctx
+      , llvmFunName := funAnn.llvmFunName
+      , funBlkAnnotations := bmap
+      , firstBlockLabel := firstBlock
+      , currentBlock    := thisBlock
+      , callbackFns     := prover
+      , mcBlockEndAddr  := blockStart + sz
+      , mcBlockMap      := blockMap
+      , mcStdLib        := stdLib
+      };
+    let s : BlockVCGState := 
+      { mcCurAddr := blockStart
+      , mcCurSize := 0
+      , mcCurRegs := blockRegs
+      , mcCurMem  := stdLib.blockStartMem
+      , mcEvents  := []
+      , idGen := idGen'
+      , llvmInstIndex := 0
+      , llvmIdentMap  := Std.RBMap.empty
+      };
      r <- ((m.run ctx).run' s).run;
      match r with
      | Except.ok _ => pure ()

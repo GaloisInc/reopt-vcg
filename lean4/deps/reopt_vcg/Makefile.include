@@ -1,0 +1,12 @@
+LOCAL_LEAN := src/ReoptVCG/Annotations.lean\
+ src/ReoptVCG/LoadLLVM.lean\
+ src/ReoptVCG/MCStdLib.lean\
+ src/ReoptVCG/ReoptVCG.lean\
+ src/ReoptVCG/SMT.lean\
+ src/ReoptVCG/SMTParser.lean\
+ src/ReoptVCG/Types.lean\
+ src/ReoptVCG/VCGBackend.lean\
+ src/ReoptVCG/VCGBlock.lean\
+ src/ReoptVCG/WordSize.lean
+
+$(eval $(call add-package,src,${LOCAL_LEAN},))
