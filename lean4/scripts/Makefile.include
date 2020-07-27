@@ -4,10 +4,10 @@
 
 # Where do we put the build files?
 
-OLEANDIR    := ${BUILDDIR}/build/olean
-DEPDIR      := ${BUILDDIR}/build/d
-OBJDIR      := ${BUILDDIR}/build/compiled
-EXTRAOBJDIR := ${BUILDDIR}/build/extraobjs
+OLEANDIR    := ${BUILDDIR}/olean
+DEPDIR      := ${BUILDDIR}/d
+OBJDIR      := ${BUILDDIR}/compiled
+EXTRAOBJDIR := ${BUILDDIR}/extraobjs
 BINDIR      := ${BUILDDIR}/bin
 
 # These are exported by the Makefile.includes (see add-package)
@@ -46,7 +46,7 @@ LEAN_PATH :=${LEAN_PATH}:${OLEANDIR}/$$(HERE)/$(1)
 LOCAL_LEANFILES := $$(addprefix $${HERE}/,$(2))
 LEANFILES += $${LOCAL_LEANFILES}
 
-EXTRACFILES  += $$(addprefix $${HERE},$(3))
+EXTRACFILES  += $$(addprefix $${HERE}/,$(3))
 
 endef
 
@@ -76,4 +76,3 @@ quiet_cmd_MAKEDEPEND = DEPEND $<
 
       cmd_MKDIR    = mkdir -p $@
 quiet_cmd_MKDIR    = MKDIR $@
-

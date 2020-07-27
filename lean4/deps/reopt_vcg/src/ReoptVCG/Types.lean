@@ -183,25 +183,25 @@ def toIOError : ModuleError → IO.Error
 | e => IO.userError $ "Uncaught module VCG error: " ++ e.pp
 
 
-instance HasExceptModuleError : MonadExcept ModuleError (EIO ModuleError) :=
-inferInstanceAs (MonadExcept ModuleError (EIO ModuleError))
+-- instance HasExceptModuleError : MonadExcept ModuleError (EIO ModuleError) :=
+-- inferInstanceAs (MonadExcept ModuleError (EIO ModuleError))
 
-def liftIO {α} (m : EIO IO.Error α) : EIO ModuleError α := 
-  m.adaptExcept io
+-- def liftIO {α} (m : EIO IO.Error α) : EIO ModuleError α := 
+--   m.adaptExcept io
 
-instance : HasMonadLiftT IO (EIO ModuleError) := {monadLift := @ModuleError.liftIO}
+-- instance : HasMonadLiftT IO (EIO ModuleError) := {monadLift := @ModuleError.liftIO}
 
-def throwIO {α} (err : IO.Error) : EIO ModuleError α := throw $ ModuleError.io err
-def catchIO {α} (m : EIO ModuleError α) (h : IO.Error → EIO ModuleError α) : EIO ModuleError α := 
-let handler : ModuleError → EIO ModuleError α := 
-  λ e => match e with
-         | ModuleError.io e => h e
-         | _ => throw e;
-catch m handler
+-- def throwIO {α} (err : IO.Error) : EIO ModuleError α := throw $ ModuleError.io err
+-- def catchIO {α} (m : EIO ModuleError α) (h : IO.Error → EIO ModuleError α) : EIO ModuleError α := 
+-- let handler : ModuleError → EIO ModuleError α := 
+--   λ e => match e with
+--          | ModuleError.io e => h e
+--          | _ => throw e;
+-- catch m handler
 
-instance HasExceptIO : MonadExcept IO.Error (EIO ModuleError) :=
-  {throw := @ModuleError.throwIO,
-   catch := @ModuleError.catchIO }
+-- instance HasExceptIO : MonadExcept IO.Error (EIO ModuleError) :=
+--   {throw := @ModuleError.throwIO,
+--    catch := @ModuleError.catchIO }
 
 end ModuleError
 
@@ -215,53 +215,50 @@ end ModuleError
 -- TODO / FIXME we'll want to move away from EIO at, see
 -- https://github.com/GaloisInc/reopt-vcg/pull/53#discussion_r408440682 
 @[reducible]
-def ModuleVCG := ReaderT ModuleVCGContext (EIO ModuleError)
+def ModuleVCG := ReaderT ModuleVCGContext IO
 
 namespace ModuleVCG
 
 instance : Functor ModuleVCG := 
-  inferInstanceAs (Functor (ReaderT ModuleVCGContext (EIO ModuleError)))
+  inferInstanceAs (Functor (ReaderT ModuleVCGContext IO))
 instance : Applicative ModuleVCG :=
-  inferInstanceAs (Applicative (ReaderT ModuleVCGContext (EIO ModuleError)))
+  inferInstanceAs (Applicative (ReaderT ModuleVCGContext IO))
 instance : Monad ModuleVCG :=
-  inferInstanceAs (Monad (ReaderT ModuleVCGContext (EIO ModuleError)))
-
-instance HasExceptIO : MonadExcept IO.Error ModuleVCG := 
-@ReaderT.MonadExcept _ _ _ _ _ ModuleError.HasExceptIO
-
-instance HasExceptModuleError : MonadExcept ModuleError ModuleVCG := 
-@ReaderT.MonadExcept _ _ _ _ _ ModuleError.HasExceptModuleError
-
+  inferInstanceAs (Monad (ReaderT ModuleVCGContext IO))
 
 -- Run "standard" IO by wrapping any exceptions thrown in our Module.Error.IO wrapper.
-def liftIO {α} (m : IO α) : ModuleVCG α := 
-  monadLift $ m.adaptExcept ModuleError.io
+-- def liftIO {α} (m : IO α) : ModuleVCG α := 
+--   monadLift $ m.adaptExcept ModuleError.io
 
-instance : HasMonadLiftT IO ModuleVCG := {monadLift := @ModuleVCG.liftIO}
+-- instance : HasMonadLiftT IO ModuleVCG := {monadLift := @ModuleVCG.liftIO}
 instance : MonadReader ModuleVCGContext ModuleVCG :=
-  inferInstanceAs (MonadReader ModuleVCGContext (ReaderT ModuleVCGContext (EIO ModuleError)))
+  inferInstanceAs (MonadReader ModuleVCGContext (ReaderT ModuleVCGContext IO))
 
-def throwIO {α} (err : IO.Error) : ModuleVCG α := throw $ ModuleError.io err
-def catchIO {α} (m : ModuleVCG α) (h : IO.Error → ModuleVCG α) : ModuleVCG α := 
-let handler : ModuleError → ModuleVCG α := 
-  λ e => match e with
-         | ModuleError.io e => h e
-         | _ => throw e;
-catch m handler
+-- def throwIO {α} (err : IO.Error) : ModuleVCG α := throw $ ModuleError.io err
+-- def catchIO {α} (m : ModuleVCG α) (h : IO.Error → ModuleVCG α) : ModuleVCG α := 
+-- let handler : ModuleError → ModuleVCG α := 
+--   λ e => match e with
+--          | ModuleError.io e => h e
+--          | _ => throw e;
+-- catch m handler
 
-instance : MonadExcept IO.Error ModuleVCG :=
-  {throw := @ModuleVCG.throwIO,
-   catch := @ModuleVCG.catchIO }
+-- instance : MonadExcept IO.Error ModuleVCG :=
+--   {throw := @ModuleVCG.throwIO,
+--    catch := @ModuleVCG.catchIO }
 
+
+-- instance : MonadIO ModuleVCG :=
+--   {throw := @ModuleVCG.throwIO,
+--    catch := @ModuleVCG.catchIO,
+--    monadLift := @ModuleVCG.liftIO}
 
 instance : MonadIO ModuleVCG :=
-  inferInstanceAs (MonadIO (ReaderT ModuleVCGContext (EIO ModuleError)))
+inferInstanceAs (MonadIO (ReaderT ModuleVCGContext IO))
 
 end ModuleVCG
 
 
-def runModuleVCG (ctx : ModuleVCGContext) (m : ModuleVCG Unit) : IO Unit := 
-  EIO.adaptExcept ModuleError.toIOError (m.run ctx)
+def runModuleVCG (ctx : ModuleVCGContext) (m : ModuleVCG Unit) : IO Unit := m.run ctx
 
 def vcgLog (msg : String) : ModuleVCG Unit := do 
   ctx ← read;
@@ -270,24 +267,27 @@ def vcgLog (msg : String) : ModuleVCG Unit := do
 
 -- A warning that stops execution until catch.
 def functionError {α} (fnm : FnName) (e : FnError) : ModuleVCG α :=
-throw $ ModuleError.function fnm e
+throw $ IO.userError $ ModuleError.pp $ ModuleError.function fnm e
 
 -- A warning that stops execution until catch.
 def blockError {α} (fnm : FnName) (lbl : LLVM.BlockLabel) (e : BlockError) : ModuleVCG α :=
-  @throw _ _ ModuleVCG.ExceptModule _ $ ModuleError.block fnm lbl e
+  throw $ IO.userError $ ModuleError.pp $ ModuleError.block fnm lbl e
 
 -- A warning that stops execution until catch.
 def moduleThrow {α} (errMsg : String) : ModuleVCG α :=
-  @throw _ _ ModuleVCG.ExceptModule _ $ ModuleError.custom errMsg
+  throw $ IO.userError $ ModuleError.pp $ ModuleError.custom errMsg
 
 
 -- Catch a VCG error, print it to the screen and keep going.
 def moduleCatch (m : ModuleVCG Unit) :  ModuleVCG Unit :=
-  λ ctx =>
-    catch (m.run ctx) $ λ (e : ModuleError) => (do
-      when ctx.writeStderr $
-        IO.println $ "Error: " ++ e.pp; -- FIXME use stderr or similar?
-      ctx.errorCount.modify (λ n => n + 1))
+  λ (ctx : ModuleVCGContext) =>
+    catch (m.run ctx) $ λ (e : IO.Error) => 
+      match e with
+      | IO.Error.userError msg => do
+        when ctx.writeStderr $
+          IO.println $ "Error: " ++ msg; -- FIXME use stderr or similar?
+        ctx.errorCount.modify (λ n => n + 1)
+      | _ => throw e
 
 
 
