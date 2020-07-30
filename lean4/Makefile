@@ -82,6 +82,9 @@ CLEANFILES := $(addprefix $(OBJDIR)/,$(LEANFILES:.lean=.c))
 # we don't stick Main.c in CLEANFILES as we don't want them all linked in to all apps
 CLEANDIRS  := $(call build-dirs,$(CLEANFILES) $(addprefix $(OBJDIR)/,app/Main.c))
 
+EXTRAOBJFILES := $(addprefix ${EXTRAOBJDIR}/,$(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(EXTRACFILES))))
+EXTRAOBJDIRS  := $(call build-dirs,$(EXTRAOBJFILES))
+
 CXXFLAGS += -fPIC -ggdb3
 CFLAGS   += -fPIC -ggdb3
 
@@ -93,6 +96,16 @@ realall: $(BINDIR)/reopt-vcg
 
 depend: ${DEPFILES}
 
+
+RANLIB := ranlib
+
+# This is a hack to get around leanc not taking .o files.  We create a
+# library with all the .o files, and then use -l
+$(EXTRAOBJDIR)/libextraobjs.a: $(EXTRAOBJFILES)
+	rm -f $@
+	$(AR) rc $@ $^
+	$(RANLIB) $@
+
 # $(BUILDDIR)/sim : ${CLEANFILES} ${EXTRAOBJFILES} build/simulator/Main.cpp
 # 	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cxxflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86 asmparser` -lstdc++ -lm
 
@@ -102,15 +115,11 @@ depend: ${DEPFILES}
 # $(BUILDDIR)/driver: ${CLEANFILES} ${EXTRAOBJFILES} build/deps/lean-llvm/src/Driver.cpp
 # 	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cxxflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86 asmparser` -lstdc++ -lm
 
-$(BINDIR)/reopt-vcg : ${CLEANFILES} ${EXTRAOBJFILES} $(addprefix $(OBJDIR)/,app/Main.c) | ${BINDIR}
-	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86 asmparser` -lstdc++ -lm
+$(BINDIR)/reopt-vcg : ${CLEANFILES} $(addprefix $(OBJDIR)/,app/Main.c) $(EXTRAOBJDIR)/libextraobjs.a | ${BINDIR}
+	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $(filter-out %.a,$^) `${LLVM_CONFIG} --ldflags --system-libs --libs x86 asmparser` -lstdc++ -lm -L$(EXTRAOBJDIR) -lextraobjs
 
 # $(BUILDDIR)/reopt-vcg-unit-test : ${CLEANFILES} ${EXTRAOBJFILES} build/tests/Main.cpp
 # 	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cxxflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86 asmparser` -lstdc++ -lm
-
-EXTRAOBJFILES := $(addprefix ${EXTRAOBJDIR}/,$(patsubst %.c,%.o,$(patsubst $.cpp,%.o,$(EXTRACFILES))))
-EXTRAOBJDIRS  := $(call build-dirs,$(EXTRAOBJFILES))
-
 
 ${OLEANDIRS} ${CLEANDIRS} ${DEPDIRS} ${EXTRAOBJDIRS} ${BINDIR}:
 	$(call cmd,MKDIR)
@@ -125,21 +134,20 @@ quiet_cmd_LEAN = LEAN $<
 $(OBJDIR)/%.c $(OLEANDIR)/%.olean: %.lean | ${OLEANDIRS} $(CLEANDIRS)
 	$(call cmd,LEAN)
 
-$(OBJDIR)/%.cpp $(OLEANDIR)/%.olean: %.lean | ${OLEANDIRS} $(CLEANDIRS)
-	$(call cmd,LEAN)
-
 # mv $(BUILDDIR)/$*.cpp.tmp $(BUILDDIR)/$*.cpp
 
+quiet_cmd_CXX = CXX $<
+      cmd_CXX = $(CXX) $(CXXFLAGS) -o $@ -c $^
+
 # | ${EXTRAOBJDIRS}
-$(EXTRAOBJDIR)/%.o: %.cpp
-	@mkdir -p $(@D)
-	$(CXX) $(CXXFLAGS) -o $@ -c $^
+$(EXTRAOBJDIR)/%.o: %.cpp | ${EXTRAOBJDIRS}
+	$(call cmd,CXX)
 
 $(EXTRAOBJDIR)/deps/galois_stdlib/src/Galois/Init/%: CXXFLAGS += -I${LEANDIR}/include -std=c++14
 
 $(EXTRAOBJDIR)/deps/llvm-tablegen-support/src/%: CXXFLAGS += -g -O3 -I deps/llvm-tablegen-support/src/ -I deps/llvm-tablegen-support/llvm-files/ `${LLVM_CONFIG} --cflags` -I${LEANDIR}/include/ -I${LEANDIR}/include/runtime -std=c++14 -fexceptions
 
-$(EXTRAOBJDIR)/deps/lean-llvm/src/%: CXXFLAGS += -g -O3 -I deps/llvm-tablegen-support/src/ -I deps/llvm-tablegen-support/llvm-files/ `${LLVM_CONFIG} --cflags` -I${LEANDIR}/include/ -I${LEANDIR}/include/runtime -std=c++14 -fexceptions
+$(EXTRAOBJDIR)/deps/lean-llvm/src/%: CXXFLAGS += -g -O3 `${LLVM_CONFIG} --cxxflags` -I ${LEANDIR}/include/ -std=c++14 -fexceptions
 
 clean:
 	rm -f ${DEPFILES} ${OLEANFILES}
