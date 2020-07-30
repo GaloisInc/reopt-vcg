@@ -19,7 +19,17 @@
 # with that sort of extra "noise" in it will _not_ be considered the
 # same target as the same path without such seemingly innocuous noise.
 
-BUILDDIR ?= build
+BUILDDIR    ?= build
+
+# This is ugly, as it as the side effect of creating the build
+# directory if it doesn't exist, but doing it here (as oppposeed to as
+# a side-effect of e.g. dependency construction) means we don't have
+# to rely on laziness
+#
+# We need this to be absolute as lean (currently) requires that you
+# change directory to genereate the .c files, so LEAN_PATH etc. need
+# to be absolute
+ABSBUILDDIR := $(shell mkdir -p ${BUILDDIR} && cd $(BUILDDIR) && pwd)
 
 # $(shell mkdir -p $(DEPDIR) >/dev/null)
 
@@ -63,7 +73,6 @@ include deps/reopt_vcg/Makefile.include
 # Executables
 # include simulator/Makefile.include
 # include test-symbolic/Makefile.include
-# include app/Makefile.include
 # include tests/Makefile.include
 
 # all the output directories we need
@@ -88,23 +97,26 @@ EXTRAOBJDIRS  := $(call build-dirs,$(EXTRAOBJFILES))
 CXXFLAGS += -fPIC -ggdb3
 CFLAGS   += -fPIC -ggdb3
 
+include app/Makefile.include
+
 export LEAN_PATH
 $(shell echo "#!/bin/bash" > set_LEAN_PATH.sh)
 $(shell echo "export LEAN_PATH=${LEAN_PATH}" >> set_LEAN_PATH.sh)
 
-realall: $(BINDIR)/reopt-vcg
+
+realall: $(TARGETS)
 
 depend: ${DEPFILES}
 
-
 RANLIB := ranlib
+
+quiet_cmd_AR = AR $@
+      cmd_AR =rm -f $@; $(AR) rc $@ $^; $(RANLIB) $@
 
 # This is a hack to get around leanc not taking .o files.  We create a
 # library with all the .o files, and then use -l
 $(EXTRAOBJDIR)/libextraobjs.a: $(EXTRAOBJFILES)
-	rm -f $@
-	$(AR) rc $@ $^
-	$(RANLIB) $@
+	$(call cmd,AR)
 
 # $(BUILDDIR)/sim : ${CLEANFILES} ${EXTRAOBJFILES} build/simulator/Main.cpp
 # 	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cxxflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86 asmparser` -lstdc++ -lm
@@ -115,8 +127,8 @@ $(EXTRAOBJDIR)/libextraobjs.a: $(EXTRAOBJFILES)
 # $(BUILDDIR)/driver: ${CLEANFILES} ${EXTRAOBJFILES} build/deps/lean-llvm/src/Driver.cpp
 # 	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cxxflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86 asmparser` -lstdc++ -lm
 
-$(BINDIR)/reopt-vcg : ${CLEANFILES} $(addprefix $(OBJDIR)/,app/Main.c) $(EXTRAOBJDIR)/libextraobjs.a | ${BINDIR}
-	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $(filter-out %.a,$^) `${LLVM_CONFIG} --ldflags --system-libs --libs x86 asmparser` -lstdc++ -lm -L$(EXTRAOBJDIR) -lextraobjs
+# $(BINDIR)/reopt-vcg : ${CLEANFILES} $(addprefix $(OBJDIR)/,app/Main.c) $(EXTRAOBJDIR)/libextraobjs.a | ${BINDIR}
+# 	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $(filter-out %.a,$^) `${LLVM_CONFIG} --ldflags --system-libs --libs x86 asmparser` -lstdc++ -lm -L$(EXTRAOBJDIR) -lextraobjs
 
 # $(BUILDDIR)/reopt-vcg-unit-test : ${CLEANFILES} ${EXTRAOBJFILES} build/tests/Main.cpp
 # 	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cxxflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86 asmparser` -lstdc++ -lm
@@ -128,7 +140,7 @@ $(DEPDIR)/%.d: %.lean | ${OLEANDIRS} $(DEPDIRS)
 	$(call cmd,MAKEDEPEND)
 
 quiet_cmd_LEAN = LEAN $<
-      cmd_LEAN = $(LEAN) --o=$(OLEANDIR)/$*.olean --c="$(OBJDIR)/$*.c" $<
+      cmd_LEAN = cd $(PKGROOT) && $(LEAN) --o=$(OLEANDIR)/$*.olean --c="$(OBJDIR)/$*.c" $(patsubst $(PKGROOT)/%,%,$<)
 
 # could do this when making the olean
 $(OBJDIR)/%.c $(OLEANDIR)/%.olean: %.lean | ${OLEANDIRS} $(CLEANDIRS)

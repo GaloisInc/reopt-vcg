@@ -4,11 +4,11 @@
 
 # Where do we put the build files?
 
-OLEANDIR    := ${BUILDDIR}/olean
-DEPDIR      := ${BUILDDIR}/d
-OBJDIR      := ${BUILDDIR}/compiled
-EXTRAOBJDIR := ${BUILDDIR}/extraobjs
-BINDIR      := ${BUILDDIR}/bin
+OLEANDIR    := ${ABSBUILDDIR}/olean
+DEPDIR      := ${ABSBUILDDIR}/d
+OBJDIR      := ${ABSBUILDDIR}/compiled
+EXTRAOBJDIR := ${ABSBUILDDIR}/extraobjs
+BINDIR      := ${ABSBUILDDIR}/bin
 
 # These are exported by the Makefile.includes (see add-package)
 LEAN_PATH :=
@@ -46,14 +46,41 @@ LEAN_PATH :=${LEAN_PATH}:${OLEANDIR}/$$(HERE)/$(1)
 LOCAL_LEANFILES := $$(addprefix $${HERE}/,$(2))
 LEANFILES += $${LOCAL_LEANFILES}
 
-EXTRACFILES  += $$(addprefix $${HERE}/,$(3))
+EXTRACFILES += $$(addprefix $${HERE}/,$(3))
+
+# We need to know the package source root when we run lean -c
+$${OLEANDIR}/$$(HERE)/$(1)/% $${OBJDIR}/$$(HERE)/$(1)/%: PKGROOT := $$(HERE)/$(1)
 
 endef
 
-# define add-target =
-# TARGETS += $(BINDIR)/$(1)
 
-# endef
+# Names aren't important, just don't use those defined above.  ALl filenames and dirs should be
+# relative to the directory the Makefile.include is in, with .lean files in the same dir.
+#
+# TARGETNAME := myfoo
+# LOCAL_LEAN := Helper.lean Main.lean
+# $(call add-target,$(TARGETNAME),${LOCAL_LEAN})
+
+define add-target
+
+# Get the (absolute) directory of the current Makefile.include and
+# make it relative to SRCROOT, contains any trailing /
+HERE    := $$(call relsrcpath,$$(call makefile-directory))
+
+# Add the package root to the LEAN_PATH
+LEAN_PATH :=${LEAN_PATH}:${OLEANDIR}/$$(HERE)/$(1)
+
+LOCAL_LEANFILES := $$(addprefix $${HERE}/,$(2))
+
+# We need to know the package source root when we run lean -c
+$${OLEANDIR}/$$(HERE)/% $${OBJDIR}/$$(HERE)/%: PKGROOT := $$(HERE)
+
+$$(BINDIR)/$(1) : $${CLEANFILES} $$(patsubst %.lean,$$(OBJDIR)/%.c,$$(LOCAL_LEANFILES)) $$(EXTRAOBJDIR)/libextraobjs.a | $${BINDIR}
+	$$(call cmd,LEANC)
+
+TARGETS += $$(BINDIR)/$(1)
+
+endef
 
 # We follow roughly how the linux kernel make does this --- we print
 # out the command before we invoke it, and what we print depend on the
@@ -71,8 +98,15 @@ define cmd
 @$(call cmd_$(1))
 endef
 
-      cmd_MAKEDEPEND = $(LEAN) --deps $< | sed 's@${SRCROOT}/@@p' | sort -u | xargs echo "$(OBJDIR)/$*.c $(OLEANDIR)/$*.olean:" > $@
+      cmd_MAKEDEPEND = $(LEAN) --deps $< | sort -u | xargs echo "$(OBJDIR)/$*.c $(OLEANDIR)/$*.olean:" > $@
 quiet_cmd_MAKEDEPEND = DEPEND $<
 
       cmd_MKDIR    = mkdir -p $@
 quiet_cmd_MKDIR    = MKDIR $@
+
+
+      cmd_LEANC    = ${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $(filter-out %.a,$^) `${LLVM_CONFIG} --ldflags --system-libs --libs x86 asmparser` -lstdc++ -lm -L$(EXTRAOBJDIR) -lextraobjs
+
+quiet_cmd_LEANC    = LEANC $@
+
+
