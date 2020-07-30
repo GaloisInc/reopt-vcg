@@ -1,9 +1,9 @@
-HERE := $(realpath $(dir $(realpath $(lastword $(MAKEFILE_LIST)))))
+TARGETNAME := reopt-vcg-unit-test
 LOCALFILES := AnnotationParsing.lean\
  Hex.lean\
  JsonRoundtrip.lean\
  LoadElf.lean\
  SExp.lean\
  SMTExport.lean
-LEANFILES += $(patsubst %,${HERE}/%,${LOCALFILES})
-LEAN_PATH := ${LEAN_PATH}:Test=${HERE}
+
+$(eval $(call add-target,$(TARGETNAME),${LOCAL_LEAN}))
