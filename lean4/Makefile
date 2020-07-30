@@ -75,35 +75,36 @@ include deps/reopt_vcg/Makefile.include
 # include test-symbolic/Makefile.include
 # include tests/Makefile.include
 
+# Applications
+
 # all the output directories we need
 build-dirs = $(sort $(foreach ld,$(1),$(dir $(ld))))
 
 # For every Lean file `Foo.lean` there should be a `Foo.d` with an entry
 # `Foo.c Foo.olean: DEPENDENCY1.olean ... DEPENDENCYN.olean` describing the
 # N files that lean file depends on
-DEPFILES := $(addprefix $(DEPDIR)/,$(LEANFILES:.lean=.d)) $(addprefix $(DEPDIR)/,app/Main.d)# test-symbolic/Main.lean app/Main.lean}
+DEPFILES := $(addprefix $(DEPDIR)/,$(LEANFILES:.lean=.d) $(APPLEANFILES:.lean=.d))
 DEPDIRS  := $(call build-dirs,$(DEPFILES)) 
 
-OLEANFILES := $(addprefix $(OLEANDIR)/,$(LEANFILES:.lean=.olean)) $(addprefix $(OLEANDIR)/,app/Main.olean)
-OLEANDIRS  := $(call build-dirs,$(OLEANFILES))
-
-CLEANFILES := $(addprefix $(OBJDIR)/,$(LEANFILES:.lean=.c))
-# we don't stick Main.c in CLEANFILES as we don't want them all linked in to all apps
-CLEANDIRS  := $(call build-dirs,$(CLEANFILES) $(addprefix $(OBJDIR)/,app/Main.c))
-
-EXTRAOBJFILES := $(addprefix ${EXTRAOBJDIR}/,$(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(EXTRACFILES))))
-EXTRAOBJDIRS  := $(call build-dirs,$(EXTRAOBJFILES))
+OLEANFILES := $(addprefix $(OLEANDIR)/,$(LEANFILES:.lean=.olean) $(APPLEANFILES:.lean=.d))
 
 CXXFLAGS += -fPIC -ggdb3
 CFLAGS   += -fPIC -ggdb3
 
-# Applications
-include app/Makefile.include
-include tests/Makefile.include
+
+CLEANFILES := $(addprefix $(OBJDIR)/,$(LEANFILES:.lean=.c))
+# we don't stick Main.c in CLEANFILES as we don't want them all linked in to all apps
+CLEANDIRS  := $(call build-dirs,$(CLEANFILES) $(addprefix $(OBJDIR)/,$(APPLEANFILES:.lean=.c)))
+
+EXTRAOBJFILES := $(addprefix ${EXTRAOBJDIR}/,$(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(EXTRACFILES))))
+EXTRAOBJDIRS  := $(call build-dirs,$(EXTRAOBJFILES))
 
 export LEAN_PATH
 $(shell echo "#!/bin/bash" > set_LEAN_PATH.sh)
 $(shell echo "export LEAN_PATH=${LEAN_PATH}" >> set_LEAN_PATH.sh)
+
+include app/Makefile.include
+# include tests/Makefile.include
 
 realall: $(TARGETS)
 

@@ -1,5 +1,5 @@
 TARGETNAME := reopt-vcg-unit-test
-LOCALFILES := AnnotationParsing.lean\
+LOCAL_LEAN := AnnotationParsing.lean\
  Hex.lean\
  JsonRoundtrip.lean\
  LoadElf.lean\

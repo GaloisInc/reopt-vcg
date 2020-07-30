@@ -13,6 +13,8 @@ BINDIR      := ${ABSBUILDDIR}/bin
 # These are exported by the Makefile.includes (see add-package)
 LEAN_PATH :=
 LEANFILES :=
+# Mainly for dependencies
+APPLEANFILES :=
 OLEANPKGDIRS :=
 DEPDIRS :=
 EXTRACFILES :=
@@ -71,6 +73,7 @@ HERE    := $$(call relsrcpath,$$(call makefile-directory))
 LEAN_PATH :=${LEAN_PATH}:${OLEANDIR}/$$(HERE)/$(1)
 
 LOCAL_LEANFILES := $$(addprefix $${HERE}/,$(2))
+APPLEANFILES += $$(LOCAL_LEANFILES)
 
 # We need to know the package source root when we run lean -c
 $${OLEANDIR}/$$(HERE)/% $${OBJDIR}/$$(HERE)/%: PKGROOT := $$(HERE)
