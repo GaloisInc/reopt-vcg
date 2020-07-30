@@ -97,12 +97,13 @@ EXTRAOBJDIRS  := $(call build-dirs,$(EXTRAOBJFILES))
 CXXFLAGS += -fPIC -ggdb3
 CFLAGS   += -fPIC -ggdb3
 
+# Applications
 include app/Makefile.include
+include tests/Makefile.include
 
 export LEAN_PATH
 $(shell echo "#!/bin/bash" > set_LEAN_PATH.sh)
 $(shell echo "export LEAN_PATH=${LEAN_PATH}" >> set_LEAN_PATH.sh)
-
 
 realall: $(TARGETS)
 

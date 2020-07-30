@@ -10,7 +10,7 @@ source ../set_LEAN_PATH.sh
 export LEAN_PATH
 
 if [ $# -lt 2 ]; then
-    TEST_EXE=../build/reopt-vcg-unit-test
+    TEST_EXE=../build/bin/reopt-vcg-unit-test
 else
     TEST_EXE=$1
 fi
