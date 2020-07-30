@@ -4,8 +4,8 @@
 #include <unistd.h>
 #include <cstdlib>
 
-#include "runtime/apply.h"
-#include "runtime/io.h"
+#include "lean/apply.h"
+#include "lean/io.h"
 
 using namespace lean;
 
