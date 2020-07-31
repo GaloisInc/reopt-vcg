@@ -10,8 +10,8 @@ import Test.SMTExport
 
 namespace Test
 
-def tests : RBMap String (IO UInt32) (λ x y => x < y) :=
-  RBMap.fromList 
+def tests : Std.RBMap String (IO UInt32) (λ x y => x < y) :=
+  Std.RBMap.fromList 
   [("AnnotationParsing.lean", AnnotationParsing.test),
    ("Hex.lean", Hex.test),
    ("JsonRoundtrip.lean", JsonRoundtrip.test),
@@ -22,6 +22,7 @@ def tests : RBMap String (IO UInt32) (λ x y => x < y) :=
   (λ x y => x < y)
 
 end Test
+
 
 def main(args : List String) : IO UInt32 := do
 match args with

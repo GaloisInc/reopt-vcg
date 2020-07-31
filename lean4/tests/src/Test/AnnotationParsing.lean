@@ -14,7 +14,7 @@ open ReoptVCG
 -- Parse the ModuelAnnotations for the fib test example, printing any mismatches in expected field values,
 -- and return the underlying FunctionAnn
 def parseAnnotationsFibTest : IO FunctionAnn := do
-fileContents ← IO.FS.readFile "../test-programs/test_fib_diet_reopt.ann";
+fileContents ← IO.FS.readFile "../../../test-programs/test_fib_diet_reopt.ann";
 match Lean.Json.parse fileContents with
 | Except.error errMsg => throw $ IO.userError $ "Failed to parse json string: " ++ errMsg
 | Except.ok js =>
@@ -43,8 +43,8 @@ match Lean.Json.parse fileContents with
 def fibLLVMTyEnvEntries : List (LLVM.Ident × SMT.sort) :=
 ["t1", "t4", "t5", "t8", "t9", "t12", "t13", "t15"].map (λ nm => (LLVM.Ident.named nm, SMT.sort.bv64))
 
-def fibLLVMTyEnv : RBMap LLVM.Ident SMT.sort (λ x y => x<y) :=
-RBMap.fromList fibLLVMTyEnvEntries (λ x y => x<y)
+def fibLLVMTyEnv : Std.RBMap LLVM.Ident SMT.sort (λ x y => x<y) :=
+Std.RBMap.fromList fibLLVMTyEnvEntries (λ x y => x<y)
 
 -- Parse and check a few very basic structural properties about the return block annotations
 -- just to sanity check how things are working at the moment.

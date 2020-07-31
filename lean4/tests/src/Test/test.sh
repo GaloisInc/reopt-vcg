@@ -8,7 +8,7 @@ fi
 if [[ $# -ne 0 ]]; then
     TEST_EXE=$1
 else
-    TEST_EXE=../build/bin/reopt-vcg-unit-test
+    TEST_EXE=../../../build/bin/reopt-vcg-unit-test
 fi
 
 
@@ -22,12 +22,10 @@ NUM_TESTS=0
 NUM_FAILS=0
 
 for f in *.lean; do
-    if [[ $(basename "$f") != "Main.lean" ]]; then
-        NUM_TESTS=$(($NUM_TESTS+1))
-        bash ./test_single.sh $TEST_EXE $f $INTERACTIVE
-        if [ $? -ne 0 ]; then
-            NUM_FAILS=$(($NUM_FAILS+1))
-        fi
+    NUM_TESTS=$(($NUM_TESTS+1))
+    bash ./test_single.sh $TEST_EXE $f $INTERACTIVE
+    if [ $? -ne 0 ]; then
+        NUM_FAILS=$(($NUM_FAILS+1))
     fi
 done
 
