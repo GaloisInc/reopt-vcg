@@ -69,11 +69,8 @@ include deps/lean-llvm/Makefile.include
 include deps/llvm-tablegen-support/Makefile.include
 include deps/x86_semantics/Makefile.include
 include deps/reopt_vcg/Makefile.include
+include tests/Makefile.include
 
-# Executables
-# include simulator/Makefile.include
-# include test-symbolic/Makefile.include
-# include tests/Makefile.include
 
 # all the output directories we need
 build-dirs = $(sort $(foreach ld,$(1),$(dir $(ld))))
@@ -100,7 +97,9 @@ EXTRAOBJDIRS  = $(call build-dirs,$(EXTRAOBJFILES))
 # Applications
 
 include app/Makefile.include
-# include tests/Makefile.include
+include tests/app/Makefile.include
+# include simulator/Makefile.include
+# include test-symbolic/Makefile.include
 
 export LEAN_PATH
 $(shell echo "#!/bin/bash" > set_LEAN_PATH.sh)

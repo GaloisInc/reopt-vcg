@@ -1,6 +1,5 @@
-import Main.Elf
+import ReoptVCG.Elf
 import ReoptVCG.ReoptVCG
-
 
 namespace Test
 namespace LoadElf
@@ -36,7 +35,7 @@ ELF Header:
   Section header string table index: 15
 -/
 def loadAndCheckAddElfHdr : IO String := do
-(hdr, phdrs, elfMem) ← ReoptVCG.loadElf "../test-programs/test_add_diet_lld.exe";
+(hdr, phdrs, elfMem) ← ReoptVCG.loadElf "../../../test-programs/test_add_diet_lld.exe";
 unless (hdr.elf_data.repr == "ELFDATA2LSB") $
   IO.println $ "Incorrect elf_data: " ++ hdr.elf_data.repr;
 unless (hdr.osabi.val.toNat == 0) $
@@ -65,13 +64,12 @@ pure "done"
 
 
 def test : IO UInt32 := do
-loadElfTest "../test-programs/test_add_diet_lld.exe" >>= IO.println;
-loadElfTest "../test-programs/test_fib_diet_lld.exe" >>= IO.println;
+loadElfTest "../../../test-programs/test_add_diet_lld.exe" >>= IO.println;
+loadElfTest "../../../test-programs/test_fib_diet_lld.exe" >>= IO.println;
 loadAndCheckAddElfHdr >>= IO.println;
 pure 0
 
 
 end LoadElf
 end Test
-
 

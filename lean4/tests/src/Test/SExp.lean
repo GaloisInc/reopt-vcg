@@ -1,6 +1,7 @@
 
 import Galois.Data.SExp
 
+
 namespace Test
 
 namespace SExp
@@ -47,5 +48,4 @@ pure 0
 
 end SExp
 end Test
-
 

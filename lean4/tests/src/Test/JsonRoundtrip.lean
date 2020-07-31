@@ -31,11 +31,10 @@ match Lean.Json.parse fileContents with
 
 
 def test : IO UInt32 := do
-roundtripTest "../test-programs/test_fib_diet_reopt.ann" >>= IO.println;
-roundtripTest "../test-programs/test_add_diet_reopt.ann" >>= IO.println;
+roundtripTest "../../../test-programs/test_fib_diet_reopt.ann" >>= IO.println;
+roundtripTest "../../../test-programs/test_add_diet_reopt.ann" >>= IO.println;
 pure 0
 
 end JsonRoundtrip
 end Test
-
 
