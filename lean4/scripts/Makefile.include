@@ -70,7 +70,8 @@ define add-target
 HERE    := $$(call relsrcpath,$$(call makefile-directory))
 
 # Add the package root to the LEAN_PATH
-LEAN_PATH :=${LEAN_PATH}:${OLEANDIR}/$$(HERE)/$(1)
+# FIXME: this will break when we have multiple apps
+# LEAN_PATH :=${LEAN_PATH}:${OLEANDIR}/$$(HERE)/$(1)
 
 LOCAL_LEANFILES := $$(addprefix $${HERE}/,$(2))
 APPLEANFILES += $$(LOCAL_LEANFILES)
