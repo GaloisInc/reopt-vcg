@@ -87,6 +87,7 @@ DEPFILES := $(addprefix $(DEPDIR)/,$(LEANFILES:.lean=.d) $(APPLEANFILES:.lean=.d
 DEPDIRS  := $(call build-dirs,$(DEPFILES)) 
 
 OLEANFILES := $(addprefix $(OLEANDIR)/,$(LEANFILES:.lean=.olean) $(APPLEANFILES:.lean=.d))
+OLEANDIRS  := $(call build-dirs,$(OLEANFILES))
 
 CXXFLAGS += -fPIC -ggdb3
 CFLAGS   += -fPIC -ggdb3
