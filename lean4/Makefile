@@ -75,37 +75,36 @@ include deps/reopt_vcg/Makefile.include
 # include test-symbolic/Makefile.include
 # include tests/Makefile.include
 
-# Applications
-
 # all the output directories we need
 build-dirs = $(sort $(foreach ld,$(1),$(dir $(ld))))
 
 # For every Lean file `Foo.lean` there should be a `Foo.d` with an entry
 # `Foo.c Foo.olean: DEPENDENCY1.olean ... DEPENDENCYN.olean` describing the
 # N files that lean file depends on
-DEPFILES := $(addprefix $(DEPDIR)/,$(LEANFILES:.lean=.d) $(APPLEANFILES:.lean=.d))
-DEPDIRS  := $(call build-dirs,$(DEPFILES)) 
+DEPFILES = $(addprefix $(DEPDIR)/,$(LEANFILES:.lean=.d) $(APPLEANFILES:.lean=.d))
+DEPDIRS  = $(call build-dirs,$(DEPFILES)) 
 
-OLEANFILES := $(addprefix $(OLEANDIR)/,$(LEANFILES:.lean=.olean) $(APPLEANFILES:.lean=.d))
-OLEANDIRS  := $(call build-dirs,$(OLEANFILES))
+OLEANFILES = $(addprefix $(OLEANDIR)/,$(LEANFILES:.lean=.olean) $(APPLEANFILES:.lean=.d))
+OLEANDIRS  = $(call build-dirs,$(OLEANFILES))
 
 CXXFLAGS += -fPIC -ggdb3
 CFLAGS   += -fPIC -ggdb3
 
-
-CLEANFILES := $(addprefix $(OBJDIR)/,$(LEANFILES:.lean=.c))
+CLEANFILES = $(addprefix $(OBJDIR)/,$(LEANFILES:.lean=.c))
 # we don't stick Main.c in CLEANFILES as we don't want them all linked in to all apps
-CLEANDIRS  := $(call build-dirs,$(CLEANFILES) $(addprefix $(OBJDIR)/,$(APPLEANFILES:.lean=.c)))
+CLEANDIRS  = $(call build-dirs,$(CLEANFILES) $(addprefix $(OBJDIR)/,$(APPLEANFILES:.lean=.c)))
 
-EXTRAOBJFILES := $(addprefix ${EXTRAOBJDIR}/,$(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(EXTRACFILES))))
-EXTRAOBJDIRS  := $(call build-dirs,$(EXTRAOBJFILES))
+EXTRAOBJFILES = $(addprefix ${EXTRAOBJDIR}/,$(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(EXTRACFILES))))
+EXTRAOBJDIRS  = $(call build-dirs,$(EXTRAOBJFILES))
+
+# Applications
+
+include app/Makefile.include
+# include tests/Makefile.include
 
 export LEAN_PATH
 $(shell echo "#!/bin/bash" > set_LEAN_PATH.sh)
 $(shell echo "export LEAN_PATH=${LEAN_PATH}" >> set_LEAN_PATH.sh)
-
-include app/Makefile.include
-# include tests/Makefile.include
 
 realall: $(TARGETS)
 
@@ -129,9 +128,6 @@ $(EXTRAOBJDIR)/libextraobjs.a: $(EXTRAOBJFILES)
 
 # $(BUILDDIR)/driver: ${CLEANFILES} ${EXTRAOBJFILES} build/deps/lean-llvm/src/Driver.cpp
 # 	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cxxflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86 asmparser` -lstdc++ -lm
-
-# $(BINDIR)/reopt-vcg : ${CLEANFILES} $(addprefix $(OBJDIR)/,app/Main.c) $(EXTRAOBJDIR)/libextraobjs.a | ${BINDIR}
-# 	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $(filter-out %.a,$^) `${LLVM_CONFIG} --ldflags --system-libs --libs x86 asmparser` -lstdc++ -lm -L$(EXTRAOBJDIR) -lextraobjs
 
 # $(BUILDDIR)/reopt-vcg-unit-test : ${CLEANFILES} ${EXTRAOBJFILES} build/tests/Main.cpp
 # 	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cxxflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86 asmparser` -lstdc++ -lm
