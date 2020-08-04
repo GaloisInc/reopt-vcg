@@ -26,7 +26,7 @@ for example in *.ann; do
   fi
 
   echo ">> Generating SMT queries..."
-  ../build/reopt-vcg ${example} --export ${actualDir}
+  ../build/bin/reopt-vcg ${example} --export ${actualDir}
   actualSmtQueryCount=$(ls -lR ${actualDir} | wc -l)
   expectedSmtQueryCount=$(ls -lR ${expectedDir} | wc -l)
   if [[ ${actualSmtQueryCount} == ${expectedSmtQueryCount} ]]

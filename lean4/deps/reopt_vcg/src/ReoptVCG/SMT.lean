@@ -13,6 +13,17 @@ namespace ReoptVCG
 open SMT
 universe u
 
+abbrev GoalName := String
+
+structure ProverInterface :=
+(checkSatAssuming  : GoalName → smtM (term sort.smt_bool) → IO Unit)
+(blockErrorCallback : Nat → Nat → String → IO Unit) -- what do we do there? Do nothing for now...?
+
+structure ProverSession :=
+(blockCallback : FnName → LLVM.BlockLabel → (ProverInterface → IO Unit) → IO Unit)
+(sessionComplete : IO UInt32)
+
+
 def defaultCVC4Args : List String :=
 -- N.B., as of CVC4 46591b1c92fc9ecd4a0997242030a1a48166301b the `--arrays-exp` flag
 -- enables `--fmf-bound` by default to help with some `sat` queries; it shouldn't affect
@@ -174,40 +185,31 @@ tempDir ← getTemporaryDirectory;
 pure $ System.mkFilePath [tempDir, standaloneGoalFilename fnName lbl goalIndex]
 
 
-/-- Common things appearing at the top of every  --/
-def checkNegatedGoalInContext (goalName : String) (negatedGoal : term sort.smt_bool) (ctx : smtM Unit) : smtM Unit := do
+/-- Common things appearing at the top of every smt2 script. --/
+def checkNegatedGoal (goalName : String) (negatedGoal : smtM (term sort.smt_bool)) : smtM Unit := do
 comment goalName;
 setLogic Raw.logic.all;
 setProduceModels true;
-ctx;
-checkSatAssuming [negatedGoal];
+p ← negatedGoal;
+checkSatAssuming [p];
 exit
 
 
 /-- Write assert the negated goal and write out the resulting script
     of commands to a file. -/
-def exportCheckSatProblem
+def exportCheckSatAssuming
 (outputDir fnName : String)
 (blockLabel : LLVM.BlockLabel)
 (goalCounter : IO.Ref Nat)
-(cmdRef : IO.Ref (smtM Unit))
-(negatedGoal : term sort.smt_bool)
 (goalName : String)
+(negatedGoal : smtM (term sort.smt_bool))
 : IO Unit := do
 cnt ← goalCounter.get;
-smtCtx ← cmdRef.get;
 goalCounter.modify Nat.succ;
-let (_, _, cmds) := runsmtM IdGen.empty (checkNegatedGoalInContext goalName negatedGoal smtCtx);
+let (_, _, cmds) := runsmtM IdGen.empty (checkNegatedGoal goalName negatedGoal);
 let filePath := System.mkFilePath [outputDir, standaloneGoalFilename fnName blockLabel cnt];
 file ← IO.FS.Handle.mk filePath IO.FS.Mode.write;
 cmds.forM (λ c => file.putStr c.toLine)
-
-
-def defaultAddSMTCallback (cmdRef : IO.Ref (smtM Unit)) : SMT.smtM Unit → IO Unit :=
-λ action => cmdRef.modify (λ cmds => cmds *> action)
-
-def defaultAddCommandCallback (cmdRef : IO.Ref (smtM Unit)) : command → IO Unit :=
-λ cmd => cmdRef.modify (λ cmds => cmds *> liftCommand cmd)
 
 def exportCallbacks
 {α}
@@ -220,12 +222,7 @@ goalCounter <- IO.mkRef 0;
 let initSmtM : smtM Unit := pure ();
 cmdRef <- IO.mkRef initSmtM;
 action
-  {addSMTCallback := defaultAddSMTCallback cmdRef,
-   addCommandCallback := defaultAddCommandCallback cmdRef,
-   proveFalseCallback := λ p msg =>
-    exportCheckSatProblem outputDir fnName blockLabel goalCounter cmdRef p msg,
-   proveTrueCallback := λ p msg =>
-    exportCheckSatProblem outputDir fnName blockLabel goalCounter cmdRef (SMT.not p) msg,
+  {checkSatAssuming := exportCheckSatAssuming outputDir fnName blockLabel goalCounter,
    blockErrorCallback := λ i a msg =>
     -- FIXME stderr and other handles are in Lean4, fix when we bump next
     IO.println $ "Error: " ++ renderMCInstError fnName blockLabel i a msg
@@ -254,17 +251,41 @@ structure InteractiveContext :=
 --   to see if the resulting script is satisfiable or not.
 
 
+
+-- | Function to verify an SMT proposition is provable in the given
+--   context and print the result to the user.
+def verifyGoal
+(negGoal : SMT.term SMT.sort.smt_bool)
+-- ^ Negation of goal to verify
+(propName : String)
+-- ^ Name of proposition for reporting purposes.
+: BlockVCG Unit := do
+ctx ← read;
+smtCtx ← BlockVCGState.smtContext <$> get;
+goalIndex ← BlockVCGState.goalIndex <$> get;
+let newGoal : VerificationEvent :=
+  VerificationEvent.goal
+  {fnName := ctx.llvmFunName,
+   blockLbl := ctx.currentBlock,
+   goalIndex := goalIndex,
+   propName := propName,
+   negatedGoal := do smtCtx; pure negGoal};
+modify (λ s => {s with
+                  verificationEvents := newGoal :: s.verificationEvents,
+                  goalIndex := s.goalIndex + 1});
+pure ()
+
+
+
 -- | Function to verify an SMT proposition is provable in the given
 -- | context and print the result to the user.
 def interactiveVerifyGoal
 (ictx : InteractiveContext)
 -- ^ Context for verifying goals
-(cmdRef : IO.Ref (smtM Unit))
--- ^ The SMT context the goal should be proven in
-(negGoal : SMT.term SMT.sort.smt_bool)
--- ^ Negation of goal to verify
 (propName : String)
 -- ^ Name of proposition for reporting purposes.
+(negGoal : smtM (term sort.smt_bool))
+-- ^ Negation of goal to verify
 : IO Unit := do
 cnt ← ictx.blockGoalCounter.get;
 ictx.allGoalCounter.modify Nat.succ;
@@ -276,8 +297,7 @@ let resultFilePath := smtFilePath ++ ".result";
 IO.print $ "  Verifying " ++ propName ++ "... ";
 -- FIXME, uncomment this line after next lean4 bump
 -- IO.stdout.flush;
-smtCtx ← cmdRef.get;
-let (_, _, cmds) := runsmtM IdGen.empty (checkNegatedGoalInContext propName negGoal smtCtx);
+let (_, _, cmds) := runsmtM IdGen.empty (checkNegatedGoal propName negGoal);
 IO.FS.withFile smtFilePath IO.FS.Mode.write (λ file => do
   cmds.forM (λ c => file.putStr c.toLine);
   file.flush);
@@ -357,10 +377,7 @@ let ictx : InteractiveContext:=
     solverCommand := solverCmd
   };
 let fns : ProverInterface :=
-  {addSMTCallback := defaultAddSMTCallback cmdRef,
-   addCommandCallback := defaultAddCommandCallback cmdRef,
-   proveFalseCallback := λ p => interactiveVerifyGoal ictx cmdRef p,
-   proveTrueCallback := λ p => interactiveVerifyGoal ictx cmdRef (SMT.not p),
+  {checkSatAssuming := interactiveVerifyGoal ictx,
    blockErrorCallback := λ i a msg => do
      -- FIXME stderr and other handles are in Lean4, fix when we bump next
      IO.println $ "Error: " ++ (renderMCInstError fnName lbl i a msg);
@@ -369,7 +386,7 @@ let fns : ProverInterface :=
 action fns
 
 
-def interactiveSMTGenerator (annFile solverPath : String) (solverArgs : List String) : IO ProverSessionGenerator := do
+def interactiveSMTGenerator (annFile solverPath : String) (solverArgs : List String) : IO ProverSession := do
 -- Counter for all goals
 allGoalCounter ← IO.mkRef 0;
 -- Counter for goals successfully verified.

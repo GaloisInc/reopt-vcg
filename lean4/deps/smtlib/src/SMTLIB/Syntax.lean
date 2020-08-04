@@ -690,9 +690,16 @@ def smt_let {s t : sort} (v : symbol) (e : term s) (body : term s -> term t) : t
 -- Scripts and Commands
 def script : Type := List command
 
+namespace script
+
+instance : HasAppend SMT.script :=
+inferInstanceAs (HasAppend (List command))
+
+end script
+
 structure SMTState :=
   (idGen  : IdGen)
-  (script : script)
+  (revScript : script)
 
 def smtM := StateM SMTState
 
@@ -706,8 +713,8 @@ def freshSymbol (suggestedStr : String) : smtM String := do
   pure sym
 
 def runsmtM {a : Type} (idGen : IdGen) (m : smtM a) : (a × IdGen × script) :=
-  let r := StateT.run m { idGen := idGen, script := [] };
-  (r.fst, (r.snd.idGen, r.snd.script.reverse))
+  let r := StateT.run m { idGen := idGen, revScript := [] };
+  (r.fst, (r.snd.idGen, r.snd.revScript.reverse))
 
 theorem const_sort_to_type_fold {res : sort} : forall {args : List sort}, 
  const_sort_to_type (List.foldr fsort (base res) args) = args_to_type args res -- := sorryAx _
@@ -717,7 +724,7 @@ theorem const_sort_to_type_fold {res : sort} : forall {args : List sort},
 def declare_fun (s : String) (args : List sort) (res : sort) : smtM (args_to_type args res) := do
   s' <- freshSymbol s;  
   let ident := Raw.identifier.symbol (List.foldr fsort (base res) args) s';
-  do modify (fun st => {st with script := (declare_fun s' args res) :: st.script });
+  do modify (fun st => {st with revScript := (declare_fun s' args res) :: st.revScript });
      pure (Eq.mp const_sort_to_type_fold ident.expand_ident)
 
 def inst_args_aux (res : sort) : 
@@ -738,7 +745,7 @@ def define_fun (s : String) (args : List sort) (res : sort) (body : args_to_type
   s' <- freshSymbol s;
   let ident := Raw.identifier.symbol (List.foldr fsort (base res) args) s';
   (args', body') <- inst_args res args body;
-  do modify (fun st => {st with script := (define_fun s' args' res body') :: st.script });
+  do modify (fun st => {st with revScript := (define_fun s' args' res body') :: st.revScript });
      pure (Eq.mp const_sort_to_type_fold ident.expand_ident)
 
 def is_atomic : forall {s : const_sort}, Raw.term s -> Bool
@@ -754,26 +761,26 @@ def name_term (name : String) {s : sort} (tm : term s) : smtM (term s) :=
   if is_atomic tm then pure tm else  define_fun name [] s tm
 
 def assert (b : term smt_bool) : smtM Unit := 
-  modify (fun st => {st with script := (Raw.command.assert b) :: st.script })
+  modify (fun st => {st with revScript := (Raw.command.assert b) :: st.revScript })
 def comment (content : String) : smtM Unit :=
-  modify (fun st => {st with script := (Raw.command.comment content) :: st.script })
+  modify (fun st => {st with revScript := (Raw.command.comment content) :: st.revScript })
 def setLogic (l : Raw.logic) : smtM Unit :=
-  modify (fun st => {st with script := (Raw.command.setLogic l) :: st.script })
+  modify (fun st => {st with revScript := (Raw.command.setLogic l) :: st.revScript })
 def setOption (o : Raw.option) : smtM Unit :=
-  modify (fun st => {st with script := (Raw.command.setOption o) :: st.script })
+  modify (fun st => {st with revScript := (Raw.command.setOption o) :: st.revScript })
 def setProduceModels (b : Bool) : smtM Unit :=
-  modify (fun st => {st with script := (Raw.command.setOption (Raw.option.produceModels b)) :: st.script})
+  modify (fun st => {st with revScript := (Raw.command.setOption (Raw.option.produceModels b)) :: st.revScript})
 def checkSatAssuming (bs : List (term smt_bool)) : smtM Unit :=
-  modify (fun st => {st with script := (Raw.command.checkSatAssuming bs) :: st.script })
+  modify (fun st => {st with revScript := (Raw.command.checkSatAssuming bs) :: st.revScript })
 def exit : smtM Unit :=
-  modify (fun st => {st with script := Raw.command.exit :: st.script })
+  modify (fun st => {st with revScript := Raw.command.exit :: st.revScript })
 
 def ex1 : smtM Unit :=
   do f <- declare_fun "f" [smt_bool, smt_bool] smt_bool;
      assert (f true false)
 
 def liftCommand (c : command) : smtM Unit :=
-  modify (fun st => {st with script := c :: st.script })
+  modify (fun st => {st with revScript := c :: st.revScript })
 
 
 inductive CheckSatResult
