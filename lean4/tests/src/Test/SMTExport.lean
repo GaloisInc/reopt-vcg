@@ -13,7 +13,7 @@ namespace SMTExport
 open ReoptVCG
 
 
-def smtCommands1 : SMT.smtM Unit := do
+def smtGoal1 : SMT.smtM (SMT.term SMT.sort.smt_bool) := do
 tt ← SMT.declare_fun "tt" [] SMT.sort.smt_bool;
 tt0 ← SMT.declare_fun "tt" [] SMT.sort.smt_bool;
 tt2 ← SMT.name_term "tt2" SMT.true;
@@ -29,11 +29,11 @@ SMT.assert $ SMT.eq tt tt2;
 SMT.assert $ SMT.eq ff SMT.false;
 SMT.assert $ SMT.eq (negb ff) SMT.true;
 SMT.assert $ SMT.eq (negb tt) SMT.false;
-SMT.assert $ andb tt (negb ff)
+SMT.assert $ andb tt (negb ff);
+pure SMT.false
 
-def proverAction1 (p : ProverInterface) : IO Unit := do
-p.addSMTCallback smtCommands1;
-p.proveFalseCallback SMT.false "false-is-false\n(true-is-true?)"
+def proverAction1 (p : ProverInterface) : IO Unit :=
+p.checkSatAssuming "false-is-false\n(true-is-true?)" smtGoal1
 
 def testExportCallbacks : IO Unit := do
 let outDir := ".";

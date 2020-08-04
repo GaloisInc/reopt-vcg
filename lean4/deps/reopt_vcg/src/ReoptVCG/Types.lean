@@ -63,30 +63,9 @@ structure VCGConfig :=
 (mode : VerificationMode)
 (verbose : Bool)
 
--- TODO / FIXME see comment below about moving away from IO          
--- FIXME(AMK) don't use the raw interface to SMT?
-structure ProverInterface :=
-(addSMTCallback     : SMT.smtM Unit → IO Unit)
-(addCommandCallback : command → IO Unit)
-(proveFalseCallback : term sort.smt_bool → String → IO Unit)
-(proveTrueCallback  : term sort.smt_bool → String → IO Unit)
-(blockErrorCallback : Nat → Nat → String → IO Unit) -- what do we do there? Do nothing for now...?
 
-namespace ProverInterface
-
-open SMT (smtM)
-
-def runsmtM {a : Type} (p : ProverInterface) (idGen : IdGen) (m : smtM a) : IO (a × IdGen) :=
-  match SMT.runsmtM idGen m with
-  | (r, (idGen', cmds)) => do
-    _ <- List.mapM p.addCommandCallback cmds;
-    pure (r, idGen')
-  
-end ProverInterface
-
-structure ProverSessionGenerator :=
-(blockCallback : FnName → LLVM.BlockLabel → (ProverInterface → IO Unit) → IO Unit)
-(sessionComplete : IO UInt32)
+abbrev MemAddr := Nat
+abbrev MCBlockAnnMap := Std.RBMap MemAddr MemoryAnn (λ x y => x < y)
 
 @[reducible]
 def LLVMTypeMap := Std.RBMap String (Option LLVM.LLVMType) Lean.strLt
@@ -95,21 +74,10 @@ def LLVMTypeMap := Std.RBMap String (Option LLVM.LLVMType) Lean.strLt
 structure ModuleVCGContext :=
 (annotations : ModuleAnnotations)
 -- ^ Annotations for module.
-(decoder : decodex86.decoder )
+(decoder : decodex86.decoder)
 -- ^ Machine code memory / decoder state
 (symbolAddrMap : Std.RBMap String (elf.word elf.elf_class.ELF64) Lean.strLt)
 -- ^ Maps bytes to the symbol name
-(writeStderr : Bool)
--- ^ Controls whether logs, warnings or errors
--- chould be written to stderr.
---
--- If false, the messages are droped, but warning
--- count is increased.
-(errorCount : IO.Ref Nat)
--- ^ Counts numbers of warnings generated during
--- verification for display at end of run.
-(proverGen : ProverSessionGenerator)
--- ^ Interface for generating prover sessions.
 (moduleTypeMap : LLVMTypeMap)
 -- ^ type map for module.
 
@@ -165,10 +133,10 @@ end BlockError
 
 
 inductive ModuleError
-| custom : String → ModuleError
+| custom   : String → ModuleError
 | function : FnName → FnError → ModuleError
-| block : FnName → LLVM.BlockLabel → BlockError → ModuleError
-| io : IO.Error -> ModuleError
+| block    : FnName → LLVM.BlockLabel → BlockError → ModuleError
+| fatal    : String → ModuleError
 
 namespace ModuleError
 
@@ -176,11 +144,7 @@ def pp : ModuleError → String
 | custom msg => msg
 | function fnm ferr => fnm++". "++ferr.pp
 | block fnm lbl err => fnm++"."++lbl.pp++". "++err.pp
-| io err => err.toString
-
-def toIOError : ModuleError → IO.Error
-| io ioErr => ioErr
-| e => IO.userError $ "Uncaught module VCG error: " ++ e.pp
+| fatal msg => msg
 
 
 -- instance HasExceptModuleError : MonadExcept ModuleError (EIO ModuleError) :=
@@ -206,25 +170,78 @@ def toIOError : ModuleError → IO.Error
 end ModuleError
 
 
+
+-----------------------------------------------------------
+-- Verification Data
+--
+-- I.e., the data structures produced during VCG which
+-- describe what SMT queries are necessary to prove things
+-- are good-to-go.
+-----------------------------------------------------------
+
+
+-- A verification goal for a block.
+structure VerificationGoal :=
+(fnName    : String)
+-- ^ Function we are verifying the goal within.
+(blockLbl  : LLVM.BlockLabel)
+-- ^ Block we are verifying the goal within.
+(goalIndex : Nat)
+-- ^ Index of the goal.
+(propName  : String)
+-- ^ Name of the proposition for reporting purposes.
+(negatedGoal   : smtM (term sort.smt_bool))
+-- ^ SMT script which, if unsat, proves the goal
+
+-- | Log messages interleaved with verification
+-- goal generation for humans.
+structure VerificationMsg :=
+(msg : String)
+
+-- | The sequential events that are generated during
+-- | verification (e.g., SMT queries, logging info, etc)
+inductive VerificationEvent
+| goal : VerificationGoal → VerificationEvent
+| msg  : VerificationMsg → VerificationEvent
+
+-- | Describes the conditions which would verify this block.
+structure BlockVerification :=
+(llvmFunName : String)
+(blockLbl : LLVM.BlockLabel)
+(blockVerificationEvents : List VerificationEvent)
+
+
 -------------------------------------------------------
 -- ModuleVCG (monad and some basic helpers)
 -------------------------------------------------------
 
+-- | Describes the result of verifying a block.
+inductive BlockVerificationEvent
+| block  : BlockVerification → BlockVerificationEvent
+| error  : FnName → LLVM.BlockLabel → BlockError → BlockVerificationEvent
+
+
+inductive FnVerificationEvent
+| fn : FnName → List BlockVerificationEvent → FnVerificationEvent
+| error : FnName → FnError → FnVerificationEvent
+
+structure ModuleVCGState :=
+(errorCount : Nat)
 
 -- A monad for running verification of an entire module
 -- TODO / FIXME we'll want to move away from EIO at, see
 -- https://github.com/GaloisInc/reopt-vcg/pull/53#discussion_r408440682 
 @[reducible]
-def ModuleVCG := ReaderT ModuleVCGContext IO
+def ModuleVCG := ReaderT ModuleVCGContext (EStateM ModuleError ModuleVCGState)
 
 namespace ModuleVCG
 
 instance : Functor ModuleVCG := 
-  inferInstanceAs (Functor (ReaderT ModuleVCGContext IO))
+  inferInstanceAs (Functor (ReaderT ModuleVCGContext (EStateM ModuleError ModuleVCGState)))
 instance : Applicative ModuleVCG :=
-  inferInstanceAs (Applicative (ReaderT ModuleVCGContext IO))
+  inferInstanceAs (Applicative (ReaderT ModuleVCGContext (EStateM ModuleError ModuleVCGState)))
 instance : Monad ModuleVCG :=
-  inferInstanceAs (Monad (ReaderT ModuleVCGContext IO))
+  inferInstanceAs (Monad (ReaderT ModuleVCGContext (EStateM ModuleError ModuleVCGState)))
 
 -- Run "standard" IO by wrapping any exceptions thrown in our Module.Error.IO wrapper.
 -- def liftIO {α} (m : IO α) : ModuleVCG α := 
@@ -232,7 +249,7 @@ instance : Monad ModuleVCG :=
 
 -- instance : HasMonadLiftT IO ModuleVCG := {monadLift := @ModuleVCG.liftIO}
 instance : MonadReader ModuleVCGContext ModuleVCG :=
-  inferInstanceAs (MonadReader ModuleVCGContext (ReaderT ModuleVCGContext IO))
+  inferInstanceAs (MonadReader ModuleVCGContext (ReaderT ModuleVCGContext (EStateM ModuleError ModuleVCGState)))
 
 -- def throwIO {α} (err : IO.Error) : ModuleVCG α := throw $ ModuleError.io err
 -- def catchIO {α} (m : ModuleVCG α) (h : IO.Error → ModuleVCG α) : ModuleVCG α := 
@@ -252,43 +269,30 @@ instance : MonadReader ModuleVCGContext ModuleVCG :=
 --    catch := @ModuleVCG.catchIO,
 --    monadLift := @ModuleVCG.liftIO}
 
-instance : MonadIO ModuleVCG :=
-inferInstanceAs (MonadIO (ReaderT ModuleVCGContext IO))
+-- instance : MonadIO ModuleVCG :=
+-- inferInstanceAs (MonadIO (ReaderT ModuleVCGContext (EStateM ModuleError ModuleVCGState)))
 
 end ModuleVCG
 
 
-def runModuleVCG (ctx : ModuleVCGContext) (m : ModuleVCG Unit) : IO Unit := m.run ctx
+def runModuleVCG {α} (ctx : ModuleVCGContext) (m : ModuleVCG α) : Except ModuleError (α × ModuleVCGState) :=
+let initState : ModuleVCGState := {errorCount := 0};
+match (m.run ctx).run initState with
+| EStateM.Result.ok v finalState => Except.ok (v, finalState)
+| EStateM.Result.error e _ => Except.error e
 
-def vcgLog (msg : String) : ModuleVCG Unit := do 
-  ctx ← read;
-  when ctx.writeStderr $ 
-    IO.println msg -- FIXME can't find the handle for stderr =\
 
 -- A warning that stops execution until catch.
 def functionError {α} (fnm : FnName) (e : FnError) : ModuleVCG α :=
-throw $ IO.userError $ ModuleError.pp $ ModuleError.function fnm e
+throw $ ModuleError.function fnm e
 
 -- A warning that stops execution until catch.
 def blockError {α} (fnm : FnName) (lbl : LLVM.BlockLabel) (e : BlockError) : ModuleVCG α :=
-  throw $ IO.userError $ ModuleError.pp $ ModuleError.block fnm lbl e
+  throw $ ModuleError.block fnm lbl e
 
 -- A warning that stops execution until catch.
 def moduleThrow {α} (errMsg : String) : ModuleVCG α :=
-  throw $ IO.userError $ ModuleError.pp $ ModuleError.custom errMsg
-
-
--- Catch a VCG error, print it to the screen and keep going.
-def moduleCatch (m : ModuleVCG Unit) :  ModuleVCG Unit :=
-  λ (ctx : ModuleVCGContext) =>
-    catch (m.run ctx) $ λ (e : IO.Error) => 
-      match e with
-      | IO.Error.userError msg => do
-        when ctx.writeStderr $
-          IO.println $ "Error: " ++ msg; -- FIXME use stderr or similar?
-        ctx.errorCount.modify (λ n => n + 1)
-      | _ => throw e
-
+  throw $ ModuleError.custom errMsg
 
 
 -------------------------------------------------------
@@ -320,9 +324,6 @@ pure (ab.annotation, ab.phiVarMap)
 -- BlockVCG
 -------------------------------------------------------
 
-abbrev MemAddr := Nat
-abbrev MCBlockAnnMap := Std.RBMap MemAddr MemoryAnn (λ x y => x < y)
-
 -- Information that does not change during execution of a BlockVCG action.
 structure BlockVCGContext :=
 (mcModuleVCGContext : ModuleVCGContext)
@@ -335,8 +336,6 @@ structure BlockVCGContext :=
   -- ^ Label for first block in this function
 (currentBlock : LLVM.BlockLabel)
   -- ^ Label for block we are verifying.
-(callbackFns : ProverInterface)
-  -- ^ Functions for interacting with SMT solver.
 (mcBlockEndAddr : MemAddr)
   -- ^ The end address of the block.
 (mcBlockMap : MCBlockAnnMap)
@@ -371,10 +370,24 @@ structure BlockVCGState :=
  -- ^ Set of allocation names that are active.
 (llvmIdentMap : Std.RBMap LLVM.Ident (Sigma SMT.term) (fun x y => x < y))
  -- ^ Mapping from llvm ident to their SMT equivalent.
+(smtContext : smtM Unit)
+-- ^ Logical context defining the block.
+(goalIndex : Nat)
+-- ^ Counter for goals in a block.
+(verificationEvents : List VerificationEvent)
+-- ^ SMT scripts that end in a check-sat-assuming for the
+--   goals necessary for verifying a block as well as log
+--   messages and the like for human benefit. TODO: each of
+--   the scripts will essentially share a "prelude"
+--   defining the block, and then have their own ending
+--   sequence of commands to verify the thing... perhaps it
+--   is desirable to share that "prelude" explicitly?
+--   Although that might make reasoning about each goal more
+--   complicated... ¯\_(ツ)_/¯
 
 
 inductive BlockVCGError
-| localErr : String → BlockVCGError
+| localErr : BlockError → BlockVCGError
 -- ^ The was an error processing the current block which,
 --   has halted its verification, but it is reasonable to
 --   continue on with the next block's verification.
@@ -383,34 +396,29 @@ inductive BlockVCGError
 -- verifying blocks.
 
 
-def BlockVCG := ReaderT BlockVCGContext (StateT BlockVCGState (ExceptT BlockVCGError IO))
+def BlockVCG := ReaderT BlockVCGContext (EStateM BlockVCGError BlockVCGState)
 
 namespace BlockVCG
 
 instance : Monad BlockVCG :=
-  inferInstanceAs (Monad (ReaderT BlockVCGContext (StateT BlockVCGState (ExceptT BlockVCGError IO))))
+  inferInstanceAs (Monad (ReaderT BlockVCGContext (EStateM BlockVCGError BlockVCGState)))
 
 instance : MonadReader BlockVCGContext BlockVCG :=
-  inferInstanceAs (MonadReader BlockVCGContext (ReaderT BlockVCGContext (StateT BlockVCGState (ExceptT BlockVCGError IO))))
+  inferInstanceAs (MonadReader BlockVCGContext (ReaderT BlockVCGContext (EStateM BlockVCGError BlockVCGState)))
 
 instance : MonadState BlockVCGState BlockVCG :=
-  inferInstanceAs (MonadState BlockVCGState (ReaderT BlockVCGContext (StateT BlockVCGState (ExceptT BlockVCGError IO))))
+  inferInstanceAs (MonadState BlockVCGState (ReaderT BlockVCGContext (EStateM BlockVCGError BlockVCGState)))
 
 instance : MonadExcept BlockVCGError BlockVCG :=
-  inferInstanceAs (MonadExcept BlockVCGError (ReaderT BlockVCGContext (StateT BlockVCGState (ExceptT BlockVCGError IO))))
+  inferInstanceAs (MonadExcept BlockVCGError (ReaderT BlockVCGContext (EStateM BlockVCGError BlockVCGState)))
 
-instance : HasMonadLiftT IO BlockVCG :=
-  inferInstanceAs (HasMonadLiftT IO (ReaderT BlockVCGContext (StateT BlockVCGState (ExceptT BlockVCGError IO))))
-
-
-def liftIO {a : Type} (m : IO a) : BlockVCG a := monadLift m
 
 -- | Thow an error to terminate the current block's verification, but continue with
 -- other blocks verification.
-def localThrow {a} (msg : String) : BlockVCG a := throw $ BlockVCGError.localErr msg
+def localThrow {a} (e : BlockError) : BlockVCG a := throw $ BlockVCGError.localErr e
 
 -- | Thow an error to terminate all verification.
-def globalThrow {a} (msg : String) : BlockVCG a := throw $ BlockVCGError.globalErr msg
+def fatalThrow {a} (msg : String) : BlockVCG a := throw $ BlockVCGError.globalErr msg
 
 
 end BlockVCG

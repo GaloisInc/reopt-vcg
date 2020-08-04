@@ -52,11 +52,15 @@ def verifyBlock
 (firstAddr : MCAddr)
  -- ^ Address of first block.
 (aBlock : AnnotatedBlock)
-: ModuleVCG Unit := do
+: ModuleVCG BlockVerificationEvent := do
 -- Get annotations for this block
 match aBlock.annotation with
 -- We only need to verify unreachable blocks are not reachable.
-| BlockAnn.unreachable => pure ()
+| BlockAnn.unreachable =>
+  pure $ BlockVerificationEvent.block $
+   {llvmFunName := funAnn.llvmFunName,
+    blockLbl := aBlock.label,
+    blockVerificationEvents := []}
 | BlockAnn.reachable blockAnn => do
   -- Check allocations do not overlap with each other.
   -- FIXME we're ignoring alloca stuff for now, FYI
@@ -64,7 +68,17 @@ match aBlock.annotation with
   -- Start running verification condition generator.
   mCtx ← read;
   let verify := verifyReachableBlock blockAnn argBindings aBlock.phiVarMap aBlock.stmts;
-  monadLift $ verify.run mCtx funAnn blockMap firstLabel firstAddr aBlock.label blockAnn
+  match verify.run mCtx funAnn blockMap firstLabel firstAddr aBlock.label blockAnn with
+  | Except.ok vEvents => 
+    pure $ BlockVerificationEvent.block $
+      {llvmFunName := funAnn.llvmFunName,
+       blockLbl := aBlock.label,
+       blockVerificationEvents := vEvents}
+  | Except.error (BlockVCGError.localErr e) => do
+    modify (λ s => {s with errorCount := s.errorCount + 1});
+    pure $ BlockVerificationEvent.error funAnn.llvmFunName aBlock.label e
+  | Except.error (BlockVCGError.globalErr msg) =>
+    throw $ ModuleError.fatal msg
 
 
 
@@ -156,10 +170,9 @@ llvmIdentRBMap <$> fAnn.blocks.foldlM mkEntry []
 
 
 /-- Verify a particular function satisfies its specification. --/
-def verifyFunction (lMod:LLVM.Module) (fAnn: FunctionAnn): ModuleVCG Unit := do
+def verifyFunction' (lMod:LLVM.Module) (fAnn: FunctionAnn): ModuleVCG FnVerificationEvent := do
 modCtx ← read;
 let fnm := fAnn.llvmFunName;
-vcgLog $ "Analyzing " ++ fnm;
 -- Get the LLVM `define` associated with the function name
 lFun ← match getDefineByName lMod fnm with
   | Option.some f => pure f
@@ -197,12 +210,21 @@ let blockMap : Std.RBMap LLVM.BlockLabel AnnotatedBlock (λ x y => x<y) :=
                    ++ (firstBlockAnn.startAddr.addr.pp_hex
                    ++ "; symbol table however lists address as " ++ addr.addr.pp_hex ++ "."));
 -- Verify each block.
-blocks.forM (λ ab => moduleCatch $ verifyBlock fAnn argBindings blockMap entryBlockLbl entryBlockAddr ab)
+bvEvents ← blocks.toList.mapM (verifyBlock fAnn argBindings blockMap entryBlockLbl entryBlockAddr);
+pure $ FnVerificationEvent.fn fnm bvEvents
+
+def verifyFunction (lMod:LLVM.Module) (fAnn: FunctionAnn) : ModuleVCG FnVerificationEvent :=
+let handler : ModuleError → ModuleVCG FnVerificationEvent :=
+  λ e => match e with
+         | ModuleError.function fnm e => pure $ FnVerificationEvent.error fnm e
+         | _ => throw e;
+catch (verifyFunction' lMod fAnn) handler
+
 
 
 /-- Returns the loaded and parsed annotation info and a Prover session based on the given VCGConfig.
     throwing an IO.userError if anything fails. --/
-def setupWithConfig (cfg : VCGConfig) : IO (ModuleAnnotations × ProverSessionGenerator) := do
+def setupWithConfig (cfg : VCGConfig) : IO (ModuleAnnotations × ProverSession) := do
 -- Read in the annotation file.
 annContents ← IO.FS.readFile cfg.annFile;
 modAnn ← elseThrowPrefixed (Lean.Json.parse annContents >>= parseAnnotations)
@@ -224,7 +246,7 @@ match cfg.mode with
   outDirExists ← IO.isDir outDir;
   unless outDirExists $ throw $ IO.userError $ "Output directory `"++outDir++"` does not exists.";
   -- FIXME create the directory if it's missing? (It's not clear there's a lean4 API for that yet)
-  let psGen := ProverSessionGenerator.mk (exportCallbacks outDir) (pure 0);
+  let psGen := ProverSession.mk (exportCallbacks outDir) (pure 0);
   pure (modAnn, psGen)
   
 
@@ -259,9 +281,27 @@ m.types.foldl addEntry Std.RBMap.empty
 def get_text_segment {c} (e : elf.ehdr c) (phdrs : List (elf.phdr c)) : Option (elf.phdr c) :=
     phdrs.find? (fun p => p.flags.has_X)
 
+def runVerificationEvent (ps : ProverSession) : VerificationEvent → IO Unit
+| VerificationEvent.msg vMsg => IO.println vMsg.msg
+| VerificationEvent.goal vg => do
+  ps.blockCallback vg.fnName vg.blockLbl (λ prover => prover.checkSatAssuming vg.propName vg.negatedGoal)
+
+def runBlockVerificationEvent (ps : ProverSession) : BlockVerificationEvent → IO Unit
+| BlockVerificationEvent.block bv => bv.blockVerificationEvents.forM (runVerificationEvent ps)
+| BlockVerificationEvent.error fnm blockLbl bError =>
+  IO.println $ "Error while verifying block `" ++ (ppLLVM blockLbl) ++ "` of function `"++ fnm ++"`: " ++ (BlockError.pp bError)
+
+
+def runFnVerificationEvent (ps : ProverSession) : FnVerificationEvent → IO Unit
+| FnVerificationEvent.fn fnm bvEvents => do
+  IO.println $ "Analyzing `" ++ fnm ++ "`";
+  bvEvents.forM (runBlockVerificationEvent ps)
+| FnVerificationEvent.error fnm err =>
+  IO.println $ "Error while verifying funcion `" ++ fnm ++ "`: " ++ (FnError.pp err)
+
 /-- Run a ReoptVCG instance w.r.t. the given configuration. --/
 def runVCG (cfg : VCGConfig) : IO UInt32 := do
-(ann, gen) ← setupWithConfig cfg;
+(ann, proverSession) ← setupWithConfig cfg;
 -- Load Elf file and emit warnings
 -- FIXME: cleanup
 when cfg.verbose $ IO.println $ "Loading Elf file at `" ++ ann.binFilePath ++ "`...";
@@ -281,26 +321,26 @@ when cfg.verbose $ IO.println $ "Loading LLVM module at `"++ann.llvmFilePath++"`
 lMod ← loadLLVMModule ann.llvmFilePath;
 when cfg.verbose $ IO.println $ "LLVM module loaded!";
 -- Create verification coontext for module.
-errorRef ← IO.mkRef 0;
-let modCtx : ModuleVCGContext := 
+let modCtx : ModuleVCGContext :=
   { annotations := ann
   , decoder := d
   , symbolAddrMap := fnSymAddrMap
-  , writeStderr := true
-  , errorCount := errorRef
-  , proverGen := gen
   , moduleTypeMap := mkLLVMTypeMap lMod
   };
 -- Run verification.
+when cfg.verbose $ IO.println $ "Compiling VCG data for the module...";
+let verifyFns := ann.functions.mapM (verifyFunction lMod);
+(fvEvents, mState) ←
+  match runModuleVCG modCtx verifyFns with
+  | Except.ok res => pure res
+  | Except.error e =>
+    throw $ IO.userError $ "Fatal error encountered while constructing verification for functions: " ++ (ModuleError.pp e);
 when cfg.verbose $ IO.println $ "Running VCG for the module...";
-_ ← runModuleVCG modCtx (do
-  ann.functions.forM (λ funAnn => do
-    moduleCatch $ verifyFunction lMod funAnn));
+fvEvents.forM (runFnVerificationEvent proverSession);
 -- print out results
-errorCnt ← errorRef.get;
-if errorCnt > 0 then do
-  _ ← IO.println (repr errorCnt ++ " errors during verification.");
+if mState.errorCount > 0 then do
+  _ ← IO.println (repr mState.errorCount ++ " errors during verification.");
   pure 1
-else gen.sessionComplete
+else proverSession.sessionComplete
 
 end ReoptVCG
