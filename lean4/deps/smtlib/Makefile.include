@@ -1,0 +1,3 @@
+LOCAL_LEAN := src/SMTLIB/Syntax.lean src/SMTLIB/IdGen.lean
+
+$(eval $(call add-package,src,${LOCAL_LEAN},))

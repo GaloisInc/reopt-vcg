@@ -2,15 +2,15 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <cstdlib>
 
-#include "runtime/apply.h"
-#include "runtime/io.h"
+#include "lean/apply.h"
+#include "lean/io.h"
 
 using namespace lean;
 
 static obj_res set_io_error_errno(void) {
-    object *msg = mk_string(strerror(errno));
-    return set_io_error(msg);
+  return set_io_error(strerror(errno));
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -138,3 +138,11 @@ galois_io_prim_handle_do_lseek(b_obj_arg hdl_obj, obj_arg off_obj, uint8 whence,
 // }
 // }
 // }
+
+
+extern "C" obj_res
+galois_io_prim_system(b_obj_arg command_str_obj, obj_arg) {
+  std::string command = string_to_std(command_str_obj);
+  std::system(command.c_str());
+  return set_io_result(box(0));
+}

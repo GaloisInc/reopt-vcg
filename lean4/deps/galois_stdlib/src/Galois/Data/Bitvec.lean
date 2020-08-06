@@ -41,22 +41,8 @@ instance (w:Nat) : HasRepr (bitvec w) := ⟨fun v => repr (v.to_nat)⟩
 
 section to_hex
 
-protected def to_hex_with_leading_zeros : List Char → Nat → Nat → String
-| prev, 0, _ => prev.asString
-| prev, (Nat.succ w), x =>
-  let c := (Nat.land x 0xf).digitChar;
-  to_hex_with_leading_zeros (c::prev) w (Nat.shiftr x 4)
-
-protected def to_hex' : List Char → Nat → Nat → String
-| prev, 0, _ => prev.asString
-| prev, w, 0 => prev.asString
-| prev, (Nat.succ w), x =>
-  let c := (Nat.land x 0xf).digitChar;
-  to_hex' (c::prev) w (Nat.shiftr x 4)
-
 --- Print word as hex
-def pp_hex {n : Nat} (v : bitvec n) : String := 
-  if v.to_nat = 0 then "0x0" else "0x" ++ bitvec.to_hex' [] (n / 4) v.to_nat
+def pp_hex {n : Nat} (v : bitvec n) : String := Nat.ppHex v.to_nat
 
 end to_hex
 

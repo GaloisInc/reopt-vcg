@@ -12,11 +12,6 @@ git:
 #    - $HOME/.stack
 
 before_install:
-  # Download and unpack the stack executable
-  - mkdir -p $HOME/.local/bin
-  - export PATH=$HOME/.local/bin:$PATH
-  - travis_retry curl -L https://get.haskellstack.org/stable/linux-x86_64.tar.gz | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
-
   # This is an unfortunate hack that changes ssh paths into http path, so that
   # we can do a read-only clone of our submodules without worrying about ssh
   # keys.
@@ -56,5 +51,10 @@ script:
 
   # Build the semantics binary
   - pushd lean4
-  - LEAN_CXX=clang-8 make LEAN=$PWD/../local/bin/lean LEANC=$PWD/../local/bin/leanc LLVM_CONFIG=llvm-config-8 CXX=clang-8
+  - travis_wait 30 make LEAN_CXX=clang-8 LEAN=$PWD/../local/bin/lean LEANC=$PWD/../local/bin/leanc LLVM_CONFIG=llvm-config-8 CXX=clang-8
+
+  # Run the tests
+  - pushd tests/src/Test/
+  - bash test.sh
+  - popd
   - popd

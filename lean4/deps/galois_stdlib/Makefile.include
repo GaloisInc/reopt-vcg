@@ -1,7 +1,18 @@
+# -*- makefile -*-
 
-HERE := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
-LOCAL_LLVM := src/Galois/Data/Bitvec.lean  src/Galois/Init/Int.lean src/Galois/Init/Io.lean src/Galois/Init/Nat.lean src/Galois/Category/Coe1.lean
+LOCAL_LEAN := src/Galois/Category/Coe1.lean\
+  src/Galois/Data/Array.lean\
+  src/Galois/Data/Bitvec.lean\
+  src/Galois/Data/ByteArray.lean\
+  src/Galois/Data/List.lean\
+  src/Galois/Data/ParserComb.lean\
+  src/Galois/Data/RBMap.lean\
+  src/Galois/Data/SExp.lean\
+  src/Galois/Init/Int.lean\
+  src/Galois/Init/Io.lean\
+  src/Galois/Init/Nat.lean\
+  src/Galois/Init/Json.lean
 LOCAL_CXX  := src/Galois/Init/io_runtime.cpp
-LEANFILES += $(patsubst %,${HERE}%,${LOCAL_LLVM})
-EXTRACXXFILES += $(patsubst %,${HERE}%,${LOCAL_CXX})
-LEAN_PATH := ${LEAN_PATH}:Galois=${HERE}src/Galois
+
+# $(info $(call add-package,src,${LOCAL_LEAN},${LOCAL_CXX}))
+$(eval $(call add-package,src,${LOCAL_LEAN},${LOCAL_CXX}))

@@ -1,6 +1,10 @@
 
+import Std.Data.RBMap
+import Galois.Init.Nat
 import Galois.Data.Bitvec
 import X86Semantics.BufferMap
+
+open Std (RBMap)
 
 @[reducible]
 def memaddr  := bitvec 64
@@ -44,43 +48,15 @@ def region := ByteArray
 --   array.to_buffer (array.map' (fun (c : char) => bitvec.of_nat _ c.val) b.to_array)
 
 /- Construction -/
-def empty : memory := memory.mk buffer_map.empty (mkRBMap _ _ (fun x y => decide (bitvec.ult x y)))
+def empty : memory := memory.mk buffer_map.empty (Std.mkRBMap _ _ (fun x y => decide (bitvec.ult x y)))
 
 def from_init (i : init_memory) : memory := { empty with init := i }
 
 /- Reading and writing -/
 
 def store_bytes (m : memory) (addr : memaddr) (bs : List byte) : memory := 
-  { m with mem := (List.foldl (fun (v : mutable_memory × memaddr) b => (RBMap.insert v.fst v.snd b, v.snd + 1)) (m.mem, addr) bs).fst }
+  { m with mem := (List.foldl (fun (v : mutable_memory × memaddr) b => (Std.RBMap.insert v.fst v.snd b, v.snd + 1)) (m.mem, addr) bs).fst }
  
--- [0 ..< x]
-def upto0_lt_helper : ∀(m : Nat), List Nat -> List Nat
-  | 0,            acc => acc
-  | (Nat.succ n), acc => upto0_lt_helper n (n :: acc)
-
-def upto0_lt (m : Nat) : List Nat := upto0_lt_helper m []
-
-namespace upto0_lt
-
--- lemma length_is_n' : ∀{n : Nat} {acc : list Nat}
---   , (upto0_lt_helper n acc).length = n + acc.length :=
--- begin
---   intros n, 
---   induction n,
---   { intro, simp, refl },
---   { intro, simp [upto0_lt_helper, n_ih]
---   , simp [nat.succ_add_eq_succ_add, nat.add_assoc, nat.add_comm, nat.add_left_comm] }
--- end
-
--- lemma length_is_n : ∀{n : Nat}, (upto0_lt n).length = n :=
--- begin
---   intros n, 
---   unfold upto0_lt, 
---   apply length_is_n',
--- end
-
-end upto0_lt
-
 -- lemma {u v} option.bind.is_some {a : Type u} {b : Type v} {v : option a} {f : a -> option b} {x : b}:
 --   option.bind v f = some x -> (∃v', v = some v' ∧ f v' = some x) :=
 -- begin
@@ -109,7 +85,7 @@ def read_byte (m : memory) (addr : memaddr) : Option byte :=
   m.mem.find? addr <|> m.init.lookup addr
 
 def read_bytes (m : memory) (addr : memaddr) (n : Nat) : Option (List byte) :=
-   List.mapM (fun n => read_byte m (addr + bitvec.of_nat 64 n)) (upto0_lt n)
+   List.mapM (fun n => read_byte m (addr + bitvec.of_nat 64 n)) (Nat.upto0_lt n)
 
 -- lemma read_bytes_length {mem : memory} {addr : memaddr} {n : Nat} {bs : list (bitvec 8)}
 --   : read_bytes mem addr n = some bs -> bs.length = n :=

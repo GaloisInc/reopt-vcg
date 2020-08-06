@@ -12,6 +12,8 @@ open mc_semantics.float_class
 open reg
 open semantics
 
+set_option class.instance_max_depth 1000
+
 notation `pattern` body `pat_end` := mk_pattern body
 
 -- Introduces notation x[h..l] to slice the h..l bits out of x.
@@ -28,7 +30,7 @@ infix = := eq
 notation `⇑`:max x:max := coe1 x
 
 -- local 
-abbreviation ℕ := nat_expr
+abbreviation ℕ := Nat
 
 infix `.=`:20 := set
 
@@ -251,7 +253,7 @@ def xchg : instruction := do
 -- cmp definition
 -- Compare Two Operands
 
-def do_cmp {u v : nat_expr} (x : bv u) (src2 : bv v) := do
+def do_cmp {u v : Nat} (x : bv u) (src2 : bv v) := do
      y ← eval (sext src2 u);
      of .= ssub_overflows x y;
      af .= usub4_overflows x y;
@@ -622,6 +624,15 @@ def add : instruction := do
      of .= sadd_overflows tmp src;
      af .= uadd4_overflows tmp src;
      dest .= tmp
+   pat_end;
+   -- FIXME: this gets around a limitation where the rax is implicit
+   pattern fun (src : bv 64) => do
+     tmp <- eval $ ⇑rax + src;
+     set_result_flags tmp;
+     cf .= uadd_overflows tmp src;
+     of .= sadd_overflows tmp src;
+     af .= uadd4_overflows tmp src;
+     rax .= tmp
    pat_end
 
 ------------------------------------------------------------------------
@@ -720,6 +731,14 @@ def sub_def : instruction := do
      of .= ssub_overflows tmp src;
      af .= usub4_overflows tmp src;
      dest .= tmp
+   pat_end;
+   pattern fun (src : bv 64) => do
+     tmp ← eval $ ⇑rax - src;
+     set_result_flags tmp;
+     cf .= usub_overflows tmp src;
+     of .= ssub_overflows tmp src;
+     af .= usub4_overflows tmp src;
+     rax .= tmp
    pat_end
 
 ------------------------------------------------------------------------
@@ -905,12 +924,12 @@ def ret : instruction :=
  definst "retq" $ do
    pattern do
      addr ← eval $ expression.read (bv 64) rsp;
-     rsp .= rsp + 8;
+     rsp .= rsp + nat_to_bv 8;
      record_event (event.jmp addr)
    pat_end;
    pattern fun (off : bv 16) => do
      addr ← eval $ expression.read (bv 64) rsp;
-     rsp .= rsp + (8 + uext off 64);
+     rsp .= rsp + (nat_to_bv 8 + uext off 64);
      record_event (event.jmp addr)
    pat_end
 
