@@ -38,7 +38,7 @@ main = do
   case decode smtParser bs of
     Left err -> hPutStrLn stderr err *> exitFailure
     Right vs -> Text.putStrLn  (encode smtPrinter (strip vs))
-      -- Text.putStrLn  (encode smtPrinter vs)
+       -- Text.putStrLn  (encode smtPrinter vs)
 
 strip :: [SExpr Atom] -> [SExpr Atom]
 strip vs = filter (filterOne (required s)) vs
@@ -76,6 +76,10 @@ scanOne (A (Command "define-fun") ::: A (Symbol f) ::: args ::: _ ::: body) = do
 --  let Right argVs = asAssoc (Right . map fst) args
   let ds          = freeIn body -- FIXME `Set.difference` (Set.fromList argVs)
   modify (\s -> s { deps = Map.insert f ds (deps s) })
+scanOne (A (Command "define-fun-rec") ::: A (Symbol f) ::: args ::: _ ::: body) = do
+--  let Right argVs = asAssoc (Right . map fst) args
+  let ds          = freeIn body -- FIXME `Set.difference` (Set.fromList argVs)
+  modify (\s -> s { deps = Map.insert f ds (deps s) })  
 scanOne (A (Command "define-const") ::: A (Symbol f) ::: _ ::: body) = do
   let ds           = freeIn body
   modify (\s -> s { deps = Map.insert f ds (deps s) })
@@ -83,6 +87,7 @@ scanOne _ = pure ()
 
 filterOne :: Set Text -> SExpr Atom -> Bool
 filterOne ds (A (Command "define-fun") ::: A (Symbol f) ::: _) = f `Set.member` ds
+filterOne ds (A (Command "define-fun-rec") ::: A (Symbol f) ::: _) = f `Set.member` ds
 filterOne ds (A (Command "declare-fun") ::: A (Symbol f) ::: _) = f `Set.member` ds
 filterOne ds (A (Command "define-const") ::: A (Symbol f) ::: _) = f `Set.member` ds
 filterOne ds (A (Command "declare-const") ::: A (Symbol f) ::: _) = f `Set.member` ds
@@ -131,7 +136,7 @@ pSymbol = pKeyword <|> pSimple <|> pQuoted
     pQuoted = do char '|'
                  b <- many1 (satisfy (/= '|'))
                  char '|'
-                 return ("!" ++ b ++ "|")
+                 return ("|" ++ b ++ "|")
 
 isSimpleSymChar :: Char -> Bool
 isSimpleSymChar c = isAlphaNum c || c `elem` ("~!@$%^&*_-+=<>.?/" :: String)
@@ -163,12 +168,12 @@ commandNames =
   , "check-sat-assuming"
   , "check-sat"
   , "declare-const"
-  , "declare-datatype"
   , "declare-datatypes"
+  , "declare-datatype"
   , "declare-fun"
   , "declare-sort"
-  , "define-fun"
   , "define-fun-rec"
+  , "define-fun"
   , "define-sort"
   , "echo"
   , "exit"
