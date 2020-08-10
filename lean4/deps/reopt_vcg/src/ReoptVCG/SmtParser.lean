@@ -1,6 +1,6 @@
 import Galois.Data.RBMap
 import Galois.Data.SExp
-import SMTLIB.Syntax
+import SmtLib.Smt
 import LeanLLVM.AST
 import X86Semantics.Common
 import ReoptVCG.WordSize
@@ -14,7 +14,7 @@ universes u v
 
 
 open WellFormedSExp
-open SMT
+open Smt
 
 ------------------------------------------------------------------------
 -- Expression
@@ -50,21 +50,21 @@ match ss with
 /-- An expression in the SMT bitvector theory with 
     variables/constants which may appear in 
     block preconditions. --/
-inductive BlockExpr : sort → Type u
-| stackHigh : BlockExpr sort.bv64
+inductive BlockExpr : SmtSort → Type u
+| stackHigh : BlockExpr SmtSort.bv64
   -- ^ Denotes the high address on the stack.
   --
   -- This is the address the return address is stored at, and
   -- the curent frame.
-| initGPReg64 : x86.reg64 → BlockExpr sort.bv64
+| initGPReg64 : x86.reg64 → BlockExpr SmtSort.bv64
   -- ^ Denotes the value of a 64-bit general purpose register
   -- at the start of the block execution.
-| fnStartGPReg64 : x86.reg64 → BlockExpr sort.bv64
+| fnStartGPReg64 : x86.reg64 → BlockExpr SmtSort.bv64
   -- ^ Denotes the value of a general purpose when the function starts.
   --
   -- Note. We do not support all registers here, only the registers
   -- in `calleeSavedGPRegs`
-| mcStack (a : BlockExpr sort.bv64) (w:WordSize) : BlockExpr w.sort
+| mcStack (a : BlockExpr SmtSort.bv64) (w:WordSize) : BlockExpr w.sort
   -- ^ @MCStack a w@ denotes @w@-bit value stored at the address @a@.
   --
   -- The width @w@ should be @8@, @16@, @32@, or @64@.
@@ -72,18 +72,18 @@ inductive BlockExpr : sort → Type u
   -- Our memory model only tracks the mc-only variables, so if the
   -- address is not a stack-only variable, then the value just
   -- means some arbitrary value.
-| llvmVar (nm : LLVM.Ident) (tp : sort) : BlockExpr tp
+| llvmVar (nm : LLVM.Ident) (tp : SmtSort) : BlockExpr tp
   -- ^ This denotes the value of an LLVM Phi variable when the
   -- block starts.
-| eq    {tp : sort} : BlockExpr tp → BlockExpr tp → BlockExpr sort.smt_bool
-| bvAdd {n : Nat} : BlockExpr (sort.bitvec n) → BlockExpr (sort.bitvec n) → BlockExpr (sort.bitvec n)
-| bvSub {n : Nat} : BlockExpr (sort.bitvec n) → BlockExpr (sort.bitvec n) → BlockExpr (sort.bitvec n)
+| eq    {tp : SmtSort} : BlockExpr tp → BlockExpr tp → BlockExpr SmtSort.bool
+| bvAdd {n : Nat} : BlockExpr (SmtSort.bitvec n) → BlockExpr (SmtSort.bitvec n) → BlockExpr (SmtSort.bitvec n)
+| bvSub {n : Nat} : BlockExpr (SmtSort.bitvec n) → BlockExpr (SmtSort.bitvec n) → BlockExpr (SmtSort.bitvec n)
   -- | @BVDecimal v w@ denotes the @w@-bit value @v@ which should
   -- satisfy the property that @v < 2^w@.
-| bvDecimal (v w : Nat) : BlockExpr (sort.bitvec w)
+| bvDecimal (v w : Nat) : BlockExpr (SmtSort.bitvec w)
 
 /-- Map from LLVM ident names to their sorts--/
-abbrev LLVMTyEnv := RBMap LLVM.Ident SMT.sort (λ x y => x<y)
+abbrev LLVMTyEnv := RBMap LLVM.Ident SmtSort (λ x y => x<y)
 
 namespace BlockExpr
 
@@ -101,7 +101,7 @@ partial def fromSExp
   if h : (xtp = ytp)
   then 
     let hEq : BlockExpr xtp = BlockExpr ytp := h ▸ rfl;
-    Except.ok ⟨sort.smt_bool, eq (cast hEq xe) ye⟩
+    Except.ok ⟨SmtSort.bool, eq (cast hEq xe) ye⟩
   else Except.error $ 
        "The two operands in the term `"
        ++ (SExp.list [SExp.atom (Atom.ident "="), x, y]).toString
@@ -112,11 +112,11 @@ partial def fromSExp
   xRes ← fromSExp x;
   yRes ← fromSExp y;
   match xRes, yRes with
-  | ⟨sort.bitvec xw, xe⟩, ⟨sort.bitvec yw, ye⟩ =>
+  | ⟨SmtSort.bitvec xw, xe⟩, ⟨SmtSort.bitvec yw, ye⟩ =>
     if h : xw = yw
     then 
-      let hEq : BlockExpr (sort.bitvec xw) = BlockExpr (sort.bitvec yw) := h ▸ rfl;
-      Except.ok ⟨sort.bitvec yw, bvSub (cast hEq xe) ye⟩
+      let hEq : BlockExpr (SmtSort.bitvec xw) = BlockExpr (SmtSort.bitvec yw) := h ▸ rfl;
+      Except.ok ⟨SmtSort.bitvec yw, bvSub (cast hEq xe) ye⟩
     else Except.error $ 
          "The two operands in the term `"
           ++ (SExp.list [SExp.atom (Atom.ident "bvsub"), x, y]).toString
@@ -136,15 +136,15 @@ partial def fromSExp
     match nStr.toSubstring.toNat? with
     | some n => 
       let val : Nat := Nat.land n $ (Nat.pow 2 width) - 1;
-      Except.ok ⟨sort.bitvec width, bvDecimal val width⟩
+      Except.ok ⟨SmtSort.bitvec width, bvDecimal val width⟩
     | none => Except.error $ "a bitvector literal should have a natural number adjacent to `bv`"
               ++ " but found " ++ bvLit
   | _ => Except.error $ "unrecognized SMT expression: " ++ bvLit
 | SExp.list [SExp.atom (Atom.ident "mcstack"), sa, sw] => do
   ⟨tp, a⟩ ← fromSExp sa;
-  if h : tp = sort.bv64
+  if h : tp = SmtSort.bv64
   then do
-    let hEq : BlockExpr tp = BlockExpr sort.bv64 := h ▸ rfl;
+    let hEq : BlockExpr tp = BlockExpr SmtSort.bv64 := h ▸ rfl;
     w ← match sw with
         | SExp.list [SExp.atom (Atom.ident "_"),
                      SExp.atom (Atom.ident "BitVec"),
@@ -161,7 +161,7 @@ partial def fromSExp
   match regExpr with
   | SExp.atom (Atom.ident regName) =>
     match x86.reg64.fromName regName with
-    | some r => Except.ok ⟨sort.bv64, BlockExpr.fnStartGPReg64 r⟩
+    | some r => Except.ok ⟨SmtSort.bv64, BlockExpr.fnStartGPReg64 r⟩
     | none => Except.error $ "could not interpret register name " ++ regName
   | _ => Except.error $ "could not interpret register name " ++ regExpr.toString
 | SExp.list [SExp.atom (Atom.ident "llvm"), llvmExpr] =>
@@ -175,17 +175,17 @@ partial def fromSExp
   | _ => Except.error $ "Could not interpret llvm variable " ++ llvmExpr.toString
                       ++ "\nKnown variables: " ++ (llvmTyEnv.keys.map ppLLVMIdent).toString
 | SExp.atom (Atom.ident "stack_high") =>
-  Except.ok ⟨sort.bv64, BlockExpr.stackHigh⟩
+  Except.ok ⟨SmtSort.bv64, BlockExpr.stackHigh⟩
 | SExp.atom (Atom.ident nm) =>
   match x86.reg64.fromName nm with
-  | some r => Except.ok ⟨sort.bv64, BlockExpr.initGPReg64 r⟩
+  | some r => Except.ok ⟨SmtSort.bv64, BlockExpr.initGPReg64 r⟩
   | none => Except.error $ "Could not interpret identifier as a variable: " ++ nm
 | sexpr => Except.error $ "Could not interpret expression: " ++ sexpr.toString
 
 
 -- was simply `fromText` in Haskell, was a moment ago in lean4 `Expr.fromString`
 def parseAs
-(tp : sort)
+(tp : SmtSort)
 (llvmTyEnv : LLVMTyEnv)
 (input : String)
 : Except String (BlockExpr tp) := do

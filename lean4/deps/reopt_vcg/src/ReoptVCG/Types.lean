@@ -6,7 +6,7 @@ import ReoptVCG.Annotations
 import ReoptVCG.VCGBackend
 import ReoptVCG.MCStdLib
 
-import SMTLIB.Syntax
+import SmtLib.Smt
 import DecodeX86.DecodeX86
 
 -- TODO move these (or similar fns) to lean-llvm
@@ -36,11 +36,11 @@ end LLVM
 namespace ReoptVCG
 
 -- FIXME double check on which interface/API/etc to use here =\
--- The SMT.Raw namespace feels like it has the direct equivalents
+-- The Smt.Raw namespace feels like it has the direct equivalents
 -- to the What4.Protocol.SMTLib2.Syntax module in Haskell, but...
 -- it's the "Raw" interface which feels a little off...
 
-open SMT
+open Smt
 
 
 @[reducible]
@@ -190,7 +190,7 @@ structure VerificationGoal :=
 -- ^ Index of the goal.
 (propName  : String)
 -- ^ Name of the proposition for reporting purposes.
-(negatedGoal   : smtM (term sort.smt_bool))
+(negatedGoal   : SmtM (Term SmtSort.bool))
 -- ^ SMT script which, if unsat, proves the goal
 
 -- | Log messages interleaved with verification
@@ -368,9 +368,9 @@ structure BlockVCGState :=
   -- Used for error reporting
 --(activeAllocaSet : RBTree LocalIdent (λ x y => x < y)) -- TODO use later
  -- ^ Set of allocation names that are active.
-(llvmIdentMap : Std.RBMap LLVM.Ident (Sigma SMT.term) (fun x y => x < y))
+(llvmIdentMap : Std.RBMap LLVM.Ident (Sigma Smt.Term) (fun x y => x < y))
  -- ^ Mapping from llvm ident to their SMT equivalent.
-(smtContext : smtM Unit)
+(smtContext : SmtM Unit)
 -- ^ Logical context defining the block.
 (goalIndex : Nat)
 -- ^ Counter for goals in a block.
@@ -435,7 +435,7 @@ match e with
 /-- Maps between LLVM argument and machine code name. --/
 structure LLVMMCArgBinding :=
 (llvmArgName : LLVM.Ident)
-(smtSort: SMT.sort)
+(smtSort: Smt.SmtSort)
 (register: x86.reg64)
 
 

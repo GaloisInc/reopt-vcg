@@ -1,22 +1,22 @@
 
 import Galois.Data.SExp
 import Galois.Init.Io
-import ReoptVCG.SMTParser
+import ReoptVCG.SmtParser
 import ReoptVCG.MCStdLib
 import ReoptVCG.Types
 import ReoptVCG.VCGBackend
 import ReoptVCG.WordSize
-import SMTLIB.Syntax
+import SmtLib.Smt
 import X86Semantics.Common
 
 namespace ReoptVCG
-open SMT
+open Smt
 universe u
 
 abbrev GoalName := String
 
 structure ProverInterface :=
-(checkSatAssuming  : GoalName → smtM (term sort.smt_bool) → IO Unit)
+(checkSatAssuming  : GoalName → SmtM (Term SmtSort.bool) → IO Unit)
 (blockErrorCallback : Nat → Nat → String → IO Unit) -- what do we do there? Do nothing for now...?
 
 structure ProverSession :=
@@ -38,26 +38,26 @@ def defaultCVC4Args : List String :=
     appropriate and then simply parameterize SMT generation of
     precondition expressions accordingly. --/
 class BlockExprEnv (α : Type u) :=
-(initGPReg64 : α → x86.reg64 → term sort.bv64)
-(fnStartRegState : α → x86.reg64 → term sort.bv64)
-(evalVar : α → LLVM.Ident → Option (Sigma term))
-(readMem : α → ∀(w : WordSize), x86.vcg.memaddr →  term w.sort)
+(initGPReg64 : α → x86.reg64 → Term SmtSort.bv64)
+(fnStartRegState : α → x86.reg64 → Term SmtSort.bv64)
+(evalVar : α → LLVM.Ident → Option (Sigma Term))
+(readMem : α → ∀(w : WordSize), x86.vcg.memaddr →  Term w.sort)
 
 structure BlockVCGExprEnv :=
-(evalVar : LLVM.Ident → Option (Sigma term)) -- FIXME, this may just be state.llvmIdentMap.find? =\
+(evalVar : LLVM.Ident → Option (Sigma Term)) -- FIXME, this may just be state.llvmIdentMap.find? =\
 (context : BlockVCGContext)
 (state : BlockVCGState)
 
 namespace BlockVCGExprEnv
 variable (e : BlockVCGExprEnv)
 
-def initGPReg64 (r : x86.reg64) : term sort.bv64 :=
+def initGPReg64 (r : x86.reg64) : Term SmtSort.bv64 :=
 e.state.mcCurRegs.get_reg64 r
 
-def fnStartRegState (r : x86.reg64) : term sort.bv64 :=
+def fnStartRegState (r : x86.reg64) : Term SmtSort.bv64 :=
 e.context.mcStdLib.funStartRegs.get_reg64 r
 
-def readMem (w:WordSize) (addr : x86.vcg.memaddr) : term w.sort :=
+def readMem (w:WordSize) (addr : x86.vcg.memaddr) : Term w.sort :=
 (e.context.mcStdLib.memOps w).readMem e.state.mcCurMem addr
 
 end BlockVCGExprEnv
@@ -77,7 +77,7 @@ def ppLLVMIdent : LLVM.Ident → String
 | LLVM.Ident.named nm => nm
 | LLVM.Ident.anon n => "%"++(repr n)
 
-def toSExp : ∀ {tp : sort}, BlockExpr tp → SExp String
+def toSExp : ∀ {tp : SmtSort}, BlockExpr tp → SExp String
 | _, stackHigh => SExp.atom "stack_high"
 | _, initGPReg64 r => SExp.atom r.name
 | _, fnStartGPReg64 r => SExp.list [SExp.atom "fnstart", SExp.atom r.name]
@@ -92,7 +92,7 @@ def toSExp : ∀ {tp : sort}, BlockExpr tp → SExp String
 | _, bvSub e1 e2 => SExp.list [SExp.atom "bvsub", toSExp e1, toSExp e2]
 | _, bvDecimal n width => SExp.list [SExp.atom "_", SExp.atom ("bv"++(repr n)), SExp.atom (repr width)]
 
-def toString : ∀ {tp : sort}, BlockExpr tp → String
+def toString : ∀ {tp : SmtSort}, BlockExpr tp → String
 | _, e => (BlockExpr.toSExp e).toString
 
 -- Converts an Expr into an SMT term given an environment. AMK: it's currently in IO
@@ -100,19 +100,19 @@ def toString : ∀ {tp : sort}, BlockExpr tp → String
 -- at the moment any, so it's a convenient hack for the moment. TODO: maybe we
 -- can guarantee all the SMT terms an llvmVar could be are inhabited and use lean4's
 -- panic! and at least not force this to be in IO.
-def toSMT {α : Type u} [BlockExprEnv α] (env: α) : ∀ {tp : sort}, BlockExpr tp → Except BlockVCGError (term tp)
+def toSmt {α : Type u} [BlockExprEnv α] (env: α) : ∀ {tp : SmtSort}, BlockExpr tp → Except BlockVCGError (Term tp)
 | _, stackHigh => pure $ BlockExprEnv.fnStartRegState env x86.reg64.rsp
 | _, initGPReg64 r => pure $ BlockExprEnv.initGPReg64 env r
 | _, fnStartGPReg64 r => pure $ BlockExprEnv.fnStartRegState env r
 | _, mcStack a w => do
-  t ← toSMT a;
+  t ← toSmt a;
   pure $ BlockExprEnv.readMem env w t
 | _, llvmVar nm tp =>
   match BlockExprEnv.evalVar env nm with
   | some ⟨tp', t⟩ =>
     if h : tp = tp'
     then
-      let hEq : term tp' = term tp := h ▸ rfl;
+      let hEq : Term tp' = Term tp := h ▸ rfl;
       pure $ cast hEq t
     else
       Except.error $ BlockVCGError.globalErr $
@@ -122,27 +122,27 @@ def toSMT {α : Type u} [BlockExprEnv α] (env: α) : ∀ {tp : sort}, BlockExpr
     "Error while translating precondition to SMT! LLVM variable `"
     ++ nm.asString ++ "` had no entry in the phi variable map!"
 | _, eq e1 e2 => do
-  t1 ← toSMT e1;
-  t2 ← toSMT e2;
-  pure $ SMT.eq t1 t2
+  t1 ← toSmt e1;
+  t2 ← toSmt e2;
+  pure $ Smt.eq t1 t2
 | _, bvAdd e1 e2 => do
-  t1 ← toSMT e1;
-  t2 ← toSMT e2;
-  pure $ SMT.bvadd t1 t2
+  t1 ← toSmt e1;
+  t2 ← toSmt e2;
+  pure $ Smt.bvadd t1 t2
 | _, bvSub e1 e2 => do
-  t1 ← toSMT e1;
-  t2 ← toSMT e2;
-  pure $ SMT.bvsub t1 t2
-| _, bvDecimal n width => pure $ SMT.bvimm width n
+  t1 ← toSmt e1;
+  t2 ← toSmt e2;
+  pure $ Smt.bvsub t1 t2
+| _, bvDecimal n width => pure $ Smt.bvimm width n
 
 end BlockExpr
 
 /-- Converts a BlockExpr into an SMT term in the BlockVCG context. --/
-def evalPrecondition {tp : sort} (evalVar : LLVM.Ident → Option (Sigma term)) (expr : BlockExpr tp) : BlockVCG (term tp) := do
+def evalPrecondition {tp : SmtSort} (evalVar : LLVM.Ident → Option (Sigma Term)) (expr : BlockExpr tp) : BlockVCG (Term tp) := do
 ctx ← read;
 state ← get;
 let env := BlockVCGExprEnv.mk evalVar ctx state;
-match BlockExpr.toSMT env expr with
+match BlockExpr.toSmt env expr with
 | Except.error err => throw err
 | Except.ok res => pure res
 
@@ -186,9 +186,9 @@ pure $ System.mkFilePath [tempDir, standaloneGoalFilename fnName lbl goalIndex]
 
 
 /-- Common things appearing at the top of every smt2 script. --/
-def checkNegatedGoal (goalName : String) (negatedGoal : smtM (term sort.smt_bool)) : smtM Unit := do
+def checkNegatedGoal (goalName : String) (negatedGoal : SmtM (Term SmtSort.bool)) : SmtM Unit := do
 comment goalName;
-setLogic Raw.logic.all;
+setLogic Logic.all;
 setProduceModels true;
 p ← negatedGoal;
 checkSatAssuming [p];
@@ -202,11 +202,11 @@ def exportCheckSatAssuming
 (blockLabel : LLVM.BlockLabel)
 (goalCounter : IO.Ref Nat)
 (goalName : String)
-(negatedGoal : smtM (term sort.smt_bool))
+(negatedGoal : SmtM (Term SmtSort.bool))
 : IO Unit := do
 cnt ← goalCounter.get;
 goalCounter.modify Nat.succ;
-let (_, _, cmds) := runsmtM IdGen.empty (checkNegatedGoal goalName negatedGoal);
+let (_, _, cmds) := runSmtM IdGen.empty (checkNegatedGoal goalName negatedGoal);
 let filePath := System.mkFilePath [outputDir, standaloneGoalFilename fnName blockLabel cnt];
 file ← IO.FS.Handle.mk filePath IO.FS.Mode.write;
 cmds.forM (λ c => file.putStr c.toLine)
@@ -219,7 +219,7 @@ def exportCallbacks
 : IO α
 := do
 goalCounter <- IO.mkRef 0;
-let initSmtM : smtM Unit := pure ();
+let initSmtM : SmtM Unit := pure ();
 cmdRef <- IO.mkRef initSmtM;
 action
   {checkSatAssuming := exportCheckSatAssuming outputDir fnName blockLabel goalCounter,
@@ -255,7 +255,7 @@ structure InteractiveContext :=
 -- | Function to verify an SMT proposition is provable in the given
 --   context and print the result to the user.
 def verifyGoal
-(negGoal : SMT.term SMT.sort.smt_bool)
+(negGoal : Smt.Term SmtSort.bool)
 -- ^ Negation of goal to verify
 (propName : String)
 -- ^ Name of proposition for reporting purposes.
@@ -284,7 +284,7 @@ def interactiveVerifyGoal
 -- ^ Context for verifying goals
 (propName : String)
 -- ^ Name of proposition for reporting purposes.
-(negGoal : smtM (term sort.smt_bool))
+(negGoal : SmtM (Term SmtSort.bool))
 -- ^ Negation of goal to verify
 : IO Unit := do
 cnt ← ictx.blockGoalCounter.get;
@@ -297,7 +297,7 @@ let resultFilePath := smtFilePath ++ ".result";
 IO.print $ "  Verifying " ++ propName ++ "... ";
 -- FIXME, uncomment this line after next lean4 bump
 -- IO.stdout.flush;
-let (_, _, cmds) := runsmtM IdGen.empty (checkNegatedGoal propName negGoal);
+let (_, _, cmds) := runSmtM IdGen.empty (checkNegatedGoal propName negGoal);
 IO.FS.withFile smtFilePath IO.FS.Mode.write (λ file => do
   cmds.forM (λ c => file.putStr c.toLine);
   file.flush);
@@ -365,7 +365,7 @@ def newInteractiveSession
 -- Create Goal counter for just this block.
 blockGoalCounter ← IO.mkRef 0;
 let solverCmd := String.intercalate " " (solverPath::solverArgs);
-let initSmtM : smtM Unit := pure ();
+let initSmtM : SmtM Unit := pure ();
 cmdRef <- IO.mkRef initSmtM;
 let ictx : InteractiveContext:=
   { annFile := annFile,
@@ -386,7 +386,7 @@ let fns : ProverInterface :=
 action fns
 
 
-def interactiveSMTGenerator (annFile solverPath : String) (solverArgs : List String) : IO ProverSession := do
+def interactiveSmtGenerator (annFile solverPath : String) (solverArgs : List String) : IO ProverSession := do
 -- Counter for all goals
 allGoalCounter ← IO.mkRef 0;
 -- Counter for goals successfully verified.

@@ -1,5 +1,5 @@
 
-import SMTLIB.Syntax
+import SmtLib.Smt
 
 import X86Semantics.Common
 import X86Semantics.BackendAPI
@@ -13,10 +13,10 @@ axiom I_am_really_sorry3 : ∀(P : Prop),  P
 
 open mc_semantics
 open mc_semantics.type
-open SMT (sort term smtM command IdGen IdGen.empty)
+open Smt (SmtSort SmtSort.bitvec SmtSort.bool SmtSort.array Term SmtM Command IdGen IdGen.empty)
 
-abbrev bitvec (n : Nat) := term (SMT.sort.bitvec n)
-def s_bool              := term SMT.sort.smt_bool
+abbrev bitvec (n : Nat) := Term (SmtSort.bitvec n)
+def s_bool              := Term SmtSort.bool
 
 def memaddr := bitvec 64
 def byte    := bitvec 8
@@ -32,7 +32,7 @@ def split_list {n:Nat} (x : bitvec n) (w : Nat) : List (bitvec w) :=
   let ex1 : Nat -> bitvec w := fun ix =>
     (let b := ix * w; 
      let pf : (b + w - 1) + 1 - b = w := I_am_really_sorry3 _;
-     let v : bitvec ((b + w - 1) + 1 - b) := SMT.extract (b + w - 1) b x;
+     let v : bitvec ((b + w - 1) + 1 - b) := Smt.extract (b + w - 1) b x;
      bitvec.cong pf v);
   List.map ex1 idxs
 
@@ -41,46 +41,46 @@ def concat_list_aux {n : Nat} : forall (m : Nat) (acc : bitvec m) (xs : List (bi
   | m, acc, [] => acc
   | m, acc, (x :: xs) => 
     let pf : (m + n + n * List.length xs) = (m + n * List.length (x :: xs)) := I_am_really_sorry3 _;
-    bitvec.cong pf (concat_list_aux (m + n) (SMT.concat acc x) xs)
+    bitvec.cong pf (concat_list_aux (m + n) (Smt.concat acc x) xs)
   
 def concat_list {n : Nat} : forall (xs : List (bitvec n)), bitvec (n * xs.length) 
-  | []        => SMT.bvimm 0 0 -- FIXME: shouldn't happen, or raise an error
+  | []        => Smt.bvimm 0 0 -- FIXME: shouldn't happen, or raise an error
   | (x :: xs) => let pf : (n + n * List.length xs) = (n * List.length (x :: xs)) := I_am_really_sorry3 _; 
                  bitvec.cong pf (bitvec.concat_list_aux n x xs)
 
 -- Breaks if m == 0
 def trunc {n : Nat} (m : Nat) (pf : m <= n) (x : bitvec n) : bitvec m :=
   if m = 0 
-  then SMT.bvimm _ 0 -- FIXME: will probably cause issues
+  then Smt.bvimm _ 0 -- FIXME: will probably cause issues
   else (let pf' : (m - 1) + 1 - 0 = m := I_am_really_sorry3 _; 
-        bitvec.cong pf' (SMT.extract (m - 1) 0 x))
+        bitvec.cong pf' (Smt.extract (m - 1) 0 x))
 
 def uresize (n m : Nat) (x : bitvec n) : bitvec m :=
   if H : n ≤ m 
   then (let pf : n + (m - n) = m := I_am_really_sorry3 _; 
-       bitvec.cong pf (SMT.zero_extend (m - n) x))
+       bitvec.cong pf (Smt.zeroExtend (m - n) x))
   else bitvec.trunc m (Nat.leOfLt (Nat.gtOfNotLe H)) x
 
 def sresize (n m : Nat) (x : bitvec n) : bitvec m :=
   if H : n ≤ m 
   then (let pf : n + (m - n) = m := I_am_really_sorry3 _; 
-       bitvec.cong pf (SMT.sign_extend (m - n) x))
+       bitvec.cong pf (Smt.signExtend (m - n) x))
   else bitvec.trunc m (Nat.leOfLt (Nat.gtOfNotLe H)) x
 
 -- There may be a more efficient way of doing this (e.g. slicing and concat)
 def set_bits {n} (x:bitvec n) (i:Nat) {m} (y:bitvec m) (p:i+m ≤ n) : bitvec n :=
-  let premask := SMT.bvshl (uresize _ n (SMT.repeat m (SMT.bvimm 1 1)))
-                              (SMT.bvimm _ i);
-  let mask    := SMT.bvnot premask;
-  let bits := SMT.bvshl (uresize _ n y) (SMT.bvimm _ i);
-  SMT.bvor (SMT.bvand x mask) bits
+  let premask := Smt.bvshl (uresize _ n (Smt.repeat m (Smt.bvimm 1 1)))
+                              (Smt.bvimm _ i);
+  let mask    := Smt.bvnot premask;
+  let bits := Smt.bvshl (uresize _ n y) (Smt.bvimm _ i);
+  Smt.bvor (Smt.bvand x mask) bits
 
-def to_bool (b : bitvec 1) : s_bool := SMT.eq b (SMT.bvimm _ 1)
+def to_bool (b : bitvec 1) : s_bool := Smt.eq b (Smt.bvimm _ 1)
 
 end bitvec
 
-abbrev memory_t := SMT.sort.array (SMT.sort.bitvec 64) (SMT.sort.bitvec 8)
-def memory := term memory_t
+abbrev memory_t := SmtSort.array (SmtSort.bitvec 64) (SmtSort.bitvec 8)
+def memory := Term memory_t
 
 -- We use these to abstract over the actual implementation of read/store
 structure StdLib :=
@@ -89,11 +89,11 @@ structure StdLib :=
 
 namespace StdLib
 
-def make : smtM StdLib := do
-  rb <- SMT.define_fun "read_byte" [SMT.sort.bitvec 64, memory_t] (SMT.sort.bitvec 8)
-        (fun addr mem => SMT.select _ _ mem addr);
-  sb <- SMT.define_fun "write_byte" [SMT.sort.bitvec 64, SMT.sort.bitvec 8, memory_t] memory_t
-        (fun addr b mem => SMT.store _ _ mem addr b);
+def make : SmtM StdLib := do
+  rb <- Smt.defineFun "read_byte" [SmtSort.bitvec 64, memory_t] (SmtSort.bitvec 8)
+        (fun addr mem => Smt.select _ _ mem addr);
+  sb <- Smt.defineFun "write_byte" [SmtSort.bitvec 64, SmtSort.bitvec 8, memory_t] memory_t
+        (fun addr b mem => Smt.store _ _ mem addr b);
   pure { read_byte := rb, store_byte := sb }
 
 end StdLib
@@ -101,10 +101,10 @@ end StdLib
 namespace memory
 
 def store_bytes (m : memory) (stdlib : StdLib) (addr : memaddr) (bs : List byte) : memory := 
-    (List.foldl (fun (v : memory × memaddr) b => (stdlib.store_byte v.snd b v.fst, SMT.bvadd v.snd (SMT.bvimm 64 1))) (m, addr) bs).fst
+    (List.foldl (fun (v : memory × memaddr) b => (stdlib.store_byte v.snd b v.fst, Smt.bvadd v.snd (Smt.bvimm 64 1))) (m, addr) bs).fst
 
 def read_bytes (m : memory) (stdlib : StdLib) (addr : memaddr) (n : Nat) : List byte :=
-    List.map (fun i => stdlib.read_byte (SMT.bvadd addr (SMT.bvimm 64 i)) m) (Nat.upto0_lt n)
+    List.map (fun i => stdlib.read_byte (Smt.bvadd addr (Smt.bvimm 64 i)) m) (Nat.upto0_lt n)
 
 -- theorem read_bytes_length: forall {m} {stdlib} {addr} {n}, List.length (read_bytes m stdkub addr n) = n 
 --   := I_am_really_sorry3 _; 
@@ -141,7 +141,7 @@ namespace machine_state
 def get_gpreg  (s : machine_state) (idx : Fin 16) : machine_word := 
   -- FIXME
   if h : 16 = s.gpregs.size
-  then Array.get s.gpregs (Eq.recOn h idx) else SMT.bvimm _ 0
+  then Array.get s.gpregs (Eq.recOn h idx) else Smt.bvimm _ 0
 
 def update_gpreg (idx : Fin 16) (f : machine_word -> machine_word) (s : machine_state) : machine_state :=
   -- FIXME
@@ -151,7 +151,7 @@ def update_gpreg (idx : Fin 16) (f : machine_word -> machine_word) (s : machine_
 
 def get_flag  (s : machine_state) (idx : Fin 32) : s_bool := 
   if h : 32 = s.flags.size
-  then Array.get s.flags (Eq.recOn h idx) else SMT.false
+  then Array.get s.flags (Eq.recOn h idx) else Smt.false
 
 def update_flag (idx : Fin 32) (f : s_bool -> s_bool) (s : machine_state) : machine_state :=
   if h : 32 = s.flags.size
@@ -176,22 +176,22 @@ def print_regs (s : machine_state) : String :=
 -- Constructs a new machine state where all the elements are fresh constants
 -- FIXME: could use sz = ns.length
 protected 
-def declare_const_aux {s : sort} (ns : List String) (sz : Nat) : smtM (Array (term s)) := do
+def declare_const_aux {s : SmtSort} (ns : List String) (sz : Nat) : SmtM (Array (Term s)) := do
   let base := mkArray sz 0;
-  let f    := fun n (_ : Nat) => SMT.declare_fun (List.getD n ns "el") [] s;
+  let f    := fun n (_ : Nat) => Smt.declareFun (List.getD n ns "el") [] s;
   Array.mapIdxM f base
 
-def declare_const : smtM machine_state := do
-  mem   <- SMT.declare_fun "memory" [] memory_t;
+def declare_const : SmtM machine_state := do
+  mem   <- Smt.declareFun "memory" [] memory_t;
   gprs  <- machine_state.declare_const_aux reg.r64_names 16;
   flags <- machine_state.declare_const_aux reg.flag_names 32;
-  ip    <- SMT.declare_fun "ip" [] (SMT.sort.bitvec 64);
+  ip    <- Smt.declareFun "ip" [] (SmtSort.bitvec 64);
   pure { mem := mem, gpregs := gprs, flags := flags, ip := ip }
 
 end machine_state
 
 inductive Event
-  | Command : SMT.command -> Event
+  | Command : Smt.Command -> Event
   | Warning : String -> Event
   | Read  : memaddr -> Nat -> Event
   | Write : memaddr -> forall (n : Nat), bitvec n -> Event
@@ -210,29 +210,29 @@ instance : HasRepr Event := ⟨Event.repr⟩
 end Event
 
   --   -- ^ We added a warning about an issue in the VCG
-  -- | MCOnlyStackReadEvent : memaddr -> Nat -> Event -- SMT.Term !(MemRepr tp) !Var
+  -- | MCOnlyStackReadEvent : memaddr -> Nat -> Event -- Smt.Term !(MemRepr tp) !Var
   --   -- ^ `MCOnlyReadEvent a w v` indicates that we read `w` bytes
   --   -- from `a`, and assign the value returned to `v`.  This only
   --   -- appears in the binary code.
-  -- | forall tp . JointStackReadEvent !SMT.Term !(MemRepr tp) !Var !Ann.LocalIdent
+  -- | forall tp . JointStackReadEvent !Smt.Term !(MemRepr tp) !Var !Ann.LocalIdent
   --   -- ^ `JointReadEvent a w v llvmAlloca` indicates that we read `w` bytes from `a`,
   --   -- and assign the value returned to `v`.  This appears in the both the binary
   --   -- and LLVM.  The alloca name refers to the LLVM allocation this is part of,
   --   -- and otherwise this is a binary only read.
-  -- | forall tp . NonStackReadEvent !SMT.Term !(MemRepr tp) !Var
+  -- | forall tp . NonStackReadEvent !Smt.Term !(MemRepr tp) !Var
   --   -- ^ `NonStackReadEvent a w v` indicates that we read `w` bytes
   --   -- from `a`, and assign the value returned to `v`.  The address `a` should not
   --   -- be in the stack.
-  -- | forall tp . MCOnlyStackWriteEvent !SMT.Term !(MemRepr tp) !SMT.Term
+  -- | forall tp . MCOnlyStackWriteEvent !Smt.Term !(MemRepr tp) !Smt.Term
   --   -- ^ `MCOnlyStackWriteEvent a tp v` indicates that we write the `w` byte value `v`  to `a`.
   --   --
   --   -- This has side effects, so we record the event.
-  -- | forall tp . JointStackWriteEvent !SMT.Term !(MemRepr tp) !SMT.Term !Ann.LocalIdent
+  -- | forall tp . JointStackWriteEvent !Smt.Term !(MemRepr tp) !Smt.Term !Ann.LocalIdent
   --   -- ^ `JointStackWriteEvent a w v` indicates that we write the `w` byte value `v`  to `a`.
   --   -- The write affects the alloca pointed to by Allocaname.
   --   --
   --   -- This has side effects, so we record the event.
-  -- | forall tp . NonStackWriteEvent !SMT.Term !(MemRepr tp) !SMT.Term
+  -- | forall tp . NonStackWriteEvent !Smt.Term !(MemRepr tp) !Smt.Term
   --   -- ^ `NonStackWriteEvent a w v` indicates that we write the `w` byte value `v`  to `a`.  The
   --   -- address `a` should not be in the stack.
   --   --
@@ -254,7 +254,7 @@ structure os_state :=
   (idGen  : IdGen)
   (trace : List Event)
 
-def os_state.empty : os_state := os_state.mk (SMT.bvimm _ 0) IdGen.empty []
+def os_state.empty : os_state := os_state.mk (Smt.bvimm _ 0) IdGen.empty []
 
 -- Stacking like this makes it easier to derive MonadState
 def base_system_m := (StateT os_state (ExceptT String Id))
@@ -288,15 +288,15 @@ def run {a : Type} (m : system_m a) (os : os_state) (s : machine_state)
   : (Except String ((a × machine_state) × os_state)) := do
   ((m.run s).run os).run
 
-def runsmtM {a : Type} (m : smtM a) : system_m a := do
+def runSmtM {a : Type} (m : SmtM a) : system_m a := do
   let run' := fun (s : os_state) => 
-                  (let r := SMT.runsmtM s.idGen m;
+                  (let r := Smt.runSmtM s.idGen m;
                   (r.fst, {s with trace := (List.map Event.Command r.snd.snd.reverse) ++ s.trace
                           , idGen   := r.snd.fst}));
   monadLift (modifyGet run' : base_system_m a)
 
-def name_term {s : sort} (name : Option String) (tm : term s) : system_m (term s) :=
-  runsmtM (SMT.name_term (name.getD "tmp") tm)
+def name_term {s : SmtSort} (name : Option String) (tm : Term s) : system_m (Term s) :=
+  runSmtM (Smt.nameTerm (name.getD "tmp") tm)
 
 end system_m
 
@@ -312,8 +312,8 @@ def symbolicBackend (stdlib : StdLib) : Backend :=
   { s_bv     := bitvec
   , s_bool   := s_bool
 
-  , s_bv_imm   := SMT.bvimm
-  , s_bool_imm := fun b => if b then SMT.true else SMT.false
+  , s_bv_imm   := Smt.bvimm
+  , s_bool_imm := fun b => if b then Smt.true else Smt.false
 
   , monad := system_m
   -- , Monad_backend := 
@@ -336,30 +336,30 @@ def symbolicBackend (stdlib : StdLib) : Backend :=
   , get_flag  :=  fun i => (fun s => machine_state.get_flag s i) <$> get
   , set_flag := fun i v => modify (machine_state.update_flag i (fun _ => v))
   
-  , s_mux_bool := fun (b : s_bool) (x y : s_bool) => SMT.smt_ite b x y
-  , s_mux_bv   := fun {n : Nat} (b : s_bool) (x y : bitvec n) => SMT.smt_ite b x y
+  , s_mux_bool := fun (b : s_bool) (x y : s_bool) => Smt.smtIte b x y
+  , s_mux_bv   := fun {n : Nat} (b : s_bool) (x y : bitvec n) => Smt.smtIte b x y
   , s_mux_m    := fun (b : s_bool) x y => throw "s_mux_m" -- FIXME!!!
   
-  , s_not      := SMT.not
-  , s_or       := SMT.or
-  , s_and      := SMT.and
-  , s_xor      := SMT.xor
+  , s_not      := Smt.not
+  , s_or       := Smt.or
+  , s_and      := Smt.and
+  , s_xor      := Smt.xor
  
   -- - Comparison
-  , s_bveq     := fun {n : Nat} (x y : bitvec n) => SMT.eq x y
-  , s_bvult    := @SMT.bvult
-  , s_bvslt    := @SMT.bvslt
+  , s_bveq     := fun {n : Nat} (x y : bitvec n) => Smt.eq x y
+  , s_bvult    := @Smt.bvult
+  , s_bvslt    := @Smt.bvslt
   
   -- - Arithmetic
-  , s_bvneg    := @SMT.bvneg
-  , s_bvnot    := @SMT.bvnot
+  , s_bvneg    := @Smt.bvneg
+  , s_bvnot    := @Smt.bvnot
    
-  , s_bvadd    := @SMT.bvadd
-  , s_bvsub    := @SMT.bvsub
-  , s_bvmul    := @SMT.bvmul
-  , s_bvudiv   := @SMT.bvudiv 
-  , s_bvurem   := @SMT.bvurem
-  , s_bvextract := fun (w i j : Nat) (x : bitvec w) => SMT.extract i j x
+  , s_bvadd    := @Smt.bvadd
+  , s_bvsub    := @Smt.bvsub
+  , s_bvmul    := @Smt.bvmul
+  , s_bvudiv   := @Smt.bvudiv 
+  , s_bvurem   := @Smt.bvurem
+  , s_bvextract := fun (w i j : Nat) (x : bitvec w) => Smt.extract i j x
 
   , s_sext    := bitvec.sresize
   , s_uext    := bitvec.uresize
@@ -367,41 +367,41 @@ def symbolicBackend (stdlib : StdLib) : Backend :=
   , s_trunc   := fun (n m : Nat) (x : bitvec n) =>
                  if H : m ≤ n
                  then bitvec.trunc m H x
-                 else SMT.bvimm _ 0 -- FIXME
-  , s_bvappend := @SMT.concat
+                 else Smt.bvimm _ 0 -- FIXME
+  , s_bvappend := @Smt.concat
   , s_bvgetbits  := fun {n : Nat} (off m : Nat) (x : bitvec n) => 
                     if m = 0
-                    then SMT.bvimm m 0
+                    then Smt.bvimm m 0
                     else (let pf : (off + m - 1) + 1 - off = m := I_am_really_sorry3 _;
-                          bitvec.cong pf (SMT.extract (off + m - 1) off x))
+                          bitvec.cong pf (Smt.extract (off + m - 1) off x))
 
   , s_bvsetbits  := fun {n m : Nat} (off : Nat) (x : bitvec n) (bs : bitvec m) =>
                     if H : off + m <= n 
                     then bitvec.set_bits x off bs H
-                    else SMT.bvimm _ 0   -- FIXME  
-  , s_bvand      := @SMT.bvand
-  , s_bvor       := @SMT.bvor
-  , s_bvxor      := @SMT.bvxor
-  , s_bvshl      := @SMT.bvshl
+                    else Smt.bvimm _ 0   -- FIXME  
+  , s_bvand      := @Smt.bvand
+  , s_bvor       := @Smt.bvor
+  , s_bvxor      := @Smt.bvxor
+  , s_bvshl      := @Smt.bvshl
   , s_bvmsb      := fun (n : Nat) (x : bitvec n) => 
-                    SMT.eq (SMT.extract (n - 1) (n - 1) x) (SMT.bvimm _ 1)
+                    Smt.eq (Smt.extract (n - 1) (n - 1) x) (Smt.bvimm _ 1)
   -- unsigned
-  , s_bvlshr     := @SMT.bvlshr
+  , s_bvlshr     := @Smt.bvlshr
   -- signed
-  , s_bvsshr     := @SMT.bvashr
+  , s_bvsshr     := @Smt.bvashr
   , s_parity     := fun (n : Nat) (x : bitvec n) => 
-                    bitvec.to_bool (List.foldl SMT.bvxor (SMT.bvimm 1 0) (bitvec.split_list x 1))
+                    bitvec.to_bool (List.foldl Smt.bvxor (Smt.bvimm 1 0) (bitvec.split_list x 1))
 
   , s_bit_test   := fun {wr wi : Nat} (x : bitvec wr) (y : bitvec wi) => 
                     let ix := bitvec.uresize _ wr y;
-                    let ixbit := SMT.bvshl (SMT.bvimm _ 1) ix;
-                    SMT.not (SMT.eq (SMT.bvand x ixbit) (SMT.bvimm _ 0))
+                    let ixbit := Smt.bvshl (Smt.bvimm _ 1) ix;
+                    Smt.not (Smt.eq (Smt.bvand x ixbit) (Smt.bvimm _ 0))
    
   -- System operations
   , s_os_transition := pure ()
   , s_get_ip        := (fun (s : machine_state) => s.ip) <$> get
   , s_set_ip        := fun x => modify (fun s => { s with ip := x })
-  , s_cond_set_ip   := fun b x => modify (fun s => { s with ip := SMT.smt_ite b x s.ip })
+  , s_cond_set_ip   := fun b x => modify (fun s => { s with ip := Smt.smtIte b x s.ip })
   , s_read_cpuid    := pure ()
 
   } 
