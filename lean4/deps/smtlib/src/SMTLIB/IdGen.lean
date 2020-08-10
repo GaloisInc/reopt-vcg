@@ -2,7 +2,7 @@
 import Std.Data.PersistentHashMap
 open Std (PHashMap)
 
-namespace SMT
+namespace Smt
 
 private def reservedIdList : List String :=
 [
@@ -232,4 +232,4 @@ def empty : IdGen := IdGen.mk Std.PersistentHashMap.empty
 
 end IdGen
 
-end SMT
+end Smt

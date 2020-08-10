@@ -4,9 +4,9 @@ import ReoptVCG.Elf
 import ReoptVCG.Annotations
 import ReoptVCG.VCGBlock
 import ReoptVCG.LoadLLVM
-import ReoptVCG.SMT
+import ReoptVCG.Smt
 import ReoptVCG.Types
-import SMTLIB.Syntax
+import SmtLib.Smt
 import X86Semantics.Common
 import DecodeX86.DecodeX86
 
@@ -17,6 +17,8 @@ open Lean.Json (parseObjValAsString)
 
 open elf.elf_class (ELF64)
 open LLVM (LLVMType LLVMType.prim LLVMType.ptr PrimType PrimType.integer)
+
+open Smt (SmtSort SmtSort.bitvec SmtSort.bv64)
 
 
 -- | Use a map from symbol names to address to find address.
@@ -32,9 +34,9 @@ match m.find? fnm with
 | Option.some expectedAddr => pure $ MCAddr.mk expectedAddr
 
 
-def llvmTypeToSort : LLVMType → Option SMT.sort
+def llvmTypeToSort : LLVMType → Option SmtSort
 | LLVMType.prim (PrimType.integer lw) =>
-  Option.some $ SMT.sort.bitvec lw
+  Option.some $ SmtSort.bitvec lw
 | LLVMType.ptr _ => Option.none
 | _ => Option.none
 
@@ -109,7 +111,7 @@ def parseAnnotatedBlock
 : ModuleVCG AnnotatedBlock := do
 let lbl := b.label;
 let (phiVarList, llvmStmts) := extractPhiStmtVars [] b.stmts.toList;
-let parseLLVMVar : (LLVM.Ident × LLVMType × BlockLabelValMap) → ModuleVCG (LLVM.Ident × SMT.sort) :=
+let parseLLVMVar : (LLVM.Ident × LLVMType × BlockLabelValMap) → ModuleVCG (LLVM.Ident × SmtSort) :=
   (λ (p : (LLVM.Ident × LLVMType × BlockLabelValMap)) =>
     let (nm, tp, _) := p;
     match llvmTypeToSort tp with
@@ -150,7 +152,7 @@ ModuleVCG (List LLVMMCArgBinding)
   | [] => functionError fnm $ FnError.custom $ 
           "Maximum of "++(x86ArgGPRegs.length.repr)++" i64 arguments supported"
   | (reg::restRegs) =>
-    let binding := LLVMMCArgBinding.mk nm (SMT.sort.bv64) reg;
+    let binding := LLVMMCArgBinding.mk nm (SmtSort.bv64) reg;
     parseLLVMArgs (binding::revBinds) restArgs restRegs
 | _, (⟨tp, nm⟩::restArgs), _ =>
   functionError fnm $ FnError.argTypeUnsupported nm tp
@@ -235,11 +237,11 @@ when cfg.verbose $
 match cfg.mode with
 -- Default: just use cvc4 with default args.
 | VerificationMode.defaultMode => do
-  psGen ← interactiveSMTGenerator cfg.annFile "cvc4" defaultCVC4Args;
+  psGen ← interactiveSmtGenerator cfg.annFile "cvc4" defaultCVC4Args;
   pure (modAnn, psGen)
 -- Use the user-specified solver and args.
 | VerificationMode.runSolverMode solverCmd solverArgs => do
-  psGen ← interactiveSMTGenerator cfg.annFile solverCmd solverArgs;
+  psGen ← interactiveSmtGenerator cfg.annFile solverCmd solverArgs;
   pure (modAnn, psGen)
 -- Output into the specified directory.
 | VerificationMode.exportMode outDir => do
