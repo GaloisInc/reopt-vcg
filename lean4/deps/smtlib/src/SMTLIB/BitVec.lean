@@ -54,6 +54,8 @@ section zero
 
 end zero
 
+instance {n : Nat} : Inhabited (BitVec n) := {default := 0}
+
 axiom one_le_pow_2 {n: Nat} (h : n > 0) : 1 < 2^n 
 
 axiom Nat.zero_lt_succ (n : Nat) : 0 < Nat.succ n
