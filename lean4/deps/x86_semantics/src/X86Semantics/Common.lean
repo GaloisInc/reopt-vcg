@@ -257,15 +257,9 @@ inductive avxreg_type : Type
 namespace avxreg_type
 
 @[reducible]
-def width' : avxreg_type → Nat
+def width : avxreg_type → Nat
 | xmm => 128
 | ymm => 256
-
-@[reducible]
-def width : avxreg_type → nat_expr
-| xmm => 128
-| ymm => 256
-
 
 protected def hasDecEq : ∀(e e' : avxreg_type), Decidable (e = e')
 | xmm, xmm => isTrue rfl
@@ -404,10 +398,10 @@ def name : ∀{tp:type}, concrete_reg tp → String
    | (Option.some nm) => nm
    | Option.none      => "RESERVED_" ++ idx.val.repr)
 
-| ._, (avxreg idx tp) => "$" ++ 
+| ._, (avxreg idx tp) =>
   (match tp with
   | avxreg_type.xmm => "xmm" ++ HasRepr.repr idx
-  | avxreg_type.ymm => "xmm" ++ HasRepr.repr idx
+  | avxreg_type.ymm => "ymm" ++ HasRepr.repr idx
   )
 
 protected def repr {tp:type} (r:concrete_reg tp) : String :=
@@ -1119,9 +1113,9 @@ instance expression_is_bound_var (tp:type) : is_bound_var (expression tp) :=
 , mk_arg := fun i => expression.read_arg i tp
 }
 
-instance exact_reg_is_bound_var (tp:type) (r : concrete_reg tp) : is_bound_var (exact_reg tp r) :=
+instance exact_reg_is_bound_var (tp:type) (r : concrete_reg tp) : is_bound_var (@exact_reg tp r) :=
 { to_binding := binding.exact_reg tp r
-, mk_arg := fun _ => exact_reg.is_exact_reg r -- shouldn't every be actually used, as it doesn't carry any info.
+, mk_arg := fun _ => exact_reg.is_exact_reg -- shouldn't every be actually used, as it doesn't carry any info.
 }
 
 ------------------------------------------------------------------------

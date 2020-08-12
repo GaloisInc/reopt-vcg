@@ -18,6 +18,9 @@ axiom I_am_really_sorry2 : ∀(P : Prop),  P
 @[reducible]
 def machine_word := bitvec 64
 
+@[reducible]
+def avx_word := bitvec 256
+
 def bitvec.uext {n} (m : Nat) (p: n ≤ m) (x:bitvec n) : bitvec m :=
   bitvec.set_bits 0 0 x (I_am_really_sorry2 _) -- (begin simp, exact p end)
   
@@ -42,6 +45,7 @@ structure machine_state : Type :=
   (mem    : memory)
   (gpregs : Array machine_word) -- 16
   (flags  : Array Bool) -- 32
+  (avxregs : Array avx_word)
   (ip     : machine_word)
 
 
@@ -52,6 +56,7 @@ def empty : machine_state :=
   { mem    := memory.empty
   , gpregs := mkArray 16 0
   , flags  := mkArray 32 false
+  , avxregs := mkArray 16 0
   , ip     := 0
   }
 
@@ -59,8 +64,6 @@ def get_gpreg  (s : machine_state) (idx : Fin 16) : machine_word :=
   -- FIXME
   if h : 16 = s.gpregs.size
   then Array.get s.gpregs (Eq.recOn h idx) else 0
-
-
 
 def update_gpreg (idx : Fin 16) (f : machine_word -> machine_word) (s : machine_state) : machine_state :=
   -- FIXME
@@ -75,6 +78,17 @@ def get_flag  (s : machine_state) (idx : Fin 32) : Bool :=
 def update_flag (idx : Fin 32) (f : Bool -> Bool) (s : machine_state) : machine_state :=
   if h : 32 = s.flags.size
   then { s with flags := Array.set s.flags (Eq.recOn h idx) (f (get_flag s idx)) }
+  else s 
+
+def get_avxreg  (s : machine_state) (idx : Fin 16) : avx_word := 
+  -- FIXME
+  if h : 16 = s.avxregs.size
+  then Array.get s.avxregs (Eq.recOn h idx) else 0
+
+def update_avxreg (idx : Fin 16) (f : avx_word -> avx_word) (s : machine_state) : machine_state :=
+  -- FIXME
+  if h : 16 = s.avxregs.size 
+  then { s with avxregs := Array.set s.avxregs (Eq.recOn h idx) (f (get_avxreg s idx)) }
   else s 
 
 -- def store_bytes (addr : machine_word) (bs : List (bitvec 8)) (s : machine_state) : machine_state := 
@@ -397,7 +411,9 @@ def concreteBackend : Backend :=
   , set_gpreg := fun i v => modify (machine_state.update_gpreg i (fun _ => v))
   , get_flag  :=  fun i => (fun s => machine_state.get_flag s i) <$> get
   , set_flag := fun i v => modify (machine_state.update_flag i (fun _ => v))
-  
+  , get_avxreg := fun i => (fun s => machine_state.get_avxreg s i) <$> get
+  , set_avxreg := fun i v => modify (machine_state.update_avxreg i (fun _ => v))
+
   , s_mux_bool := fun (b : Bool) (x y : Bool) => if b then x else y
   , s_mux_bv   := fun {n : Nat} (b : Bool) (x y : bitvec n) => if b then x else y
   , s_mux_m    := fun (b : Bool) x y => if b then x else y

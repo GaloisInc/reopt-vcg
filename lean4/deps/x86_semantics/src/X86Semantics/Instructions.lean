@@ -6,6 +6,8 @@ namespace x86
 ------------------------------------------------------------------------
 -- Notation
 
+section x86_instructions
+
 open mc_semantics
 open mc_semantics.type
 open mc_semantics.float_class
@@ -1157,6 +1159,8 @@ def all_instructions :=
   , xchg
   , xor_def
   ]
+
+end x86_instructions
 
 end x86
 

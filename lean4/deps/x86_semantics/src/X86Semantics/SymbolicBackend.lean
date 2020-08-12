@@ -121,11 +121,13 @@ def read_word (m : memory) (stdlib : StdLib) (addr : memaddr) (n : Nat) : bitvec
 end memory
 
 def machine_word := bitvec 64
+def avx_word := bitvec 256
 
 structure machine_state : Type :=
   (mem    : memory)
   (gpregs : Array machine_word) -- 16
   (flags  : Array s_bool) -- 32
+  (avxregs : Array avx_word)
   (ip     : machine_word)
 
 namespace machine_state
@@ -158,6 +160,17 @@ def update_flag (idx : Fin 32) (f : s_bool -> s_bool) (s : machine_state) : mach
   then { s with flags := Array.set s.flags (Eq.recOn h idx) (f (get_flag s idx)) }
   else s 
 
+def get_avxreg  (s : machine_state) (idx : Fin 16) : avx_word := 
+  -- FIXME
+  if h : 16 = s.avxregs.size
+  then Array.get s.avxregs (Eq.recOn h idx) else  SMT.bvimm _ 0
+
+def update_avxreg (idx : Fin 16) (f : avx_word -> avx_word) (s : machine_state) : machine_state :=
+  -- FIXME
+  if h : 16 = s.avxregs.size 
+  then { s with avxregs := Array.set s.avxregs (Eq.recOn h idx) (f (get_avxreg s idx)) }
+  else s 
+
 def store_word {n : Nat} (s : machine_state) (stdlib : StdLib) (addr : machine_word) (b : bitvec (8 * n)) : machine_state :=
   {s with mem := s.mem.store_word stdlib addr b }
 
@@ -185,8 +198,9 @@ def declare_const : smtM machine_state := do
   mem   <- SMT.declare_fun "memory" [] memory_t;
   gprs  <- machine_state.declare_const_aux reg.r64_names 16;
   flags <- machine_state.declare_const_aux reg.flag_names 32;
+  avxregs <- machine_state.declare_const_aux (List.map (fun i => "xmm" ++ repr i) (Nat.upto0_lt 16)) 16;
   ip    <- SMT.declare_fun "ip" [] (SMT.sort.bitvec 64);
-  pure { mem := mem, gpregs := gprs, flags := flags, ip := ip }
+  pure { mem := mem, gpregs := gprs, flags := flags, avxregs := avxregs, ip := ip }
 
 end machine_state
 
@@ -335,6 +349,10 @@ def symbolicBackend (stdlib : StdLib) : Backend :=
                                modify (machine_state.update_gpreg i (fun _ => s))
   , get_flag  :=  fun i => (fun s => machine_state.get_flag s i) <$> get
   , set_flag := fun i v => modify (machine_state.update_flag i (fun _ => v))
+
+  , get_avxreg  := fun i => (fun s => machine_state.get_avxreg s i) <$> get
+  , set_avxreg := fun i v => do s <- system_m.name_term (some ("xmm" ++ HasRepr.repr i)) v;
+                                modify (machine_state.update_avxreg i (fun _ => s))
   
   , s_mux_bool := fun (b : s_bool) (x y : s_bool) => SMT.smt_ite b x y
   , s_mux_bv   := fun {n : Nat} (b : s_bool) (x y : bitvec n) => SMT.smt_ite b x y

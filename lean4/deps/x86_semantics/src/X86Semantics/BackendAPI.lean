@@ -12,7 +12,7 @@ structure Backend : Type 1 :=
   (s_bool : Type)
 
   -- injections
-  (s_bv_imm   (n : Nat) : Nat  -> s_bv n)
+  (s_bv_imm     (n : Nat) : Nat  -> s_bv n)
   (s_bool_imm           : Bool -> s_bool)
 
   -- Underlying monad.
@@ -30,6 +30,8 @@ structure Backend : Type 1 :=
   (set_gpreg : Fin 16 -> s_bv 64 -> monad Unit)
   (get_flag  : Fin 32            -> monad s_bool)
   (set_flag  : Fin 32 -> s_bool  -> monad Unit)
+  (get_avxreg : Fin 16            -> monad (s_bv 256))
+  (set_avxreg : Fin 16 -> s_bv 256 -> monad Unit)
 
   -- Value operations
   -- FIXME: should these reside inside a monad?
