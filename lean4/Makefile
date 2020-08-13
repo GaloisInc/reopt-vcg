@@ -29,7 +29,7 @@ BUILDDIR    ?= build
 # We need this to be absolute as lean (currently) requires that you
 # change directory to genereate the .c files, so LEAN_PATH etc. need
 # to be absolute
-ABSBUILDDIR := $(shell mkdir -p ${BUILDDIR} && cd $(BUILDDIR) && pwd)
+# ABSBUILDDIR := $(shell mkdir -p ${BUILDDIR} && cd $(BUILDDIR) && pwd)
 
 # $(shell mkdir -p $(DEPDIR) >/dev/null)
 
@@ -111,9 +111,6 @@ depend: ${DEPFILES}
 
 RANLIB := ranlib
 
-quiet_cmd_AR = AR $@
-      cmd_AR =rm -f $@; $(AR) rc $@ $^; $(RANLIB) $@
-
 # This is a hack to get around leanc not taking .o files.  We create a
 # library with all the .o files, and then use -l
 $(EXTRAOBJDIR)/libextraobjs.a: $(EXTRAOBJFILES)
@@ -137,17 +134,12 @@ ${OLEANDIRS} ${CLEANDIRS} ${DEPDIRS} ${EXTRAOBJDIRS} ${BINDIR}:
 $(DEPDIR)/%.d: %.lean | ${OLEANDIRS} $(DEPDIRS)
 	$(call cmd,MAKEDEPEND)
 
-quiet_cmd_LEAN = LEAN $<
-      cmd_LEAN = cd $(PKGROOT) && $(LEAN) --o=$(OLEANDIR)/$*.olean --c="$(OBJDIR)/$*.c" $(patsubst $(PKGROOT)/%,%,$<)
 
 # could do this when making the olean
 $(OBJDIR)/%.c $(OLEANDIR)/%.olean: %.lean | ${OLEANDIRS} $(CLEANDIRS)
 	$(call cmd,LEAN)
 
 # mv $(BUILDDIR)/$*.cpp.tmp $(BUILDDIR)/$*.cpp
-
-quiet_cmd_CXX = CXX $<
-      cmd_CXX = $(CXX) $(CXXFLAGS) -o $@ -c $^
 
 # | ${EXTRAOBJDIRS}
 $(EXTRAOBJDIR)/%.o: %.cpp | ${EXTRAOBJDIRS}

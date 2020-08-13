@@ -4,11 +4,11 @@
 
 # Where do we put the build files?
 
-OLEANDIR    := ${ABSBUILDDIR}/olean
-DEPDIR      := ${ABSBUILDDIR}/d
-OBJDIR      := ${ABSBUILDDIR}/compiled
-EXTRAOBJDIR := ${ABSBUILDDIR}/extraobjs
-BINDIR      := ${ABSBUILDDIR}/bin
+OLEANDIR    := ${BUILDDIR}/olean
+DEPDIR      := ${BUILDDIR}/d
+OBJDIR      := ${BUILDDIR}/compiled
+EXTRAOBJDIR := ${BUILDDIR}/extraobjs
+BINDIR      := ${BUILDDIR}/bin
 
 # These are exported by the Makefile.includes (see add-package)
 LEAN_PATH :=
@@ -113,4 +113,11 @@ quiet_cmd_MKDIR    = MKDIR $@
 
 quiet_cmd_LEANC    = LEANC $@
 
+quiet_cmd_AR = AR $@
+      cmd_AR =rm -f $@; $(AR) rc $@ $^; $(RANLIB) $@
 
+quiet_cmd_LEAN = LEAN $<
+      cmd_LEAN = $(LEAN) --root $(PKGROOT) --o=$(OLEANDIR)/$*.olean --c="$(OBJDIR)/$*.c" $<
+
+quiet_cmd_CXX = CXX $<
+      cmd_CXX = $(CXX) $(CXXFLAGS) -o $@ -c $^
