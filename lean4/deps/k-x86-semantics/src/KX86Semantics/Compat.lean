@@ -11,40 +11,40 @@ open reg
 open semantics
 
 -- Copied from Instructions.lean in X8Semantics
-def least_nibble {w:nat_expr} (x : bv w) : bv 4 := trunc x 4
-def even_parity {w:nat_expr} (v : bv w) : bit := prim.even_parity w v
+def least_nibble {w:Nat} (x : bv w) : bv 4 := trunc x 4
+def even_parity {w:Nat} (v : bv w) : bit := prim.even_parity w v
 
-def ssbb_overflows  {w:nat_expr} (dest : bv w) (src : bv w) (borrow : bit) : bit := prim.ssbb_overflows w dest src borrow
-def ssub_overflows  {w:nat_expr} (dest : bv w) (src : bv w)                : bit := ssbb_overflows dest src bit_zero
+def ssbb_overflows  {w:Nat} (dest : bv w) (src : bv w) (borrow : bit) : bit := prim.ssbb_overflows w dest src borrow
+def ssub_overflows  {w:Nat} (dest : bv w) (src : bv w)                : bit := ssbb_overflows dest src bit_zero
 
-def usbb_overflows  {w:nat_expr} (dest : bv w) (src : bv w) (borrow : bit) : bit := prim.usbb_overflows w dest src borrow
-def usub_overflows  {w:nat_expr} (dest : bv w) (src : bv w)                : bit := usbb_overflows dest src bit_zero
-def usub4_overflows {w:nat_expr} (dest : bv w) (src : bv w)                : bit := usub_overflows (least_nibble dest) (least_nibble src)
+def usbb_overflows  {w:Nat} (dest : bv w) (src : bv w) (borrow : bit) : bit := prim.usbb_overflows w dest src borrow
+def usub_overflows  {w:Nat} (dest : bv w) (src : bv w)                : bit := usbb_overflows dest src bit_zero
+def usub4_overflows {w:Nat} (dest : bv w) (src : bv w)                : bit := usub_overflows (least_nibble dest) (least_nibble src)
 
-def uadc_overflows  {w:nat_expr} (dest : bv w) (src : bv w) (carry : bit) : bit := prim.uadc_overflows w dest src carry
-def uadc4_overflows {w:nat_expr} (dest : bv w) (src : bv w) (carry : bit) : bit := uadc_overflows (least_nibble dest) (least_nibble src) carry
-def uadd_overflows  {w:nat_expr} (dest : bv w) (src : bv w)               : bit := uadc_overflows dest src bit_zero
-def uadd4_overflows {w:nat_expr} (dest : bv w) (src : bv w)               : bit := uadd_overflows (least_nibble dest) (least_nibble src)
+def uadc_overflows  {w:Nat} (dest : bv w) (src : bv w) (carry : bit) : bit := prim.uadc_overflows w dest src carry
+def uadc4_overflows {w:Nat} (dest : bv w) (src : bv w) (carry : bit) : bit := uadc_overflows (least_nibble dest) (least_nibble src) carry
+def uadd_overflows  {w:Nat} (dest : bv w) (src : bv w)               : bit := uadc_overflows dest src bit_zero
+def uadd4_overflows {w:Nat} (dest : bv w) (src : bv w)               : bit := uadd_overflows (least_nibble dest) (least_nibble src)
 
-def sadc_overflows  {w:nat_expr} (dest : bv w) (src : bv w) (carry : bit) : bit := prim.sadc_overflows w dest src carry
-def sadd_overflows  {w:nat_expr} (dest : bv w) (src : bv w)               : bit := sadc_overflows dest src bit_zero
+def sadc_overflows  {w:Nat} (dest : bv w) (src : bv w) (carry : bit) : bit := prim.sadc_overflows w dest src carry
+def sadd_overflows  {w:Nat} (dest : bv w) (src : bv w)               : bit := sadc_overflows dest src bit_zero
 
 def pair_fst {x y : type} (e:pair x y) : x := prim.pair_fst x y e
 def pair_snd {x y : type} (e:pair x y) : y := prim.pair_snd x y e
 
-def bv_xor {w:nat_expr} (x : bv w) (y : bv w) : bv w := prim.bv_xor w x y
-def add    {w:nat_expr} (x : bv w) (y : bv w) : bv w := prim.add w x y
-def mul    {w:nat_expr} (x : bv w) (y : bv w) : bv w := prim.mul w x y
-def sub    {w:nat_expr} (x : bv w) (y : bv w) : bv w := prim.sub w x y
+def bv_xor {w:Nat} (x : bv w) (y : bv w) : bv w := prim.bv_xor w x y
+def add    {w:Nat} (x : bv w) (y : bv w) : bv w := prim.add w x y
+def mul    {w:Nat} (x : bv w) (y : bv w) : bv w := prim.mul w x y
+def sub    {w:Nat} (x : bv w) (y : bv w) : bv w := prim.sub w x y
 
-def bv_and {w:nat_expr} (x : bv w) (y : bv w) : bv w := prim.bv_and w x y
-def bv_or  {w:nat_expr} (x : bv w) (y : bv w) : bv w := prim.bv_or w x y
+def bv_and {w:Nat} (x : bv w) (y : bv w) : bv w := prim.bv_and w x y
+def bv_or  {w:Nat} (x : bv w) (y : bv w) : bv w := prim.bv_or w x y
 
 def bit_or (x : bit) (y : bit) : bit    := prim.bit_or x y
 
-def ashr   {w j:nat_expr} (x : bv w) (y : bv j) : bv w := prim.sar w j x y
-def lshr   {w j:nat_expr} (x : bv w) (y : bv j) : bv w := prim.shr w j x y
-def shl    {w j:nat_expr} (x : bv w) (y : bv j) : bv w := prim.shl w j x y
+def ashr   {w j:Nat} (x : bv w) (y : bv j) : bv w := prim.sar w j x y
+def lshr   {w j:Nat} (x : bv w) (y : bv j) : bv w := prim.shr w j x y
+def shl    {w j:Nat} (x : bv w) (y : bv j) : bv w := prim.shl w j x y
 
 
 def bv_bitcast_to_fp (fc : float_class) (x : bv fc.width) : float fc := prim.bv_bitcast_to_fp fc x
@@ -61,22 +61,22 @@ def fp_div           {fc : float_class} (x : float fc) (y : float fc) : float fc
 -- count is not too large.
 --
 -- rol x y = x << y | x >> (sizeof(x) - y)      a
-def rol {i j : nat_expr} (e : bv i) (count : bv j) : bv i :=
+def rol {i j : Nat} (e : bv i) (count : bv j) : bv i :=
   bv_or (shl e count) (lshr e (sub (expression.bv_nat j i) count))
 
-def ror {i j : nat_expr} (e : bv i) (count : bv j) : bv i :=
+def ror {i j : Nat} (e : bv i) (count : bv j) : bv i :=
   bv_or (lshr e count) (shl e (sub (expression.bv_nat j i) count))
 
 -- unknown identifier 'clReg'
-def slt {i : nat_expr} (x : bv i) (y : bv i) : bit := prim.slt i x y
-def sgt {i : nat_expr} (x : bv i) (y : bv i) : bit := slt y x
+def slt {i : Nat} (x : bv i) (y : bv i) : bit := prim.slt i x y
+def sgt {i : Nat} (x : bv i) (y : bv i) : bit := slt y x
 
-def ult {i : nat_expr} (x : bv i) (y : bv i) : bit := prim.ult i x y
-def ugt {i : nat_expr} (x : bv i) (y : bv i) : bit := ult y x
-def ule {i : nat_expr} (x : bv i) (y : bv i) : bit := prim.ule i x y
-def uge {i : nat_expr} (x : bv i) (y : bv i) : bit := ule y x
+def ult {i : Nat} (x : bv i) (y : bv i) : bit := prim.ult i x y
+def ugt {i : Nat} (x : bv i) (y : bv i) : bit := ult y x
+def ule {i : Nat} (x : bv i) (y : bv i) : bit := prim.ule i x y
+def uge {i : Nat} (x : bv i) (y : bv i) : bit := ule y x
 
-def urem {i : nat_expr} (x : bv i) (y : bv i) : bv i :=
+def urem {i : Nat} (x : bv i) (y : bv i) : bv i :=
   pair_snd (prim.quotRem i (uext x (2 * i)) y)
 
 -- WARNING: the K semantics uses bit 0 as the MSB!
@@ -90,18 +90,18 @@ def getRegister {t : type} (r : lhs t) : semantics t := eval (expression.of_lhs 
 def setRegister {t : type} (r : lhs t) (e : expression t) : semantics Unit := (set r e)
 def notBool_ (e : bit) : bit := eq e bit_zero
 
-def isBitSet {n : nat_expr} (e : bv n) (idx : nat_expr) : bit := 
+def isBitSet {n : Nat} (e : bv n) (idx : Nat) : bit := 
   expression.bit_test e (expression.bv_nat n (n - idx))
 
-def overflowFlag {n : nat_expr} (e1 : bv n) (e2 : bv n) (r : bv n) : bit :=
+def overflowFlag {n : Nat} (e1 : bv n) (e2 : bv n) (r : bv n) : bit :=
     sadd_overflows e1 e2
 
-def parityFlag { n : nat_expr } (e : bv n) : bit := even_parity e
-def zeroFlag { n : nat_expr } (e : bv n) : bit := eq e 0
+def parityFlag { n : Nat } (e : bv n) : bit := even_parity e
+def zeroFlag { n : Nat } (e : bv n) : bit := eq e 0
 
-def concat {i j:nat_expr} (x: expression (bv i)) (y : expression (bv j)) : expression (bv (i + j)) := prim.cat i j x y
+def concat {i j:Nat} (x: expression (bv i)) (y : expression (bv j)) : expression (bv (i + j)) := prim.cat i j x y
 def undef {tp:type} : expression tp := expression.undef tp
-def isBitClear {n : nat_expr} (e : expression (bv n)) (b : Nat) : expression bit := 
+def isBitClear {n : Nat} (e : expression (bv n)) (b : Nat) : expression bit := 
     eq (isBitSet e b) bit_zero
 
 -- Always called with the literal 1, but we don't assume ...
@@ -177,15 +177,15 @@ def evaluateAddress (m : Mem) : semantics (bv 64) := eval (expression.of_addr m)
  
 -- x is an immediate usually
 -- assume that the int is n bits, extend to m bits.  The K here might be a bit broken?
-def handleImmediateWithSignExtend (x : expression int) (n m : nat_expr) := prim.bv_int_sext m x
+def handleImmediateWithSignExtend (x : expression int) (n m : Nat) := prim.bv_int_sext m x
 
 @[elabSimple]
-def extractMInt {w:Nat} (x: expression (bv (nat_expr.lit w))) (u:Nat) (l:Nat)
-  : expression (bv (nat_expr.lit ((w - u - 1) + 1 - (w - l)))) := slice x (w - u - 1) (w - l)
+def extractMInt {w:Nat} (x: expression (bv w)) (u:Nat) (l:Nat)
+  : expression (bv ((w - u - 1) + 1 - (w - l))) := slice x (w - u - 1) (w - l)
 
 @[elabSimple]
-def extract {w:Nat} (x: expression (bv (nat_expr.lit w))) (u:Nat) (l:Nat)
-  : expression (bv (nat_expr.lit ((w - u - 1) + 1 - (w - l)))) := slice x (w - u - 1) (w - l)
+def extract {w:Nat} (x: expression (bv w)) (u:Nat) (l:Nat)
+  : expression (bv ((w - u - 1) + 1 - (w - l))) := slice x (w - u - 1) (w - l)
 
 notation `pattern` body `pat_end` := mk_pattern body
 

@@ -55,8 +55,8 @@ def optional {a : Type} (f : tok -> Option a) : Parser tok a :=
 def token (f : tok -> Bool) : Parser tok tok :=
   optional (fun t => if f t then some t else none)
 
-def exact [DecidableEq tok] (t : tok) : Parser tok tok :=
-  token (fun x => x = t)
+def exact [DecidableEq tok] (t : tok) : Parser tok Unit :=
+  do _ <- token (fun x => x = t); pure ()
 
 def many (p : Parser tok a) : Parser tok (List a) := many0 p ()
 
@@ -66,7 +66,7 @@ def many1 (p : Parser tok a) : Parser tok (List a) :=
      pure (v :: vs)
 
 def sepBy (s : Parser tok b) (p : Parser tok a) : Parser tok (List a) := 
-  (do rs <- many (do x <- p; s; pure x); -- p <* s
+  (do rs <- many (do x <- p; _ <- s; pure x); -- p <* s
       -- rs <- pure [];
       r  <- p;
       pure (List.append rs [r])) <|> pure []
@@ -147,21 +147,21 @@ def nonWSP : OpParser String :=
   string1P (fun c => not (Char.isWhitespace c))
 
 def registerP : OpParser register :=
-  do exact '%';
+  do _ <- exact '%';
      string1P Char.isAlphanum
 
 -- offset OR offset?(base_reg,scale_reg?,scale_imm?)
 -- we default to 1 for scale_imm if it doesn't exist     
 def memlocP : OpParser operand :=
   (do disp <- intP <|> pure 0;
-      exact '(';
+      _ <- exact '(';
       base <- registerP;
-      (idx, scale) <- (do exact ',';
+      (idx, scale) <- (do _ <- exact ',';
                           idx <- registerP;
                           scale <- (exact ',' *> natP) <|> pure 1;
                           pure (some idx, scale))
                       <|> pure (none, 1);
-      exact ')';
+      _ <- exact ')';
       pure (operand.memloc disp none (some base) scale idx))
   <|>  -- Absolute address
   do disp <- intP; pure (operand.memloc disp none none 0 none)

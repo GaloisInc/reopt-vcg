@@ -66,10 +66,13 @@ all: realall
 include deps/galois_stdlib/Makefile.include
 include deps/smtlib/Makefile.include
 include deps/lean-llvm/Makefile.include
-include deps/llvm-tablegen-support/Makefile.include
+# include deps/llvm-tablegen-support/Makefile.include
+include deps/llvm-mcinst-support/Makefile.include
 include deps/x86_semantics/Makefile.include
-include deps/reopt_vcg/Makefile.include
-include tests/Makefile.include
+include deps/k-x86-semantics/Makefile.include
+
+# include deps/reopt_vcg/Makefile.include
+# include tests/Makefile.include
 
 
 # all the output directories we need
@@ -81,7 +84,7 @@ build-dirs = $(sort $(foreach ld,$(1),$(dir $(ld))))
 DEPFILES = $(addprefix $(DEPDIR)/,$(LEANFILES:.lean=.d) $(APPLEANFILES:.lean=.d))
 DEPDIRS  = $(call build-dirs,$(DEPFILES)) 
 
-OLEANFILES = $(addprefix $(OLEANDIR)/,$(LEANFILES:.lean=.olean) $(APPLEANFILES:.lean=.d))
+OLEANFILES = $(addprefix $(OLEANDIR)/,$(LEANFILES:.lean=.olean) $(APPLEANFILES:.lean=.olean))
 OLEANDIRS  = $(call build-dirs,$(OLEANFILES))
 
 CXXFLAGS += -fPIC -ggdb3
@@ -96,8 +99,9 @@ EXTRAOBJDIRS  = $(call build-dirs,$(EXTRAOBJFILES))
 
 # Applications
 
-include app/Makefile.include
-include tests/app/Makefile.include
+# include app/Makefile.include
+# include tests/app/Makefile.include
+
 # include simulator/Makefile.include
 # include test-symbolic/Makefile.include
 
@@ -105,7 +109,7 @@ export LEAN_PATH
 $(shell echo "#!/bin/bash" > set_LEAN_PATH.sh)
 $(shell echo "export LEAN_PATH=${LEAN_PATH}" >> set_LEAN_PATH.sh)
 
-realall: $(TARGETS)
+realall: $(TARGETS) $(CLEANFILES)
 
 depend: ${DEPFILES}
 
@@ -133,7 +137,6 @@ ${OLEANDIRS} ${CLEANDIRS} ${DEPDIRS} ${EXTRAOBJDIRS} ${BINDIR}:
 
 $(DEPDIR)/%.d: %.lean | ${OLEANDIRS} $(DEPDIRS)
 	$(call cmd,MAKEDEPEND)
-
 
 # could do this when making the olean
 $(OBJDIR)/%.c $(OLEANDIR)/%.olean: %.lean | ${OLEANDIRS} $(CLEANDIRS)

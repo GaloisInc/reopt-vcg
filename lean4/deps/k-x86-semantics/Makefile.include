@@ -1,36 +1,37 @@
 # -*- makefile-mode -*-
 
-ABSHERE := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
-HERE := $(call relsrcpath,${ABSHERE})
+K_HERE := $(call relsrcpath,$(call makefile-directory))
 
-K_ALLINSTS := $(HERE)allInstructions.txt
-K_GEN_PFX  := $(HERE)src/KX86Semantics/Gen/
+K_ALLINSTS := $(K_HERE)/allInstructions.txt
+K_GEN_PFX  := src/KX86Semantics/Gen/
 K_PROCESS_ALLINSTS = sed '/^\#/d;/^[[:space:]]*$$/d'
 
 ALL := $(shell $(K_PROCESS_ALLINSTS) $(K_ALLINSTS))
 INSTR_LEAN := $(patsubst %,$(K_GEN_PFX)I_%.lean,$(ALL))
-OTHER_LEAN := $(patsubst %,$(K_GEN_PFX)%,Instructions.lean)
-NONGEN_LEAN := $(patsubst %,$(HERE)%,src/KX86Semantics/Compat.lean src/KX86Semantics/ManualInstructions.lean)
+OTHER_LEAN := $(K_GEN_PFX)Instructions.lean
+NONGEN_LEAN := src/KX86Semantics/Compat.lean src/KX86Semantics/ManualInstructions.lean
 
-LEANFILES += $(INSTR_LEAN) $(OTHER_LEAN) $(NONGEN_LEAN)
-
-# EXTRACXXFILES += $(patsubst %,${HERE}%,${LOCAL_CXX})
-LEAN_PATH := ${LEAN_PATH}:KX86Semantics=${ABSHERE}src/KX86Semantics
+$(eval $(call add-package,src,${INSTR_LEAN} ${OTHER_LEAN} ${NONGEN_LEAN},))
 
 # Extra rules
 K_PREPROCESS = sed 's/INSTRUCTION/$*/g'
 
-$(K_GEN_PFX)InstructionsImports.lean.inc: $(K_ALLINSTS)
+$(K_HERE)/$(K_GEN_PFX)InstructionsImports.lean.inc: $(K_ALLINSTS)
 	($(K_PROCESS_ALLINSTS) $(K_ALLINSTS) | while read a; do echo "import KX86Semantics.Gen.I_$$a"; done) > $@
 
-$(K_GEN_PFX)InstructionsList.lean.inc: $(K_ALLINSTS)
+$(K_HERE)/$(K_GEN_PFX)InstructionsList.lean.inc: $(K_ALLINSTS)
 	($(K_PROCESS_ALLINSTS) $(K_ALLINSTS) | while read a; do echo "\t, $$a" ; done) > $@
 
-$(K_GEN_PFX)Instructions.lean: $(HERE)src/KX86Semantics/Gen/Instructions.lean.cpp $(K_ALLINSTS) $(K_GEN_PFX)InstructionsImports.lean.inc $(K_GEN_PFX)InstructionsList.lean.inc
-	cpp -P -I$(K_GEN_PFX) $< > $@
+quiet_cmd_IGEN = GENERATING $@
+      cmd_IGEN = $(CPP) -P -I$(K_HERE)/$(K_GEN_PFX) $< > $@
 
-$(K_GEN_PFX)I_%.lean: $(HERE)src/KX86Semantics/Gen/I.lean.cpp $(HERE)k-semantics/%.lean
-	@$(CC) -DINSTRUCTION=$* -P -E -undef -I$(HERE)k-semantics $< > $@
-	@echo "Generating lean file for instruction $*"
+$(K_HERE)/$(K_GEN_PFX)Instructions.lean: $(K_HERE)/src/KX86Semantics/Gen/Instructions.lean.cpp $(K_ALLINSTS) $(K_HERE)/$(K_GEN_PFX)InstructionsImports.lean.inc $(K_HERE)/$(K_GEN_PFX)InstructionsList.lean.inc
+	$(call cmd,IGEN)
+
+quiet_cmd_KGEN = KGEN $*
+      cmd_KGEN = $(CPP) -DINSTRUCTION=$* -P -undef -I$(K_HERE)/$(K_HERE)/k-semantics $< > $@
+
+$(K_HERE)/$(K_GEN_PFX)I_%.lean: $(K_HERE)/src/KX86Semantics/Gen/I.lean.cpp $(K_HERE)/k-semantics/%.lean
+	$(call cmd,KGEN)
 
 .PRECIOUS: $(INSTR_LEAN) $(OTHER_LEAN)
