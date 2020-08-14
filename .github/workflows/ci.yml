@@ -15,7 +15,7 @@ jobs:
     strategy:
       matrix:
         #os: [ubuntu-latest, macos-latest]
-        os: ubuntu-latest
+        os: [ ubuntu-latest ]
         
     outputs:
       lean4-sha: ${{ steps.version.outputs.lean4-sha }}
