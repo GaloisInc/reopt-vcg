@@ -14,8 +14,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
-
+        #os: [ubuntu-latest, macos-latest]
+        os: ubuntu-latest
+        
     outputs:
       lean4-sha: ${{ steps.version.outputs.lean4-sha }}
         
@@ -32,7 +33,7 @@ jobs:
         name: lean4 cache
         with:
           path: opt/lean
-          key: lean4-${{ runner.os }}-${{ steps.version.outputs.lean4-sha }}
+          key: lean4-${{ matrix.os }}-${{ steps.version.outputs.lean4-sha }}
 
       - name: Compile lean4
         if: steps.lean4-cache.outputs.cache-hit != 'true'
@@ -55,7 +56,7 @@ jobs:
         name: lean4 cache
         with:
           path: opt/lean
-          key: lean4-${{ runner.os }}-${{ needs.lean.outputs.lean4-sha }}
+          key: lean4-${{ matrix.os }}-${{ needs.lean.outputs.lean4-sha }}
 
       - shell: bash
         run: .github/ci.sh build
