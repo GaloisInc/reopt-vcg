@@ -2,9 +2,10 @@ name: reopt-vcg CI
 
 on:
   push:
-    branches: [ master, actions/* ]
-  pull_request:
-    branches: [ master ]
+    branches: [ actions/* ]
+  #  branches: [ master, actions/* ]
+  # pull_request:
+  #   branches: [ master ]
 
 jobs:
   
