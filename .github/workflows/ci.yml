@@ -29,8 +29,9 @@ jobs:
       - uses: actions/cache@v2
         id: lean4-cache
         name: lean4 cache
-        path: opt/lean
-        key: lean4-${{ runner.os }}-${{ steps.version.outputs.lean4-sha }}
+        with:
+          path: opt/lean
+          key: lean4-${{ runner.os }}-${{ steps.version.outputs.lean4-sha }}
 
       - name: Compile lean4
         if: steps.lean4-cache.outputs.cache-hit != 'true'
@@ -51,8 +52,9 @@ jobs:
       - uses: actions/cache@v2
         id: lean4-cache
         name: lean4 cache
-        path: opt/lean
-        key: lean4-${{ runner.os }}-${{ needs.lean.outputs.lean4-sha }}
+        with:
+          path: opt/lean
+          key: lean4-${{ runner.os }}-${{ needs.lean.outputs.lean4-sha }}
 
       - shell: bash
         run: .github/ci.sh build
