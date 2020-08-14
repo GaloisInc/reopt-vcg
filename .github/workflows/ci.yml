@@ -33,8 +33,8 @@ jobs:
         key: lean4-${{ runner.os }}-${{ steps.version.outputs.lean4-sha }}
 
       - name: Compile lean4
-         if: steps.lean4-cache.outputs.cache-hit != 'true'
-         run: .github/ci.sh lean4-build
+        if: steps.lean4-cache.outputs.cache-hit != 'true'
+        run: .github/ci.sh lean4-build
 
   build:
     runs-on: ${{ matrix.os }}
