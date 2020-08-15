@@ -1,0 +1,50 @@
+name: reopt-vcg CI
+
+on:
+  workflow_dispatch:
+    branches: [ actions/* ]
+  #  branches: [ master, actions/* ]
+  # pull_request:
+  #   branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        #os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest]
+        
+    steps:
+      - uses: actions/checkout@v2
+        with: 
+          submodules: true
+
+      - name: Download latest lean4 build
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          # Required, workflow file name or ID
+          workflow: ci.yml
+          # Optional, will use the branch
+          branch: master
+          # Required, uploaded artifact name
+          name: build-${{ runner.os }}
+          # Optional, directory where to extract artifact
+          path: opt/lean
+          # Optional, defaults to current repo
+          repo: leanprover/lean4
+          
+      # - uses: actions/cache@v2
+      #   id: lean4-cache
+      #   name: lean4 cache
+      #   with:
+      #     path: opt/lean
+      #     key: lean4-${{ matrix.os }}-${{ needs.lean.outputs.lean4-sha }}
+
+      # - shell: bash
+      #   run: .github/ci.sh build
+
+      # - shell: bash
+      #   run: .github/ci.sh run-tests
+      - shell: bash
+        run: ls -lR opt
