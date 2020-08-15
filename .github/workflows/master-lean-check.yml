@@ -1,4 +1,4 @@
-name: reopt-vcg CI
+name: reopt-vcg master lean check
 
 on:
   workflow_dispatch:
