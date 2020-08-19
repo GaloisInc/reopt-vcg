@@ -94,23 +94,23 @@ protected def cong {a b : Nat} (h : a = b) : BitVec a → BitVec b
 -- FIXME: more efficient implementation of of_Nat
 -- protected def of_nat (n : Nat) (x:Nat) : BitVec n := ⟨ x % (Nat.shiftl 1 n), power_hack _ _⟩
 
-protected def of_nat (n : Nat) (x:Nat) : BitVec n :=
+protected def ofNat (n : Nat) (x:Nat) : BitVec n :=
   ⟨ x % 2^n, Nat.modLt _ (Nat.posPowOfPos n (zero_lt_pow 1))⟩
 
-instance Nat_to_BitVec_coe {w : Nat} : HasCoe Nat (BitVec w) := ⟨BitVec.of_nat w⟩
+instance Nat_to_BitVec_coe {w : Nat} : HasCoe Nat (BitVec w) := ⟨BitVec.ofNat w⟩
 
--- theorem of_Nat_toNat {n : Nat} (x : BitVec n)
--- : BitVec.of_Nat n (BitVec.toNat x) = x :=
+-- theorem ofNat_toNat {n : Nat} (x : BitVec n)
+-- : BitVec.ofNat n (BitVec.toNat x) = x :=
 --     begin
 --       cases x,
---       simp [BitVec.toNat, BitVec.of_Nat],
+--       simp [BitVec.toNat, BitVec.ofNat],
 --       apply Nat.mod_eq_of_lt x_property,
 --     end
 
--- theorem toNat_of_Nat (k n : Nat)
--- : BitVec.toNat (BitVec.of_Nat k n) = n % 2^k :=
+-- theorem toNat_ofNat (k n : Nat)
+-- : BitVec.toNat (BitVec.ofNat k n) = n % 2^k :=
 --     begin
---       simp [BitVec.of_Nat, BitVec.toNat]
+--       simp [BitVec.ofNat, BitVec.toNat]
 --     end
 
 --- Most significant bit
@@ -128,8 +128,8 @@ section conversion
 
   --- Convert an int to two's complement BitVector.
   protected def of_int : ∀(n : Nat), Int → BitVec n
-  | n, (Int.ofNat x) => BitVec.of_nat n x
-  | n, (Int.negSucc x) => BitVec.of_nat n (Nat.ldiff (2^n-1) x)
+  | n, (Int.ofNat x) => BitVec.ofNat n x
+  | n, (Int.negSucc x) => BitVec.ofNat n (Nat.ldiff (2^n-1) x)
 
 end conversion
 
@@ -147,13 +147,13 @@ section bitwise
     ⟩
 
   -- logical bitwise and
-  def and {w:Nat} (x y : BitVec w) : BitVec w := BitVec.of_nat w (Nat.land x.toNat y.toNat)
+  def and {w:Nat} (x y : BitVec w) : BitVec w := BitVec.ofNat w (Nat.land x.toNat y.toNat)
   -- diff x y = x & not y
-  def diff {w:Nat} (x y : BitVec w) : BitVec w := BitVec.of_nat w (Nat.ldiff x.toNat y.toNat)
+  def diff {w:Nat} (x y : BitVec w) : BitVec w := BitVec.ofNat w (Nat.ldiff x.toNat y.toNat)
   -- logical bitwise or
-  def or  {w:Nat} (x y : BitVec w) : BitVec w := BitVec.of_nat w (Nat.lor  x.toNat y.toNat)
+  def or  {w:Nat} (x y : BitVec w) : BitVec w := BitVec.ofNat w (Nat.lor  x.toNat y.toNat)
   -- logical bitwise xor
-  def xor {w:Nat} (x y : BitVec w) : BitVec w := BitVec.of_nat w (Nat.lxor x.toNat y.toNat)
+  def xor {w:Nat} (x y : BitVec w) : BitVec w := BitVec.ofNat w (Nat.lxor x.toNat y.toNat)
 
   infix `.&&.`:70 := and
   infix `.||.`:65 := or
@@ -164,7 +164,7 @@ section arith
   -- Arithmetic operations on BitVectors
   variable {n : Nat}
 
-  protected def add (x y : BitVec n) : BitVec n := BitVec.of_nat n (x.toNat + y.toNat)
+  protected def add (x y : BitVec n) : BitVec n := BitVec.ofNat n (x.toNat + y.toNat)
 
   def adc (x y : BitVec n) : BitVec n × Bool := ⟨ BitVec.add x y , x.toNat + y.toNat ≥ 2^n ⟩
 
@@ -192,11 +192,11 @@ section arith
   instance : HasSub (BitVec n)  := ⟨BitVec.sub⟩
   instance : HasNeg (BitVec n)  := ⟨BitVec.neg⟩
 
-  protected def mul (x y : BitVec n) : BitVec n := BitVec.of_nat n (x.toNat * y.toNat)
+  protected def mul (x y : BitVec n) : BitVec n := BitVec.ofNat n (x.toNat * y.toNat)
 
   instance : HasMul (BitVec n) := ⟨BitVec.mul⟩
 
-  def BitVec_pow (x: BitVec n) (k:Nat) : BitVec n := BitVec.of_nat n (x.toNat^k)
+  def BitVec_pow (x: BitVec n) (k:Nat) : BitVec n := BitVec.ofNat n (x.toNat^k)
 
   instance BitVec_has_pow : HasPow (BitVec n) Nat := ⟨BitVec_pow⟩
 
@@ -208,10 +208,10 @@ section shift
   variable {n : Nat}
 
   -- shift left
-  def shl (x : BitVec n) (i : Nat) : BitVec n := BitVec.of_nat n (Nat.shiftl x.toNat i)
+  def shl (x : BitVec n) (i : Nat) : BitVec n := BitVec.ofNat n (Nat.shiftl x.toNat i)
 
   -- unsigned shift right
-  def ushr (x : BitVec n) (i : Nat) : BitVec n := BitVec.of_nat n (Nat.shiftr x.toNat i)
+  def ushr (x : BitVec n) (i : Nat) : BitVec n := BitVec.ofNat n (Nat.shiftr x.toNat i)
 
   -- signed shift right
   def sshr (x: BitVec n) (i:Nat) : BitVec n := BitVec.of_int n (Int.shiftr (BitVec.to_int x) i)
@@ -225,7 +225,7 @@ section listlike
   def nth {w:Nat} (x : BitVec w) (idx : Nat) : Bool := Nat.test_bit x.toNat idx
 
   -- Change number of bits result while preserving unsigned value modulo output width.
-  def uresize {m:Nat} (x: BitVec m) (n:Nat) : BitVec n := BitVec.of_nat _ x.toNat
+  def uresize {m:Nat} (x: BitVec m) (n:Nat) : BitVec n := BitVec.ofNat _ x.toNat
 
   -- Change number of bits result while preserving signed value modulo output width.
   def sresize {m:Nat} (x: BitVec m) (n:Nat) : BitVec n := BitVec.of_int _ x.to_int
@@ -262,14 +262,14 @@ section listlike
   def bsr : ∀{n:Nat}, BitVec n → Option Nat
     | n, x => BitVec.bsr' x.toNat n
 
-  -- example : bsf (BitVec.of_nat 3 0) = none := of_as_true trivial
-  -- example : bsr (BitVec.of_nat 3 0) = none := of_as_true trivial
+  -- example : bsf (BitVec.ofNat 3 0) = none := of_as_true trivial
+  -- example : bsr (BitVec.ofNat 3 0) = none := of_as_true trivial
 
-  -- example : bsf (BitVec.of_nat 3 5) = some 0 := of_as_true trivial
-  -- example : bsr (BitVec.of_nat 3 5) = some 2 := of_as_true trivial
+  -- example : bsf (BitVec.ofNat 3 5) = some 0 := of_as_true trivial
+  -- example : bsr (BitVec.ofNat 3 5) = some 2 := of_as_true trivial
 
   def slice {w: Nat} (u l k:Nat) (H: w = k + (u + 1 - l)) (x: BitVec w) : BitVec (u + 1 - l) :=
-     BitVec.of_nat _ (Nat.shiftr x.toNat l)
+     BitVec.ofNat _ (Nat.shiftr x.toNat l)
 
   protected
   def foldl' {α : Sort _} (f : α -> Bool → α) (x : Nat) (init : α) : Nat → α
@@ -346,7 +346,7 @@ def concat' {n:Nat} (input: List (BitVec n)): Nat :=
 --
 -- The most significant bits of are returned first.
 def concat_list {m:Nat}(input: List (BitVec m)) (n:Nat) : BitVec n :=
-  BitVec.of_nat _ (concat' input)
+  BitVec.ofNat _ (concat' input)
 
 --- ConcateNation all BitVectors in the vector together and return a new BitVector.
 --
@@ -355,7 +355,7 @@ def concat_list {m:Nat}(input: List (BitVec m)) (n:Nat) : BitVec n :=
 -- To minimize the need for proofs, we intentionally do not force that the output
 -- has a specific length.
 -- def concat_vec {w m : Nat}(input: vector (BitVec w) m) (n:Nat) : BitVec n :=
---   BitVec.of_nat _ (concat' input.to_list)
+--   BitVec.ofNat _ (concat' input.to_list)
 
 -- example : concat_list [(1 : BitVec 4), 0] 8 = (16 : BitVec 8) := by exact (of_as_true trivial)
 
@@ -365,7 +365,7 @@ def concat_list {m:Nat}(input: List (BitVec m)) (n:Nat) : BitVec n :=
 -- The head of the List has the most-significant bits.
 def split_to_list (x:Nat) (w:Nat) : Nat → List (BitVec w)
 | Nat.zero => []
-| (Nat.succ n) => BitVec.of_nat w (Nat.shiftr x (n*w)) :: split_to_list n
+| (Nat.succ n) => BitVec.ofNat w (Nat.shiftr x (n*w)) :: split_to_list n
 
 -- theorem length_split_to_list (x:Nat) (w : Nat) (m:Nat) : List.length (split_to_list x w m) = m :=
 -- begin
@@ -385,14 +385,14 @@ def split_list {n:Nat} (x:BitVec n) (w:Nat) : List (BitVec w) := split_to_list x
 
 --- Git bits [i..i+m] out of n.
 def get_bits {n} (x:BitVec n) (i m : Nat) (p:i+m ≤ n) : BitVec m :=
-  BitVec.of_nat m (Nat.shiftr x.toNat i)
+  BitVec.ofNat m (Nat.shiftr x.toNat i)
 
 --#eval ((get_bits (0x01234567 : BitVec 32) 8 16 (of_as_true trivial) = 0x2345) : Bool)
 
 --- Set bits at given index.
 def set_bits {n} (x:BitVec n) (i:Nat) {m} (y:BitVec m) (p:i+m ≤ n) : BitVec n :=
-  let mask := BitVec.of_nat n (Nat.shiftl ((2^m)-1) i);
-  or (diff x mask) (BitVec.of_nat n (Nat.shiftl y.toNat i))
+  let mask := BitVec.ofNat n (Nat.shiftl ((2^m)-1) i);
+  or (diff x mask) (BitVec.ofNat n (Nat.shiftl y.toNat i))
 
 --#eval ((set_bits (0x01234567 : BitVec 32) 8 (0x5432 : BitVec 16) (of_as_true trivial) = 0x01543267) : Bool)
 

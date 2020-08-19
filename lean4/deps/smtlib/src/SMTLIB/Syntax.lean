@@ -211,9 +211,7 @@ inductive BuiltinIdent : ConstSort -> Type
 
 -- CVC4 specific
 -- In CVC4, the array indices can be bitvec, floats, ints, or real....
--- | eqrange (k v : SmtSort) : BuiltinIdent (quadop (array k v) (array k v) k k bool)
--- Here's a bitvector-specific 
-| bvEqRange (n : Nat) (v : SmtSort) : BuiltinIdent (quadop (array (bitvec n) v) (array (bitvec n) v) (bitvec n) (bitvec n) bool)
+| eqrange (k v : SmtSort) : BuiltinIdent (quadop k (array k v) k k bool)
 
 -- * BitVecs
 -- hex/binary literals
