@@ -41,6 +41,9 @@ end List
 
 namespace x86
 
+-- FIXME: find a better name
+namespace manual_semantics
+
 @[reducible]
 def some_gpr := Sigma (fun (tp : gpreg_type) => concrete_reg (bv tp.width))
 
@@ -305,5 +308,7 @@ def eval_instruction (i : decodex86.instruction) : M backend Unit :=
 -- #eval run_get_rax "(instruction MOV32mi (i32mem (memloc no-register (register rax rax 0 0) 1 no-register 0)) (i32imm (immediate 4 65535)))"
 end Backend
 
+
+end manual_semantics
 end x86
 

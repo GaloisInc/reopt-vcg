@@ -8,6 +8,7 @@ import X86Semantics.Evaluator
 
 import MCInst.InstParser
 
+open Std (RBMap)
 
 -- namespace x86
 -- namespace k_x86_semantics
@@ -40,13 +41,16 @@ namespace x86
 namespace mcinst
 
 @[reducible]
-def some_reg := Sigma concrete_reg
+def some_gpr := Sigma (fun (tp : gpreg_type) => concrete_reg (bv tp.width))
 
-def reg_names : List (String × some_reg) :=
-  let default_reg : some_reg := Sigma.mk _ (concrete_reg.gpreg 0 gpreg_type.reg64);
-  let mkOne (n : Nat) (f : Fin n -> some_reg) (name : Nat × String) : (String × some_reg) :=
+-- @[reducible]
+-- def some_reg := Sigma concrete_reg
+
+def reg_names : List (String × some_gpr) :=
+  let default_reg : some_gpr := Sigma.mk _ (concrete_reg.gpreg 0 gpreg_type.reg64);
+  let mkOne (n : Nat) (f : Fin n -> some_gpr) (name : Nat × String) : (String × some_gpr) :=
       (name.snd, if H : name.fst < n then f (@Fin.mk n name.fst H) else default_reg);  
-  let mk {n : Nat} (f : Fin n -> some_reg) (names : List String) : List (String × some_reg) :=
+  let mk {n : Nat} (f : Fin n -> some_gpr) (names : List String) : List (String × some_gpr) :=
       List.map (mkOne n f) names.enum;
      mk (fun i => Sigma.mk _ (concrete_reg.gpreg i gpreg_type.reg8l)) reg.r8l_names
   ++ mk (fun i => Sigma.mk _ (concrete_reg.gpreg i gpreg_type.reg8h)) reg.r8h_names
@@ -55,10 +59,10 @@ def reg_names : List (String × some_reg) :=
   ++ mk (fun i => Sigma.mk _ (concrete_reg.gpreg i gpreg_type.reg64)) reg.r64_names
   -- FIXME: add in AVX
 
-def reg_name_map : RBMap String some_reg (fun x y => decide (x < y)) :=
-  RBMap.fromList reg_names (fun x y => decide (x < y))
+def reg_name_map : RBMap String some_gpr (fun x y => decide (x < y)) :=
+  Std.RBMap.fromList reg_names (fun x y => decide (x < y))
 
-def register_to_reg (r : mcinst.register) : Option some_reg :=
+def register_to_reg (r : mcinst.register) : Option some_gpr :=
   reg_name_map.find? r
 
 def throw_if {m} {ε} [Monad m] [MonadExcept ε m] (P : Prop) [Decidable P] (what : ε) : m Unit :=
@@ -91,14 +95,13 @@ section Backend
 
 variables (backend : Backend)
 
-
 def option_register_to_bv64 (opt_r : Option mcinst.register) : M backend (backend.s_bv 64) := 
   match opt_r with 
   | none     => pure (backend.s_bv_imm 64 0)
   | (some r) => 
-    (match String.decEq r.top "rip" with -- FIXME: compiler bug with ite?
+    (match String.decEq r "rip" with -- FIXME: compiler bug with ite?
      | isTrue _  => backend.s_get_ip
-     | isFalse _ => guard_some "option_register_to_bv64" (register_to_reg r)      
+     | isFalse _ => guard_some "option_register_to_bv64" (register_to_reg r)
                     (fun (r' : some_gpr) =>
                       match r' with 
                       | (Sigma.mk gpreg_type.reg64 rr) => concrete_reg.from_state rr
@@ -109,7 +112,7 @@ def operand_to_arg_lval (tp : type) : mcinst.operand -> M backend (@arg_lval bac
   -- FIXME: check width?
   | (operand.register r) => do 
     sgpr <- guard_some "operand_to_arg_lval register" (register_to_reg r) pure;
-    assert_types sgpr.fst tp;
+    assert_types (bv sgpr.fst.width) tp;
     pure (arg_lval.reg sgpr.snd)
   -- FIXME: check width?
   | (operand.immediate val) => throw "operand_to_arg_lval: got an immdiate"
@@ -121,12 +124,12 @@ def operand_to_arg_lval (tp : type) : mcinst.operand -> M backend (@arg_lval bac
     idx_v <- option_register_to_bv64 backend opt_idx;
     pure (arg_lval.memloc n (backend.s_bvadd _ b_v
                               (backend.s_bvadd _ (backend.s_bvmul _ (backend.s_bv_imm _ scale) idx_v)
-                              (backend.s_bv_imm _ disp))))
+                              (backend.s_bv_imm_int _ disp))))
 -- (b_v + scale * idx_v + bitvec.of_int _ disp))
 
 def operand_to_arg_value_lhs
    (tp : type) (op : mcinst.operand) : M backend (@arg_value backend) :=
-   arg_value.lval [] <$> operand_to_arg_lval cfg tp op
+   arg_value.lval <$> operand_to_arg_lval backend tp op
 
 def operand_to_value (tp : type) (op : mcinst.operand) : M backend (@value backend tp) :=
    match op with 
@@ -153,14 +156,13 @@ def test_pattern := match mov.patterns with | [x] := x | _ => sorry end
 #eval possible_nat_envs test_pattern.context.bindings.reverse
 -/
 
-def make_environment_helper (cfg : SystemConfig) 
-  : List binding -> List mcinst.operand -> M backend (environment []) 
+def make_environment_helper : List binding -> List mcinst.operand -> M backend (@environment backend) 
   | [], []              => pure []
   | (binding.reg tp   :: rest), (op :: ops) =>
     annotate' "reg" $ do
       av  <- operand_to_arg_value_lhs backend tp op;
       -- Mainly to check things are of the right form
-      match av with | (arg_value.lval _ (arg_lval.reg r)) => pure () | _ => throw "Not a register";
+      match av with | (arg_value.lval (arg_lval.reg r)) => pure () | _ => throw "Not a register";
       e   <- make_environment_helper rest ops;
       pure (av :: e)
 
@@ -168,7 +170,7 @@ def make_environment_helper (cfg : SystemConfig)
     annotate' "addr" $ do
       av  <- operand_to_arg_value_lhs backend tp op;
       -- Mainly to check things are of the right form
-      match av with | (arg_value.lval _ (arg_lval.memloc _ _)) => pure () | _ => throw "Not a memloc";
+      match av with | (arg_value.lval (arg_lval.memloc _ _)) => pure () | _ => throw "Not a memloc";
       e   <- make_environment_helper rest ops;
       pure (av :: e)
 
@@ -195,7 +197,7 @@ def make_environment_helper (cfg : SystemConfig)
     match register_to_reg r' with
     | none => throw "Unknown register"
     | some (Sigma.mk tp' rr) => 
-      if concrete_reg.nondepEq tp tp' r rr
+      if concrete_reg.nondepEq tp (bv tp'.width) r rr
       then do e   <- make_environment_helper rest ops;
               -- value here can be anything
               pure (arg_value.lval (arg_lval.reg r) :: e)
@@ -211,14 +213,16 @@ def instantiate_pattern (inst : x86.instruction) (i : mcinst.instruction)
               inst.patterns)
 
 def instruction_map : RBMap String x86.instruction (fun x y => decide (x < y)) :=
-  RBMap.fromList (List.map (fun (i : x86.instruction) => (i.mnemonic, i)) 
-                 (k_x86_semantics.all_instructions ++ k_x86_semantics.manual_instructions)) (fun x y => decide (x < y))
+  Std.RBMap.fromList (List.map (fun (i : x86.instruction) => (i.mnemonic, i)) 
+                     (k_x86_semantics.all_instructions ++ k_x86_semantics.manual_instructions)) (fun x y => decide (x < y))
 
 def eval_instruction (i : mcinst.instruction) : M backend Unit :=
   match instruction_map.find? i.mnemonic with               
   | none        => throw ("Unknown instruction: " ++ i.mnemonic)
   | (some inst) => do (env, p) <- annotate' "pattern" (instantiate_pattern backend inst i);
                       annotate' "pattern.eval" (pattern.eval p env)
+
+end Backend
 
 end mcinst
 end x86

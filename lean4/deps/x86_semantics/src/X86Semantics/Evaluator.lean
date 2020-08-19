@@ -508,12 +508,7 @@ def prim.eval : ∀{tp : type}, prim tp -> @evaluator backend (@value backend tp
 
   -- `bvnat` constructs a bit vector from a natural number.
   | ._, (prim.bv_nat w n)    => pure (backend.s_bv_imm w n)
-  | ._, (prim.bv_int_sext w) => pure (fun i =>
-    match i with
-    | Int.ofNat n   => backend.s_bv_imm w n
-    | Int.negSucc m => backend.s_bvnot w (backend.s_bv_imm w m))
-    -- number is - (m + 1).  Note (not x = neg x - 1)
-
+  | ._, (prim.bv_int_sext w) => pure (backend.s_bv_imm_int w)
 
   -- `(add i)` returns the sum of two i-bit numbers.
   | ._, (prim.add i)        => pure (backend.s_bvadd i)

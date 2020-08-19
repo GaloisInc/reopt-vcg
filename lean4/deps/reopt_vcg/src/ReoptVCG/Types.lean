@@ -57,12 +57,17 @@ def VerificationMode.isDefault : VerificationMode → Bool
 | _ => false
 
 
+inductive SemanticsBackend 
+| KSemantics : SemanticsBackend
+| ManualSemantics : SemanticsBackend
+
+
 -- Like VCGArgs in Main but with all mandatory fields no longer as Options.
 structure VCGConfig :=
 (annFile : String)
 (mode : VerificationMode)
 (verbose : Bool)
-
+(semanticsBackend : SemanticsBackend)
 
 abbrev MemAddr := Nat
 abbrev MCBlockAnnMap := Std.RBMap MemAddr MemoryAnn (λ x y => x < y)
@@ -70,17 +75,15 @@ abbrev MCBlockAnnMap := Std.RBMap MemAddr MemoryAnn (λ x y => x < y)
 @[reducible]
 def LLVMTypeMap := Std.RBMap String (Option LLVM.LLVMType) Lean.strLt
 
-
 structure ModuleVCGContext :=
 (annotations : ModuleAnnotations)
 -- ^ Annotations for module.
-(decoder : decodex86.decoder)
+(instructionEvents : x86.vcg.InstructionEventsFun)
 -- ^ Machine code memory / decoder state
 (symbolAddrMap : Std.RBMap String (elf.word elf.elf_class.ELF64) Lean.strLt)
 -- ^ Maps bytes to the symbol name
 (moduleTypeMap : LLVMTypeMap)
 -- ^ type map for module.
-
 
 -------------------------------------------------------
 -- Error/Exception Data

@@ -5,9 +5,6 @@ import SMTLIB.IdGen
 import X86Semantics.Common
 import X86Semantics.BackendAPI
 
-import DecodeX86.DecodeX86
-import ReoptVCG.Translate -- FIXME: this should be moved elsewhere
-
 import ReoptVCG.Annotations
 
 namespace x86
@@ -449,32 +446,51 @@ end Internal
 
 open Internal
 
-def instructionEvents ( evtMap : Std.RBMap Nat MemoryAnn (fun x y => decide (x < y)) )
-                      -- ^ Map from addresses to annotations of events on that address.
-                      ( s : RegState )
-                      -- ^ Initial values for registers
-                      ( idGen : IdGen)
-                      -- ^ Used to generate unique/fresh identifiers for SMT terms.
-                      ( ip : Nat )
-                      ( d : decodex86.decoder )  
-                      -- ^ Location to explore
-                      : Except String (List Event × IdGen × Nat) :=
-  let inst := decodex86.decode d ip;
+structure Semantics :=
+  (instruction : Type)
+  (instruction_size : instruction -> Nat)
+  (decode      : Nat -> Sum String instruction)
+  (eval        : forall (backend : Backend), instruction -> backend.monad Unit)
+
+-- We can't stick the above in Context as it is in Type 1
+def InstructionEventsFun := 
+  forall ( evtMap : Std.RBMap Nat MemoryAnn (fun x y => decide (x < y)) )
+    -- ^ Map from addresses to annotations of events on that address.
+    ( s : RegState )
+    -- ^ Initial values for registers
+    ( idGen : IdGen)
+    -- ^ Used to generate unique/fresh identifiers for SMT terms.
+    ( ip : Nat ), 
+    -- ^ Location to explore
+    Except String (List Event × IdGen × Nat)
+
+def instructionEvents 
+  ( sem    : Semantics )
+  ( evtMap : Std.RBMap Nat MemoryAnn (fun x y => decide (x < y)) )
+  -- ^ Map from addresses to annotations of events on that address.
+  ( s : RegState )
+  -- ^ Initial values for registers
+  ( idGen : IdGen)
+  -- ^ Used to generate unique/fresh identifiers for SMT terms.
+  ( ip : Nat )
+  -- ^ Location to explore
+  : Except String (List Event × IdGen × Nat) :=
+  let inst := sem.decode ip;
   match inst with 
-  | (Sum.inl b) => throw "Unknown byte"
+  | (Sum.inl _) => throw "Unknown byte"
   | (Sum.inr i) => do
        -- set ip of next instruction, used for getting ip-relative addrs.
-       let nextIP := ip + i.nbytes;
+       let nextIP := ip + sem.instruction_size i;
        let s'  := { s with ip := SMT.bvimm _ nextIP };
        let evt := evtMap.find? ip;
-       let r := (eval_instruction backend i).run            
+       let r := (sem.eval backend i).run
                 { idGen := idGen, eventInfo := evt, revEvents := [] }
                 s';
        match r with
        | Except.ok ((_, s''), os'') =>
              let fAndE := Event.FetchAndExecuteEvent s'';
-             Except.ok (List.reverse (fAndE :: os''.revEvents), os''.idGen, i.nbytes)
-       | Except.error err => Except.error (err ++ " " ++ repr i)
+             Except.ok (List.reverse (fAndE :: os''.revEvents), os''.idGen, sem.instruction_size i)
+       | Except.error err => Except.error err -- (err ++ " " ++ repr i)
 
 end vcg
 end x86

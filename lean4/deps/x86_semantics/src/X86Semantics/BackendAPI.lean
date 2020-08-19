@@ -107,6 +107,12 @@ def true (be : Backend) : be.s_bool := be.s_bool_imm true
 
 def bit_to_bitvec (be : Backend) (n : Nat) (b : be.s_bool) : be.s_bv n := 
   be.s_mux_bv b (be.s_bv_imm n 1) (be.s_bv_imm n 0)
+
+-- number is - (m + 1).  Note (not x = neg x - 1)
+def s_bv_imm_int (backend : Backend) (w : Nat) (i : Int) : backend.s_bv w :=
+  match i with
+  | Int.ofNat n   => backend.s_bv_imm w n
+  | Int.negSucc m => backend.s_bvnot w (backend.s_bv_imm w m)
  
 end Backend
 end x86

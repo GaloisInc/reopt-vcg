@@ -66,14 +66,13 @@ all: realall
 include deps/galois_stdlib/Makefile.include
 include deps/smtlib/Makefile.include
 include deps/lean-llvm/Makefile.include
-# include deps/llvm-tablegen-support/Makefile.include
+include deps/llvm-tablegen-support/Makefile.include
 include deps/llvm-mcinst-support/Makefile.include
 include deps/x86_semantics/Makefile.include
 include deps/k-x86-semantics/Makefile.include
 
-# include deps/reopt_vcg/Makefile.include
-# include tests/Makefile.include
-
+include deps/reopt_vcg/Makefile.include
+include tests/Makefile.include
 
 # all the output directories we need
 build-dirs = $(sort $(foreach ld,$(1),$(dir $(ld))))
@@ -99,8 +98,8 @@ EXTRAOBJDIRS  = $(call build-dirs,$(EXTRAOBJFILES))
 
 # Applications
 
-# include app/Makefile.include
-# include tests/app/Makefile.include
+include app/Makefile.include
+include tests/app/Makefile.include
 
 # include simulator/Makefile.include
 # include test-symbolic/Makefile.include
@@ -152,9 +151,14 @@ $(EXTRAOBJDIR)/deps/galois_stdlib/src/Galois/Init/%: CXXFLAGS += -I${LEANDIR}/in
 
 $(EXTRAOBJDIR)/deps/llvm-tablegen-support/src/%: CXXFLAGS += -g -O3 -I deps/llvm-tablegen-support/src/ -I deps/llvm-tablegen-support/llvm-files/ `${LLVM_CONFIG} --cflags` -I${LEANDIR}/include/ -I${LEANDIR}/include/runtime -std=c++14 -fexceptions
 
+$(EXTRAOBJDIR)/deps/llvm-mcinst-support/src/%: CXXFLAGS += -g -O3 `${LLVM_CONFIG} --cflags` -I${LEANDIR}/include/ -I${LEANDIR}/include/runtime -std=c++14 -fexceptions
+
 $(EXTRAOBJDIR)/deps/lean-llvm/src/%: CXXFLAGS += -g -O3 `${LLVM_CONFIG} --cxxflags` -I ${LEANDIR}/include/ -std=c++14 -fexceptions
 
 clean:
 	rm -f ${DEPFILES} ${OLEANFILES}
+
+# Will make depend due to being run, no other targets needed
+depend:
 
 include ${DEPFILES}

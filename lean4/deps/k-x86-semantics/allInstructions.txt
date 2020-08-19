@@ -1,559 +1,554 @@
-adcb
-adcl
-adcq
-adcw
-addb
-addl
-addpd
-# addps
-addq
-addsd
 # addss
+# addps
+addsd
+addpd
 addsubpd
+addb
+andb
+addl
+adcb
+adcw
+adcl
+andl
+addq
+adcq
 addsubps
 addw
-andb
-andl
+andw
+# blendvpd
+blsmskl
+andps
+# blendvps
+# blendps
+blsil
+andpd
 andnl
+andnq
+# btl
+# btcq
+# btcl
 andnpd
 andnps
-andnq
-andpd
-andps
-andq
-andw
-bextrl
-bextrq
-blendpd
-# blendps
-# blendvpd
-# blendvps
-blsil
-blsiq
-blsmskl
 blsmskq
 blsrl
-blsrq
-bswap
-# btcl
-# btcq
-# btcw
-# btl
-# btq
 # btrl
 # btrq
 # btrw
 # btsl
-# btsq
-# btsw
-# btw
-# bzhil
-# bzhiq
-# cbtw
-clc
+# btcw
+bswap
+blsrq
+blendpd
+blsiq
+bextrl
+bextrq
 cld
-cltd
-cltq
+clc
+# btw
+# btq
 cmc
+# btsw
+# btsq
+cltq
+# cbtw
+cltd
 cmovael
-cmovaeq
+andq
+# bzhil
 cmovaew
+cmovcl
+cmovcq
+cmovaeq
+cmovaw
 cmoval
 cmovaq
-cmovaw
 cmovbe
+cmovcw
+cmovbq
+cmovbl
+cmovbw
+cmovel
 cmovbel
 cmovbeq
 cmovbew
-cmovbl
-cmovbq
-cmovbw
-cmovcl
-cmovcq
-cmovcw
-cmovel
-cmoveq
-cmovew
-cmovge
+# bzhiq
 cmovgel
-cmovgeq
-cmovgew
-cmovgl
-cmovgq
-cmovgw
-cmovle
-cmovlel
-cmovleq
-cmovlew
+cmovew
+cmoveq
 cmovll
 cmovlq
-cmovlw
+cmovlew
+cmovlel
+cmovleq
+cmovgl
+cmovgq
+cmovge
+cmovle
 cmovnael
-cmovnaeq
+cmovlw
 cmovnaew
+cmovnbw
+cmovnbl
+cmovnbq
+cmovnaeq
+cmovncl
+cmovnbew
+cmovgeq
 cmovnal
+cmovgew
 cmovnaq
 cmovnaw
 cmovnbel
 cmovnbeq
-cmovnbew
-cmovnbl
-cmovnbq
-cmovnbw
-cmovncl
-cmovncq
+cmovgw
 cmovncw
 cmovnel
-cmovneq
+cmovncq
+cmovnol
 cmovnew
-cmovngel
-cmovngeq
+cmovneq
+cmovnoq
+cmovnlw
 cmovngew
+cmovnll
+cmovngel
+cmovnlq
+cmovngeq
 cmovngl
-cmovngq
 cmovngw
 cmovnlel
-cmovnleq
+cmovngq
 cmovnlew
-cmovnll
-cmovnlq
-cmovnlw
-cmovnol
-cmovnoq
-cmovnow
-cmovnpl
-cmovnpq
-cmovnpw
-cmovns
+cmovnleq
 cmovnsl
-cmovnsq
-cmovnsw
-cmovnzl
-cmovnzq
-cmovnzw
-cmovol
-cmovoq
-cmovow
-cmovpel
-cmovpeq
-cmovpew
+cmovns
 cmovpl
+cmovpeq
+cmovnsw
+cmovnzw
+cmovnpw
+cmovnpl
+cmovol
+cmovnpq
+cmovnzq
+cmovow
+cmovoq
+cmovnow
+cmovpel
+cmovnzl
+cmovnsq
+# cmppd
+cmovzw
+cmovpew
+cmovpw
+cmovzl
+cmovpow
+cmovsl
+cmovzq
+cmovsq
+cmovpq
 cmovpol
 cmovpoq
-cmovpow
-cmovpq
-cmovpw
 cmovs
-cmovsl
-cmovsq
-cmovsw
-cmovzl
-cmovzq
-cmovzw
-cmpb
-cmpl
-# cmppd
-# cmpps
-cmpq
-cmpw
-cmpxchg16b
-cmpxchg8b
-# comisd
-# comiss
 cqto
 # cvtdq2pd
-# cvtdq2ps
+cmpb
+# comisd
+# comiss
+# cvtpi2pd
 # cvtpd2dq
 # cvtpd2ps
-# cvtpi2pd
-# cvtpi2ps
-# cvtps2dq
-# cvtps2pd
-# cvtsd2si
-# cvtsd2ss
+cmovsw
+cmpl
+# cvtdq2ps
+# cmpps
 # cvtsi2sdl
+cmpxchg16b
+cmpxchg8b
+# cvttss2si
+# cvttsd2si
+# cvtss2si
+# cvtsd2si
 # cvtsi2sdq
+# cvtss2sd
 # cvtsi2ssl
 # cvtsi2ssq
-# cvtss2sd
-# cvtss2si
+# cvtsd2ss
+# cvtps2pd
+# cvtpi2ps
 # cvttpd2dq
 # cvttps2dq
-# cvttsd2si
-# cvttss2si
+# cvtps2dq
 # cwtd
 cwtl
+# divb
+cmpw
 decb
+divl
+decw
+cmpq
 decl
 decq
-decw
-# divb
-divl
 divpd
 # divps
 # divq
-divsd
-# divss
-# divw
-dppd
-# dpps
-extractps
-haddpd
-# haddps
-hsubpd
-# hsubps
-# idivb
-idivl
 # idivq
+# divss
+# idivb
 # idivw
+# divw
+# hsubps
+# haddps
+divsd
+# dpps
+idivl
 # imulb
-imull
-imulq
+extractps
 # imulw
+haddpd
+hsubpd
 incb
-incl
-incq
 incw
-# insertps
+incl
 lddqu
-leal
-leaq
-leaw
-lzcntq
-lzcntw
-# maxpd
-# maxps
+# insertps
 # maxsd
-# maxss
-# minpd
-# minps
+dppd
+movaps
+lzcntw
 # minsd
 # minss
+# maxss
+imulq
+leaq
+leal
+leaw
+imull
+# maxpd
+# minpd
 movapd
-movaps
-movb
-movbe
-# movbel
-# movbeq
-movbew
-# movd
-movddup
-movdqa
+# maxps
+# minps
 movdqu
-movhlps
-movhpd
-movhps
-movl
-movlhps
 movlpd
-movlps
+movbe
+movb
+# movd
 # movmskpd
 # movmskps
 movntdq
-movntdqa
-movnti
+# movbel
+movhlps
+movlhps
+movddup
+movdqa
+movhpd
+movlps
+movhps
+movbew
+# movbeq
+movl
+lzcntq
+# movzbl
+# movzwq
+# movzbq
 movntpd
 movntps
-movq
+movntdqa
+movnti
+movzbw
+movzwl
+# mulb
 movupd
 movups
 movw
-# movzbl
-# movzbq
-movzbw
-movzwl
-# movzwq
-# mulb
 mull
 mulpd
-# mulps
-mulq
-mulsd
+movq
 # mulss
 # mulw
-mulx
-mulxl
-mulxq
 negb
-negl
-negq
-negw
-# nop
-# nopl
+notw
+mulx
 # nopw
+# nopl
+# nop
 notb
 notl
-notq
-notw
-orb
-orl
+negl
 orpd
+notq
+negq
+# mulps
+mulsd
+negw
+mulxq
+mulxl
+orl
+mulq
+orb
 orps
-orq
+# pabsd
+# paddd
+# pabsw
+paddq
+# packusdw
+# packssdw
+# paddsw
 orw
 # pabsb
-# pabsd
-# pabsw
-# packssdw
-# packsswb
-# packusdw
-# packuswb
-# paddb
-# paddd
-paddq
-# paddsb
-# paddsw
-# paddusb
-# paddusw
-# paddw
 palignr
+# paddw
+# paddb
 pand
-pandn
-# pavgb
-# pavgw
+# packuswb
+# packsswb
+# paddusw
+# paddsb
 # pblendvb
-# pblendw
-# pcmpeqb
-# pcmpeqd
-pcmpeqq
-# pcmpeqw
-# pcmpgtb
 # pcmpgtd
-pcmpgtq
+# pavgw
+# paddusb
+# pcmpeqd
+# pcmpeqw
+pandn
+pcmpeqq
 # pcmpgtw
+# pblendw
 # phaddd
-# phaddsw
-# phaddw
-# phminposuw
+pcmpgtq
+# pcmpeqb
 # phsubd
-# phsubsw
+# phaddw
+# pcmpgtb
+# phminposuw
+# pavgb
 # phsubw
-pinsrb
-pinsrd
-pinsrq
-pinsrw
-# pmaddubsw
-# pmaddwd
-# pmaxsb
+# phaddsw
+orq
+# phsubsw
 # pmaxsd
-# pmaxsw
-# pmaxub
 # pmaxud
-# pmaxuw
-# pminsb
+# pmaddwd
 # pminsd
-# pminsw
-# pminub
+# pmaxuw
+# pmaxsw
 # pminud
-# pminuw
 # pmovmskb
 # pmovsxbd
+pinsrq
+# pminsw
+# pmaxsb
 pmovsxbq
+# pmaxub
+# pminuw
 # pmovsxbw
-pmovsxdq
-# pmovsxwd
-pmovsxwq
 # pmovzxbd
+# pmovsxwd
+# pminsb
+# pmaddubsw
 # pmovzxbq
-# pmovzxbw
-# pmovzxdq
-# pmovzxwd
+pmovsxwq
+pmovsxdq
+pinsrb
+# pminub
 # pmovzxwq
-pmuldq
-# pmulhrsw
-# pmulhuw
-# pmulhw
+# pmovzxdq
+pinsrd
+# pmovzxwd
+# pmovzxbw
+pinsrw
 # pmulld
-# pmullw
-pmuludq
+pmuldq
+# psignd
+# pmulhuw
+# pmulhrsw
+# pslldq
+# pslld
 por
-# psadbw
-# pshufb
 # pshufd
+# psrad
+pmuludq
 # pshufhw
 # pshuflw
-# psignb
-# psignd
-# psignw
-# pslld
-pslldq
-psllq
-# psllw
-# psrad
-# psraw
 # psrld
-psrldq
-psrlq
+# psraw
+# psllw
+# psignw
+# psrldq
+# pmulhw
+# pmullw
 # psrlw
-# psubb
+# psadbw
 # psubd
+psllq
+# psignb
+psrlq
 psubq
-# psubsb
-# psubsw
-# psubusb
-# psubusw
 # psubw
-ptest
-# punpckhbw
-punpckhdq
 punpckhqdq
-# punpckhwd
-# punpcklbw
-punpckldq
-punpcklqdq
-# punpcklwd
-pushq
+# pshufb
+punpckhdq
+# psubsw
+# psubusw
+# punpckhbw
+# psubb
 pushw
+punpcklqdq
+pushq
+# punpckhwd
+# punpcklwd
+# psubsb
+ptest
+punpckldq
+# punpcklbw
 pxor
-rclb
-rcll
-rclq
-rclw
+# psubusb
 # rcpps
 # rcpss
 rcrb
-rcrl
-rcrq
+rclb
 rcrw
-rolb
-roll
-rolq
-rolw
-rorb
-rorl
+rcrl
+rclw
+rcll
+rcrq
+rclq
 rorq
-rorw
-rorx
-rorxl
-rorxq
-# roundpd
-# roundps
 # roundsd
 # roundss
-# rsqrtps
+rolw
 # rsqrtss
-salb
-sall
-salq
-salw
-sarb
-sarl
-sarq
-sarw
-sarx
+# rsqrtps
+rorb
+# roundpd
+# roundps
+rorxl
+rorxq
+rolb
+rolq
+rorl
+roll
+rorx
 sarxl
-sarxq
-sbbb
-sbbl
-sbbq
-sbbw
+rorw
+sarx
 seta
 setae
+sarxq
 setb
-setbe
-setc
 sete
-setg
+setc
+setbe
+sbbb
 setge
+setg
+sarl
+sarq
 setl
+sbbl
+salb
 setle
-setna
-setnae
-setnb
-setnbe
 setnc
-setne
+sall
+sarb
+sbbw
+setnl
 setng
 setnge
-setnl
-setnle
+sarw
+sbbq
 setno
-setnp
-setns
-setnz
 seto
 setp
-setpe
-setpo
+salw
+salq
+setnae
+setne
 sets
 setz
-shlb
-shll
-shlq
-shlw
-shlx
-shlxl
-shlxq
-shrb
-shrl
-shrq
-shrw
+setpo
+setpe
+setnz
+setns
+setnp
+setnb
+setna
+setnbe
+setnle
 shrx
 shrxl
-shrxq
-shufpd
 # shufps
+shrxq
 # sqrtpd
+shufpd
+shlxl
 # sqrtps
+shlxq
+shlx
 # sqrtsd
 # sqrtss
-stc
 std
-subb
-subl
+shlb
+stc
 subpd
-# subps
-subq
-subsd
 # subss
-subw
+subsd
+# subps
+shlq
+shrq
+shrb
+testw
+subb
+shlw
+shll
+shrw
+shrl
+subl
+# ucomiss
+# ucomisd
 testb
 testl
-testq
-testw
-tzcntq
-tzcntw
-# ucomisd
-# ucomiss
-unpckhpd
 # unpckhps
-unpcklpd
-# unpcklps
-# vaddpd
-# vaddps
-vaddsd
 # vaddss
-vaddsubpd
-# vaddsubps
-vandnpd
-vandnps
+unpckhpd
+subq
+subw
+tzcntw
 vandpd
 vandps
-# vblendpd
 # vblendps
-# vblendvpd
+# unpcklps
+unpcklpd
 # vblendvps
-vbroadcastf128
+# vaddps
 vbroadcasti128
+vaddsd
 # vbroadcastsd
+# vblendpd
+# vaddsubps
 # vbroadcastss
-# vcmppd
-# vcmpps
-# vcmpsd
+testq
+# vaddpd
 # vcmpss
 # vcomisd
-# vcomiss
-# vcvtdq2pd
+# vblendvpd
+vbroadcastf128
+tzcntq
+# vcmpsd
+# vcmppd
 # vcvtdq2ps
-# vcvtpd2dq
-# vcvtpd2dqx
-# vcvtpd2ps
-# vcvtph2ps
-# vcvtps2dq
-# vcvtps2pd
-# vcvtps2ph
 # vcvtsd2si
+# vcmpps
+# vcomiss
+# vcvtps2ph
+# vcvtps2pd
+# vcvtph2ps
+# vcvtdq2pd
+# vcvtps2dq
+# vcvtpd2dqx
 # vcvtsd2ss
+# vcvtpd2ps
 # vcvtsi2sd
 # vcvtsi2sdl
 # vcvtsi2sdq
@@ -561,290 +556,294 @@ vbroadcasti128
 # vcvtsi2ssl
 # vcvtsi2ssq
 # vcvtss2sd
+# vcvtpd2dq
 # vcvtss2si
-# vcvttpd2dq
-# vcvttps2dq
+vaddsubpd
 # vcvttsd2si
 # vcvttss2si
-# vdivpd
-# vdivps
-vdivsd
 # vdivss
-vdppd
-# vdpps
+# vcvttpd2dq
+# vcvttps2dq
 vextractf128
 vextracti128
-vextractps
-# vfmadd132pd
-# vfmadd132ps
-# vfmadd132sd
+# vdivps
 # vfmadd132ss
+vdivsd
+vextractps
 # vfmadd213pd
-# vfmadd213ps
-vfmadd213sd
+# vdpps
+# vfmadd132sd
+# vdivpd
 # vfmadd213ss
-# vfmadd231pd
-# vfmadd231sd
+# vfmadd132pd
 # vfmadd231ss
+# vfmadd231sd
+# vfmadd213ps
+# vfmadd231pd
+# vfmadd132ps
 # vfmaddsub132pd
-# vfmaddsub132ps
-vfmaddsub213pd
-# vfmaddsub213ps
-vfmaddsub231pd
-# vfmaddsub231ps
-# vfmsub132pd
+vdppd
+vfmadd213sd
+# vfmsub132ss
 # vfmsub132ps
 vfmsub132sd
-# vfmsub132ss
-# vfmsub213pd
-# vfmsub213ps
-vfmsub213sd
 # vfmsub213ss
-vfmsub231pd
-# vfmsub231ps
-vfmsub231sd
+# vfmsub213ps
+# vfmsub132pd
+vfmsub213sd
 # vfmsub231ss
+# vfmsub231ps
+# vfmsub213pd
+vfmsub231sd
+# vfmaddsub132ps
+# vfmaddsub213ps
 # vfmsubadd132pd
-# vfmsubadd132ps
-vfmsubadd213pd
-# vfmsubadd213ps
-vfmsubadd231pd
-# vfmsubadd231ps
 # vfnmadd132pd
-# vfnmadd132ps
 # vfnmadd132sd
+# vfmaddsub231ps
 # vfnmadd132ss
 # vfnmadd213sd
 # vfnmadd213ss
-# vfnmadd231ps
+# vfnmadd132ps
 # vfnmadd231sd
 # vfnmadd231ss
-# vfnmsub132pd
-# vfnmsub132ps
 # vfnmsub132sd
+# vfnmsub132pd
 # vfnmsub132ss
+# vfnmadd231ps
 # vfnmsub213pd
-# vfnmsub213ps
+# vfnmsub132ps
 # vfnmsub213sd
 # vfnmsub213ss
+# vfmsubadd132ps
+# vfmsubadd213ps
 # vfnmsub231pd
-# vfnmsub231ps
+# vfmsubadd231ps
 # vfnmsub231sd
 # vfnmsub231ss
-vhaddpd
+# vfnmsub213ps
+vfmaddsub213pd
 # vhaddps
-vhsubpd
-# vhsubps
+# vinsertps
+# vfnmsub231ps
+vlddqu
+vfmaddsub231pd
 vinsertf128
 vinserti128
-# vinsertps
-vlddqu
-# vmaskmovpd
-# vmaskmovps
-# vmaxpd
-# vmaxps
 # vmaxsd
 # vmaxss
+vfmsub231pd
+# vmaxpd
+# vmaskmovps
+# vmaxps
 # vminpd
-# vminps
+# vhsubps
 # vminsd
-# vminss
+# vminps
+# vmaskmovpd
+# vmovd
 vmovapd
 vmovaps
-# vmovd
-vmovddup
+vmovhlps
+vfmsubadd213pd
+vfmsubadd231pd
 vmovdqa
 vmovdqu
-vmovhlps
-vmovhpd
-vmovhps
+# vminss
+# vmovmskpd
 vmovlhps
 vmovlpd
+vmovhps
+vmovhpd
 vmovlps
-# vmovmskpd
-# vmovmskps
-vmovntdq
-vmovntdqa
-vmovntpd
+vmovddup
 vmovntps
+vmovntpd
+vmovntdqa
+vhaddpd
+vhsubpd
+# vmovmskps
 vmovq
-vmovsd
-vmovshdup
-vmovsldup
+# vmulss
+vmovntdq
+vorpd
+vmulsd
+vorps
+# vmulpd
+# vpabsd
 # vmovss
 vmovupd
 vmovups
-# vmulpd
 # vmulps
-vmulsd
-# vmulss
-vorpd
-vorps
-# vpabsb
-# vpabsd
+vmovsd
 # vpabsw
-# vpackssdw
-# vpacksswb
-# vpackusdw
-# vpackuswb
-# vpaddb
 # vpaddd
+# vpackssdw
+vmovshdup
 # vpaddq
-# vpaddsb
+# vpabsb
+# vpackusdw
+vmovsldup
 # vpaddsw
-# vpaddusb
-# vpaddusw
-# vpaddw
-vpalignr
+vandnpd
 vpand
-vpandn
-# vpavgb
-# vpavgw
-# vpblendd
-# vpblendvb
-# vpblendw
+# vpacksswb
+# vpaddw
+# vpaddb
+# vpaddusw
 # vpbroadcastb
 # vpbroadcastd
-vpbroadcastq
+# vpackuswb
+# vpblendd
 # vpbroadcastw
-# vpcmpeqb
+vpbroadcastq
+vandnps
 # vpcmpeqd
+# vpblendw
+vpalignr
+# vpavgw
+# vpaddsb
 # vpcmpeqq
-# vpcmpeqw
-# vpcmpgtb
 # vpcmpgtd
-# vpcmpgtq
+# vpcmpeqw
+# vpaddusb
 # vpcmpgtw
+# vpblendvb
+# vpermd
+# vpermilps
+# vpcmpgtq
+# vpextrb
+# vpermpd
+# vpcmpeqb
+# vpermq
+# vpermps
+# vpermilpd
+# vpextrw
+# vpcmpgtb
 vperm2f128
 vperm2i128
-# vpermd
-# vpermilpd
-# vpermilps
-# vpermpd
-# vpermps
-# vpermq
-# vpextrb
+# vpavgb
 vpextrd
 vpextrq
-# vpextrw
-# vphaddd
-# vphaddsw
-# vphaddw
-# vphminposuw
 # vphsubd
-# vphsubsw
+# vphaddd
+# vphminposuw
+# vphaddw
 # vphsubw
-vpinsrb
-vpinsrd
-vpinsrq
-vpinsrw
-# vpmaddubsw
-# vpmaddwd
-# vpmaskmovd
-# vpmaskmovq
-# vpmaxsb
 # vpmaxsd
-# vpmaxsw
-# vpmaxub
+# vpmaskmovq
+# vpmaskmovd
+# vphsubsw
+# vphaddsw
+# vpmaddwd
 # vpmaxud
-# vpmaxuw
-# vpminsb
+# vpmaxsw
 # vpminsd
-# vpminsw
-# vpminub
 # vpminud
-# vpminuw
+# vpminsw
+# vpmaxuw
 # vpmovmskb
 # vpmovsxbd
+# vpmaxsb
 # vpmovsxbq
-# vpmovsxbw
-# vpmovsxdq
+vpinsrb
+# vpminuw
+# vpmovzxbd
 # vpmovsxwd
 # vpmovsxwq
-# vpmovzxbd
+# vpmovsxbw
+vpinsrd
+# vpmovsxdq
+# vpmaxub
 # vpmovzxbq
-# vpmovzxbw
+vpinsrw
 # vpmovzxdq
-# vpmovzxwd
+# vpminsb
+# vpmaddubsw
 # vpmovzxwq
-# vpmuldq
-# vpmulhrsw
-# vpmulhuw
-# vpmulhw
+# vpminub
+# vpmovzxwd
+# vpmovzxbw
+# vpslldq
+vpor
 # vpmulld
+vpinsrq
+# vpsignd
+# vpslld
+# vpmuldq
+# vpsignw
+# vpmulhw
+# vpsrad
+# vpmulhuw
+# vpsllq
 # vpmullw
 # vpmuludq
-vpor
-# vpsadbw
-# vpsignb
-# vpsignd
-# vpsignw
-# vpslld
-vpslldq
-# vpsllq
+# vpmulhrsw
 # vpsllvd
-# vpsllvq
 # vpsllw
-# vpsrad
+# vpsrldq
+# vpsrld
 # vpsravd
 # vpsraw
-# vpsrld
-vpsrldq
 # vpsrlq
-# vpsrlvd
-# vpsrlvq
+# vpsignb
 # vpsrlw
-# vpsubb
+# vpsllvq
+# vpsrlvd
 # vpsubd
+# vpsadbw
+# vpsrlvq
 # vpsubq
-# vpsubsb
-# vpsubsw
-# vpsubusb
-# vpsubusw
-# vpsubw
-vptest
-# vpunpckhbw
-# vpunpckhdq
-vpunpckhqdq
 # vpunpckhwd
+# vpsubw
+# vpunpckhbw
+# vpsubsw
+# vpunpckhdq
+# vpsubusw
 # vpunpcklbw
-# vpunpckldq
-vpunpcklqdq
-# vpunpcklwd
 vpxor
-# vrcpps
 # vrcpss
-# vroundpd
-# vroundps
+# vpsubb
+# vpunpcklwd
+# vpunpckldq
 # vroundsd
+# vroundpd
 # vroundss
-# vrsqrtps
 # vrsqrtss
-# vshufpd
-# vshufps
-# vsqrtpd
-# vsqrtps
+vpunpckhqdq
+# vrcpps
+# vrsqrtps
+# vroundps
 # vsqrtsd
+vpunpcklqdq
 # vsqrtss
-# vsubpd
-# vsubps
-vsubsd
+# vsqrtpd
 # vsubss
-vtestpd
-vtestps
+# vsqrtps
+# vshufps
 # vucomisd
 # vucomiss
-vunpckhpd
-# vunpckhps
-vunpcklpd
-# vunpcklps
-vxorpd
+# vsubps
+vsubsd
+# vpsubsb
+# vshufpd
+# vsubpd
+# vpsubusb
 vxorps
-vzeroall
-vzeroupper
-xorb
-xorl
+# vunpckhps
+vxorpd
 xorpd
 xorps
-xorq
+# vunpcklps
+vunpckhpd
+vunpcklpd
+xorb
+xorl
+vzeroall
 xorw
+vzeroupper
+vtestpd
+vpandn
+xorq
+vtestps
+vptest

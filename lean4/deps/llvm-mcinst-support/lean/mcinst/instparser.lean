@@ -13,68 +13,70 @@ import Init.Control.State
 import Init.Control.Id
 import Init.Control.Option
 
--- Single-valued, backtracking on failure
-structure Parser (tok : Type) (a : Type) :=
-  ( run : StateT (List tok) (OptionT Id) a )
+import Galois.Data.ParserComb
 
-namespace Parser
+-- -- Single-valued, backtracking on failure
+-- structure Parser (tok : Type) (a : Type) :=
+--   ( run : StateT (List tok) (OptionT Id) a )
 
-variables {tok a b : Type}
+-- namespace Parser
 
-instance : HasOrelse (Parser tok a) := 
-  { orelse := fun x y => Parser.mk (x.run <|> y.run) }
+-- variables {tok a b : Type}
 
-instance : Monad (Parser tok) :=
-  { bind := fun _ _ x f => Parser.mk (x.run >>= fun v => (f v).run)
-  , pure := fun _ x => Parser.mk (pure x)
-  }
+-- instance : HasOrelse (Parser tok a) := 
+--   { orelse := fun x y => Parser.mk (x.run <|> y.run) }
 
-instance : MonadState (List tok) (Parser tok) :=
-  { set := fun s => Parser.mk (set s)
-  , get := Parser.mk get
-  , modifyGet := fun _ f => Parser.mk (modifyGet f)
-  }
+-- instance : Monad (Parser tok) :=
+--   { bind := fun _ _ x f => Parser.mk (x.run >>= fun v => (f v).run)
+--   , pure := fun _ x => Parser.mk (pure x)
+--   }
 
-instance : MonadExcept Unit (Parser tok) :=
-  { throw := fun _ e => Parser.mk (throw e)
-  , catch := fun _ m f => Parser.mk (catch (m.run) (fun x => (f x).run))
-  }
+-- instance : MonadState (List tok) (Parser tok) :=
+--   { set := fun s => Parser.mk (set s)
+--   , get := Parser.mk get
+--   , modifyGet := fun _ f => Parser.mk (modifyGet f)
+--   }
 
-partial def many0 (p : Parser tok a) : Unit -> Parser tok (List a)
-  | _ => (do v <- p; vs <- many0 (); pure (v :: vs)) <|> pure []
+-- instance : MonadExcept Unit (Parser tok) :=
+--   { throw := fun _ e => Parser.mk (throw e)
+--   , catch := fun _ m f => Parser.mk (catch (m.run) (fun x => (f x).run))
+--   }
 
-def optional {a : Type} (f : tok -> Option a) : Parser tok a :=
-  do tks <- get;
-     match tks with     
-       | [] => throw ()
-       | (t :: tks') => 
-         match f t with 
-           | none => throw ()
-           | some r => (do set tks'; pure r)
+-- partial def many0 (p : Parser tok a) : Unit -> Parser tok (List a)
+--   | _ => (do v <- p; vs <- many0 (); pure (v :: vs)) <|> pure []
 
-def token (f : tok -> Bool) : Parser tok tok :=
-  optional (fun t => if f t then some t else none)
+-- def optional {a : Type} (f : tok -> Option a) : Parser tok a :=
+--   do tks <- get;
+--      match tks with     
+--        | [] => throw ()
+--        | (t :: tks') => 
+--          match f t with 
+--            | none => throw ()
+--            | some r => (do set tks'; pure r)
 
-def exact [DecidableEq tok] (t : tok) : Parser tok Unit :=
-  do _ <- token (fun x => x = t); pure ()
+-- def token (f : tok -> Bool) : Parser tok tok :=
+--   optional (fun t => if f t then some t else none)
 
-def many (p : Parser tok a) : Parser tok (List a) := many0 p ()
+-- def exact [DecidableEq tok] (t : tok) : Parser tok Unit :=
+--   do _ <- token (fun x => x = t); pure ()
 
-def many1 (p : Parser tok a) : Parser tok (List a) := 
-  do v <- p; 
-     vs <- many p;
-     pure (v :: vs)
+-- def many (p : Parser tok a) : Parser tok (List a) := many0 p ()
 
-def sepBy (s : Parser tok b) (p : Parser tok a) : Parser tok (List a) := 
-  (do rs <- many (do x <- p; _ <- s; pure x); -- p <* s
-      -- rs <- pure [];
-      r  <- p;
-      pure (List.append rs [r])) <|> pure []
+-- def many1 (p : Parser tok a) : Parser tok (List a) := 
+--   do v <- p; 
+--      vs <- many p;
+--      pure (v :: vs)
 
-def runParser (p : Parser tok a) (tks : List tok) : Option a :=
-  (p.run.run' tks).run.run
+-- def sepBy (s : Parser tok b) (p : Parser tok a) : Parser tok (List a) := 
+--   (do rs <- many (do x <- p; _ <- s; pure x); -- p <* s
+--       -- rs <- pure [];
+--       r  <- p;
+--       pure (List.append rs [r])) <|> pure []
 
-end Parser
+-- def runParser (p : Parser tok a) (tks : List tok) : Option a :=
+--   (p.run.run' tks).run.run
+
+-- end Parser
 
 namespace x86
 

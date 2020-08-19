@@ -29,7 +29,7 @@ $(K_HERE)/$(K_GEN_PFX)Instructions.lean: $(K_HERE)/src/KX86Semantics/Gen/Instruc
 	$(call cmd,IGEN)
 
 quiet_cmd_KGEN = KGEN $*
-      cmd_KGEN = $(CPP) -DINSTRUCTION=$* -P -undef -I$(K_HERE)/$(K_HERE)/k-semantics $< > $@
+      cmd_KGEN = $(CPP) -DINSTRUCTION=$* -P -undef -I$(K_HERE)/k-semantics $< > $@
 
 $(K_HERE)/$(K_GEN_PFX)I_%.lean: $(K_HERE)/src/KX86Semantics/Gen/I.lean.cpp $(K_HERE)/k-semantics/%.lean
 	$(call cmd,KGEN)

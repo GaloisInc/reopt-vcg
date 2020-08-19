@@ -15,7 +15,7 @@
 #pragma clang diagnostic push // clang complains about variadic macros
 #pragma clang diagnostic ignored "-Wvariadic-macros"
 #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
-#include "object.h"
+#include "lean/object.h"
 #pragma clang diagnostic pop
 
 using namespace lean;

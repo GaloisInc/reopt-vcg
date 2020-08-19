@@ -194,8 +194,7 @@ def getNextEvents : BlockVCG Unit := do
   addComment ("MC: at " ++ addr.ppHex);
 
   (events, idGen', sz) <-
-    match x86.vcg.instructionEvents ctx.mcBlockMap s.mcCurRegs s.idGen addr
-            ctx.mcModuleVCGContext.decoder with
+    match ctx.mcModuleVCGContext.instructionEvents ctx.mcBlockMap s.mcCurRegs s.idGen addr with
     | Except.error e => fatalThrow e
     | Except.ok    r => pure r;
 
