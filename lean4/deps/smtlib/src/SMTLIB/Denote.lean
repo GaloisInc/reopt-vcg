@@ -1,74 +1,53 @@
 
+import Galois.Data.List
+import Galois.Data.RBMap
 import SmtLib.Syntax
 import SmtLib.BitVec
-
+import Std.Data.RBMap
 
 namespace Smt
 
+open Std (RBMap)
+
+structure Array (α β : Type) :=
+(elems : List (α × β))
+(dflt : β)
+
+
 @[reducible]
-protected def SmtSort.denote : SmtSort → Type
+protected def SmtSort.carrier : SmtSort → Type
 | SmtSort.bool => Bool
 | SmtSort.bitvec n => BitVec n
-| SmtSort.array k v => List (k.denote × v.denote)
--- ^ FIXME an association list would work, but obviously isn't very performant...
-
-def SmtSort.denote.default : forall (s : SmtSort), s.denote
-| SmtSort.bool => false
-| SmtSort.bitvec _ => 0
-| SmtSort.array _ _ => []
-
-instance SmtSort.denote.Inhabited {s : SmtSort} : Inhabited s.denote := {default := SmtSort.denote.default s}
-
-namespace Array
-
-private def checkEntry {α β} [HasBeq α] (a: List (α × β) ) (k : α) (p : β → Bool) : Bool :=
-match a.lookup k with 
-| some v => p v
-| none => false
-
-/--  a1 == a2 iff ∀ (k,v) ∈ a1, read(a2, k) == v --/
-def extensionalEq {α β} [HasBeq α] [HasBeq β]  (a1 a2 : List (α × β)) : Bool :=
-a1.all (λ entry => checkEntry a2 entry.fst (λ v => v == entry.snd))
-&& a2.all (λ entry => checkEntry a1 entry.fst (λ v => v == entry.snd))
+| SmtSort.array k v => Array k.carrier v.carrier
 
 
-def select {α β} [HasBeq α] [Inhabited β] (a: List (α × β) ) (k : α) : β :=
-match a.lookup k with
-| some v => v
-| none => @arbitrary β _
 
-def store {α β} [HasBeq α] [Inhabited β] (a: List (α × β)) (k : α) (v : β) : List (α × β) :=
-let a' := a.filter (λ entry => entry.fst != k);
-(k,v)::a'
-
-def bvEqRange {n : Nat} {β} [HasBeq β] (a1 a2 : List (BitVec n × β)) (low high : BitVec n) : Bool :=
-let inRange : BitVec n → Bool := λ bv => BitVec.ule low bv && BitVec.ule bv high;
-a1.all (λ entry => !inRange entry.fst || checkEntry a2 entry.fst (λ v => v == entry.snd))
-&& a2.all (λ entry => !inRange entry.fst || checkEntry a1 entry.fst (λ v => v == entry.snd))
+-- protected def SmtSort.denote : Nat → SmtSort → Type
+-- | idx, s => (s.denotation idx).fst
 
 
-end Array
 
--- FIXME / BOOKMARK ... Beq seems more flexible here and allows us to trivially not
--- care about the bitvec proofs or structure of array representation... but of course
--- we don't then get propositional equality =\
-def SmtSort.denote.HasBeq : forall (s: SmtSort) , HasBeq s.denote
+def SmtSort.carrier.HasBeq : forall (s: SmtSort) , HasBeq s.carrier
 | SmtSort.bool =>
   {beq := λ b1 b2 => b1 == b2}
 | SmtSort.bitvec n =>
   {beq := λ b1 b2 => b1 == b2}
 | SmtSort.array k v =>
-  {beq := @Array.extensionalEq _ _ (SmtSort.denote.HasBeq k) (SmtSort.denote.HasBeq v)}
+  let beqK := SmtSort.carrier.HasBeq k;
+  let beqV := SmtSort.carrier.HasBeq v;
+  {beq := λ a1 a2 => a1.dflt == a2.dflt && a1.elems  == a2.elems}
 
+def SmtSort.carrier.lt (s : SmtSort) : s.carrier → s.carrier → Bool :=
+λ x y => false -- FIXME
 
 namespace Raw
 
 namespace ConstSort
 
 @[reducible]
-protected def denote : ConstSort → Type
-| ConstSort.base s => s.denote
-| ConstSort.fsort a b => a.denote → b.denote
+protected def carrier : ConstSort → Type
+| ConstSort.base s => s.carrier
+| ConstSort.fsort a b => a.carrier → b.carrier
 
 end ConstSort
 
@@ -83,20 +62,64 @@ private def distinctList {α : Type} [HasBeq α] : List α → Bool
 | a::as => !(as.contains a) && distinctList as
 
 
-def distinct (s : SmtSort) : forall (n : Nat), List s.denote → (nary s SmtSort.bool n).denote
-| 0, args => @distinctList _ (SmtSort.denote.HasBeq s)  args
+def distinct (s : SmtSort) : forall (n : Nat), List s.carrier → (nary s SmtSort.bool n).carrier
+| 0, args => @distinctList _ (SmtSort.carrier.HasBeq s)  args
 | Nat.succ n, args => λ a => (distinct n) (a::args)
 
 end VarArgs
 
-private def mkDistinct (s : SmtSort) (n : Nat) : (nary s SmtSort.bool n).denote :=
+private def mkDistinct (s : SmtSort) (n : Nat) : (nary s SmtSort.bool n).carrier :=
 VarArgs.distinct s n []
+
+
+
+namespace Array
+variables {α β : Type} {lt : α → α → Bool}
+
+protected def toList (a : Array α β) : List (α × β) :=
+a.elems
+
+protected def keys (a : Array α β) : List α :=
+a.elems.map (λ e => e.fst)
+
+
+
+protected def select [HasBeq α] (a : Array α β) (k : α) : β :=
+match a.elems.lookup k with
+| some v => v
+| none => a.dflt
+
+-- FIXME do we need to stick the `lt` in the Array type?
+-- protected def store (a : Array α β) (k : α) (v : β) : Array α β :=
+-- {a with elems := SortedAList.insert (SmtSort.carrier.lt k) a.elems k v}
+
+-- def lexLt (a1 a2 : Array α β lt dflt) : Bool :=
+-- List.lexLt lt a1.keys a2.keys
+
+-- private def checkEntry (a : Array α β lt dflt) (k : α) (p : β → Bool) : Bool :=
+-- match a.elems.find? k with
+-- | some v => p v
+-- | none => false
+
+-- /--  a1 == a2 iff ∀ (k,v) ∈ a1, read(a2, k) == v --/
+-- def extensionalEq (eq : β → β → Bool)  (a1 a2 : Array α β lt dflt) : Bool :=
+-- a1.toList.all (λ entry => checkEntry a2 entry.fst (eq entry.snd))
+-- && a2.toList.all (λ entry => checkEntry a1 entry.fst (eq entry.snd))
+
+
+-- def eqRange (eq : β → β → Bool) (a1 a2 : Array α β lt dflt) (low high : α) : Bool :=
+-- let inRange : α → Bool := λ k => !(lt k low) && !(lt high k);
+-- a1.toList.all (λ entry => !inRange entry.fst || checkEntry a2 entry.fst (eq entry.snd))
+-- && a2.toList.all (λ entry => !inRange entry.fst || checkEntry a1 entry.fst (eq entry.snd))
+
+
+end Array
 
 
 -- TODO? SpecConst
 
 @[reducible]
-protected def BuiltinIdent.denote : forall cs, BuiltinIdent cs → cs.denote
+protected def BuiltinIdent.carrier : forall cs, BuiltinIdent cs → cs.carrier
 -- * Core theory
 | _, BuiltinIdent.true => true
 | _, BuiltinIdent.false => false
@@ -105,7 +128,7 @@ protected def BuiltinIdent.denote : forall cs, BuiltinIdent cs → cs.denote
 | _, BuiltinIdent.and => and
 | _, BuiltinIdent.or => or
 | _, BuiltinIdent.xor => xor
-| _, BuiltinIdent.eq s => (SmtSort.denote.HasBeq s).beq
+| _, BuiltinIdent.eq s => (SmtSort.carrier.HasBeq s).beq
 | _, BuiltinIdent.smtIte s => λ t x y => if t then x else y
 | _, BuiltinIdent.distinct s n => mkDistinct s n
 
