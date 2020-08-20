@@ -10,23 +10,30 @@ def joinMap (f : α → List β) : List α → List β
 
 end
 
-def lexLt {α} (lt : α → α → Bool) : List α → List α → Bool
-| [], [] => false
-| [], y::ys => true
-| x::xs, [] => false
-| x::xs, y::ys =>
-  if lt x y then true
-  else if lt y x then false
-  else lexLt xs ys
-
 end List
 
 namespace SortedAList
 universes u v
-variables {α : Type u} {β : Type v} (lt : α → α → Bool)
+variables {α : Type u} {β : Type v}
 
 
-protected def insert (k : α) (v : β) : List (α × β) →  List (α × β)
+-- def lexLt [HasLess α] 
+--           [HasLess β]
+--           [forall (a1 a2 : α), Decidable (a1 < a2)]
+--           [forall (b1 b2 : β), Decidable (b1 < b2)]
+--           : List (α × β) → List (α × β) → Bool
+-- | [], [] => false
+-- | [], _::_ => true
+-- | _::_, [] => false
+-- | (k1, v1)::rst1, (k2, v2)::rst2 =>
+--   if k1 < k2 then true
+--   else if k2 < k1 then false
+--   else if v1 < v2 then true
+--   else if v2 < v1 then false
+--   else lexLt rst1 rst2
+
+
+protected def insert (lt : α → α → Bool) (k : α) (v : β) : List (α × β) →  List (α × β)
 | [] => [(k,v)]
 | (k0, v0)::rst =>
   if lt k k0

@@ -13,6 +13,44 @@ structure Array (α β : Type) :=
 (elems : List (α × β))
 (dflt : β)
 
+section
+variables {α β : Type}
+
+def Array.decEq [DecidableEq α]
+                [DecidableEq β]
+                (arr1 arr2 : Array α β) : Decidable (arr1 = arr2) :=
+Array.casesOn arr1 $ λ elems1 dflt1 => Array.casesOn arr2 $ λ elems2 dflt2 =>
+  match (decEq elems1 elems2) with
+  | (isTrue e₁) =>
+    match (decEq dflt1 dflt2) with
+    | (isTrue e₂)  => isTrue (Eq.recOn e₁ (Eq.recOn e₂ rfl))
+    | (isFalse n₂) => isFalse (fun h => Array.noConfusion h (fun e₁' e₂' => absurd e₂' n₂))
+  | (isFalse n₁) => isFalse (fun h => Array.noConfusion h (fun e₁' e₂' => absurd e₁' n₁))
+
+
+def Array.Less [HasLess α] [HasLess β] : Array α β → Array α β → Prop
+| a1, a2 => (a1.elems, a1.dflt) < (a2.elems, a2.dflt)
+
+instance Array.HasLess [HasLess α] [HasLess β] : HasLess (Array α β) :=
+⟨@Array.Less α β _ _⟩
+
+
+def Array.decLt [DecidableEq α]
+                [DecidableEq β]
+                [HasLess α] 
+                [HasLess β]
+                [forall (a1 a2 : α), Decidable (a1 < a2)]
+                [forall (b1 b2 : β), Decidable (b1 < b2)]
+                (arr1 arr2 : Array α β) : Decidable (arr1 < arr2) :=
+Array.casesOn arr1 $ λ elems1 dflt1 => Array.casesOn arr2 $ λ elems2 dflt2 =>
+  let prodLtDec : ∀ (p1 p2 : (α × β)), Decidable (p1 < p2) := prodHasDecidableLt;
+  let listLtDec : ∀ (l1 l2 : List (α × β)), Decidable (l1 < l2) := List.hasDecidableLt;
+  inferInstanceAs (Decidable ((elems1, dflt1) < (elems2, dflt2)))
+
+end
+
+
+
 
 @[reducible]
 protected def SmtSort.carrier : SmtSort → Type
@@ -27,18 +65,43 @@ protected def SmtSort.carrier : SmtSort → Type
 
 
 
-def SmtSort.carrier.HasBeq : forall (s: SmtSort) , HasBeq s.carrier
-| SmtSort.bool =>
-  {beq := λ b1 b2 => b1 == b2}
-| SmtSort.bitvec n =>
-  {beq := λ b1 b2 => b1 == b2}
-| SmtSort.array k v =>
-  let beqK := SmtSort.carrier.HasBeq k;
-  let beqV := SmtSort.carrier.HasBeq v;
-  {beq := λ a1 a2 => a1.dflt == a2.dflt && a1.elems  == a2.elems}
+-- def SmtSort.carrier.HasBeq : forall (s: SmtSort) , HasBeq s.carrier
+-- | SmtSort.bool =>
+--   {beq := λ b1 b2 => b1 == b2}
+-- | SmtSort.bitvec n =>
+--   {beq := λ b1 b2 => b1 == b2}
+-- | SmtSort.array k v =>
+--   let beqK := SmtSort.carrier.HasBeq k;
+--   let beqV := SmtSort.carrier.HasBeq v;
+--   {beq := λ a1 a2 => a1.dflt == a2.dflt && a1.elems  == a2.elems}
 
-def SmtSort.carrier.lt (s : SmtSort) : s.carrier → s.carrier → Bool :=
-λ x y => false -- FIXME
+
+
+namespace SmtSort
+
+inductive BoolLess : Bool → Bool → Prop
+| trueLess (b : Bool) : BoolLess true b
+
+private def carrierHasLess : forall (s: SmtSort) , HasLess s.carrier
+| SmtSort.bool => {Less := BoolLess}
+| SmtSort.bitvec n => {Less := @BitVec.ult n}
+| SmtSort.array k v =>
+  let kHasLess := carrierHasLess k;
+  let vHasLess := carrierHasLess v;
+  Array.HasLess
+
+
+instance carrier.HasLess : forall (s : SmtSort), HasLess s.carrier := 
+carrierHasLess
+
+
+-- private def carrierDedicableEq : forall (s : SmtSort), DecidableEq s.carrier :=
+
+-- instance carrier.DecidableEq : forall (s : SmtSort), DecidableEq s.carrier :=
+-- carrierDecidableEq
+
+
+end SmtSort
 
 namespace Raw
 
@@ -62,14 +125,16 @@ private def distinctList {α : Type} [HasBeq α] : List α → Bool
 | a::as => !(as.contains a) && distinctList as
 
 
-def distinct (s : SmtSort) : forall (n : Nat), List s.carrier → (nary s SmtSort.bool n).carrier
-| 0, args => @distinctList _ (SmtSort.carrier.HasBeq s)  args
-| Nat.succ n, args => λ a => (distinct n) (a::args)
+-- FIXME
+-- def distinct (s : SmtSort) : forall (n : Nat), List s.carrier → (nary s SmtSort.bool n).carrier
+-- | 0, args => @distinctList _ (SmtSort.carrier.HasBeq s)  args
+-- | Nat.succ n, args => λ a => (distinct n) (a::args)
 
 end VarArgs
 
-private def mkDistinct (s : SmtSort) (n : Nat) : (nary s SmtSort.bool n).carrier :=
-VarArgs.distinct s n []
+-- FIXME
+-- private def mkDistinct (s : SmtSort) (n : Nat) : (nary s SmtSort.bool n).carrier :=
+-- VarArgs.distinct s n []
 
 
 
@@ -89,9 +154,9 @@ match a.elems.lookup k with
 | some v => v
 | none => a.dflt
 
--- FIXME do we need to stick the `lt` in the Array type?
--- protected def store (a : Array α β) (k : α) (v : β) : Array α β :=
--- {a with elems := SortedAList.insert (SmtSort.carrier.lt k) a.elems k v}
+
+protected def store (a : Array α β) (lt : α → α → Bool) (k : α) (v : β) : Array α β :=
+{a with elems := SortedAList.insert lt k v a.elems}
 
 -- def lexLt (a1 a2 : Array α β lt dflt) : Bool :=
 -- List.lexLt lt a1.keys a2.keys
@@ -130,7 +195,7 @@ protected def BuiltinIdent.carrier : forall cs, BuiltinIdent cs → cs.carrier
 | _, BuiltinIdent.xor => xor
 | _, BuiltinIdent.eq s => (SmtSort.carrier.HasBeq s).beq
 | _, BuiltinIdent.smtIte s => λ t x y => if t then x else y
-| _, BuiltinIdent.distinct s n => mkDistinct s n
+--| _, BuiltinIdent.distinct s n => mkDistinct s n -- FIXME
 
 -- | _, select _ _           => atom "select"
 -- | _, store  _ _           => atom "store"
