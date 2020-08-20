@@ -33,12 +33,12 @@ variables {α : Type u} {β : Type v}
 --   else lexLt rst1 rst2
 
 
-protected def insert (lt : α → α → Bool) (k : α) (v : β) : List (α × β) →  List (α × β)
+protected def insert [HasLess α] [forall (x y:α), Decidable (x < y)] (k : α) (v : β) : List (α × β) →  List (α × β)
 | [] => [(k,v)]
 | (k0, v0)::rst =>
-  if lt k k0
+  if k < k0
   then (k,v)::(k0, v0)::rst
-  else if lt k0 k
+  else if k0 < k
   then (k0, v0)::(insert rst)
   else (k,v)::rst
 

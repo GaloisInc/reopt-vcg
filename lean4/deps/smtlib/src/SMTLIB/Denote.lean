@@ -53,10 +53,10 @@ end
 
 
 @[reducible]
-protected def SmtSort.carrier : SmtSort → Type
+protected def SmtSort.denote : SmtSort → Type
 | SmtSort.bool => Bool
 | SmtSort.bitvec n => BitVec n
-| SmtSort.array k v => Array k.carrier v.carrier
+| SmtSort.array k v => Array k.denote v.denote
 
 
 namespace SmtSort
@@ -64,71 +64,44 @@ namespace SmtSort
 inductive BoolLess : Bool → Bool → Prop
 | trueLess (b : Bool) : BoolLess true b
 
-private def carrierHasLess : forall (s: SmtSort) , HasLess s.carrier
+private def denoteHasLess : forall (s: SmtSort) , HasLess s.denote
 | SmtSort.bool => {Less := BoolLess}
 | SmtSort.bitvec n => {Less := @BitVec.ult n}
 | SmtSort.array k v =>
-  let kHasLess := carrierHasLess k;
-  let vHasLess := carrierHasLess v;
+  let kHasLess := denoteHasLess k;
+  let vHasLess := denoteHasLess v;
   Array.HasLess
 
 
-instance carrier.HasLess : forall (s : SmtSort), HasLess s.carrier :=
-carrierHasLess
+instance denote.HasLess : forall (s : SmtSort), HasLess s.denote :=
+denoteHasLess
 
 
-private def carrierDecidableEq : forall (s : SmtSort), DecidableEq s.carrier
+private def denoteDecidableEq : forall (s : SmtSort), DecidableEq s.denote
 | SmtSort.bool => Bool.DecidableEq
 | SmtSort.bitvec n => BitVec.DecidableEq
 | SmtSort.array k v =>
-  let kHasLess := carrierDecidableEq k;
-  let vHasLess := carrierDecidableEq v;
+  let kHasLess := denoteDecidableEq k;
+  let vHasLess := denoteDecidableEq v;
   Array.decEq
 
 
-instance carrier.DecidableEq : forall (s : SmtSort), DecidableEq s.carrier :=
-carrierDecidableEq
+instance denote.DecidableEq : forall (s : SmtSort), DecidableEq s.denote :=
+denoteDecidableEq
 
+
+private def denoteInhabited : forall (s : SmtSort), Inhabited s.denote
+| SmtSort.bool => {default := true}
+| SmtSort.bitvec n => {default := 0}
+| SmtSort.array k v => {default := ⟨[], (denoteInhabited v).default⟩}
+
+instance denote.Inhabited : forall (s : SmtSort), Inhabited s.denote :=
+denoteInhabited
 
 end SmtSort
 
-namespace Raw
-
-namespace ConstSort
-
-@[reducible]
-protected def carrier : ConstSort → Type
-| ConstSort.base s => s.carrier
-| ConstSort.fsort a b => a.carrier → b.carrier
-
-end ConstSort
-
-namespace VarArgs
-
--- private def varArgsPred (α : Type) : Nat → Type
--- | 0 => Bool
--- | Nat.succ n => α → varArgsPred n
-
-private def distinctList {α : Type} [HasBeq α] : List α → Bool
-| [] => true
-| a::as => !(as.contains a) && distinctList as
-
-
--- FIXME
--- def distinct (s : SmtSort) : forall (n : Nat), List s.carrier → (nary s SmtSort.bool n).carrier
--- | 0, args => @distinctList _ (SmtSort.carrier.HasBeq s)  args
--- | Nat.succ n, args => λ a => (distinct n) (a::args)
-
-end VarArgs
-
--- FIXME
--- private def mkDistinct (s : SmtSort) (n : Nat) : (nary s SmtSort.bool n).carrier :=
--- VarArgs.distinct s n []
-
-
-
 namespace Array
-variables {α β : Type} {lt : α → α → Bool}
+variables {α β : Type}
 
 protected def toList (a : Array α β) : List (α × β) :=
 a.elems
@@ -144,36 +117,68 @@ match a.elems.lookup k with
 | none => a.dflt
 
 
-protected def store (a : Array α β) (lt : α → α → Bool) (k : α) (v : β) : Array α β :=
-{a with elems := SortedAList.insert lt k v a.elems}
+protected def store [HasLess α] [forall (x y:α), Decidable (x < y)] (a : Array α β) (k : α) (v : β) : Array α β :=
+{a with elems := SortedAList.insert k v a.elems}
 
--- def lexLt (a1 a2 : Array α β lt dflt) : Bool :=
--- List.lexLt lt a1.keys a2.keys
+private def checkEntry [HasBeq α] (a : Array α β) (k : α) (p : β → Bool) : Bool :=
+match a.elems.lookup k with
+| some v => p v
+| none => false
 
--- private def checkEntry (a : Array α β lt dflt) (k : α) (p : β → Bool) : Bool :=
--- match a.elems.find? k with
--- | some v => p v
--- | none => false
+private def bvEqRangeAux {n} [HasBeq β] (a1 a2 : Array (BitVec n) β) (low : BitVec n) : Nat → Bool
+| Nat.zero => a1.select 0 == a2.select 0
+| Nat.succ i =>
+  let idx := low + (BitVec.ofNat n i) + 1;
+  a1.select idx == a2.select idx && bvEqRangeAux i
 
--- /--  a1 == a2 iff ∀ (k,v) ∈ a1, read(a2, k) == v --/
--- def extensionalEq (eq : β → β → Bool)  (a1 a2 : Array α β lt dflt) : Bool :=
--- a1.toList.all (λ entry => checkEntry a2 entry.fst (eq entry.snd))
--- && a2.toList.all (λ entry => checkEntry a1 entry.fst (eq entry.snd))
-
-
--- def eqRange (eq : β → β → Bool) (a1 a2 : Array α β lt dflt) (low high : α) : Bool :=
--- let inRange : α → Bool := λ k => !(lt k low) && !(lt high k);
--- a1.toList.all (λ entry => !inRange entry.fst || checkEntry a2 entry.fst (eq entry.snd))
--- && a2.toList.all (λ entry => !inRange entry.fst || checkEntry a1 entry.fst (eq entry.snd))
+def bvEqRange {n} [HasBeq β] (a1 a2 : Array (BitVec n) β) (low high : BitVec n) : Bool :=
+if BitVec.ult high low then true
+else
+  let rangeSize := high - low;
+  bvEqRangeAux a1 a2 low rangeSize.toNat
 
 
 end Array
 
 
+namespace Raw
+
+namespace ConstSort
+
+@[reducible]
+protected def denote : ConstSort → Type
+| ConstSort.base s => s.denote
+| ConstSort.fsort a b => a.denote → b.denote
+
+end ConstSort
+
+namespace VarArgs
+
+private def varArgsPred (α : Type) : Nat → Type
+| 0 => Bool
+| Nat.succ n => α → varArgsPred n
+
+
+private def distinctList {α : Type} [DecidableEq α] : List α → Bool
+| [] => true
+| a::as => !(as.contains a) && distinctList as
+
+
+def distinct (s : SmtSort) : forall (n : Nat), List s.denote → (nary s SmtSort.bool n).denote
+| 0, args => distinctList args
+| Nat.succ n, args => λ a => (distinct n) (a::args)
+
+end VarArgs
+
+
+private def mkDistinct (s : SmtSort) (n : Nat) : (nary s SmtSort.bool n).denote :=
+VarArgs.distinct s n []
+
+
 -- TODO? SpecConst
 
 @[reducible]
-protected def BuiltinIdent.carrier : forall cs, BuiltinIdent cs → cs.carrier
+protected def BuiltinIdent.denote : forall cs, BuiltinIdent cs → cs.denote
 -- * Core theory
 | _, BuiltinIdent.true => true
 | _, BuiltinIdent.false => false
@@ -182,9 +187,10 @@ protected def BuiltinIdent.carrier : forall cs, BuiltinIdent cs → cs.carrier
 | _, BuiltinIdent.and => and
 | _, BuiltinIdent.or => or
 | _, BuiltinIdent.xor => xor
-| _, BuiltinIdent.eq s => (SmtSort.carrier.HasBeq s).beq
+| _, BuiltinIdent.eq s => λ x y => x = y
 | _, BuiltinIdent.smtIte s => λ t x y => if t then x else y
---| _, BuiltinIdent.distinct s n => mkDistinct s n -- FIXME
+| _, BuiltinIdent.distinct s n => mkDistinct s n
+-- FIXME BOOKMARK check the concrete evaluator and backend over in the x86 semantics
 
 -- | _, select _ _           => atom "select"
 -- | _, store  _ _           => atom "store"
