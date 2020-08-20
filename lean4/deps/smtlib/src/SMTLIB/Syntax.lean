@@ -190,6 +190,17 @@ def nary (s : SmtSort) (t : SmtSort) : Nat -> ConstSort
 | zero   => ConstSort.base t
 | succ n => ConstSort.fsort s (nary n) 
 
+-- SmtSorts that work as array keys for `eqrange`
+inductive RangeSort
+| bitvec : Nat → RangeSort
+
+namespace RangeSort
+
+protected def toSmtSort : RangeSort → SmtSort
+| bitvec n => SmtSort.bitvec n
+
+end RangeSort
+
 -- distinct is a term as it has arbitrary arity
 inductive BuiltinIdent : ConstSort -> Type
 -- * Core theory
@@ -211,7 +222,7 @@ inductive BuiltinIdent : ConstSort -> Type
 
 -- CVC4 specific
 -- In CVC4, the array indices can be bitvec, floats, ints, or real....
-| eqrange (k v : SmtSort) : BuiltinIdent (quadop k (array k v) k k bool)
+| eqrange (k : RangeSort) (v : SmtSort) : BuiltinIdent (quadop k.toSmtSort (array k.toSmtSort v) k.toSmtSort k.toSmtSort bool)
 
 -- * BitVecs
 -- hex/binary literals
