@@ -59,24 +59,6 @@ protected def SmtSort.carrier : SmtSort → Type
 | SmtSort.array k v => Array k.carrier v.carrier
 
 
-
--- protected def SmtSort.denote : Nat → SmtSort → Type
--- | idx, s => (s.denotation idx).fst
-
-
-
--- def SmtSort.carrier.HasBeq : forall (s: SmtSort) , HasBeq s.carrier
--- | SmtSort.bool =>
---   {beq := λ b1 b2 => b1 == b2}
--- | SmtSort.bitvec n =>
---   {beq := λ b1 b2 => b1 == b2}
--- | SmtSort.array k v =>
---   let beqK := SmtSort.carrier.HasBeq k;
---   let beqV := SmtSort.carrier.HasBeq v;
---   {beq := λ a1 a2 => a1.dflt == a2.dflt && a1.elems  == a2.elems}
-
-
-
 namespace SmtSort
 
 inductive BoolLess : Bool → Bool → Prop
@@ -91,14 +73,21 @@ private def carrierHasLess : forall (s: SmtSort) , HasLess s.carrier
   Array.HasLess
 
 
-instance carrier.HasLess : forall (s : SmtSort), HasLess s.carrier := 
+instance carrier.HasLess : forall (s : SmtSort), HasLess s.carrier :=
 carrierHasLess
 
 
--- private def carrierDedicableEq : forall (s : SmtSort), DecidableEq s.carrier :=
+private def carrierDecidableEq : forall (s : SmtSort), DecidableEq s.carrier
+| SmtSort.bool => Bool.DecidableEq
+| SmtSort.bitvec n => BitVec.DecidableEq
+| SmtSort.array k v =>
+  let kHasLess := carrierDecidableEq k;
+  let vHasLess := carrierDecidableEq v;
+  Array.decEq
 
--- instance carrier.DecidableEq : forall (s : SmtSort), DecidableEq s.carrier :=
--- carrierDecidableEq
+
+instance carrier.DecidableEq : forall (s : SmtSort), DecidableEq s.carrier :=
+carrierDecidableEq
 
 
 end SmtSort

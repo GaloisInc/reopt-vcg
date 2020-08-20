@@ -9,12 +9,13 @@ axiom PowerHack (n : Nat) (e : Nat) : n < 2 ^ e
 
 def BitVec (sz : Nat) := { x // x < 2 ^ sz }
 
-instance BitVec_DecidableEq {n : Nat}: DecidableEq (BitVec n) :=
-  Subtype.DecidableEq
-
 
 namespace BitVec
 -- open galois
+
+instance {n : Nat} : DecidableEq (BitVec n) :=
+  Subtype.DecidableEq
+
 
 def toNat {w : Nat} (b : BitVec w) : Nat := b.val
 
