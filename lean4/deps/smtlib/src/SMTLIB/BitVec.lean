@@ -122,13 +122,13 @@ def lsb {n:Nat} (x: BitVec n) : Bool := Nat.bodd x.toNat
 
 section conversion
   -- Operations For converting to/from BitVectors
-  protected def to_int {n:Nat} (x: BitVec n) : Int :=
+  protected def toInt {n:Nat} (x: BitVec n) : Int :=
     match msb x with
     | false => Int.ofNat x.toNat
     | true  => Int.negOfNat (2^n - x.toNat)
 
   --- Convert an int to two's complement BitVector.
-  protected def of_int : ∀(n : Nat), Int → BitVec n
+  protected def ofInt : ∀(n : Nat), Int → BitVec n
   | n, (Int.ofNat x) => BitVec.ofNat n x
   | n, (Int.negSucc x) => BitVec.ofNat n (Nat.ldiff (2^n-1) x)
 
@@ -154,7 +154,7 @@ section bitwise
   -- logical bitwise or
   def or  {w:Nat} (x y : BitVec w) : BitVec w := BitVec.ofNat w (Nat.lor  x.toNat y.toNat)
   -- logical bitwise xor
-  def xor {w:Nat} (x y : BitVec w) : BitVec w := BitVec.ofNat w (Nat.lxor x.toNat y.toNat)
+  def xor {w:Nat} (x y : BitVec w) : BitVec w := BitVec.ofNat w (Nat.bitwise xor x.toNat y.toNat)
 
   infix `.&&.`:70 := and
   infix `.||.`:65 := or
@@ -170,7 +170,7 @@ section arith
   def adc (x y : BitVec n) : BitVec n × Bool := ⟨ BitVec.add x y , x.toNat + y.toNat ≥ 2^n ⟩
 
   -- Usual arithmetic subtraction
-  protected def sub (x y : BitVec n) : BitVec n := BitVec.of_int n (x.to_int - y.to_int)
+  protected def sub (x y : BitVec n) : BitVec n := BitVec.ofInt n (x.toInt - y.toInt)
 
 
   -- 2s complement negation
@@ -201,6 +201,23 @@ section arith
 
   instance BitVec_has_pow : HasPow (BitVec n) Nat := ⟨BitVec_pow⟩
 
+  protected def udiv (x y : BitVec n) : BitVec n := BitVec.ofNat n (x.toNat / y.toNat)
+  protected def sdiv (x y : BitVec n) : BitVec n := BitVec.ofInt n (x.toInt / y.toInt)
+
+  protected def urem (x y : BitVec n) : BitVec n := BitVec.ofNat n (x.toNat % y.toNat)
+
+  -- Lean4 integer `mod` sign follows the dividend, which is what bvsrem does... funny.
+  protected def srem (x y : BitVec n) : BitVec n := BitVec.ofInt n (Int.mod x.toInt y.toInt)
+
+  -- bvsmod sign follows the divisor
+  protected def smod (x y : BitVec n) : BitVec n :=
+  match x.toInt, y.toInt with
+  | Int.ofNat j,   Int.ofNat k   => BitVec.ofInt n (Int.ofNat (j % k))
+  | Int.negSucc j, Int.ofNat k   => BitVec.ofInt n (Int.ofNat (Nat.succ j % k))
+  | Int.ofNat j,   Int.negSucc k => BitVec.ofInt n (-Int.ofNat (j % Nat.succ k))
+  | Int.negSucc j, Int.negSucc k => BitVec.ofInt n (-Int.ofNat (Nat.succ j % Nat.succ k))
+
+
 end arith
 
 section shift
@@ -215,7 +232,7 @@ section shift
   def ushr (x : BitVec n) (i : Nat) : BitVec n := BitVec.ofNat n (Nat.shiftr x.toNat i)
 
   -- signed shift right
-  def sshr (x: BitVec n) (i:Nat) : BitVec n := BitVec.of_int n (Int.shiftr (BitVec.to_int x) i)
+  def sshr (x: BitVec n) (i:Nat) : BitVec n := BitVec.ofInt n (Int.shiftr (BitVec.toInt x) i)
 
 end shift
 
@@ -229,13 +246,22 @@ section listlike
   def uresize {m:Nat} (x: BitVec m) (n:Nat) : BitVec n := BitVec.ofNat _ x.toNat
 
   -- Change number of bits result while preserving signed value modulo output width.
-  def sresize {m:Nat} (x: BitVec m) (n:Nat) : BitVec n := BitVec.of_int _ x.to_int
+  def sresize {m:Nat} (x: BitVec m) (n:Nat) : BitVec n := BitVec.ofInt _ x.toInt
 
   open Nat
 
   -- BitVec specific version of vector.append
   def append {m n} (x: BitVec m) (y: BitVec n) : BitVec (m + n)
     := ⟨ x.toNat * 2^n + y.toNat, PowerHack _ _  /- Nat.mul_pow_add_lt_pow x.property y.property -/ ⟩
+
+  def repeat {n} (x: BitVec n) : forall (i : Nat), BitVec (i * n)
+  | Nat.zero => 0
+  | Nat.succ m => 
+    let rst : BitVec (m * n) := repeat m;
+    let res : BitVec (m * n + n) := @append (m * n) n rst x;
+    let hEq : (m * n + n) = (succ m * n) := Eq.symm $ Nat.succMul m n;
+    let tEq : BitVec (m * n + n) = BitVec (succ m * n) := congrArg BitVec hEq;
+    cast tEq res 
 
   protected
   def bsf' : ∀(n:Nat), Nat → Nat → Option Nat
@@ -272,6 +298,19 @@ section listlike
   def slice {w: Nat} (u l k:Nat) (H: w = k + (u + 1 - l)) (x: BitVec w) : BitVec (u + 1 - l) :=
      BitVec.ofNat _ (Nat.shiftr x.toNat l)
 
+  def extract {w: Nat} (u l:Nat) (x: BitVec w) : BitVec (u + 1 - l) :=
+     BitVec.ofNat _ (Nat.shiftr x.toNat l)
+
+  def rotateRight {w:Nat} (i:Nat) (x: BitVec w) : BitVec w :=
+    let lhs := x.shl (w - i);
+    let rhs := x.ushr w;
+    BitVec.or lhs rhs
+
+  def rotateLeft {w:Nat} (i:Nat) (x: BitVec w) : BitVec w :=
+    let lhs := x.shl i;
+    let rhs := x.ushr (w - i);
+    BitVec.or lhs rhs
+
   protected
   def foldl' {α : Sort _} (f : α -> Bool → α) (x : Nat) (init : α) : Nat → α
     | zero       => init
@@ -303,7 +342,7 @@ section comparison
   def ule (x y : BitVec n) : Prop := ¬ (ult y x)
   def uge (x y : BitVec n) : Prop := ule y x
 
-  def slt (x y : BitVec n) : Prop := x.to_int < y.to_int
+  def slt (x y : BitVec n) : Prop := x.toInt < y.toInt
   def sgt (x y : BitVec n) : Prop := slt y x
   def sle (x y : BitVec n) : Prop := ¬ (slt y x)
   def sge (x y : BitVec n) : Prop := sle y x
