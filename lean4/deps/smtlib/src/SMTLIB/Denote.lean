@@ -233,49 +233,48 @@ protected def BuiltinIdent.denote : forall cs, BuiltinIdent cs → cs.denote
 
 -- -- * BitVecs
 -- -- hex/binary literals
--- | _, BuiltinIdent.concat _ _           => atom "concat"
--- | _, BuiltinIdent.extract _ i j        => indexed (atom "extract") [Nat.toSExpr i, Nat.toSExpr j]
+| _, BuiltinIdent.concat _ _           => BitVec.append
+| _, BuiltinIdent.extract n i j        => BitVec.extract i j
 -- -- unops
--- | _, BuiltinIdent.bvnot   _            => atom "bvnot"
--- | _, BuiltinIdent.bvneg   _            => atom "bvneg"
+| _, BuiltinIdent.bvnot   _            => BitVec.not
+| _, BuiltinIdent.bvneg   _            => BitVec.neg
 -- -- binops                   
--- | _, BuiltinIdent.bvand   _            => atom "bvand"
--- | _, BuiltinIdent.bvor    _            => atom "bvor"
--- | _, BuiltinIdent.bvadd   _            => atom "bvadd"
--- | _, BuiltinIdent.bvmul   _            => atom "bvmul"
--- | _, BuiltinIdent.bvudiv  _            => atom "bvudiv"
--- | _, BuiltinIdent.bvurem  _            => atom "bvurem"
--- | _, BuiltinIdent.bvshl   _            => atom "bvshl"
--- | _, BuiltinIdent.bvlshr  _            => atom "bvlshr"
+| _, BuiltinIdent.bvand   _            => BitVec.and
+| _, BuiltinIdent.bvor    _            => BitVec.or
+| _, BuiltinIdent.bvadd   _            => BitVec.add
+| _, BuiltinIdent.bvmul   _            => BitVec.mul
+| _, BuiltinIdent.bvudiv  _            => BitVec.udiv
+| _, BuiltinIdent.bvurem  _            => BitVec.urem
+| _, BuiltinIdent.bvshl   _            => λ b i => BitVec.shl b i.toNat
+| _, BuiltinIdent.bvlshr  _            => λ b i => BitVec.ushr b i.toNat
 -- -- comparison               
--- | _, BuiltinIdent.bvult   _            => atom "bvult"
+| _, BuiltinIdent.bvult   _            => λ b1 b2 => decide (BitVec.ult b1 b2)
 
--- | _, BuiltinIdent.bvnand  _            => atom "bvnand"
--- | _, BuiltinIdent.bvnor   _            => atom "bvnor"
--- | _, BuiltinIdent.bvxor   _            => atom "bvxor"
--- | _, BuiltinIdent.bvxnor  _            => atom "bvxnor"
--- | _, BuiltinIdent.bvcomp  _            => atom "bvcomp"
--- | _, BuiltinIdent.bvsub   _            => atom "bvsub"
--- | _, BuiltinIdent.bvsdiv  _            => atom "bvsdiv"
--- | _, BuiltinIdent.bvsrem  _            => atom "bvsrem"
--- | _, BuiltinIdent.bvsmod  _            => atom "bvsmod"
--- | _, BuiltinIdent.bvashr  _            => atom "bvashr"
+| _, BuiltinIdent.bvnand  _            => λ b1 b2 => BitVec.not (BitVec.and b1 b2)
+| _, BuiltinIdent.bvnor   _            => λ b1 b2 => BitVec.not (BitVec.or b1 b2)
+| _, BuiltinIdent.bvxor   _            => BitVec.xor
+| _, BuiltinIdent.bvxnor  _            => λ b1 b2 => BitVec.not (BitVec.xor b1 b2)
+| _, BuiltinIdent.bvcomp  _            => λ b1 b2 => if b1 = b2 then 1 else 0
+| _, BuiltinIdent.bvsub   _            => BitVec.sub
+| _, BuiltinIdent.bvsdiv  _            => BitVec.sdiv
+| _, BuiltinIdent.bvsrem  _            => BitVec.srem
+| _, BuiltinIdent.bvsmod  _            => BitVec.smod
+| _, BuiltinIdent.bvashr  _            => λ b i => BitVec.sshr b i.toNat
 
--- | _, BuiltinIdent.repeat i _           => indexed (atom "repeat") [Nat.toSExpr i]
+| _, BuiltinIdent.repeat i _           => λ b => BitVec.repeat b i
 
--- | _, BuiltinIdent.zeroExtend  i _     => indexed (atom "zero_extend")  [Nat.toSExpr i]
--- | _, BuiltinIdent.signExtend  i _     => indexed (atom "sign_extend")  [Nat.toSExpr i]
--- | _, BuiltinIdent.rotateLeft  i _     => indexed (atom "rotate_left")  [Nat.toSExpr i]
--- | _, BuiltinIdent.rotateRight i _     => indexed (atom "rotate_right") [Nat.toSExpr i]
+| _, BuiltinIdent.zeroExtend  i n     => λ b => b.uresize (n + i)
+| _, BuiltinIdent.signExtend  i n     => λ b => b.sresize (n + i)
+| _, BuiltinIdent.rotateLeft  i _     => BitVec.rotateLeft i
+| _, BuiltinIdent.rotateRight i _     => BitVec.rotateRight i
 
--- | _, BuiltinIdent.bvule _              => atom "bvule"
--- | _, BuiltinIdent.bvugt _              => atom "bvugt"
--- | _, BuiltinIdent.bvuge _              => atom "bvuge"
--- | _, BuiltinIdent.bvslt _              => atom "bvslt"
--- | _, BuiltinIdent.bvsle _              => atom "bvsle"
--- | _, BuiltinIdent.bvsgt _              => atom "bvsgt"
--- | _, BuiltinIdent.bvsge _              => atom "bvsge"
-| cs, _                    => "TODO"
+| _, BuiltinIdent.bvule _              => λ x y => decide (BitVec.ule x y)
+| _, BuiltinIdent.bvugt _              => λ x y => decide (BitVec.ugt x y)
+| _, BuiltinIdent.bvuge _              => λ x y => decide (BitVec.uge x y)
+| _, BuiltinIdent.bvslt _              => λ x y => decide (BitVec.slt x y)
+| _, BuiltinIdent.bvsle _              => λ x y => decide (BitVec.sle x y)
+| _, BuiltinIdent.bvsgt _              => λ x y => decide (BitVec.sgt x y)
+| _, BuiltinIdent.bvsge _              => λ x y => decide (BitVec.sge x y)
 
 
 end Raw
