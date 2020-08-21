@@ -93,6 +93,19 @@ instance : HasToString SmtSort := ⟨SmtSort.toString⟩
 
 end SmtSort
 
+
+-- SmtSorts that work as array keys for `eqrange`
+inductive RangeSort
+| bitvec : Nat → RangeSort
+
+namespace RangeSort
+
+protected def sort : RangeSort → SmtSort
+| bitvec n => SmtSort.bitvec n
+
+end RangeSort
+
+
 namespace Raw
 -- We use lowercase names for types to avoid clashing with Lean
 
@@ -160,6 +173,7 @@ instance : HasToSExpr SpecConst := ⟨SpecConst.toSExpr⟩
 
 end SpecConst
 
+
 namespace BuiltinIdent
 
 open SmtSort
@@ -190,17 +204,6 @@ def nary (s : SmtSort) (t : SmtSort) : Nat -> ConstSort
 | zero   => ConstSort.base t
 | succ n => ConstSort.fsort s (nary n) 
 
--- SmtSorts that work as array keys for `eqrange`
-inductive RangeSort
-| bitvec : Nat → RangeSort
-
-namespace RangeSort
-
-protected def toSmtSort : RangeSort → SmtSort
-| bitvec n => SmtSort.bitvec n
-
-end RangeSort
-
 -- distinct is a term as it has arbitrary arity
 inductive BuiltinIdent : ConstSort -> Type
 -- * Core theory
@@ -221,8 +224,7 @@ inductive BuiltinIdent : ConstSort -> Type
 | store  (k v : SmtSort) : BuiltinIdent (ternop (array k v) k v (array k v))
 
 -- CVC4 specific
--- In CVC4, the array indices can be bitvec, floats, ints, or real....
-| eqrange (k : RangeSort) (v : SmtSort) : BuiltinIdent (quadop k.toSmtSort (array k.toSmtSort v) k.toSmtSort k.toSmtSort bool)
+| eqrange (k : RangeSort) (v : SmtSort) : BuiltinIdent (quadop (array k.sort v) (array k.sort v) k.sort k.sort bool)
 
 -- * BitVecs
 -- hex/binary literals

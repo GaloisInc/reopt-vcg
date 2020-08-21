@@ -61,21 +61,6 @@ protected def SmtSort.denote : SmtSort → Type
 
 namespace SmtSort
 
-inductive BoolLess : Bool → Bool → Prop
-| trueLess (b : Bool) : BoolLess true b
-
-private def denoteHasLess : forall (s: SmtSort) , HasLess s.denote
-| SmtSort.bool => {Less := BoolLess}
-| SmtSort.bitvec n => {Less := @BitVec.ult n}
-| SmtSort.array k v =>
-  let kHasLess := denoteHasLess k;
-  let vHasLess := denoteHasLess v;
-  Array.HasLess
-
-
-instance denote.HasLess : forall (s : SmtSort), HasLess s.denote :=
-denoteHasLess
-
 
 private def denoteDecidableEq : forall (s : SmtSort), DecidableEq s.denote
 | SmtSort.bool => Bool.DecidableEq
@@ -90,6 +75,45 @@ instance denote.DecidableEq : forall (s : SmtSort), DecidableEq s.denote :=
 denoteDecidableEq
 
 
+
+inductive BoolLess : Bool → Bool → Prop
+| trueLess (b : Bool) : BoolLess true b
+
+private def boolLessImplTrue : forall {b1 b2 : Bool}, BoolLess b1 b2 → b1 = true
+| true, _, _ => rfl
+
+private def boolDecidableLt (x y : Bool) : Decidable (BoolLess x y) :=
+@Bool.casesOn
+  (λ b => Decidable (BoolLess b y))
+  x
+  (isFalse (λ (h : BoolLess false y) => Bool.noConfusion (boolLessImplTrue h)))
+  (isTrue (BoolLess.trueLess y))
+
+private def denoteHasLess : forall (s: SmtSort) , HasLess s.denote
+| SmtSort.bool => {Less := BoolLess}
+| SmtSort.bitvec n => {Less := @BitVec.ult n}
+| SmtSort.array k v =>
+  let kHasLess := denoteHasLess k;
+  let vHasLess := denoteHasLess v;
+  Array.HasLess
+
+
+instance denote.HasLess : forall (s : SmtSort), HasLess s.denote :=
+denoteHasLess
+
+
+private def denoteDecidableLt : forall (s : SmtSort), forall (x y : s.denote), Decidable (x < y)
+| SmtSort.bool => boolDecidableLt
+| SmtSort.bitvec n => @BitVec.decidable_ult n
+| SmtSort.array k v =>
+  let kH := denoteDecidableLt k;
+  let vH := denoteDecidableLt v;
+  Array.decLt
+
+
+instance denote.DecidableLt : forall (s : SmtSort), forall (x y : s.denote), Decidable (x < y) :=
+denoteDecidableLt
+
 private def denoteInhabited : forall (s : SmtSort), Inhabited s.denote
 | SmtSort.bool => {default := true}
 | SmtSort.bitvec n => {default := 0}
@@ -101,6 +125,7 @@ denoteInhabited
 end SmtSort
 
 namespace Array
+section
 variables {α β : Type}
 
 protected def toList (a : Array α β) : List (α × β) :=
@@ -125,18 +150,28 @@ match a.elems.lookup k with
 | some v => p v
 | none => false
 
-private def bvEqRangeAux {n} [HasBeq β] (a1 a2 : Array (BitVec n) β) (low : BitVec n) : Nat → Bool
+end
+
+private def bvEqRangeAux {β n} [HasBeq β] (a1 a2 : Array (BitVec n) β) (low : BitVec n) : Nat → Bool
 | Nat.zero => a1.select 0 == a2.select 0
 | Nat.succ i =>
   let idx := low + (BitVec.ofNat n i) + 1;
   a1.select idx == a2.select idx && bvEqRangeAux i
 
-def bvEqRange {n} [HasBeq β] (a1 a2 : Array (BitVec n) β) (low high : BitVec n) : Bool :=
+def bvEqRange {β n} [HasBeq β] (a1 a2 : Array (BitVec n) β) (low high : BitVec n) : Bool :=
 if BitVec.ult high low then true
 else
   let rangeSize := high - low;
   bvEqRangeAux a1 a2 low rangeSize.toNat
 
+
+def eqRange {β} [HasBeq β] :
+  forall (s : RangeSort),
+  Array s.sort.denote β →
+  Array s.sort.denote β →
+  s.sort.denote →
+  s.sort.denote → Bool
+| RangeSort.bitvec n, a1, a2, low, high => bvEqRange a1 a2 low high
 
 end Array
 
@@ -190,56 +225,56 @@ protected def BuiltinIdent.denote : forall cs, BuiltinIdent cs → cs.denote
 | _, BuiltinIdent.eq s => λ x y => x = y
 | _, BuiltinIdent.smtIte s => λ t x y => if t then x else y
 | _, BuiltinIdent.distinct s n => mkDistinct s n
--- FIXME BOOKMARK check the concrete evaluator and backend over in the x86 semantics
 
--- | _, select _ _           => atom "select"
--- | _, store  _ _           => atom "store"
--- | _, eqrange _ _          => atom "eqrange"
+| _, BuiltinIdent.select _ _           => Array.select
+| _, BuiltinIdent.store  _ _           => Array.store
+| _, BuiltinIdent.eqrange k _          => Array.eqRange k
+-- FIXME BOOKMARK check the concrete evaluator and backend over in the x86 semantics
 
 -- -- * BitVecs
 -- -- hex/binary literals
--- | _, concat _ _           => atom "concat"
--- | _, extract _ i j        => indexed (atom "extract") [Nat.toSExpr i, Nat.toSExpr j]
+-- | _, BuiltinIdent.concat _ _           => atom "concat"
+-- | _, BuiltinIdent.extract _ i j        => indexed (atom "extract") [Nat.toSExpr i, Nat.toSExpr j]
 -- -- unops
--- | _, bvnot   _            => atom "bvnot"
--- | _, bvneg   _            => atom "bvneg"
+-- | _, BuiltinIdent.bvnot   _            => atom "bvnot"
+-- | _, BuiltinIdent.bvneg   _            => atom "bvneg"
 -- -- binops                   
--- | _, bvand   _            => atom "bvand"
--- | _, bvor    _            => atom "bvor"
--- | _, bvadd   _            => atom "bvadd"
--- | _, bvmul   _            => atom "bvmul"
--- | _, bvudiv  _            => atom "bvudiv"
--- | _, bvurem  _            => atom "bvurem"
--- | _, bvshl   _            => atom "bvshl"
--- | _, bvlshr  _            => atom "bvlshr"
+-- | _, BuiltinIdent.bvand   _            => atom "bvand"
+-- | _, BuiltinIdent.bvor    _            => atom "bvor"
+-- | _, BuiltinIdent.bvadd   _            => atom "bvadd"
+-- | _, BuiltinIdent.bvmul   _            => atom "bvmul"
+-- | _, BuiltinIdent.bvudiv  _            => atom "bvudiv"
+-- | _, BuiltinIdent.bvurem  _            => atom "bvurem"
+-- | _, BuiltinIdent.bvshl   _            => atom "bvshl"
+-- | _, BuiltinIdent.bvlshr  _            => atom "bvlshr"
 -- -- comparison               
--- | _, bvult   _            => atom "bvult"
+-- | _, BuiltinIdent.bvult   _            => atom "bvult"
 
--- | _, bvnand  _            => atom "bvnand" 
--- | _, bvnor   _            => atom "bvnor" 
--- | _, bvxor   _            => atom "bvxor"  
--- | _, bvxnor  _            => atom "bvxnor"  
--- | _, bvcomp  _            => atom "bvcomp" 
--- | _, bvsub   _            => atom "bvsub" 
--- | _, bvsdiv  _            => atom "bvsdiv"
--- | _, bvsrem  _            => atom "bvsrem" 
--- | _, bvsmod  _            => atom "bvsmod" 
--- | _, bvashr  _            => atom "bvashr" 
+-- | _, BuiltinIdent.bvnand  _            => atom "bvnand"
+-- | _, BuiltinIdent.bvnor   _            => atom "bvnor"
+-- | _, BuiltinIdent.bvxor   _            => atom "bvxor"
+-- | _, BuiltinIdent.bvxnor  _            => atom "bvxnor"
+-- | _, BuiltinIdent.bvcomp  _            => atom "bvcomp"
+-- | _, BuiltinIdent.bvsub   _            => atom "bvsub"
+-- | _, BuiltinIdent.bvsdiv  _            => atom "bvsdiv"
+-- | _, BuiltinIdent.bvsrem  _            => atom "bvsrem"
+-- | _, BuiltinIdent.bvsmod  _            => atom "bvsmod"
+-- | _, BuiltinIdent.bvashr  _            => atom "bvashr"
 
--- | _, repeat i _           => indexed (atom "repeat") [Nat.toSExpr i]
+-- | _, BuiltinIdent.repeat i _           => indexed (atom "repeat") [Nat.toSExpr i]
 
--- | _, zeroExtend  i _     => indexed (atom "zero_extend")  [Nat.toSExpr i]
--- | _, signExtend  i _     => indexed (atom "sign_extend")  [Nat.toSExpr i]
--- | _, rotateLeft  i _     => indexed (atom "rotate_left")  [Nat.toSExpr i]
--- | _, rotateRight i _     => indexed (atom "rotate_right") [Nat.toSExpr i]
+-- | _, BuiltinIdent.zeroExtend  i _     => indexed (atom "zero_extend")  [Nat.toSExpr i]
+-- | _, BuiltinIdent.signExtend  i _     => indexed (atom "sign_extend")  [Nat.toSExpr i]
+-- | _, BuiltinIdent.rotateLeft  i _     => indexed (atom "rotate_left")  [Nat.toSExpr i]
+-- | _, BuiltinIdent.rotateRight i _     => indexed (atom "rotate_right") [Nat.toSExpr i]
 
--- | _, bvule _              => atom "bvule" 
--- | _, bvugt _              => atom "bvugt" 
--- | _, bvuge _              => atom "bvuge" 
--- | _, bvslt _              => atom "bvslt" 
--- | _, bvsle _              => atom "bvsle" 
--- | _, bvsgt _              => atom "bvsgt" 
--- | _, bvsge _              => atom "bvsge" 
+-- | _, BuiltinIdent.bvule _              => atom "bvule"
+-- | _, BuiltinIdent.bvugt _              => atom "bvugt"
+-- | _, BuiltinIdent.bvuge _              => atom "bvuge"
+-- | _, BuiltinIdent.bvslt _              => atom "bvslt"
+-- | _, BuiltinIdent.bvsle _              => atom "bvsle"
+-- | _, BuiltinIdent.bvsgt _              => atom "bvsgt"
+-- | _, BuiltinIdent.bvsge _              => atom "bvsge"
 | cs, _                    => "TODO"
 
 
