@@ -162,7 +162,7 @@ def select (k v : SmtSort) : Term (array k v) -> Term k -> Term v :=
 def store  (k v : SmtSort) : Term (array k v) -> Term k -> Term v -> Term (array k v) :=
   ternop (store k v)
 
-def eqrange  {k v : SmtSort} : Term (array k v) -> Term (array k v) -> Term k -> Term k -> Term bool
+def eqrange  {k : RangeSort} {v : SmtSort} : Term (array k.sort v) -> Term (array k.sort v) -> Term k.sort -> Term k.sort -> Term bool
     := quadop (eqrange k v)
 
 -- BitVecs

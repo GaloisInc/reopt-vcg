@@ -14,7 +14,7 @@ import ReoptVCG.Smt
 namespace ReoptVCG
 
 open LLVM (LLVMType Typed PrimType Value)
-open Smt (SmtM SmtSort SmtSort.bool IdGen.empty)
+open Smt (SmtM SmtSort SmtSort.bool IdGen.empty RangeSort.bitvec)
 open x86 (reg64)
 open BlockVCG (fatalThrow)
 open x86.vcg (RegState)
@@ -505,7 +505,7 @@ def llvmInvoke (isTailCall : Bool) (fsym : LLVM.Symbol) (args : Array (Typed Val
   (do newMem <- declareMem;
       oldMem <- BlockVCGState.mcCurMem <$> get;
       sht    <- stackHighTerm;
-      addAssert $ Smt.eqrange newMem oldMem postCallRSP (Smt.bvadd sht (Smt.bvimm _ 7));
+      addAssert $ @Smt.eqrange (RangeSort.bitvec 64) _ newMem oldMem postCallRSP (Smt.bvadd sht (Smt.bvimm _ 7));
       modify $ fun s => {s with mcCurMem := newMem });
 
   -- Assign returned value by assigning LLVM variable
