@@ -356,4 +356,127 @@ else cStr ++ "\n"
 
 end
 
+
+-- --------------------------------------------------------------------------------
+
+-- def smtM : (Env -> Type) -> Type := ...
+
+-- structure Term (s : Sort) (e : Env) :=
+--   ( term : Raw.Term s)
+--   ( wf : WellSorted e term )
+
+-- def PairF {s : Type} : (s -> Type) -> (s -> Type) -> (s -> Type)
+
+
+-- @PairF Env (Term s1) (Term s2)
+
+
+-- structure SMTContext :=
+--   ( decls   : RBMap Symbol ConstSort ) 
+--   ( defs    : RBMap Symbol (Sigma Raw.Term) )
+--   ( defsWF  : decls ++ g desf |- free defs )
+--   ( acyclic : acyclic defs )
+--   ( asserts : [ Raw.Term smt_bool ] )
+
+-- def ContextEnv : SMTContext -> RBMap Symbol ConstSort := ... union decls defs
+
+-- def assert : smtM (Term smt_bool) -> smtM UnitF
+
+-- def property : smtM UnitF -> Prop
+
+-- class Monotone F :=
+--   ( apply : Morphism e e' -> F e -> F e' )
+
+-- instance Monotone (Term s) := ...
+
+-- instance Monotone [Monotone f] [Monotone g] (PairF f g) :=
+--   ...
+
+-- def declare [ Monotone F ] : Symbol -> sort -> smtM F -> smtM (PairF F (Term s))
+
+
+-- def myExample : smtM (PairF (Term (bv 64)) (Term (bv 32))) :=
+--   declare "std2" (bv 32) $ 
+--   declare "std1" (bv 64) smtM.empty
+  
+
+-- def fmapF : (forall e, a e -> b e) -> smtM a -> smtM b
+
+-- def StdLib e = { std1 : Term e ..., std2 : Term e ... } 
+
+-- def mkStdLib : PairF (Term (bv 32)) (PairF (Term (bv 64)) ...) -> StdLib
+
+
+-- -- G e 
+-- -- F e' 
+-- -- ==> 
+-- -- F (e' ++ e) (G (e' ++ e))
+
+-- def <*> [ Monotone G ] [ Monotone F] : stmM F -> smtM G -> smtM (appF F G)
+
+-- -- SMT.eq <$F> declare ""
+
+-- --------------------------------------------------------------------------------
+
+-- def smtM : (Env -> Type) -> (Env -> Type) -> Type :=
+
+-- ... smtM StdLib (Term (bv 32)) ... 
+
+
+
+
+
+-- --------------------------------------------------------------------------------
+
+-- def smtM (e : Env) : Type -> Type := ...
+
+-- def bind : smtM e a -> (a -> smtM e b) -> smtM e b
+
+-- -- def bind' : smtM e a -> (a -> smtM e' b) -> smtM e' b
+
+-- def assert : Term smt_sort e -> smtM e Unit
+
+-- def declare {e : Env} (sym : Symbol) (s : smt_sort) : (Morphism e (s :: e) -> Term (s :: e) s -> smtM (s :: e) a) -> smtM (s :: e) a
+
+-- def makeSmtM : smtM [] Unit
+
+
+-- def myExample :=
+--   @declare [] "std1" (bv 64) $ fun _morph (std1tm : Term [bv64] (bv 64))-> 
+--     declare "std2" (bv 32)  $ fun morph (std2tm : Term [bv 32, bv 64] (bv 32)) -> 
+--       let std1tm' := morph.apply std1tm;
+--       let ctx := mkPairF std1tm' std2tm' ;
+--       define "foo" _ (SMT.eq std1 std2) 
+
+-- --------------------------------------------------------------------------------
+
+-- def semantics : Model -> Script -> Prop
+
+-- def denotation (s : Script) : Prop :=
+--   forall M, M ~ s.decls -> semantics M s
+
+-- def soundness : not (exists M, semantics M s) -> not (denotation s) :=
+--   fun H : denotation s =>
+--     unfold H to get (forall M, M ~ s.decls -> semantics M s ) (1) 
+--     get an M s.t. M ~ s.decls
+--     hence semantics M s from (1)
+--     however
+--     not (exists M, semantics M s)
+--     hence f (exists M, semantics M s -> False)
+--     hence False
+
+
+      
+   
+  
+  
+  
+
+
+
+
+
+
+
+
 end Smt

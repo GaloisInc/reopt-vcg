@@ -4,10 +4,48 @@ import Galois.Data.RBMap
 import SmtLib.Syntax
 import SmtLib.BitVec
 import Std.Data.RBMap
+import Std.Data.RBTree
+import Galois.Data.DRBMap
+
+namespace Std
+namespace RBNode
+
+def dcast { δ : α -> Type } : forall (m : RBNode α β)
+          (f : forall k, (m.find k).isSome -> β k = δ k), RBNode α β
+| leaf, f             => leaf
+| node c l k v r, f   => 
+  let lf : forall k', (l.find k').isSome -> β k' = δ k' :=
+    fun k' (pf : (l.find k').isSome) => 
+      -- need to construct pf' : ((node c l k v r).find k').isSome which holds
+      -- if the tree is well formed wrt lt
+       
+
+
+
+end RBNode
+
+namespace DRBMap
+
+universes u v
+
+variables {α : Type u} {β : α → Type v} {lt : α → α → Bool}
+
+def keys : DRBMap α β lt → List α 
+| ⟨t, _⟩ => t.revFold (fun ps k v => k::ps) []
+
+#check Std.RBNode
+
+-- swf dcong { δ : α -> Type } : forall (m : DRBMap α β lt) 
+--           (f : forall k, m.contains k -> β k = δ k), DRBMap α δ lt
+
+
+
+end DRBMap
+end Std
 
 namespace Smt
 
-open Std (RBMap)
+open Std (RBMap DRBMap)
 
 structure Array (α β : Type) :=
 (elems : List (α × β))
@@ -72,9 +110,7 @@ private def denoteDecidableEq : forall (s : SmtSort), DecidableEq s.denote
 
 
 instance denote.DecidableEq : forall (s : SmtSort), DecidableEq s.denote :=
-denoteDecidableEq
-
-
+  denoteDecidableEq
 
 inductive BoolLess : Bool → Bool → Prop
 | trueLess (b : Bool) : BoolLess true b
@@ -178,6 +214,35 @@ end Array
 
 namespace Raw
 
+def Env := RBMap Symbol ConstSort (fun (x : String) y => x < y)
+
+--------------------------------------------------------------------------------
+-- Well sorted terms
+--
+-- Because we have typed terms, well-sortedness boils down to the
+-- variables having the claimed sort.
+
+namespace Ident
+
+def wellSorted : forall (e : Env) { cs : ConstSort }, Ident cs -> Prop
+| e, _, Raw.Ident.symbol cs sym => Std.RBMap.find? e sym = some cs
+| e, _, Raw.Ident.builtin _     => True
+
+end Ident
+
+namespace Term
+
+def wellSorted : forall (e : Env) { cs : ConstSort }, Raw.Term cs -> Prop
+| _, _, Raw.Term.const _ sc             => True
+| e, _, Raw.Term.ident x                => Ident.wellSorted e x
+| e, _, Raw.Term.app f x                => wellSorted e f ∧ wellSorted e x
+| e, _, @Raw.Term.smtLet s t v exp body => wellSorted e exp ∧ wellSorted (e.insert v (Raw.ConstSort.base t)) body
+| e, _, @Raw.Term.smtForall s v body    => wellSorted (e.insert v.var (Raw.ConstSort.base s)) body
+| e, _, @Raw.Term.smtExists s v body    => wellSorted (e.insert v.var (Raw.ConstSort.base s)) body
+
+end Term  
+
+
 namespace ConstSort
 
 @[reducible]
@@ -275,6 +340,68 @@ protected def BuiltinIdent.denote : forall cs, BuiltinIdent cs → cs.denote
 | _, BuiltinIdent.bvsle _              => λ x y => decide (BitVec.sle x y)
 | _, BuiltinIdent.bvsgt _              => λ x y => decide (BitVec.sgt x y)
 | _, BuiltinIdent.bvsge _              => λ x y => decide (BitVec.sge x y)
+
+
+-- structure Model ( sorts : Symbol -> SmtSort ) :=
+--   ( values : dRBMap Symbol (fun n => ConstSort.denote (sorts n)) )
+
+def denoteDefault (cs : Option ConstSort) : Type := 
+  ConstSort.denote (match cs with 
+                   | none   => (ConstSort.base SmtSort.bool)
+                   | some v => v)
+
+structure Model ( e : Env ) :=
+  ( values : DRBMap Symbol (fun k => denoteDefault (e.find? k))
+            (fun (x : String) y => x < y) )
+  ( wfDom  : forall sym s, e.find? sym = some s -> Exists (fun v => values.findEq? sym = some v))
+-- (forall v, values.findEq? sym = some v -> Exists (fun s =>  e.find? sym = some s))
+-- values.keys = e.keys )
+
+namespace Model
+
+def extend {e : Env} {cs : ConstSort} (m : Model e) (k : Symbol) (v : cs.denote) 
+  : Model (e.insert k cs) :=
+  { values :=   }
+
+end Model
+
+namespace SpecConst
+
+def semantics : forall {s : SmtSort}, SpecConst s -> s.denote
+  | _, binary n v => BitVec.ofNat n v
+
+end SpecConst
+
+instance : DecidableEq Symbol := inferInstanceAs (DecidableEq String)
+
+namespace Ident
+
+def semantics {e : Env} (m : Model e) : forall { cs : ConstSort } (i : Ident cs), 
+              Ident.wellSorted e i -> cs.denote
+| _, symbol cs sym, (pf : e.find? sym = some cs) => 
+  let H : denoteDefault (e.find? sym) = cs.denote := (congrArg denoteDefault pf);
+  let pf' : Exists (fun v => m.values.findEq? sym = some v) := m.wfDom sym cs pf;
+  (match m.values.findEq? sym, pf' with 
+  | none, ( H' : Exists (fun v => none = some v)) =>
+    False.elim (H'.elim (fun _ H'' => Option.noConfusion H''))
+  | some v, _ => cast H v)
+
+| _, builtin i, _    => BuiltinIdent.denote _ i
+
+end Ident
+
+namespace Term
+def semantics : forall (e : Env) (m : Model e) { cs : ConstSort } (t : Term cs), 
+                wellSorted e t -> cs.denote
+| e, m, _, const _ sc           => sc.semantics
+| e, m, _, ident x              => Ident.semantics m x
+| e, m, _, app f x              => (semantics f) (semantics x)
+| e, m, pf, @smtLet s t v expr body => 
+  semantics (e.insert v (ConstSort.base t)) (e.insert v (semantics e m pf.left expr))
+| e, md, _, smtForall v body  => SExpr.app (atom "forall") [toSExpr [toSExpr v], toSExprAux body []]
+| e, m, _, smtExists v body    => SExpr.app (atom "exists") [toSExpr [toSExpr v], toSExprAux body []]
+end Term  
+
 
 
 end Raw

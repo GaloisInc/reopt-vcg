@@ -136,11 +136,20 @@ instance : HasToSExpr Symbol := ⟨toSExpr⟩ -- maybe should quote?
 end Symbol
 
 -- S3.2
-inductive SpecConst : Type 
-| numeral : Nat -> SpecConst
-| decimal : Nat -> Nat -> SpecConst
-| binary  : Nat -> Nat -> SpecConst -- nbits and value, subsumes hex (FIXME?)
-| string  : String -> SpecConst
+-- inductive SpecConst : Type 
+-- | numeral : Nat -> SpecConst
+-- | decimal : Nat -> Nat -> SpecConst
+-- | binary  : Nat -> Nat -> SpecConst -- nbits and value, subsumes hex (FIXME?)
+-- | string  : String -> SpecConst
+
+
+inductive SpecConst : SmtSort -> Type 
+-- | numeral : Nat -> SpecConst
+-- | decimal : Nat -> Nat -> SpecConst
+| binary (n : Nat): Nat -> SpecConst (SmtSort.bitvec n) -- nbits and value, subsumes hex (FIXME?)
+-- | string  : String -> SpecConst
+
+
 
 namespace SpecConst 
 
@@ -163,13 +172,13 @@ def ppBin (n : Nat) (v : Nat) : String :=
 end toHex
 
 protected
-def toSExpr : SpecConst -> SExpr
-| numeral n   => Nat.toSExpr n
-| decimal n f => atom (toString n ++ "." ++ toString f)
-| binary n v  => atom (ppBin n v)
-| string s    => String.toSExpr s
+def toSExpr : forall {s : SmtSort}, SpecConst s -> SExpr
+-- | numeral n   => Nat.toSExpr n
+-- | decimal n f => atom (toString n ++ "." ++ toString f)
+| _, binary n v  => atom (ppBin n v)
+-- | string s    => String.toSExpr s
 
-instance : HasToSExpr SpecConst := ⟨SpecConst.toSExpr⟩
+instance {s : SmtSort} : HasToSExpr (SpecConst s) := ⟨SpecConst.toSExpr⟩
 
 end SpecConst
 
@@ -377,7 +386,7 @@ end SortedVar
 -- S3.6
 -- Use typed terms?
 inductive Term : ConstSort -> Type
-| const (s : SmtSort) : SpecConst -> Term (ConstSort.base s)
+| const (s : SmtSort) : SpecConst s -> Term (ConstSort.base s)
 | ident {cs : ConstSort} : Ident cs -> Term cs
 | app {s : SmtSort} {cs : ConstSort} : Term (ConstSort.fsort s cs)
                                     -> Term (ConstSort.base s) -> Term cs
