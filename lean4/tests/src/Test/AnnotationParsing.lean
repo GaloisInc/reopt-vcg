@@ -1,6 +1,6 @@
 
 import ReoptVCG.Annotations
-import ReoptVCG.SMTParser
+import ReoptVCG.SmtParser
 import Lean.Data.Json
 import Lean.Data.Json.FromToJson
 import Galois.Init.Json
@@ -10,6 +10,8 @@ namespace Test
 namespace AnnotationParsing
 
 open ReoptVCG
+
+open Smt (SmtSort)
 
 -- Parse the ModuelAnnotations for the fib test example, printing any mismatches in expected field values,
 -- and return the underlying FunctionAnn
@@ -40,10 +42,10 @@ match Lean.Json.parse fileContents with
     | _ => throw $ IO.userError $ "Expected two function annotations but found " ++ modAnn.functions.length.repr
 
 
-def fibLLVMTyEnvEntries : List (LLVM.Ident × SMT.sort) :=
-["t1", "t4", "t5", "t8", "t9", "t12", "t13", "t15"].map (λ nm => (LLVM.Ident.named nm, SMT.sort.bv64))
+def fibLLVMTyEnvEntries : List (LLVM.Ident × SmtSort) :=
+["t1", "t4", "t5", "t8", "t9", "t12", "t13", "t15"].map (λ nm => (LLVM.Ident.named nm, SmtSort.bv64))
 
-def fibLLVMTyEnv : Std.RBMap LLVM.Ident SMT.sort (λ x y => x<y) :=
+def fibLLVMTyEnv : Std.RBMap LLVM.Ident SmtSort (λ x y => x<y) :=
 Std.RBMap.fromList fibLLVMTyEnvEntries (λ x y => x<y)
 
 -- Parse and check a few very basic structural properties about the return block annotations

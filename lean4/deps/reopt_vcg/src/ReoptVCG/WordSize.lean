@@ -1,6 +1,7 @@
 
-import SMTLIB.Syntax
+import SmtLib.Smt
 
+open Smt (SmtSort SmtSort.bitvec)
 
 inductive WordSize
 | word8  : WordSize
@@ -20,7 +21,7 @@ def bytes : WordSize → Nat
 /-- Bit width (i.e., the nominal width) --/
 def bits (w:WordSize) : Nat := 8 * w.bytes
 
-def sort (w:WordSize) : SMT.sort := SMT.sort.bitvec w.bits
+def sort (w:WordSize) : SmtSort := SmtSort.bitvec w.bits
 
 def fromNat : Nat → Option WordSize
 | 8  => some word8

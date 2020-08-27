@@ -1,3 +1,9 @@
-LOCAL_LEAN := src/SMTLIB/Syntax.lean src/SMTLIB/IdGen.lean
+LOCAL_LEAN :=\
+ src/SmtLib/BitVec.lean\
+ src/SmtLib/Denote.lean\
+ src/SmtLib/IdGen.lean\
+ src/SmtLib/SExpr.lean\
+ src/SmtLib/Smt.lean\
+ src/SmtLib/Syntax.lean
 
 $(eval $(call add-package,src,${LOCAL_LEAN},))

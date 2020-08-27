@@ -4,6 +4,6 @@ LOCAL_LEAN :=\
  src/Test/JsonRoundtrip.lean\
  src/Test/LoadElf.lean\
  src/Test/SExp.lean\
- src/Test/SMTExport.lean
+ src/Test/SmtExport.lean
 
 $(eval $(call add-package,src,${LOCAL_LEAN},))
