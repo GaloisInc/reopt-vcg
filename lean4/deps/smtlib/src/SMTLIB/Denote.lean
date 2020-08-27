@@ -221,7 +221,7 @@ end Array
 
 namespace Raw
 
-def Env := Symbol -> Option ConstSort -- RBMap Symbol ConstSort (fun (x : String) y => x < y)
+def Env := Symbol -> Option ConstSort
 
 --------------------------------------------------------------------------------
 -- Well sorted terms
@@ -231,21 +231,35 @@ def Env := Symbol -> Option ConstSort -- RBMap Symbol ConstSort (fun (x : String
 
 namespace Ident
 
-def wellSorted : forall (e : Env) { cs : ConstSort }, Ident cs -> Prop
-| e, _, Raw.Ident.symbol cs sym => e sym = some cs
-| e, _, Raw.Ident.builtin _     => True
+inductive WF : forall {cs : ConstSort}, Env → Ident cs → Prop
+| symbol : ∀ {e : Env} {cs : ConstSort} {x : Symbol}, e x = some cs → WF e (Ident.symbol cs x)
+| builtin : ∀ (e : Env) {cs : ConstSort} (b : BuiltinIdent cs), WF e (Ident.builtin b)
 
 end Ident
 
 namespace Term
 
-def wellSorted : forall (e : Env) { cs : ConstSort }, Raw.Term cs -> Prop
-| _, _, Raw.Term.const _ sc             => True
-| e, _, Raw.Term.ident x                => Ident.wellSorted e x
-| e, _, Raw.Term.app f x                => wellSorted e f ∧ wellSorted e x
-| e, _, @Raw.Term.smtLet s t v exp body => wellSorted e exp ∧ wellSorted (updMap e v (Raw.ConstSort.base t)) body
-| e, _, @Raw.Term.smtForall s v body    => wellSorted (updMap e v.var (Raw.ConstSort.base s)) body
-| e, _, @Raw.Term.smtExists s v body    => wellSorted (updMap e v.var (Raw.ConstSort.base s)) body
+inductive WF : forall {cs : ConstSort}, Env → Term cs → Prop
+| const : ∀ (e : Env) {s : SmtSort} (sc : SpecConst s), WF e (Term.const s sc)
+| ident : ∀ {e : Env} {cs : ConstSort} {x : Ident cs}, Ident.WF e x → WF e (Term.ident x)
+| app   : ∀ {e : Env} {s : SmtSort} {cs : ConstSort}
+         {t1 : Term (ConstSort.fsort s cs)}
+         {t2 : Term (ConstSort.base s)},
+  WF e t1 →
+  WF e t2 →
+  WF e (Term.app t1 t2)
+| smtLet : ∀ {e : Env} {s1 s2 : SmtSort} {x : Symbol}
+           {t1 : Term (ConstSort.base s1)}
+           {t2 : Term (ConstSort.base s2)},
+  WF e t1 →
+  WF (updMap e x (Raw.ConstSort.base s1)) t2 →
+  WF e (Term.smtLet x t1 t2)
+| smtForall : ∀ {e : Env} {s : SmtSort} {x : SortedVar s} {t : Term ConstSort.bool},
+  WF (updMap e x.var (Raw.ConstSort.base s)) t →
+  WF e (Term.smtForall x t)
+| smtExists : ∀ {e : Env} {s : SmtSort} {x : SortedVar s} {t : Term ConstSort.bool},
+  WF (updMap e x.var (Raw.ConstSort.base s)) t →
+  WF e (Term.smtExists x t)
 
 end Term  
 
@@ -282,8 +296,6 @@ private def mkDistinct (s : SmtSort) (n : Nat) : (nary s SmtSort.bool n).denote 
 VarArgs.distinct s n []
 
 
--- TODO? SpecConst
-
 @[reducible]
 protected def BuiltinIdent.denote : forall cs, BuiltinIdent cs → cs.denote
 -- * Core theory
@@ -301,7 +313,6 @@ protected def BuiltinIdent.denote : forall cs, BuiltinIdent cs → cs.denote
 | _, BuiltinIdent.select _ _           => Array.select
 | _, BuiltinIdent.store  _ _           => Array.store
 | _, BuiltinIdent.eqrange k _          => Array.eqRange k
--- FIXME BOOKMARK check the concrete evaluator and backend over in the x86 semantics
 
 -- -- * BitVecs
 -- -- hex/binary literals
@@ -349,9 +360,6 @@ protected def BuiltinIdent.denote : forall cs, BuiltinIdent cs → cs.denote
 | _, BuiltinIdent.bvsge _              => λ x y => decide (BitVec.sge x y)
 
 
--- structure Model ( sorts : Symbol -> SmtSort ) :=
---   ( values : dRBMap Symbol (fun n => ConstSort.denote (sorts n)) )
-
 def denoteDefault (cs : Option ConstSort) : Type := 
    match cs with 
    | none   => Unit
@@ -361,18 +369,12 @@ structure Model ( e : Env ) :=
   ( values : forall (sym : Symbol), denoteDefault (e sym) )
 --   ( wfDom  : forall sym s, e.find? sym = some s -> Exists (fun v => values.findEq? sym = some v))
 
--- structure Model ( e : Env ) :=
---   ( values : DRBMap Symbol (fun k => denoteDefault (e.find? k))
---             (fun (x : String) y => x < y) )
---   ( wfDom  : forall sym s, e.find? sym = some s -> Exists (fun v => values.findEq? sym = some v))
--- (forall v, values.findEq? sym = some v -> Exists (fun s =>  e.find? sym = some s))
--- values.keys = e.keys )
 
 namespace Model
 
 def extend {e : Env} {cs : ConstSort} (m : Model e) (k : Symbol) (v : cs.denote) 
   : Model (updMap e k cs) :=
-   let pf : forall {sym} (pf : k = sym), denoteDefault ((updMap e k cs) sym) = cs.denote := 
+   let pf : forall {sym} (pf : k = sym), denoteDefault ((updMap e k cs) sym) = cs.denote :=
      fun _ pf => congrArg denoteDefault (difPos pf);   
   { values := fun sym => 
            if H : k = sym then cast (pf H).symm v 
@@ -396,11 +398,12 @@ instance : DecidableEq Symbol := inferInstanceAs (DecidableEq String)
 namespace Ident
 
 def semantics {e : Env} (m : Model e) : forall { cs : ConstSort } (i : Ident cs), 
-              Ident.wellSorted e i -> cs.denote
-| _, symbol cs sym, (pf : e sym = some cs) => 
-  let H : denoteDefault (e sym) = cs.denote := (congrArg denoteDefault pf);
-  let v : denoteDefault (e sym) := m.values sym;
-  cast H v
+              Ident.WF e i -> cs.denote
+| _, symbol cs sym, wf =>
+    let H : denoteDefault (e sym) = cs.denote := 
+      match wf with | (Ident.WF.symbol pf) => (congrArg denoteDefault pf);
+    let v : denoteDefault (e sym) := m.values sym;
+    cast H v
 
 | _, builtin i, _    => BuiltinIdent.denote _ i
 
@@ -435,21 +438,51 @@ denoteFinite
 end SmtSort
 
 namespace Term
-def semantics : forall (e : Env) (m : Model e) { cs : ConstSort } (t : Term cs), 
-                wellSorted e t -> cs.denote
-| e, m, _, const _ sc, _           => sc.semantics
-| e, m, _, ident x, pf             => Ident.semantics m x pf
-| e, m, _, app f x, pf             => (semantics e m f pf.left) (semantics e m x pf.right)
-| e, m, _, @smtLet s t v expr body, pf => 
-  semantics (upd e v (ConstSort.base t)) (m.extend v (semantics e m expr pf.left)) body pf.right
-| e, m, _, @smtForall s x body, pf => 
-     let sFinite := SmtSort.denote.Finite s;
-     let vs := @Finite.elems s.denote;
-     vs.all (λ v => semantics (updMap e x.var (ConstSort.base s)) (m.extend x.var v) body pf)
-| e, m, _, @smtExists s x body, pf =>
-     let sFinite := SmtSort.denote.Finite s;
-     let vs := @Finite.elems s.denote;
-     vs.any (λ v => semantics (updMap e x.var (ConstSort.base s)) (m.extend x.var v) body pf)
+
+inductive Interp : forall (e:Env) (m:Model e) {cs:ConstSort} (t:Term cs), WF e t → cs.denote → Prop
+| const : ∀ (e:Env) (m:Model e) {s : SmtSort} (sc : SpecConst s),
+  Interp e m (Term.const s sc) (WF.const e sc) sc.semantics
+| ident : ∀ (e:Env) (m:Model e) {cs : ConstSort} (x : Ident cs) (xWF : Ident.WF e x),
+  Interp e m (Term.ident x) (WF.ident xWF) (Ident.semantics m x xWF)
+| app  :  ∀ (e:Env) (m:Model e) {s : SmtSort} {cs : ConstSort} 
+  (t1 : Term (ConstSort.fsort s cs))
+  (wf1 : WF e t1)
+  (t2 : Term (ConstSort.base s))
+  (wf2 : WF e t2)
+  (f : (ConstSort.fsort s cs).denote)
+  (x : (ConstSort.base s).denote),
+  Interp e m t1 wf1 f →
+  Interp e m t2 wf2 x →
+  Interp e m (Term.app t1 t2) (WF.app wf1 wf2) (f x)
+| smtLet : ∀ (e:Env) (m:Model e) {s1 s2 : SmtSort} (x : Symbol)
+          (t1 : Term (ConstSort.base s1))
+          (wf1 : WF e t1)
+          (t2 : Term (ConstSort.base s2))
+          (wf2 : WF (upd e x (ConstSort.base s1)) t2)
+          (v1 : (ConstSort.base s1).denote)
+          (v2 : (ConstSort.base s2).denote),
+  Interp e m t1 wf1 v1 →
+  Interp (upd e x (ConstSort.base s1)) (m.extend x v1) t2 wf2 v2 →
+  Interp e m (Term.smtLet x t1 t2) (WF.smtLet wf1 wf2) v2
+| smtForallTrue : ∀ (e : Env) (m:Model e) {s : SmtSort} (x : SortedVar s) (t : Term ConstSort.bool)
+                  (wf : WF (updMap e x.var (ConstSort.base s)) t),
+  (∀ (v : s.denote), Interp (upd e x.var (ConstSort.base s)) (m.extend x.var v) t wf true) →
+  Interp e m (Term.smtForall x t) (WF.smtForall wf) true
+| smtForallFalse : ∀ (e : Env) (m:Model e) {s : SmtSort} (x : SortedVar s) (t : Term ConstSort.bool)
+                  (wf : WF (updMap e x.var (ConstSort.base s)) t)
+                  (witness : s.denote),
+  Interp (upd e x.var (ConstSort.base s)) (m.extend x.var witness) t wf false →
+  Interp e m (Term.smtForall x t) (WF.smtForall wf) false
+| smtExistsTrue : ∀ (e : Env) (m:Model e) {s : SmtSort} (x : SortedVar s) (t : Term ConstSort.bool)
+                  (wf : WF (updMap e x.var (ConstSort.base s)) t)
+                  (witness : s.denote),
+  Interp (upd e x.var (ConstSort.base s)) (m.extend x.var witness) t wf true →
+  Interp e m (Term.smtExists x t) (WF.smtExists wf) true
+| smtExistsFalse : ∀ (e : Env) (m:Model e) {s : SmtSort} (x : SortedVar s) (t : Term ConstSort.bool)
+                  (wf : WF (updMap e x.var (ConstSort.base s)) t),
+  (∀ (v : s.denote), Interp (upd e x.var (ConstSort.base s)) (m.extend x.var v) t wf false) →
+  Interp e m (Term.smtExists x t) (WF.smtExists wf) false
+
 
 end Term  
 
