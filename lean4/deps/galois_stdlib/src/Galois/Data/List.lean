@@ -1,14 +1,30 @@
 namespace List
 
-section
-universes u v
-variables {α : Type u} {β : Type v}
+def qsort.{u} {α : Type} [Inhabited α] (as : List α) (lt : α → α → Bool) : List α :=
+let arr := as.toArray;
+(arr.qsort lt 0 (arr.size - 1)).toList
 
-def joinMap (f : α → List β) : List α → List β
+
+def joinMap.{u,v} {α : Type u} {β : Type v} (f : α → List β) : List α → List β
 | []      => []
 | a :: as => (f a) ++ joinMap as
 
-end
+
+-- Powerset of a single list.
+def powerset.{u} {α : Type u} : List α → List (List α)
+| [] => [[]]
+| x::xs =>
+  joinMap (λ l => [l, x::l]) (powerset xs)
+
+-- Cartesian product of two lists.
+def product.{u, v} {α : Type u} {β : Type v} : List α → List β → List (α × β)
+| [], _ => []
+| a::as, bs => (bs.map (λ b => (a,b)))++(product as bs)
+
+-- List.power xs ys computes ys^xs, or the set of sequences of elements of ys indexed by elements of xs.
+def power {α β} : List α → List β → List (List (α × β))
+| [] , vs => []
+| k::ks, vs => (power ks vs).joinMap (λ m => vs.map (λ v => (k, v)::m))
 
 end List
 

@@ -406,9 +406,33 @@ def semantics {e : Env} (m : Model e) : forall { cs : ConstSort } (i : Ident cs)
 
 end Ident
 
-class Finite (α : Type) extends DecidableEq α :=
+class Finite (α : Type) [DecidableEq α] :=
   (elems  : List α)
-  (complete : forall x, elems.elem x = true)
+  --(complete : forall x, elems.elem x = true)
+
+
+
+namespace SmtSort
+
+
+private def denoteFinite : forall (s : SmtSort), Finite s.denote
+| SmtSort.bool => {elems := [true, false]}
+| SmtSort.bitvec n => {elems := List.map (BitVec.ofNat n) $ List.range (2 ^ n)}
+| SmtSort.array k v =>
+  let kFinite := denoteFinite k;
+  let vFinite := denoteFinite v;
+  let elems : List (Smt.Array k.denote v.denote):=
+    vFinite.elems.joinMap $ λ (d : v.denote) =>
+      kFinite.elems.powerset.joinMap $ λ (ks : List k.denote) =>
+        (List.power ks vFinite.elems).map $ λ (m : List (k.denote × v.denote)) =>
+          ({elems := m.qsort (λ p1 p2 => p1.fst < p2.fst), dflt := d} : Array k.denote v.denote);
+  {elems := elems}
+
+
+instance denote.Finite : forall (s : SmtSort), Finite s.denote :=
+denoteFinite
+
+end SmtSort
 
 namespace Term
 def semantics : forall (e : Env) (m : Model e) { cs : ConstSort } (t : Term cs), 
@@ -419,9 +443,13 @@ def semantics : forall (e : Env) (m : Model e) { cs : ConstSort } (t : Term cs),
 | e, m, _, @smtLet s t v expr body, pf => 
   semantics (upd e v (ConstSort.base t)) (m.extend v (semantics e m expr pf.left)) body pf.right
 | e, m, _, @smtForall s x body, pf => 
-     forall v, semantics (updMap e x.var (ConstSort.base s)) (m.extend x.var v) body pf
+     let sFinite := SmtSort.denote.Finite s;
+     let vs := @Finite.elems s.denote;
+     vs.all (λ v => semantics (updMap e x.var (ConstSort.base s)) (m.extend x.var v) body pf)
 | e, m, _, @smtExists s x body, pf =>
-     Exists (fun v => semantics (updMap e x.var (ConstSort.base s)) (m.extend x.var v) body pf)
+     let sFinite := SmtSort.denote.Finite s;
+     let vs := @Finite.elems s.denote;
+     vs.any (λ v => semantics (updMap e x.var (ConstSort.base s)) (m.extend x.var v) body pf)
 
 end Term  
 
