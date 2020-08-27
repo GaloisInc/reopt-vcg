@@ -54,47 +54,72 @@ namespace Smt
 
 open Std (RBMap DRBMap)
 
-structure Array (α β : Type) :=
-(elems : List (α × β))
-(dflt : β)
 
 section
-variables {α β : Type}
+universes u v
 
-def Array.decEq [DecidableEq α]
-                [DecidableEq β]
-                (arr1 arr2 : Array α β) : Decidable (arr1 = arr2) :=
-Array.casesOn arr1 $ λ elems1 dflt1 => Array.casesOn arr2 $ λ elems2 dflt2 =>
-  match (decEq elems1 elems2) with
+structure FiniteMap (α : Type u) (β : Type v) :=
+(entries : List (α × β))
+(dflt : β)
+
+
+
+namespace FiniteMap
+variables {α : Type u} {β : Type v}
+
+protected def select [HasBeq α] (a : FiniteMap α β) (k : α) : β :=
+match a.entries.lookup k with
+| some v => v
+| none => a.dflt
+
+
+protected def store [HasLess α] [forall (x y:α), Decidable (x < y)] (a : FiniteMap α β) (k : α) (v : β) : FiniteMap α β :=
+{a with entries := SortedAList.insert k v a.entries}
+
+
+def decEq [DecidableEq α]
+          [DecidableEq β]
+          (arr1 arr2 : FiniteMap α β) : Decidable (arr1 = arr2) :=
+FiniteMap.casesOn arr1 $ λ entries1 dflt1 => FiniteMap.casesOn arr2 $ λ entries2 dflt2 =>
+  match (decEq entries1 entries2) with
   | (isTrue e₁) =>
     match (decEq dflt1 dflt2) with
     | (isTrue e₂)  => isTrue (Eq.recOn e₁ (Eq.recOn e₂ rfl))
-    | (isFalse n₂) => isFalse (fun h => Array.noConfusion h (fun e₁' e₂' => absurd e₂' n₂))
-  | (isFalse n₁) => isFalse (fun h => Array.noConfusion h (fun e₁' e₂' => absurd e₁' n₁))
+    | (isFalse n₂) => isFalse (fun h => FiniteMap.noConfusion h (fun e₁' e₂' => absurd e₂' n₂))
+  | (isFalse n₁) => isFalse (fun h => FiniteMap.noConfusion h (fun e₁' e₂' => absurd e₁' n₁))
 
 
-def Array.Less [HasLess α] [HasLess β] : Array α β → Array α β → Prop
-| a1, a2 => (a1.elems, a1.dflt) < (a2.elems, a2.dflt)
+def Less [HasLess α] [HasLess β] : FiniteMap α β → FiniteMap α β → Prop
+| a1, a2 => (a1.entries, a1.dflt) < (a2.entries, a2.dflt)
 
-instance Array.HasLess [HasLess α] [HasLess β] : HasLess (Array α β) :=
-⟨@Array.Less α β _ _⟩
+instance HasLess [HasLess α] [HasLess β] : HasLess (FiniteMap α β) :=
+⟨@FiniteMap.Less α β _ _⟩
 
 
-def Array.decLt [DecidableEq α]
-                [DecidableEq β]
-                [HasLess α] 
-                [HasLess β]
-                [forall (a1 a2 : α), Decidable (a1 < a2)]
-                [forall (b1 b2 : β), Decidable (b1 < b2)]
-                (arr1 arr2 : Array α β) : Decidable (arr1 < arr2) :=
-Array.casesOn arr1 $ λ elems1 dflt1 => Array.casesOn arr2 $ λ elems2 dflt2 =>
+def decLt [DecidableEq α]
+          [DecidableEq β]
+          [HasLess α]
+          [HasLess β]
+          [forall (a1 a2 : α), Decidable (a1 < a2)]
+          [forall (b1 b2 : β), Decidable (b1 < b2)]
+          (arr1 arr2 : FiniteMap α β) : Decidable (arr1 < arr2) :=
+FiniteMap.casesOn arr1 $ λ entries1 dflt1 => FiniteMap.casesOn arr2 $ λ entries2 dflt2 =>
   let prodLtDec : ∀ (p1 p2 : (α × β)), Decidable (p1 < p2) := prodHasDecidableLt;
   let listLtDec : ∀ (l1 l2 : List (α × β)), Decidable (l1 < l2) := List.hasDecidableLt;
-  inferInstanceAs (Decidable ((elems1, dflt1) < (elems2, dflt2)))
+  inferInstanceAs (Decidable ((entries1, dflt1) < (entries2, dflt2)))
+
+
+inductive WellFormed [HasLess α] [forall (x y:α), Decidable (x < y)] : FiniteMap α β → Prop
+| dfltWf  (d : β) : WellFormed {entries := ([] : List (α × β)), dflt := d}
+| storeWf (k : α) (v : β) (m m' : FiniteMap α β) : WellFormed m → m' = FiniteMap.store m k v → WellFormed m'
+
+
+end FiniteMap
+
+def Array (α : Type u) [HasLess α] [forall (x y:α), Decidable (x < y)] (β : Type v) : Type (max u v) :=
+{m : FiniteMap α β // m.WellFormed }
 
 end
-
-
 
 
 @[reducible]
@@ -167,29 +192,14 @@ denoteInhabited
 
 end SmtSort
 
+
+-- Array definitions necessary for defining SMT semantics
 namespace Array
 section
 variables {α β : Type}
 
-protected def toList (a : Array α β) : List (α × β) :=
-a.elems
-
-protected def keys (a : Array α β) : List α :=
-a.elems.map (λ e => e.fst)
-
-
-
-protected def select [HasBeq α] (a : Array α β) (k : α) : β :=
-match a.elems.lookup k with
-| some v => v
-| none => a.dflt
-
-
-protected def store [HasLess α] [forall (x y:α), Decidable (x < y)] (a : Array α β) (k : α) (v : β) : Array α β :=
-{a with elems := SortedAList.insert k v a.elems}
-
 private def checkEntry [HasBeq α] (a : Array α β) (k : α) (p : β → Bool) : Bool :=
-match a.elems.lookup k with
+match a.entries.lookup k with
 | some v => p v
 | none => false
 
