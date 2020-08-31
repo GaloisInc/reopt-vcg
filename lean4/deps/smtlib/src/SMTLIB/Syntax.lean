@@ -123,6 +123,9 @@ def bool := base SmtSort.bool
 def bitvec (n : Nat) := base (SmtSort.bitvec n)
 def array (k v : SmtSort) := base (SmtSort.array k v)
 
+def funSort (domain : List SmtSort) (codomain : SmtSort) : ConstSort
+  := List.foldr (fun x t =>  fsort x t) (base codomain) domain
+
 end ConstSort
 
 def Symbol := String

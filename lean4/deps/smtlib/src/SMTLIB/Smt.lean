@@ -73,18 +73,18 @@ end Command
 -- def Ident := Raw.Ident
 
 @[reducible]
-def argsToType (ss : List SmtSort) (res : SmtSort) : Type 
-  := List.foldr (fun x t => Term x -> t) (Term res) ss
+def funType (domain : List SmtSort) (codomain : SmtSort) : Type
+  := List.foldr (fun x t => Term x -> t) (Term codomain) domain
 -- | [], res        => Term res
--- | (x :: xs), res => Term x -> argsToType xs res
+-- | (x :: xs), res => Term x -> funType xs res
 
 -- -- given ident [a, b, c] and d, turns teram a -> Term b -> Term c -> Term d into (ident [a, b, c])
 -- def app_ident_aux (cs : ConstSort) (ident : Ident cs) 
---   : sorted_list Term cs.args -> argsToType cs.args cs.result
+--   : sorted_list Term cs.args -> funType cs.args cs.result
 -- | nil             => Raw.Term.app_ident ident args.reverse
 -- | (s :: ss), args => fun (t_s : Term s) => app_ident_aux ss (t_s :: args)
 
--- def app_ident  {args : List sort} {res : sort} (ident : Ident args res) : argsToType args res
+-- def app_ident  {args : List sort} {res : sort} (ident : Ident args res) : funType args res
 --   := app_ident_aux res ident args []
 
 section
@@ -261,18 +261,18 @@ def runSmtM {a : Type} (idGen : IdGen) (m : SmtM a) : (a × IdGen × Script) :=
   (r.fst, (r.snd.idGen, r.snd.revScript.reverse))
 
 theorem ConstSortToTypeFold {res : SmtSort} : forall {args : List SmtSort}, 
- ConstSortToType (List.foldr fsort (base res) args) = argsToType args res -- := sorryAx _
+ ConstSortToType (List.foldr fsort (base res) args) = funType args res -- := sorryAx _
 | []       => rfl
 | hd :: tl => congrArg (fun r => (Term hd -> r)) (@ConstSortToTypeFold tl)
 
-def declareFun (s : String) (args : List SmtSort) (res : SmtSort) : SmtM (argsToType args res) := do
+def declareFun (s : String) (args : List SmtSort) (res : SmtSort) : SmtM (funType args res) := do
   s' <- freshSymbol s;
   let ident := Raw.Ident.symbol (List.foldr fsort (base res) args) s';
   do modify (fun st => {st with revScript := (declareFun s' args res) :: st.revScript });
      pure (Eq.mp ConstSortToTypeFold ident.expandIdent)
 
 def instArgsAux (res : SmtSort) : 
-    forall (args : List SmtSort) (body : argsToType args res) (acc : List (Sigma Raw.SortedVar)), 
+    forall (args : List SmtSort) (body : funType args res) (acc : List (Sigma Raw.SortedVar)), 
     SmtM (List (Sigma Raw.SortedVar) × Term res) 
 | [],       body, acc    => pure (acc.reverse, body)
 | hd :: tl, f,    acc    => do   
@@ -280,12 +280,12 @@ def instArgsAux (res : SmtSort) :
   let arg := mkSymbol s hd;
   instArgsAux tl (f arg) (Sigma.mk hd (Raw.SortedVar.mk s) :: acc)
 
-def instArgs (res : SmtSort) (args : List SmtSort) (body : argsToType args res) 
-    : SmtM (List (Sigma Raw.SortedVar) × Term res) := 
+def instArgs (res : SmtSort) (args : List SmtSort) (body : funType args res)
+    : SmtM (List (Sigma Raw.SortedVar) × Term res) :=
     instArgsAux res args body []
 
-def defineFun (s : String) (args : List SmtSort) (res : SmtSort) (body : argsToType args res)
-  : SmtM (argsToType args res) := do
+def defineFun (s : String) (args : List SmtSort) (res : SmtSort) (body : funType args res)
+  : SmtM (funType args res) := do
   s' <- freshSymbol s;
   let ident := Raw.Ident.symbol (List.foldr fsort (base res) args) s';
   (args', body') <- instArgs res args body;
