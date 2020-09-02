@@ -375,7 +375,7 @@ end Ident
 
 structure SortedVar (sort : SmtSort) : Type  :=
 (var : Symbol)
-  
+
 namespace SortedVar 
 
 protected

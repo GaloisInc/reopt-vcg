@@ -26,6 +26,22 @@ def power {α β} : List α → List β → List (List (α × β))
 | [] , vs => []
 | k::ks, vs => (power ks vs).joinMap (λ m => vs.map (λ v => (k, v)::m))
 
+inductive In.{u} {α : Type u} (x : α) : List α → Prop
+| first : ∀ (l : List α), In (x :: l)
+| rest  : ∀ (y : α) {xs : List α}, In xs → In (y :: xs)
+
+inductive Forall.{u} {α : Type u} (p : α → Prop) : List α → Prop
+| nil  : Forall []
+| cons : ∀ {x : α} {xs : List α}, p x → Forall xs → Forall (x :: xs)
+
+namespace Forall
+
+def map.{u} {α : Type u} {p q : α → Prop} (f : ∀ {x : α}, p x → q x) : ∀ {l : List α}, Forall p l → Forall q l
+| [], Forall.nil => Forall.nil
+| (_::_), Forall.cons xH xsH => Forall.cons (f xH) (map xsH)
+
+end Forall
+
 end List
 
 namespace SortedAList
