@@ -26,7 +26,7 @@ end upd
 
 
 def updMap {α β : Type} [DecidableEq α] (f : α -> Option β) (k : α) (v : β) :  α -> Option β :=
-  upd f k (some v) 
+  upd f k (some v)
 
 namespace Std
 
@@ -220,6 +220,16 @@ namespace Raw
 
 def Env := Symbol -> Option ConstSort
 
+namespace Env
+
+def empty : Env := λ _ => none
+
+end Env
+
+def updEnvMany (e : Env) (entries : List (Sigma SortedVar)) : Env :=
+  entries.foldr (λ p e' => updMap e' p.snd.var (ConstSort.base p.fst)) e
+
+
 --------------------------------------------------------------------------------
 -- Well sorted terms
 --
@@ -232,7 +242,7 @@ inductive WS : forall {cs : ConstSort}, Env → Ident cs → Prop
 | symbol : ∀ {e : Env} {cs : ConstSort} {x : Symbol}, e x = some cs → WS e (Ident.symbol cs x)
 | builtin : ∀ (e : Env) {cs : ConstSort} (b : BuiltinIdent cs), WS e (Ident.builtin b)
 
-def WS.updMap {e : Env} (x : Symbol) (xPf : e x = none) (xCS : ConstSort) : 
+def updMapWS {e : Env} (x : Symbol) (xPf : e x = none) (xCS : ConstSort) :
   ∀ {cs : ConstSort} (y : Ident cs) (ws : WS e y), WS (updMap e x xCS) y
 | _, (Ident.symbol cs y), (WS.symbol (yPf : e y = some cs)) =>
   if h : x = y
@@ -267,49 +277,90 @@ inductive WS : forall {cs : ConstSort}, Env → Term cs → Prop
   WS (updMap e x (ConstSort.base s1)) t2 →
   WS e (Term.smtLet x t1 t2)
 | smtForall : ∀ {e : Env} {s : SmtSort} {x : SortedVar s} {t : Term ConstSort.bool},
-  WS (updMap e x.var (Raw.ConstSort.base s)) t →
+  WS (updMap e x.var (ConstSort.base s)) t →
   WS e (Term.smtForall x t)
 | smtExists : ∀ {e : Env} {s : SmtSort} {x : SortedVar s} {t : Term ConstSort.bool},
-  WS (updMap e x.var (Raw.ConstSort.base s)) t →
+  WS (updMap e x.var (ConstSort.base s)) t →
   WS e (Term.smtExists x t)
 
 
 -- FIXME prove
-axiom WS.envShadow {e : Env} {cs : ConstSort} {t : Term cs} (x : Symbol) (xCS xCS' : ConstSort) :
+axiom envShadowWS {e : Env} {cs : ConstSort} {t : Term cs} (x : Symbol) (xCS xCS' : ConstSort) :
   WS (updMap e x xCS') t →
   WS (updMap (updMap e x xCS) x xCS') t
 
 -- FIXME prove
-axiom WS.envNonEqSub {e : Env} {cs : ConstSort} {t : Term cs} (x y : Symbol) (xCS yCS : ConstSort) :
+axiom envNonEqSubWS {e : Env} {cs : ConstSort} {t : Term cs} (x y : Symbol) (xCS yCS : ConstSort) :
   e x = none →
   x ≠ y →
   WS (updMap e y yCS) t →
   WS (updMap (updMap e x xCS) y yCS) t
 
-def WS.updMap {e : Env} (x : Symbol) (pf : e x = none) (xCS : ConstSort) : 
-  ∀ {cs : ConstSort} (t : Term cs) (ws : WS e t), WS (updMap e x xCS) t
-| (ConstSort.base _), (Term.const _ sc), _ =>
-  WS.const (updMap e x xCS) sc
-| (ConstSort.base _), (Term.ident y), (Term.WS.ident yWS) =>
-  WS.ident (Ident.WS.updMap x pf xCS y yWS)
-| (ConstSort.base _), (app t1 t2), (Term.WS.app ws1 ws2) =>
-  WS.app (WS.updMap t1 ws1) (WS.updMap t2 ws2)
-| cs@(ConstSort.base _), (Term.smtLet y t1 t2), (WS.smtLet ws1 (ws2 : WS (updMap e y cs) t2)) =>
-  let ws1' : WS (updMap e x xCS) t1 := WS.updMap t1 ws1;
-  let ws2' : WS (updMap (updMap e x xCS) y cs) t2 :=
-    if h : x = y
-    then
-      let hWS : WS (updMap (updMap e y xCS) y cs) t2 := WS.envShadow y xCS cs ws2;
-      h.symm ▸ hWS
-    else
-      WS.envNonEqSub x y xCS cs pf h ws2;
-  WS.smtLet ws1' ws2'
--- BOOKMARK / FIXME do these (N.B., the fsort case below is unreachable... right?
--- All of the constructors for `Term` have `ConstSort.base _` for their index.
---| (ConstSort.base SmtSort.bool), (smtForall sx p), (WS.smtForall _) =>
---| (ConstSort.base SmtSort.bool), (smtExists {var := {data := _}} _) _ =>
--- | (ConstSort.fsort _ _), _, _ =>
+def updMapWSBinder
+  {e : Env}
+  (x : Symbol)
+  (xCS : ConstSort)
+  (pf : e x = none)
+  {y : Symbol}
+  {cs yCS : ConstSort}
+  (t : Term cs)
+  (ws : WS (updMap e y yCS) t)
+  : WS (updMap (updMap e x xCS) y yCS) t :=
+if h : x = y
+then
+  have hWS : WS (updMap (updMap e y xCS) y yCS) t from envShadowWS y xCS yCS ws;
+  h.symm ▸ hWS
+else
+  envNonEqSubWS x y xCS yCS pf h ws
 
+
+def updMapWS {e : Env} (x : Symbol) (xCS : ConstSort) (pf : e x = none) :
+  ∀ {cs : ConstSort} {t : Term cs} (ws : WS e t), WS (updMap e x xCS) t
+| _, (Term.const _ sc), _ =>
+  WS.const (updMap e x xCS) sc
+| _, (Term.ident y), (Term.WS.ident yWS) =>
+  WS.ident (Ident.updMapWS x pf xCS y yWS)
+| _, (Term.app t1 t2), (Term.WS.app ws1 ws2) =>
+  WS.app (updMapWS ws1) (updMapWS ws2)
+| cs@(ConstSort.base _), (Term.smtLet y t1 t2), (WS.smtLet ws1 (ws2 : WS (updMap e y cs) t2)) =>
+  let ws1' : WS (updMap e x xCS) t1 := updMapWS ws1;
+  let ws2' : WS (updMap (updMap e x xCS) y cs) t2 := updMapWSBinder x xCS pf t2 ws2;
+  WS.smtLet ws1' ws2'
+| (ConstSort.base SmtSort.bool), (@Term.smtForall s ⟨y⟩ t), (WS.smtForall ws) =>
+  let yCS := ConstSort.base s;
+  let ws' : WS (updMap (updMap e x xCS) y yCS) t := updMapWSBinder x xCS pf t ws;
+  WS.smtForall ws'
+| (ConstSort.base SmtSort.bool), (@Term.smtExists s ⟨y⟩ t), (WS.smtExists ws) =>
+  let yCS := ConstSort.base s;
+  let ws' : WS (updMap (updMap e x xCS) y yCS) t := updMapWSBinder x xCS pf t ws;
+  WS.smtExists ws'
+
+-- FIXME prove
+axiom envShadowManyWS {e : Env} {cs : ConstSort} {t : Term cs} (x : Symbol) (xCS : ConstSort) (ys : List (Sigma SortedVar)) :
+  (ys.find? (λ (p : Sigma SortedVar) => p.snd.var = x)).isSome = true →
+  WS (updEnvMany e ys) t →
+  WS (updEnvMany (updMap e x xCS) ys) t
+
+-- FIXME prove
+axiom envNonEqSubManyWS {e : Env} {cs : ConstSort} {t : Term cs} (x : Symbol) (xCS : ConstSort) (ys : List (Sigma SortedVar)) :
+  e x = none →
+  (ys.find? (λ (p : Sigma SortedVar) => p.snd.var = x)).isSome ≠ true →
+  WS (updEnvMany e ys) t →
+  WS (updEnvMany (updMap e x xCS) ys) t
+
+def updMapWSBinderMany
+  {e : Env}
+  (x : Symbol)
+  (xCS : ConstSort)
+  (pf : e x = none)
+  {cdom : ConstSort}
+  (body : Term cdom)
+  (ys : List (Sigma SortedVar))
+  (ws : WS (updEnvMany e ys) body)
+  : WS (updEnvMany (updMap e x xCS) ys) body :=
+if h : (ys.find? (λ (p : Sigma SortedVar) => p.snd.var = x)).isSome = true
+then envShadowManyWS x xCS ys h ws
+else envNonEqSubManyWS x xCS ys pf h ws
 
 
 end Term
@@ -320,7 +371,9 @@ structure WSTerm (env : Env) (cs : ConstSort) : Type :=
 
 namespace WSTerm
 
-def updMap {e : Env} {cs : ConstSort} (t : WSTerm e cs) (x : Symbol) (s : SmtSort) (pf : e x = none) : WSTerm (updMap e x s) cs :=
+-- FIXME does it matter that this doesn't relate the underlying term in the output to the one in the input?
+def updMapWS {e : Env} {cs : ConstSort} (t : WSTerm e cs) (x : Symbol) (xCS : ConstSort) (pf : e x = none) : WSTerm (updMap e x xCS) cs :=
+⟨t.term, Term.updMapWS x xCS pf t.term t.ws⟩
 
 
 
@@ -471,33 +524,6 @@ def semantics {e : Env} (m : Model e) : forall { cs : ConstSort } (i : Ident cs)
 
 end Ident
 
-class Finite (α : Type) [DecidableEq α] :=
-  (elems  : List α)
-  --(complete : forall x, elems.elem x = true)
-
-
-
-namespace SmtSort
-
-
-private def denoteFinite : forall (s : SmtSort), Finite s.denote
-| SmtSort.bool => {elems := [true, false]}
-| SmtSort.bitvec n => {elems := List.map (BitVec.ofNat n) $ List.range (2 ^ n)}
-| SmtSort.array k v =>
-  let kFinite := denoteFinite k;
-  let vFinite := denoteFinite v;
-  let elems : List (Smt.Array k.denote v.denote):=
-    vFinite.elems.joinMap $ λ (d : v.denote) =>
-      kFinite.elems.powerset.joinMap $ λ (ks : List k.denote) =>
-        (List.power ks vFinite.elems).map $ λ (m : List (k.denote × v.denote)) =>
-          ({elems := m.qsort (λ p1 p2 => p1.fst < p2.fst), dflt := d} : Array k.denote v.denote);
-  {elems := elems}
-
-
-instance denote.Finite : forall (s : SmtSort), Finite s.denote :=
-denoteFinite
-
-end SmtSort
 
 namespace Term
 
@@ -553,35 +579,72 @@ structure FunDef :=
 
 namespace FunDef
 
-inductive WS : Env → FunDef → Prop
-| funDef : ∀ (e : Env) (fn : FunDef), 
-  Term.WS (fn.domain.foldl (λ e' x => updMap e' x.snd.var (Raw.ConstSort.base x.fst)) e) fn.body →
-  WS e fn
+def fnSort (f : FunDef) : ConstSort :=
+ConstSort.funSort f.domain f.codomain
 
+structure WS (e : Env) (fn : FunDef) : Prop :=
+(bodyWS : Term.WS (updEnvMany e fn.domain) fn.body)
+
+
+-- def updMapWS {e : Env} (x : Symbol) (xCS : ConstSort) (pf : e x = none) :
+--   ∀ (domain : List (Sigma SortedVar)) (codomain : SmtSort) (body : Term (ConstSort.base codomain)),
+--   WS e {domain := domain, codomain := codomain, body := body} →
+--   WS (updMap e x xCS) {domain := domain, codomain := codomain, body := body}
+-- | [], cdom, body, fnWS =>
+--   let fn : FunDef := {domain := [], codomain := cdom, body := body};
+--   have bodyWS : Term.WS (updMap e x xCS) body from Term.updMapWS x xCS pf body fnWS.bodyWS;
+--   have fnWS'  : WS (updMap e x xCS) fn := ⟨bodyWS⟩;
+--   fnWS'
+-- | (d::ds), cdom, body, fnWS =>
+--   let fn  : FunDef := {domain := ds,    codomain := cdom, body := body};
+--   let fn' : FunDef := {domain := d::ds, codomain := cdom, body := body};
+--   have bodyWS :
 
 end FunDef
 
-structure WSFunDef (e : Env) :=
+structure NamedFunDef :=
+(name : Symbol)
 (funDef : FunDef)
-(ws : FunDef.WS e funDef)
+
+namespace NamedFunDef
+
+def InEnv (fn : NamedFunDef) (e : Env) : Prop := e fn.name = fn.funDef.fnSort
+
+end NamedFunDef
 
 -- An SMT context defined by the top-level commands in a script.
 structure Context :=
 -- | The envirnoment of in-scope names and their sort.
 (env : Env)
 -- | Terms asserted to be true.
-(asserts : List (WSTerm env ConstSort.bool))
+(asserts : List (Term ConstSort.bool))
+-- | Assertions are well-sorted.
+(wsAsserts : asserts.Forall (Term.WS env))
 -- | Names defined via the `define-fun` command.
-(defines : List (Symbol × WSFunDef env))
+(defines : List NamedFunDef)
+-- | Defined functions are well-sorted.
+(wsDefines : defines.Forall (λ (f : NamedFunDef) => f.InEnv env ∧ FunDef.WS env f.funDef))
 
 namespace Context
 
-def assert (ctx : Context) (p : WSTerm ctx.env ConstSort.bool) : Context :=
-{ctx with asserts := p :: ctx.asserts}
+def empty : Context :=
+{ env := Env.empty,
+  asserts := [],
+  wsAsserts := List.Forall.nil,
+  defines := [],
+  wsDefines := List.Forall.nil
+}
 
-def declare (ctx : Context) (f : Symbol) (pf : ctx.env f = none) (domain : List SmtSort) (codomain : SmtSort) :=
-let env' := updMap ctx.env f (ConstSort.funSort domain codomain);
-{ctx with env := env'}
+def assert (ctx : Context) (p : WSTerm ctx.env ConstSort.bool) : Context :=
+{ctx with asserts := p.term :: ctx.asserts,
+          wsAsserts := List.Forall.cons p.ws ctx.wsAsserts
+}
+
+def declare (ctx : Context) (f : Symbol) (pf : ctx.env f = none) (domain : List SmtSort) (codomain : SmtSort) : Context :=
+let fSort := ConstSort.funSort domain codomain;
+let env' := updMap ctx.env f fSort;
+{ctx with env := env',
+          wsAsserts := ctx.wsAsserts.map (λ ws => Term.updMapWS f fSort ws)}
 
 end Context
 
@@ -590,15 +653,16 @@ namespace Command
 -- Describes how commands update the SMT context.
 inductive Interp : Context → Command → Context → Prop
 | assert : ∀ (ctx : Context) (p : WSTerm ctx.env ConstSort.bool),
-  Interp ctx p (ctx.assert p)
+  Interp ctx (Command.assert p.term) (ctx.assert p)
 | setLogic : ∀ (ctx : Context) (l : Logic),
   Interp ctx (Command.setLogic l) ctx
 | setOption : ∀ (ctx : Context) (o : Opt),
   Interp ctx (Command.setOption o) ctx
 | comment : ∀ (ctx : Context) (msg : String),
   Interp ctx (Command.comment msg) ctx
-| declareFun : ∀ (f : Symbol) (domain : List SmtSort) (codomain : SmtSort),
-  
+| declareFun : ∀ (ctx : Context) (f : Symbol) (dom : List SmtSort) (cdom : SmtSort)
+               (pf : ctx.env f = none),
+  Interp ctx (Command.declareFun f dom cdom) (ctx.declare f pf dom cdom)
 -- | defineFun : ∀ (e e':Env) (m:Model e) (f : Symbol) (params : List (Sigma SortedVar))
 --               (s : SmtSort) (body : Term (ConstSort.base s)),
 --   e' = updMap e f (Raw.ConstSort.base s) →
