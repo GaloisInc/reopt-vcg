@@ -56,11 +56,11 @@ t.val.depth f
 @[inline] def revFold (f : σ → forall (a : α), (β a) → σ) : σ → DRBMap α β lt → σ
 | b, ⟨t, _⟩ => t.revFold f b
 
-@[inline] def mfold {m : Type w → Type w'} [Monad m] (f : σ → forall (a : α), (β a) → m σ) : σ → DRBMap α β lt → m σ
-| b, ⟨t, _⟩ => t.mfold f b
+@[inline] def foldM {m : Type w → Type w'} [Monad m] (f : σ → forall (a : α), (β a) → m σ) : σ → DRBMap α β lt → m σ
+| b, ⟨t, _⟩ => t.foldM f b
 
-@[inline] def mfor {m : Type w → Type w'} [Monad m] (f : forall (a : α), (β a) → m PUnit) (t : DRBMap α β lt) : m PUnit :=
-t.mfold (fun _ k v => f k v) ⟨⟩
+@[inline] def forM {m : Type w → Type w'} [Monad m] (f : forall (a : α), (β a) → m PUnit) (t : DRBMap α β lt) : m PUnit :=
+t.foldM (fun _ k v => f k v) ⟨⟩
 
 @[inline] def isEmpty : DRBMap α β lt → Bool
 | ⟨leaf, _⟩ => true
