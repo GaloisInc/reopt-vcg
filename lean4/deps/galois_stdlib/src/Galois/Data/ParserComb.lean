@@ -21,7 +21,7 @@ instance : Monad (Parser tok) :=
   , pure := fun _ x => Parser.mk (pure x)
   }
 
-instance : MonadState (List tok) (Parser tok) :=
+instance : MonadStateOf (List tok) (Parser tok) :=
   { set := fun s => Parser.mk (set s)
   , get := Parser.mk get
   , modifyGet := fun _ f => Parser.mk (modifyGet f)
