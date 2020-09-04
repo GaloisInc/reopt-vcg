@@ -35,16 +35,30 @@ fun ⟨a, h₁⟩ ⟨b, h₂⟩ =>
   if valLtPf : a < b then isTrue (Subtype.lt valLtPf)
   else isFalse (fun ltPf => absurd ltPf (Subtype.ltInvNeg valLtPf))
 
+axiom LessTransitivity [HasLess α] :
+(∀ (x y z : α), x < y → y < z → x < z) →
+(∀ (x y z : {x : α // p x}), x < y → y < z → x < z)
+
+axiom LessAsymmetry [HasLess α] :
+(∀ (x y : α), x < y → ¬(y < x)) →
+(∀ (x y : {x : α // p x}), x < y → ¬(y < x))
+
+axiom LessTotality [HasLess α] :
+(∀ (x y : α), x < y ∨ x = y ∨ y < x) →
+(∀ (x y : {x : α // p x}), x < y ∨ x = y ∨ y < x)
+
+
+instance {α : Type u} {p : α → Prop} [h : HasLessOrder α] : HasLessOrder {x : α // p x} :=
+{ transitive := Subtype.LessTransitivity h.transitive,
+  asymmetric := Subtype.LessAsymmetry h.asymmetric,
+  total := Subtype.LessTotality h.total
+}
+
 end Subtype
 
 
 namespace LessOrder
 
-
--- FIXME prove
-axiom SubtypeLessOrder {α : Type u} {p : α → Prop} [HasLessOrder α] : HasLessOrder {x : α // p x}
-
-axiom SubtypeDecidableLessOrder {α : Type u} {p : α → Prop} [DecidableLessOrder α] : DecidableLessOrder {x : α // p x}
 
 end LessOrder
 

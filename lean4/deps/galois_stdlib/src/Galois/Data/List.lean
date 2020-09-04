@@ -1,3 +1,6 @@
+
+import Galois.Init.Order
+
 namespace List
 
 def qsort.{u} {α : Type} [Inhabited α] (as : List α) (lt : α → α → Bool) : List α :=
@@ -41,6 +44,16 @@ def map.{u} {α : Type u} {p q : α → Prop} (f : ∀ {x : α}, p x → q x) : 
 | (_::_), Forall.cons xH xsH => Forall.cons (f xH) (map xsH)
 
 end Forall
+
+
+
+inductive IsSortedAList.{u, v} {α : Type u} {β : Type v} [HasLessOrder α] : List (α × β) → Prop
+| nil : IsSortedAList []
+| cons : ∀ (k : α) (v : β) (l : List (α × β)),
+         IsSortedAList l →
+         l.Forall (λ (kv : (α × β)) => k < kv.fst) →
+         IsSortedAList ((k,v)::l)
+
 
 end List
 
