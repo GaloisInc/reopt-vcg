@@ -10,8 +10,12 @@ structure FiniteMap (α : Type u) (β : Type v) : Type (max u v) :=
 
 namespace FiniteMap
 
+def empty (α : Type u) {β : Type v} (default : β) : FiniteMap α β :=
+⟨[], default⟩
+
 section
 variables {α : Type u} {β : Type v}
+
 
 def FiniteMap.decEq
   [DecidableEq α]
@@ -65,21 +69,21 @@ end
 
 end
 
-axiom LessTransitivity {α : Type u} {β : Type v}
+axiom Less.transitivity {α : Type u} {β : Type v}
  [HasLess α] [HasLess β]
  [DecidableEq α] [DecidableEq β] :
 (∀ (x y z : α), x < y → y < z → x < z) →
 (∀ (x y z : β), x < y → y < z → x < z) →
 (∀ (x y z : FiniteMap α β), x < y → y < z → x < z)
 
-axiom LessAsymmetry {α : Type u} {β : Type v}
+axiom Less.asymmetry {α : Type u} {β : Type v}
  [HasLess α] [HasLess β]
  [DecidableEq α] [DecidableEq β] :
 (∀ (x y : α), x < y → ¬(y < x)) →
 (∀ (x y : β), x < y → ¬(y < x)) →
 (∀ (x y : FiniteMap α β), x < y → ¬(y < x))
 
-axiom LessTotality {α : Type u} {β : Type v}
+axiom Less.totality {α : Type u} {β : Type v}
  [HasLess α] [HasLess β]
  [DecidableEq α] [DecidableEq β] :
 (∀ (x y : α), x < y ∨ x = y ∨ y < x) →
@@ -90,21 +94,29 @@ instance {α : Type u} {β : Type v}
   [DecidableEq α] [DecidableEq β]
   [hA : HasLessOrder α] [hB : HasLessOrder β]
   : HasLessOrder (FiniteMap α β) :=
-{ transitive := FiniteMap.LessTransitivity hA.transitive hB.transitive,
-  asymmetric := FiniteMap.LessAsymmetry hA.asymmetric hB.asymmetric,
-  total := FiniteMap.LessTotality hA.total hB.total
+{ transitive := FiniteMap.Less.transitivity hA.transitive hB.transitive,
+  asymmetric := FiniteMap.Less.asymmetry hA.asymmetric hB.asymmetric,
+  total := FiniteMap.Less.totality hA.total hB.total
 }
 
-end FiniteMap
+structure WellFormed {α : Type u} {β : Type v} (fm : FiniteMap α β)
+  [DecidableLessOrder α]
+  [DecidableLessOrder β] : Prop :=
+(sorted : fm.entries.IsSortedMap)
+(noDefault : fm.entries.Forall (λ (kv : α × β) => kv.snd ≠ fm.default))
 
+def empty.wellFormed (α : Type u) {β : Type v}
+  [DecidableLessOrder α]
+  [DecidableLessOrder β]
+  (v : β) : FiniteMap.WellFormed (FiniteMap.empty α v) :=
+⟨List.IsSortedMap.nil, List.Forall.nil⟩
+
+end FiniteMap
 
 def Array (α : Type u) (β : Type v)
   [DecidableLessOrder α]
   [DecidableLessOrder β] : Type (max u v) :=
-{ model : FiniteMap α β
-  // model.entries.IsSortedAList
-    ∧ model.entries.Forall (λ (kv : α × β) => kv.snd ≠ model.default)
-}
+{ fm : FiniteMap α β // FiniteMap.WellFormed fm}
 
 namespace Array
 variables {α : Type u} {β : Type v}
@@ -127,9 +139,42 @@ instance [hA : DecidableLessOrder α] [hB : DecidableLessOrder β] : DecidableLe
 }
 
 
+--def const
 
+section Operations
+variables [DecidableLessOrder α] [DecidableLessOrder β]
+
+def select (a : Array α β) (k : α) : β :=
+match a.val.entries.lookup k with
+| some v => v
+| none => a.val.default
+
+
+def store [HasLess α] [forall (x y:α), Decidable (x < y)] (a : Array α β) (k : α) (v : β) : Array α β :=
+if h : v = a.val.default
+then
+  let fm : FiniteMap α β := {a.val with entries := List.SortedMap.erase k a.val.entries};
+  have h1 : fm.entries.IsSortedMap from
+    List.SortedMap.erase.wellFormed k a.property.sorted;
+  have h2 : fm.entries.Forall (λ (kv : α × β) => kv.snd ≠ fm.default) from
+    List.SortedMap.erase.stillNotIn k a.property.noDefault;
+  ⟨fm, ⟨h1, h2⟩⟩
+else
+  let fm : FiniteMap α β := {a.val with entries := List.SortedMap.insert k v a.val.entries};
+  have h1 : fm.entries.IsSortedMap from
+    List.SortedMap.insert.wellFormed k v a.property.sorted;
+  have h2 : fm.entries.Forall (λ (kv : α × β) => kv.snd ≠ fm.default) from
+    List.SortedMap.insert.stillNotIn k h a.property.noDefault;
+  ⟨fm, ⟨h1, h2⟩⟩
+
+end Operations
 
 end Array
+
+def Array.const (α : Type u) {β : Type v} (default : β)
+  [DecidableLessOrder α]
+  [DecidableLessOrder β] : Array α β :=
+⟨FiniteMap.empty α default, FiniteMap.empty.wellFormed α default⟩
 
 
 end Smt

@@ -47,38 +47,22 @@ end Forall
 
 
 
-inductive IsSortedAList.{u, v} {α : Type u} {β : Type v} [HasLessOrder α] : List (α × β) → Prop
-| nil : IsSortedAList []
+
+inductive IsSortedMap.{u, v} {α : Type u} {β : Type v} [HasLessOrder α] : List (α × β) → Prop
+| nil : IsSortedMap []
 | cons : ∀ (k : α) (v : β) (l : List (α × β)),
-         IsSortedAList l →
+         IsSortedMap l →
          l.Forall (λ (kv : (α × β)) => k < kv.fst) →
-         IsSortedAList ((k,v)::l)
+         -- N.B., HasLessOrder combined with this Forall implies
+         -- no duplicate keys.
+         IsSortedMap ((k,v)::l)
 
 
-end List
-
-namespace SortedAList
+namespace SortedMap
 universes u v
 variables {α : Type u} {β : Type v}
 
-
--- def lexLt [HasLess α] 
---           [HasLess β]
---           [forall (a1 a2 : α), Decidable (a1 < a2)]
---           [forall (b1 b2 : β), Decidable (b1 < b2)]
---           : List (α × β) → List (α × β) → Bool
--- | [], [] => false
--- | [], _::_ => true
--- | _::_, [] => false
--- | (k1, v1)::rst1, (k2, v2)::rst2 =>
---   if k1 < k2 then true
---   else if k2 < k1 then false
---   else if v1 < v2 then true
---   else if v2 < v1 then false
---   else lexLt rst1 rst2
-
-
-protected def insert [HasLess α] [forall (x y:α), Decidable (x < y)] (k : α) (v : β) : List (α × β) →  List (α × β)
+protected def insert [DecidableLessOrder α] (k : α) (v : β) : List (α × β) →  List (α × β)
 | [] => [(k,v)]
 | (k0, v0)::rst =>
   if k < k0
@@ -87,5 +71,38 @@ protected def insert [HasLess α] [forall (x y:α), Decidable (x < y)] (k : α) 
   then (k0, v0)::(insert rst)
   else (k,v)::rst
 
-end SortedAList
+-- FIXME prove
+axiom insert.wellFormed [DecidableLessOrder α] (k : α) (v : β) {l : List (α × β)} :
+List.IsSortedMap l →
+List.IsSortedMap (SortedMap.insert k v l)
 
+-- FIXME prove
+axiom insert.stillNotIn [DecidableLessOrder α] (k : α) {v v' : β} (pf : v ≠ v') {l : List (α × β)} :
+l.Forall (λ (kv : α × β) => kv.snd ≠ v') →
+(SortedMap.insert k v l).Forall (λ (kv : α × β) => kv.snd ≠ v')
+
+
+protected def erase [DecidableLessOrder α] (k : α) : List (α × β) →  List (α × β)
+| [] => []
+| l@((k0, v0)::rst) =>
+  if k = k0
+  then rst
+  else if k0 > k
+  then l
+  else (k0,v0)::(erase rst)
+
+-- FIXME prove
+axiom erase.wellFormed [DecidableLessOrder α] (k : α) {l : List (α × β)} :
+List.IsSortedMap l →
+List.IsSortedMap (SortedMap.erase k l)
+
+-- FIXME prove
+axiom erase.stillNotIn [DecidableLessOrder α] (k : α) {v : β} {l : List (α × β)} :
+l.Forall (λ (kv : α × β) => kv.snd ≠ v) →
+(SortedMap.erase k l).Forall (λ (kv : α × β) => kv.snd ≠ v)
+
+
+end SortedMap
+
+
+end List
