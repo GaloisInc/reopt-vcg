@@ -12,6 +12,7 @@ LOCAL_LEAN := src/Galois/Category/Coe1.lean\
   src/Galois/Init/Int.lean\
   src/Galois/Init/Io.lean\
   src/Galois/Init/Nat.lean\
+  src/Galois/Init/Order.lean\
   src/Galois/Init/Json.lean
 LOCAL_CXX  := src/Galois/Init/io_runtime.cpp
 

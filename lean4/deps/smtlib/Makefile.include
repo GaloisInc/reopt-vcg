@@ -1,4 +1,5 @@
 LOCAL_LEAN :=\
+ src/SmtLib/Array.lean\
  src/SmtLib/BitVec.lean\
  src/SmtLib/Denote.lean\
  src/SmtLib/IdGen.lean\

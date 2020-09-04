@@ -36,13 +36,16 @@ def FiniteMap.Less : FiniteMap α β → FiniteMap α β → Prop
 | a1, a2 => (a1.entries, a1.default) < (a2.entries, a2.default)
 
 instance FiniteMap.HasLess : HasLess (FiniteMap α β) :=
-⟨@FiniteMap.Less α β _ _ _ _⟩
+⟨@FiniteMap.Less α β _ _⟩
 
 
 def FiniteMap.decLt
+  [DecidableEq α]
+  [DecidableEq β]
   [DecidableLess α]
   [DecidableLess β]
-  (fm1 fm2 : FiniteMap α β) : Decidable (fm1 < fm2) :=
+  (fm1 fm2 : FiniteMap α β)
+  : Decidable (fm1 < fm2) :=
 FiniteMap.casesOn fm1 $ λ es1 d1 => FiniteMap.casesOn fm2 $ λ es2 d2 =>
   let prodLtDec : ∀ (p1 p2 : (α × β)), Decidable (p1 < p2) := prodHasDecidableLt;
   let listLtDec : ∀ (l1 l2 : List (α × β)), Decidable (l1 < l2) := List.hasDecidableLt;
@@ -50,8 +53,11 @@ FiniteMap.casesOn fm1 $ λ es1 d1 => FiniteMap.casesOn fm2 $ λ es2 d2 =>
 
 
 instance FiniteMap.DecidableLess
+  [DecidableEq α]
+  [DecidableEq β]
   [DecidableLess α]
-  [DecidableLess β] : ∀ (x y : FiniteMap α β), Decidable (x < y) :=
+  [DecidableLess β]
+  : ∀ (x y : FiniteMap α β), Decidable (x < y) :=
 FiniteMap.decLt
 
 
@@ -80,10 +86,13 @@ axiom LessTotality {α : Type u} {β : Type v}
 (∀ (x y : β), x < y ∨ x = y ∨ y < x) →
 (∀ (x y : FiniteMap α β), x < y ∨ x = y ∨ y < x)
 
-instance {α : Type u} {β : Type v} [HasLessOrder α] [HasLessOrder β] : HasLessOrder (FiniteMap α β) :=
-{ transitive := FiniteMap.LessTransitivity,
-  assymetric := FiniteMap.LessAsymmetry,
-  total := FiniteMap.LessTotality
+instance {α : Type u} {β : Type v}
+  [DecidableEq α] [DecidableEq β]
+  [hA : HasLessOrder α] [hB : HasLessOrder β]
+  : HasLessOrder (FiniteMap α β) :=
+{ transitive := FiniteMap.LessTransitivity hA.transitive hB.transitive,
+  asymmetric := FiniteMap.LessAsymmetry hA.asymmetric hB.asymmetric,
+  total := FiniteMap.LessTotality hA.total hB.total
 }
 
 end FiniteMap
@@ -110,9 +119,15 @@ instance [hA : DecidableLessOrder α] [hB : DecidableLessOrder β] : DecidableLe
 Subtype.DecidableLess
 
 instance [hA : DecidableLessOrder α] [hB : DecidableLessOrder β] : HasLessOrder (Array α β) :=
-Subtype.DecidableLess -- BOOKMARK
+Subtype.HasLessOrder
 
---axiom 
+instance [hA : DecidableLessOrder α] [hB : DecidableLessOrder β] : DecidableLessOrder (Array α β) :=
+{ eqDec := Array.DecidableEq,
+  ltDec := Array.DecidableLess
+}
+
+
+
 
 end Array
 
