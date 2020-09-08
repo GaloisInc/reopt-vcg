@@ -319,29 +319,29 @@ else
   envNonEqSubWS x y xCS yCS pf h ws
 
 
-def updMapWS {e : Env} (x : Symbol) (xCS : ConstSort) (pf : e x = none) :
-  ∀ {cs : ConstSort} {t : Term cs} (ws : WS e t), WS (updMap e x xCS) t
+theorem updMapWS : ∀ {e : Env} (x : Symbol) (xCS : ConstSort) (pf : e x = none)
+                   {cs : ConstSort} {t : Term cs} (ws : WS e t), WS (updMap e x xCS) t
 -- const
-| _, (Term.const _ sc), _ =>
+| e, x, xCS, _, _, (Term.const _ sc), _ =>
   WS.const (updMap e x xCS) sc
 -- ident
-| _, (Term.ident y), (Term.WS.ident yWS) =>
+| _, x, xCS, pf, _, (Term.ident y), (Term.WS.ident yWS) =>
   WS.ident (Ident.updMapWS x pf xCS y yWS)
 -- app
-| _, (Term.app t1 t2), (Term.WS.app ws1 ws2) =>
-  WS.app (updMapWS ws1) (updMapWS ws2)
+| _, x, xCS, pf, _, (Term.app t1 t2), (Term.WS.app ws1 ws2) =>
+  WS.app (updMapWS x xCS pf ws1) (updMapWS x xCS pf ws2)
 -- let
-| cs@(ConstSort.base _), (Term.smtLet y t1 t2), (WS.smtLet ws1 (ws2 : WS (updMap e y cs) t2)) =>
-  let ws1' : WS (updMap e x xCS) t1 := updMapWS ws1;
-  let ws2' : WS (updMap (updMap e x xCS) y cs) t2 := updMapWSBinder x xCS pf t2 ws2;
+| e, x, xCS, pf, cs@(ConstSort.base _), (Term.smtLet y t1 t2), (WS.smtLet ws1 (ws2 : WS (updMap e y _) t2)) =>
+  let ws1' : WS (updMap e x xCS) t1 := updMapWS x xCS pf ws1;
+  let ws2' : WS (updMap (updMap e x xCS) y _) t2 := updMapWSBinder x xCS pf t2 ws2;
   WS.smtLet ws1' ws2'
 -- forall
-| (ConstSort.base SmtSort.bool), (@Term.smtForall s ⟨y⟩ t), (WS.smtForall ws) =>
+| e, x, xCS, pf, (ConstSort.base SmtSort.bool), (@Term.smtForall s ⟨y⟩ t), (WS.smtForall ws) =>
   let yCS := ConstSort.base s;
   let ws' : WS (updMap (updMap e x xCS) y yCS) t := updMapWSBinder x xCS pf t ws;
   WS.smtForall ws'
--- exists
-| (ConstSort.base SmtSort.bool), (@Term.smtExists s ⟨y⟩ t), (WS.smtExists ws) =>
+-- -- exists
+| e, x, xCS, pf, (ConstSort.base SmtSort.bool), (@Term.smtExists s ⟨y⟩ t), (WS.smtExists ws) =>
   let yCS := ConstSort.base s;
   let ws' : WS (updMap (updMap e x xCS) y yCS) t := updMapWSBinder x xCS pf t ws;
   WS.smtExists ws'
