@@ -232,7 +232,7 @@ inductive BuiltinIdent : ConstSort -> Type
                       : BuiltinIdent (nary s bool arity)
 
 -- * Arrays
-| select (k v : SmtSort) : BuiltinIdent (binop (array k v) k v)
+| select (k v : SmtSort) : BuiltinIdent (ConstSort.fsort (array k v) (ConstSort.fsort k (ConstSort.base v)))--(binop (array k v) k v)
 | store  (k v : SmtSort) : BuiltinIdent (ternop (array k v) k v (array k v))
 
 -- CVC4 specific
