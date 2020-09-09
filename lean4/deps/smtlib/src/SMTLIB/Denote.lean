@@ -1,11 +1,14 @@
 
+import Galois.Init.Order
+import Galois.Data.DRBMap
 import Galois.Data.List
 import Galois.Data.RBMap
+import SmtLib.Array
 import SmtLib.Syntax
 import SmtLib.BitVec
 import Std.Data.RBMap
 import Std.Data.RBTree
-import Galois.Data.DRBMap
+
 
 
 def upd.{u, v} {α : Type u} [DecidableEq α] {β: α -> Type v} (f : forall v, β v) (k : α) (v : β k) : forall v, β v :=       
@@ -49,10 +52,6 @@ variables {α : Type u} {β : α → Type v} {lt : α → α → Bool}
 def keys : DRBMap α β lt → List α 
 | ⟨t, _⟩ => t.revFold (fun ps k v => k::ps) []
 
--- swf dcong { δ : α -> Type } : forall (m : DRBMap α β lt) 
---           (f : forall k, m.contains k -> β k = δ k), DRBMap α δ lt
-
-
 
 end DRBMap
 end Std
@@ -61,169 +60,143 @@ namespace Smt
 
 open Std (RBMap DRBMap)
 
-structure Array (α β : Type) :=
-(elems : List (α × β))
-(dflt : β)
+namespace Bool
 
-section
-variables {α β : Type}
+inductive Less : Bool → Bool → Prop
+| lt : Less true false
 
-def Array.decEq [DecidableEq α]
-                [DecidableEq β]
-                (arr1 arr2 : Array α β) : Decidable (arr1 = arr2) :=
-Array.casesOn arr1 $ λ elems1 dflt1 => Array.casesOn arr2 $ λ elems2 dflt2 =>
-  match (decEq elems1 elems2) with
-  | (isTrue e₁) =>
-    match (decEq dflt1 dflt2) with
-    | (isTrue e₂)  => isTrue (Eq.recOn e₁ (Eq.recOn e₂ rfl))
-    | (isFalse n₂) => isFalse (fun h => Array.noConfusion h (fun e₁' e₂' => absurd e₂' n₂))
-  | (isFalse n₁) => isFalse (fun h => Array.noConfusion h (fun e₁' e₂' => absurd e₁' n₁))
+private def lessLeftTrue : forall {b1 b2 : Bool}, Less b1 b2 → b1 = true
+| true, _, _ => rfl
+
+private def lessRightFalse : forall {b1 b2 : Bool}, Less b1 b2 → b2 = false
+| _, false, _ => rfl
 
 
-def Array.Less [HasLess α] [HasLess β] : Array α β → Array α β → Prop
-| a1, a2 => (a1.elems, a1.dflt) < (a2.elems, a2.dflt)
-
-instance Array.HasLess [HasLess α] [HasLess β] : HasLess (Array α β) :=
-⟨@Array.Less α β _ _⟩
-
-
-def Array.decLt [DecidableEq α]
-                [DecidableEq β]
-                [HasLess α] 
-                [HasLess β]
-                [forall (a1 a2 : α), Decidable (a1 < a2)]
-                [forall (b1 b2 : β), Decidable (b1 < b2)]
-                (arr1 arr2 : Array α β) : Decidable (arr1 < arr2) :=
-Array.casesOn arr1 $ λ elems1 dflt1 => Array.casesOn arr2 $ λ elems2 dflt2 =>
-  let prodLtDec : ∀ (p1 p2 : (α × β)), Decidable (p1 < p2) := prodHasDecidableLt;
-  let listLtDec : ∀ (l1 l2 : List (α × β)), Decidable (l1 < l2) := List.hasDecidableLt;
-  inferInstanceAs (Decidable ((elems1, dflt1) < (elems2, dflt2)))
-
-end
+private def boolDecidableLt (x y : Bool) : Decidable (Less x y) :=
+@Bool.casesOn
+  (λ b => Decidable (Less b y))
+  x
+  (isFalse (λ (h : Less false y) => Bool.noConfusion (lessLeftTrue h)))
+  (@Bool.casesOn
+    (λ b => Decidable (Less true b))
+    y
+    (isTrue Less.lt)
+    (isFalse (λ (h : Less true true) => Bool.noConfusion (lessRightFalse h))))
 
 
+instance : HasLess Bool := ⟨Less⟩
+instance : DecidableLess Bool := boolDecidableLt
+
+axiom Less.transitivity :∀ (x y z : Bool), x < y → y < z → x < z
+axiom Less.asymmetry : ∀ (x y : Bool), x < y → ¬(y < x)
+axiom Less.totality : ∀ (x y : Bool), x < y ∨ x = y ∨ y < x
+
+instance : HasLessOrder Bool :=
+{transitive := Less.transitivity,
+ asymmetric := Less.asymmetry,
+ total := Less.totality}
+
+
+instance : DecidableLessOrder Bool :=
+{ltDec := Bool.DecidableLess,
+ eqDec := Bool.DecidableEq}
+
+end Bool
+
+
+namespace BitVec
+
+def Less {n : Nat} : BitVec n → BitVec n → Prop := BitVec.ult
+
+instance (n:Nat) : HasLess (BitVec n) := ⟨BitVec.Less⟩
+instance (n:Nat) : DecidableLess (BitVec n) := @BitVec.decidable_ult n 
+
+axiom Less.transitivity {n} : ∀ (x y z : BitVec n), x < y → y < z → x < z
+axiom Less.asymmetry {n} : ∀ (x y : BitVec n), x < y → ¬(y < x)
+axiom Less.totality {n} : ∀ (x y : BitVec n), x < y ∨ x = y ∨ y < x
+
+instance {n} : HasLessOrder (BitVec n) :=
+{transitive := Less.transitivity,
+ asymmetric := Less.asymmetry,
+ total := Less.totality}
+
+
+instance {n} : DecidableLessOrder (BitVec n) :=
+{ltDec := @BitVec.DecidableLess n,
+ eqDec := @BitVec.DecidableEq n}
+
+end BitVec
+
+
+structure OrderedType :=
+(type : Type)
+(order : DecidableLessOrder type)
 
 
 @[reducible]
-protected def SmtSort.denote : SmtSort → Type
-| SmtSort.bool => Bool
-| SmtSort.bitvec n => BitVec n
-| SmtSort.array k v => Array k.denote v.denote
+protected def SmtSort.denote : SmtSort → OrderedType
+| SmtSort.bool => ⟨Bool, Bool.DecidableLessOrder⟩
+| SmtSort.bitvec n => ⟨BitVec n, BitVec.DecidableLessOrder⟩
+| SmtSort.array k v => 
+  match k.denote, v.denote with
+  | ⟨kTy, kOrd⟩, ⟨vTy, vOord⟩ => ⟨Array kTy vTy, Array.DecidableLessOrder⟩  
 
 
-namespace SmtSort
+
+instance SmtSort.denote.HasLess : ∀ (s:SmtSort), HasLess s.denote.type
+| s => ⟨s.denote.order.Less⟩
 
 
-private def denoteDecidableEq : forall (s : SmtSort), DecidableEq s.denote
-| SmtSort.bool => Bool.DecidableEq
-| SmtSort.bitvec n => BitVec.DecidableEq
-| SmtSort.array k v =>
-  let kHasLess := denoteDecidableEq k;
-  let vHasLess := denoteDecidableEq v;
-  Array.decEq
+instance SmtSort.denote.DecidableLess : ∀ (s:SmtSort), DecidableLess s.denote.type
+| s => s.denote.order.ltDec
 
 
-instance denote.DecidableEq : forall (s : SmtSort), DecidableEq s.denote :=
-  denoteDecidableEq
-
-inductive BoolLess : Bool → Bool → Prop
-| trueLess (b : Bool) : BoolLess true b
-
-private def boolLessImplTrue : forall {b1 b2 : Bool}, BoolLess b1 b2 → b1 = true
-| true, _, _ => rfl
-
-private def boolDecidableLt (x y : Bool) : Decidable (BoolLess x y) :=
-@Bool.casesOn
-  (λ b => Decidable (BoolLess b y))
-  x
-  (isFalse (λ (h : BoolLess false y) => Bool.noConfusion (boolLessImplTrue h)))
-  (isTrue (BoolLess.trueLess y))
-
-private def denoteHasLess : forall (s: SmtSort) , HasLess s.denote
-| SmtSort.bool => {Less := BoolLess}
-| SmtSort.bitvec n => {Less := @BitVec.ult n}
-| SmtSort.array k v =>
-  let kHasLess := denoteHasLess k;
-  let vHasLess := denoteHasLess v;
-  Array.HasLess
+instance SmtSort.denote.DecidableEq : ∀ (s:SmtSort), DecidableEq s.denote.type
+| s => s.denote.order.eqDec
 
 
-instance denote.HasLess : forall (s : SmtSort), HasLess s.denote :=
-denoteHasLess
+instance SmtSort.denote.DecidableLessOrder : ∀ (s:SmtSort), DecidableLessOrder s.denote.type
+| s => s.denote.order
 
 
-private def denoteDecidableLt : forall (s : SmtSort), forall (x y : s.denote), Decidable (x < y)
-| SmtSort.bool => boolDecidableLt
-| SmtSort.bitvec n => @BitVec.decidable_ult n
-| SmtSort.array k v =>
-  let kH := denoteDecidableLt k;
-  let vH := denoteDecidableLt v;
-  Array.decLt
-
-
-instance denote.DecidableLt : forall (s : SmtSort), forall (x y : s.denote), Decidable (x < y) :=
-denoteDecidableLt
-
-private def denoteInhabited : forall (s : SmtSort), Inhabited s.denote
-| SmtSort.bool => {default := true}
-| SmtSort.bitvec n => {default := 0}
-| SmtSort.array k v => {default := ⟨[], (denoteInhabited v).default⟩}
-
-instance denote.Inhabited : forall (s : SmtSort), Inhabited s.denote :=
-denoteInhabited
-
-end SmtSort
 
 namespace Array
 section
-variables {α β : Type}
-
-protected def toList (a : Array α β) : List (α × β) :=
-a.elems
-
-protected def keys (a : Array α β) : List α :=
-a.elems.map (λ e => e.fst)
+variables {α β : Type} [DecidableLessOrder α] [DecidableLessOrder β]
 
 
-
-protected def select [HasBeq α] (a : Array α β) (k : α) : β :=
-match a.elems.lookup k with
-| some v => v
-| none => a.dflt
-
-
-protected def store [HasLess α] [forall (x y:α), Decidable (x < y)] (a : Array α β) (k : α) (v : β) : Array α β :=
-{a with elems := SortedAList.insert k v a.elems}
-
-private def checkEntry [HasBeq α] (a : Array α β) (k : α) (p : β → Bool) : Bool :=
-match a.elems.lookup k with
-| some v => p v
-| none => false
-
-end
-
-private def bvEqRangeAux {β n} [HasBeq β] (a1 a2 : Array (BitVec n) β) (low : BitVec n) : Nat → Bool
+private def bvEqRangeAux {n} (a1 a2 : Array (BitVec n) β) (low : BitVec n) : Nat → Bool
 | Nat.zero => a1.select 0 == a2.select 0
 | Nat.succ i =>
   let idx := low + (BitVec.ofNat n i) + 1;
   a1.select idx == a2.select idx && bvEqRangeAux i
 
-def bvEqRange {β n} [HasBeq β] (a1 a2 : Array (BitVec n) β) (low high : BitVec n) : Bool :=
-if BitVec.ult high low then true
+end
+
+section
+variables {β : Type} [DecidableLessOrder β]
+
+
+def bvEqRange {n} (a1 a2 : Array (BitVec n) β) (low high : BitVec n) : Bool :=
+if high < low then true
 else
   let rangeSize := high - low;
   bvEqRangeAux a1 a2 low rangeSize.toNat
 
 
-def eqRange {β} [HasBeq β] :
+def eqRange :
   forall (s : RangeSort),
-  Array s.sort.denote β →
-  Array s.sort.denote β →
-  s.sort.denote →
-  s.sort.denote → Bool
+  Array s.sort.denote.type β →
+  Array s.sort.denote.type β →
+  s.sort.denote.type →
+  s.sort.denote.type → Bool
 | RangeSort.bitvec n, a1, a2, low, high => bvEqRange a1 a2 low high
 
+
+end
+
 end Array
+
 
 
 namespace Raw
@@ -394,8 +367,8 @@ namespace ConstSort
 
 @[reducible]
 protected def denote : ConstSort → Type
-| ConstSort.base s => s.denote
-| ConstSort.fsort a b => a.denote → b.denote
+| ConstSort.base s => s.denote.type
+| ConstSort.fsort a b => a.denote.type → b.denote
 
 end ConstSort
 
@@ -411,7 +384,7 @@ private def distinctList {α : Type} [DecidableEq α] : List α → Bool
 | a::as => !(as.contains a) && distinctList as
 
 
-def distinct (s : SmtSort) : forall (n : Nat), List s.denote → (nary s SmtSort.bool n).denote
+def distinct (s : SmtSort) : forall (n : Nat), List s.denote.type → (nary s SmtSort.bool n).denote
 | 0, args => distinctList args
 | Nat.succ n, args => λ a => (distinct n) (a::args)
 
@@ -436,7 +409,7 @@ protected def BuiltinIdent.denote : forall cs, BuiltinIdent cs → cs.denote
 | _, BuiltinIdent.smtIte s => λ t x y => if t then x else y
 | _, BuiltinIdent.distinct s n => mkDistinct s n
 
-| _, BuiltinIdent.select _ _           => Array.select
+| _, BuiltinIdent.select k v           => @Array.select k.denote.type v.denote.type k.denote.order v.denote.order -- BOOKMARK  ???
 | _, BuiltinIdent.store  _ _           => Array.store
 | _, BuiltinIdent.eqrange k _          => Array.eqRange k
 

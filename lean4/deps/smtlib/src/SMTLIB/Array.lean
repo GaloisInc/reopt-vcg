@@ -1,5 +1,6 @@
 
 import Galois.Data.List
+import Galois.Init.Order
 
 namespace Smt
 universes u v

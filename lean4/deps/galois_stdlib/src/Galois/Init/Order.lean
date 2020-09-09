@@ -1,7 +1,7 @@
 
 universes u
 
-
+@[reducible]
 abbrev DecidableLess (α : Type u) [HasLess α] :=
 ∀ (a b : α), Decidable (a < b)
 
