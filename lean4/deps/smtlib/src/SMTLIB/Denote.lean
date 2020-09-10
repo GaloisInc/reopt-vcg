@@ -20,6 +20,9 @@ namespace upd
 universes u v
 variables {α : Type u} [DecidableEq α] {β: α -> Type v}
 
+theorem atKey (f : forall v, β v) (k : α)  (v : β k) : (upd f k v) k = v :=
+  difPos rfl
+
 
 theorem atOtherKey {k k'} (f : forall v, β v) (v : β k) (pf : k ≠ k') : (upd f k v) k' = f k' :=
   difNeg pf       
@@ -137,10 +140,12 @@ structure OrderedType :=
 protected def SmtSort.denote : SmtSort → OrderedType
 | SmtSort.bool => ⟨Bool, Bool.DecidableLessOrder⟩
 | SmtSort.bitvec n => ⟨BitVec n, BitVec.DecidableLessOrder⟩
-| SmtSort.array k v => 
-  match k.denote, v.denote with
-  | ⟨kTy, kOrd⟩, ⟨vTy, vOord⟩ => ⟨Array kTy vTy, Array.DecidableLessOrder⟩  
-
+| SmtSort.array k v =>
+  let k' := k.denote;
+  let kOrd := k'.order;
+  let v' := v.denote;
+  let vOrd := v'.order;
+  ⟨Array k'.type v'.type, Array.DecidableLessOrder⟩
 
 
 instance SmtSort.denote.HasLess : ∀ (s:SmtSort), HasLess s.denote.type
@@ -185,11 +190,11 @@ else
 
 
 def eqRange :
-  forall (s : RangeSort),
-  Array s.sort.denote.type β →
-  Array s.sort.denote.type β →
-  s.sort.denote.type →
-  s.sort.denote.type → Bool
+  forall (k : RangeSort),
+  Array k.sort.denote.type β →
+  Array k.sort.denote.type β →
+  k.sort.denote.type →
+  k.sort.denote.type → Bool
 | RangeSort.bitvec n, a1, a2, low, high => bvEqRange a1 a2 low high
 
 
@@ -368,7 +373,7 @@ namespace ConstSort
 @[reducible]
 protected def denote : ConstSort → Type
 | ConstSort.base s => s.denote.type
-| ConstSort.fsort a b => a.denote.type → b.denote
+| ConstSort.fsort a b => a.denote.type → (denote b)
 
 end ConstSort
 
@@ -409,8 +414,8 @@ protected def BuiltinIdent.denote : forall cs, BuiltinIdent cs → cs.denote
 | _, BuiltinIdent.smtIte s => λ t x y => if t then x else y
 | _, BuiltinIdent.distinct s n => mkDistinct s n
 
-| _, BuiltinIdent.select k v           => @Array.select k.denote.type v.denote.type k.denote.order v.denote.order -- BOOKMARK  ???
-| _, BuiltinIdent.store  _ _           => Array.store
+| _, BuiltinIdent.select k v           => Array.select
+| _, BuiltinIdent.store  k v           => Array.store
 | _, BuiltinIdent.eqrange k _          => Array.eqRange k
 
 -- -- * BitVecs
@@ -478,7 +483,7 @@ def extend {e : Env} {cs : ConstSort} (m : Model e) (k : Symbol) (v : cs.denote)
   { values := fun sym => 
            if H : k = sym then cast (pf H).symm v 
            else 
-           let pf' : (updMap e k cs) sym = e sym := upd.updAtOther e (some cs) H;
+           let pf' : (updMap e k cs) sym = e sym := upd.atOtherKey e (some cs) H;
            cast (congrArg denoteDefault pf'.symm)
                 (m.values sym : denoteDefault (e sym))
   }
@@ -487,7 +492,7 @@ end Model
 
 namespace SpecConst
 
-def semantics : forall {s : SmtSort}, SpecConst s -> s.denote
+def semantics : forall {s : SmtSort}, SpecConst s -> s.denote.type
   | _, binary n v => BitVec.ofNat n v
 
 end SpecConst
@@ -539,24 +544,24 @@ inductive Interp : forall (e:Env) (m:Model e) {cs:ConstSort}, WSTerm e cs → cs
 -- forall holds
 | smtForallTrue : ∀ (e : Env) (m:Model e) {s : SmtSort} (x : SortedVar s)
                   (t : WSTerm (updMap e x.var (ConstSort.base s)) ConstSort.bool),
-  (∀ (v : s.denote), Interp (upd e x.var (ConstSort.base s)) (m.extend x.var v) t true) →
+  (∀ (v : s.denote.type), Interp (upd e x.var (ConstSort.base s)) (m.extend x.var v) t true) →
   Interp e m ⟨Term.smtForall x t.term, WS.smtForall t.ws⟩ true
 -- forall does not hold
 | smtForallFalse : ∀ (e : Env) (m:Model e) {s : SmtSort} (x : SortedVar s) 
                   (t : WSTerm (updMap e x.var (ConstSort.base s)) ConstSort.bool)
-                  (witness : s.denote),
+                  (witness : s.denote.type),
   Interp (upd e x.var (ConstSort.base s)) (m.extend x.var witness) t false →
   Interp e m ⟨Term.smtForall x t.term, WS.smtForall t.ws⟩ false
 -- exists holds
 | smtExistsTrue : ∀ (e : Env) (m:Model e) {s : SmtSort} (x : SortedVar s) 
                   (t : WSTerm (updMap e x.var (ConstSort.base s)) ConstSort.bool)
-                  (witness : s.denote),
+                  (witness : s.denote.type),
   Interp (upd e x.var (ConstSort.base s)) (m.extend x.var witness) t true →
   Interp e m ⟨Term.smtExists x t.term, WS.smtExists t.ws⟩ true
 -- exists does not hold
 | smtExistsFalse : ∀ (e : Env) (m:Model e) {s : SmtSort} (x : SortedVar s) 
                      (t : WSTerm (updMap e x.var (ConstSort.base s)) ConstSort.bool),
-  (∀ (v : s.denote), Interp (upd e x.var (ConstSort.base s)) (m.extend x.var v) t false) →
+  (∀ (v : s.denote.type), Interp (upd e x.var (ConstSort.base s)) (m.extend x.var v) t false) →
   Interp e m ⟨Term.smtExists x t.term, WS.smtExists t.ws⟩ false
 
 
@@ -572,7 +577,7 @@ structure FunDef :=
 namespace FunDef
 
 def funSort (f : FunDef) : ConstSort :=
-ConstSort.funSort f.domain f.codomain
+ConstSort.funSort (f.domain.map (λ sv => sv.fst)) f.codomain
 
 structure WS (e : Env) (fn : FunDef) : Prop :=
 (bodyWS : Term.WS (updEnvMany e fn.domain) fn.body)
@@ -590,7 +595,7 @@ structure NamedFunDef :=
 namespace NamedFunDef
 
 def funSort (f : NamedFunDef) : ConstSort :=
-ConstSort.funSort f.funDef.domain f.funDef.codomain
+ConstSort.funSort (f.funDef.domain.map (λ sv => sv.fst)) f.funDef.codomain
 
 structure WS (e : Env) (fn : NamedFunDef) : Prop :=
 (funInEnv : e fn.name = some fn.funSort)
@@ -598,9 +603,11 @@ structure WS (e : Env) (fn : NamedFunDef) : Prop :=
 
 def updMapWS {e : Env} (x : Symbol) (xCS : ConstSort) (pf : e x = none)
   {f : NamedFunDef} (ws : WS e f) : WS (updMap e x xCS) f :=
-have h : x ≠ f.name from updMap.noneSomeNEqKey e x f.name pf f.funInEnv;
+have h : x ≠ f.name from updMap.noneSomeNEqKey e x f.name pf ws.funInEnv;
+-- have inEnv : (updMap e x xCS) f.name = e f.name
+--   from upd.atOtherKey e (some f.funSort) h;
 have inEnv : (updMap e x xCS) f.name = some f.funSort
-  from upd.atOtherKey e (some f.funSort) h;
+  from Eq.trans (upd.atOtherKey e (some xCS) h) ws.funInEnv;
 have defWS : FunDef.WS (updMap e x xCS) f.funDef
   from FunDef.updMapWS x xCS pf ws.funDefWS;
 ⟨inEnv, defWS⟩
@@ -638,10 +645,10 @@ def assert (ctx : Context) (p : WSTerm ctx.env ConstSort.bool) : Context :=
 
 def declareFun (ctx : Context) (f : Symbol) (pf : ctx.env f = none) (dom : List SmtSort) (cdom : SmtSort) : Context :=
 let fSort := ConstSort.funSort dom cdom;
-let env' := updMap ctx.env f fSort;
 {ctx with
-  env := env',
-  wsAsserts := ctx.wsAsserts.map (Term.updMapWS f fSort)
+  env := updMap ctx.env f fSort,
+  wsAsserts := ctx.wsAsserts.map (@Term.updMapWS ctx.env f fSort pf ConstSort.bool),
+  wsDefines := ctx.wsDefines.map (@NamedFunDef.updMapWS ctx.env f fSort pf)
 }
 
 def defineFun
@@ -655,12 +662,12 @@ def defineFun
 let f : NamedFunDef := ⟨fNm, ⟨dom, cdom, body⟩⟩;
 let env' := updMap ctx.env f.name f.funSort;
 let defines' := f::ctx.defines;
-let fWS : NamedFunDef.WS env' f := ⟨rfl, FunDef.updMapWS fNm f.funSort pf wsPf⟩;
+let fWS : NamedFunDef.WS env' f := ⟨upd.atKey ctx.env fNm (some f.funSort), FunDef.updMapWS fNm f.funSort pf ⟨wsPf⟩⟩;
 let wsDefines' : defines'.Forall (NamedFunDef.WS env') :=
-  fWS::(ctx.wsDefines.map (NamedFunDef.updMapWS env f.name f.funSort pf));
+  List.Forall.cons fWS (ctx.wsDefines.map (@NamedFunDef.updMapWS ctx.env f.name f.funSort pf));
 {ctx with
   env := env',
-  wsAsserts := ctx.wsAsserts.map (Term.updMapWS f.name f.funSort),
+  wsAsserts := ctx.wsAsserts.map (@Term.updMapWS ctx.env f.name f.funSort pf ConstSort.bool),
   defines := defines',
   wsDefines := wsDefines'
 }

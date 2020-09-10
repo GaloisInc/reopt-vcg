@@ -151,7 +151,7 @@ match a.val.entries.lookup k with
 | none => a.val.default
 
 
-def store [HasLess α] [forall (x y:α), Decidable (x < y)] (a : Array α β) (k : α) (v : β) : Array α β :=
+def store (a : Array α β) (k : α) (v : β) : Array α β :=
 if h : v = a.val.default
 then
   let fm : FiniteMap α β := {a.val with entries := List.SortedMap.erase k a.val.entries};
