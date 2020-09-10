@@ -9,8 +9,8 @@
 
 using namespace lean;
 
-static obj_res set_io_error_errno(void) {
-  return set_io_error(strerror(errno));
+static obj_res io_result_mk_error_errno(void) {
+  return io_result_mk_error(strerror(errno));
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -51,10 +51,10 @@ galois_io_prim_handle_mk(b_obj_arg s, uint8 mode, uint8 bin /* unused */, obj_ar
 
     hdl = open(filename.c_str(), oflag);
     if (hdl == -1) {
-        return set_io_error_errno();
+        return io_result_mk_error_errno();
     }
     
-    return set_io_result(to_lean_handle(hdl));
+    return io_result_mk_ok(to_lean_handle(hdl));
 }
 
 // obj_res
@@ -64,7 +64,7 @@ galois_io_prim_handle_mk(b_obj_arg s, uint8 mode, uint8 bin /* unused */, obj_ar
 //     while(sz > 0) {
 //         ssize_t nwritten = write(hdl, bytes, sz);
 //         if (nwritten == -1) {
-//             return set_io_error_errno(r);
+//             return io_result_mk_error_errno(r);
 //         }
 
 //         bytes += nwritten;
@@ -86,12 +86,12 @@ galois_io_prim_handle_do_read(b_obj_arg hdl_obj, obj_arg n_obj, obj_arg)  {
     ssize_t nread = read(hdl, bytes, sz);
     if (nread == -1) {
         dec(bytes_obj);
-        return set_io_error_errno();
+        return io_result_mk_error_errno();
     }
     
     sarray_set_size(bytes_obj, nread);
     
-    return set_io_result(bytes_obj);
+    return io_result_mk_ok(bytes_obj);
 }
 
 extern "C" obj_res
@@ -103,23 +103,23 @@ galois_io_prim_handle_do_write(b_obj_arg hdl_obj, b_obj_arg bytes_obj, obj_arg) 
     while(sz > 0) {
         ssize_t nwritten = write(hdl, bytes, sz);
         if (nwritten == -1) {
-            return set_io_error_errno();
+            return io_result_mk_error_errno();
         }
 
         bytes += nwritten;
         sz    -= nwritten;
     }
 
-    return set_io_result(box(0));
+    return io_result_mk_ok(box(0));
 }
     
 extern "C" obj_res
 galois_io_prim_handle_do_close(b_obj_arg hdl_obj, obj_arg) {
     int hdl      = (int) from_lean_handle(hdl_obj);
     if (close(hdl) == -1) {
-        return set_io_error_errno();
+        return io_result_mk_error_errno();
     }
-    return set_io_result(box(0));
+    return io_result_mk_ok(box(0));
 }
 
 extern "C" obj_res
@@ -129,9 +129,9 @@ galois_io_prim_handle_do_lseek(b_obj_arg hdl_obj, obj_arg off_obj, uint8 whence,
     
     off_t res = lseek(hdl, off, whence);
     if (res == -1) {
-        return set_io_error_errno();
+        return io_result_mk_error_errno();
     }
-    return set_io_result(mk_nat_obj((uint64) res));
+    return io_result_mk_ok(mk_nat_obj((uint64) res));
 }
     
 // }
@@ -144,5 +144,5 @@ extern "C" obj_res
 galois_io_prim_system(b_obj_arg command_str_obj, obj_arg) {
   std::string command = string_to_std(command_str_obj);
   std::system(command.c_str());
-  return set_io_result(box(0));
+  return io_result_mk_ok(box(0));
 }

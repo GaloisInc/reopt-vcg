@@ -27,7 +27,7 @@ end LLVM
 namespace ReoptVCG
 
 open elf.elf_class (ELF64)
-open Lean (Json HasFromJson HasToJson Array.hasFromJson List.hasToJson Nat.hasToJson Json.arr)
+open Lean (Json HasFromJson HasToJson Array.hasFromJson Array.hasToJson Nat.hasToJson Json.arr)
 open Lean.Json
 open WellFormedSExp
 

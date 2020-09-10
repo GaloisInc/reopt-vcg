@@ -1,13 +1,15 @@
+/-
+Denotations for SMT Terms (including well-formedness properties).
 
+Copyright (c) 2020 Galois Inc. All rights reserved.
+-/
 import Galois.Init.Order
-import Galois.Data.DRBMap
 import Galois.Data.List
-import Galois.Data.RBMap
-import SmtLib.Array
+import SmtLib.Denote.Array
+import SmtLib.Denote.BitVec
+import SmtLib.Denote.Env
+import SmtLib.Denote.Model
 import SmtLib.Syntax
-import SmtLib.BitVec
-import Std.Data.RBMap
-import Std.Data.RBTree
 
 
 namespace Smt
@@ -123,15 +125,15 @@ theorem updMapWS : ∀ {e : Env} (x : Symbol) (xCS : ConstSort) (pf : e x = none
 -- FIXME prove
 axiom envShadowManyWS {e : Env} {cs : ConstSort} {t : Term cs} (x : Symbol) (xCS : ConstSort) (ys : List (Sigma SortedVar)) :
   (ys.find? (λ (p : Sigma SortedVar) => p.snd.var = x)).isSome = true →
-  WS (updEnvMany e ys) t →
-  WS (updEnvMany (updMap e x xCS) ys) t
+  WS (e.extendMany ys) t →
+  WS ((e.extend x xCS).extendMany ys) t
 
 -- FIXME prove
 axiom envNonEqSubManyWS {e : Env} {cs : ConstSort} {t : Term cs} (x : Symbol) (xCS : ConstSort) (ys : List (Sigma SortedVar)) :
   e x = none →
   (ys.find? (λ (p : Sigma SortedVar) => p.snd.var = x)).isSome ≠ true →
-  WS (updEnvMany e ys) t →
-  WS (updEnvMany (updMap e x xCS) ys) t
+  WS (e.extendMany ys) t →
+  WS ((e.extend x xCS).extendMany ys) t
 
 def updMapWSBinderMany
   {e : Env}
@@ -141,8 +143,8 @@ def updMapWSBinderMany
   {cdom : ConstSort}
   (body : Term cdom)
   (ys : List (Sigma SortedVar))
-  (ws : WS (updEnvMany e ys) body)
-  : WS (updEnvMany (updMap e x xCS) ys) body :=
+  (ws : WS (e.extendMany ys) body)
+  : WS ((e.extend x xCS).extendMany ys) body :=
 if h : (ys.find? (λ (p : Sigma SortedVar) => p.snd.var = x)).isSome = true
 then envShadowManyWS x xCS ys h ws
 else envNonEqSubManyWS x xCS ys pf h ws
@@ -261,10 +263,10 @@ def funSort (f : FunDef) : ConstSort :=
 ConstSort.funSort (f.domain.map (λ sv => sv.fst)) f.codomain
 
 structure WS (e : Env) (fn : FunDef) : Prop :=
-(bodyWS : Term.WS (updEnvMany e fn.domain) fn.body)
+(bodyWS : Term.WS (e.extendMany fn.domain) fn.body)
 
 def updMapWS {e : Env} (x : Symbol) (xCS : ConstSort) (pf : e x = none)
-  {f : FunDef} (ws : WS e f) : WS (updMap e x xCS) f :=
+  {f : FunDef} (ws : WS e f) : WS (e.extend x xCS) f :=
 ⟨Term.updMapWSBinderMany x xCS pf f.body f.domain ws.bodyWS⟩
 
 end FunDef
@@ -339,9 +341,9 @@ def defineFun
   (dom : List (Sigma SortedVar))
   {cdom : SmtSort}
   (body : Term (ConstSort.base cdom))
-  (wsPf : Term.WS (updEnvMany ctx.env dom) body) : Context :=
+  (wsPf : Term.WS (ctx.env.extendMany dom) body) : Context :=
 let f : NamedFunDef := ⟨fNm, ⟨dom, cdom, body⟩⟩;
-let env' := updMap ctx.env f.name f.funSort;
+let env' := ctx.env.extend f.name f.funSort;
 let defines' := f::ctx.defines;
 let fWS : NamedFunDef.WS env' f := ⟨upd.atKey ctx.env fNm (some f.funSort), FunDef.updMapWS fNm f.funSort pf ⟨wsPf⟩⟩;
 let wsDefines' : defines'.Forall (NamedFunDef.WS env') :=
@@ -379,7 +381,7 @@ inductive Interp : Context → Command → Context → Prop
 | defineFun : ∀ (ctx : Context) (f : Symbol) (freshPf : ctx.env f = none)
               (dom : List (Sigma SortedVar)) {cdom : SmtSort}
               (body : Term (ConstSort.base cdom))
-              (wsPf : Term.WS (updEnvMany ctx.env dom) body),
+              (wsPf : Term.WS (ctx.env.extendMany dom) body),
   Interp ctx (Command.defineFun f dom cdom body) (ctx.defineFun f freshPf dom body wsPf)
 -- (check-sat-assuming ...)
 | checkSatAssuming : ∀ (ctx : Context) (ps : List (Term ConstSort.bool))

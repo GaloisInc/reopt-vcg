@@ -1,7 +1,11 @@
 LOCAL_LEAN :=\
- src/SmtLib/Array.lean\
- src/SmtLib/BitVec.lean\
- src/SmtLib/Denote.lean\
+ src/SmtLib/Denote/Array.lean\
+ src/SmtLib/Denote/BitVec.lean\
+ src/SmtLib/Denote/BuiltinId.lean\
+ src/SmtLib/Denote/Env.lean\
+ src/SmtLib/Denote/Model.lean\
+ src/SmtLib/Denote/SmtSort.lean\
+ src/SmtLib/Denote/Term.lean\
  src/SmtLib/IdGen.lean\
  src/SmtLib/SExpr.lean\
  src/SmtLib/Smt.lean\
