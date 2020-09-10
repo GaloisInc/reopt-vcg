@@ -406,8 +406,12 @@ instance : Monad BlockVCG :=
 instance : MonadReader BlockVCGContext BlockVCG :=
   inferInstanceAs (MonadReader BlockVCGContext (ReaderT BlockVCGContext (EStateM BlockVCGError BlockVCGState)))
 
-instance : MonadState BlockVCGState BlockVCG :=
-  inferInstanceAs (MonadState BlockVCGState (ReaderT BlockVCGContext (EStateM BlockVCGError BlockVCGState)))
+-- instance : MonadState BlockVCGState BlockVCG :=
+--   inferInstanceAs (MonadState BlockVCGState (ReaderT BlockVCGContext (EStateM BlockVCGError BlockVCGState)))
+
+instance : MonadStateOf BlockVCGState BlockVCG :=
+  inferInstanceAs (MonadStateOf BlockVCGState (ReaderT BlockVCGContext (EStateM BlockVCGError BlockVCGState)))
+
 
 instance : MonadExcept BlockVCGError BlockVCG :=
   inferInstanceAs (MonadExcept BlockVCGError (ReaderT BlockVCGContext (EStateM BlockVCGError BlockVCGState)))

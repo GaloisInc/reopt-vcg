@@ -266,10 +266,10 @@ instance system_m.MonadState : MonadState RegState system_m :=
   inferInstanceAs (MonadState RegState (StateT RegState base_system_m))
 
 instance system_m.MonadExcept : MonadExcept String system_m :=
-  inferInstanceAs (MonadExcept String (StateT RegState base_system_m))
+  inferInstanceAs (MonadExcept String (StateT RegState (StateT vcg_state (ExceptT String Id))))
 
-instance : HasMonadLiftT base_system_m system_m :=
-  inferInstanceAs (HasMonadLiftT base_system_m (StateT RegState base_system_m))
+instance : MonadLift base_system_m system_m :=
+  inferInstanceAs (MonadLift base_system_m (StateT RegState base_system_m))
 
 namespace system_m
 

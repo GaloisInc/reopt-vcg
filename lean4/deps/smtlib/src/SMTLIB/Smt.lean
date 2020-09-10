@@ -248,7 +248,7 @@ structure SmtState :=
 def SmtM := StateM SmtState
 
 instance : Monad SmtM := inferInstanceAs (Monad (StateM SmtState))
-instance : MonadState SmtState SmtM := inferInstanceAs (MonadState SmtState (StateM SmtState))
+instance : MonadStateOf SmtState SmtM := inferInstanceAs (MonadStateOf SmtState (StateM SmtState))
 
 /-- Generate a fresh symbol in the monad, if possible simply using the suggested string.  --/
 def freshSymbol (suggestedStr : String) : SmtM String := do

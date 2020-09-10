@@ -50,10 +50,6 @@ def toBytesPartialAux (bs : ByteArray) (off : Nat) : Nat -> List UInt8 -> List U
 def toBytesPartial (bs : ByteArray) (off : Nat) (n : Nat) : List UInt8 := 
   ByteArray.toBytesPartialAux bs off n []
 
--- FIXME: this is not a cheap way of doing this.
-def append (b : ByteArray) (b' : ByteArray) : ByteArray :=
-  ByteArray.mk (Array.append b.data b'.data)
-
 end ByteArray
 
 namespace buffer

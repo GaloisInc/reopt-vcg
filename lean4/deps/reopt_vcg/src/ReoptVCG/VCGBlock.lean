@@ -804,7 +804,7 @@ let s : BlockVCGState :=
   , idGen := idGen' -- passing idGen' twice here probably isn't ideal (i.e., could introduce name collisions via a bug)
   , llvmInstIndex := 0
   , llvmIdentMap  := Std.RBMap.empty
-  , smtContext := do set {revScript := script.reverse, idGen := idGen'}
+  , smtContext := do set ({revScript := script.reverse, idGen := idGen'} : Smt.SmtState)
   , goalIndex := 0
   , verificationEvents := []
   };
@@ -857,7 +857,7 @@ def verifyReachableBlock
 -- Declare LLVM arguments in terms of the registers at function start.
 args.forM defineArgBinding;
 -- Declare phi variables
-phiVarMap.mfor definePhiVar;
+phiVarMap.forM definePhiVar;
 llvmIdentTermMap ← BlockVCGState.llvmIdentMap <$> get;
 -- -- Assume preconditions
 blockAnn.preconds.forM (λ pExpr => do

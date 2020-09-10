@@ -1,3 +1,8 @@
+/-
+Data definitions used for the denotation of SMT arrays.
+
+Copyright (c) 2020 Galois Inc. All rights reserved.
+-/
 
 import Galois.Data.List
 import Galois.Init.Order
@@ -5,6 +10,9 @@ import Galois.Init.Order
 namespace Smt
 universes u v
 
+/-- A finite representation of a map/array, with a set of entries
+    stored in a association list and a default value to return
+    when a key is not found.  -/
 structure FiniteMap (α : Type u) (β : Type v) : Type (max u v) :=
 (entries : List (α × β))
 (default : β)
@@ -70,6 +78,7 @@ end
 
 end
 
+-- FIXME prove when tactics are enabled
 axiom Less.transitivity {α : Type u} {β : Type v}
  [HasLess α] [HasLess β]
  [DecidableEq α] [DecidableEq β] :
@@ -77,6 +86,7 @@ axiom Less.transitivity {α : Type u} {β : Type v}
 (∀ (x y z : β), x < y → y < z → x < z) →
 (∀ (x y z : FiniteMap α β), x < y → y < z → x < z)
 
+-- FIXME prove when tactics are enabled
 axiom Less.asymmetry {α : Type u} {β : Type v}
  [HasLess α] [HasLess β]
  [DecidableEq α] [DecidableEq β] :
@@ -84,6 +94,7 @@ axiom Less.asymmetry {α : Type u} {β : Type v}
 (∀ (x y : β), x < y → ¬(y < x)) →
 (∀ (x y : FiniteMap α β), x < y → ¬(y < x))
 
+-- FIXME prove when tactics are enabled
 axiom Less.totality {α : Type u} {β : Type v}
  [HasLess α] [HasLess β]
  [DecidableEq α] [DecidableEq β] :
@@ -100,6 +111,9 @@ instance {α : Type u} {β : Type v}
   total := FiniteMap.Less.totality hA.total hB.total
 }
 
+/-- A well-formed FiniteMap has sorted entries and no default values
+   stored in it's association list, which means Lean definitional equality
+   corresponds to extensional equality for arrays. -/
 structure WellFormed {α : Type u} {β : Type v} (fm : FiniteMap α β)
   [DecidableLessOrder α]
   [DecidableLessOrder β] : Prop :=
@@ -114,6 +128,8 @@ def empty.wellFormed (α : Type u) {β : Type v}
 
 end FiniteMap
 
+/-- An Array is simply a FiniteMap with a unique representation (imposed by
+    the well-formedness requirement). -/
 def Array (α : Type u) (β : Type v)
   [DecidableLessOrder α]
   [DecidableLessOrder β] : Type (max u v) :=
@@ -139,8 +155,6 @@ instance [hA : DecidableLessOrder α] [hB : DecidableLessOrder β] : DecidableLe
   ltDec := Array.DecidableLess
 }
 
-
---def const
 
 section Operations
 variables [DecidableLessOrder α] [DecidableLessOrder β]
