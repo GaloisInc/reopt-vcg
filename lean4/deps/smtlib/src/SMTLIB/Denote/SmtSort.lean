@@ -4,11 +4,10 @@ Denotation from SMT sorts to Lean types.
 Copyright (c) 2020 Galois Inc. All rights reserved.
 -/
 
-
-import Galois.Init.Order
+import Galois.Data.Bitvec
 import Galois.Data.List
+import Galois.Init.Order
 import SmtLib.Denote.Array
-import SmtLib.Denote.BitVec
 import SmtLib.Syntax
 
 
@@ -62,31 +61,31 @@ instance : DecidableLessOrder Bool :=
 end Bool
 
 ------------------------------------------------------------
--- BitVec (ordering and class instances)
+-- bitvec (ordering and class instances)
 
 
-namespace BitVec
+namespace bitvec
 
-def Less {n : Nat} : BitVec n → BitVec n → Prop := BitVec.ult
+def Less {n : Nat} : bitvec n → bitvec n → Prop := bitvec.ult
 
-instance (n:Nat) : HasLess (BitVec n) := ⟨BitVec.Less⟩
-instance (n:Nat) : DecidableLess (BitVec n) := @BitVec.decidable_ult n 
+instance (n:Nat) : HasLess (bitvec n) := ⟨bitvec.Less⟩
+instance (n:Nat) : DecidableLess (bitvec n) := @bitvec.decidable_ult n 
 
-axiom Less.transitivity {n} : ∀ (x y z : BitVec n), x < y → y < z → x < z
-axiom Less.asymmetry {n} : ∀ (x y : BitVec n), x < y → ¬(y < x)
-axiom Less.totality {n} : ∀ (x y : BitVec n), x < y ∨ x = y ∨ y < x
+axiom Less.transitivity {n} : ∀ (x y z : bitvec n), x < y → y < z → x < z
+axiom Less.asymmetry {n} : ∀ (x y : bitvec n), x < y → ¬(y < x)
+axiom Less.totality {n} : ∀ (x y : bitvec n), x < y ∨ x = y ∨ y < x
 
-instance {n} : HasLessOrder (BitVec n) :=
+instance {n} : HasLessOrder (bitvec n) :=
 {transitive := Less.transitivity,
  asymmetric := Less.asymmetry,
  total := Less.totality}
 
 
-instance {n} : DecidableLessOrder (BitVec n) :=
-{ltDec := @BitVec.DecidableLess n,
- eqDec := @BitVec.DecidableEq n}
+instance {n} : DecidableLessOrder (bitvec n) :=
+{ltDec := @bitvec.DecidableLess n,
+ eqDec := @bitvec_DecidableEq n}
 
-end BitVec
+end bitvec
 
 
 
@@ -104,7 +103,7 @@ structure OrderedType :=
 @[reducible]
 protected def SmtSort.denote : SmtSort → OrderedType
 | SmtSort.bool => ⟨Bool, Bool.DecidableLessOrder⟩
-| SmtSort.bitvec n => ⟨BitVec n, BitVec.DecidableLessOrder⟩
+| SmtSort.bitvec n => ⟨bitvec n, bitvec.DecidableLessOrder⟩
 | SmtSort.array k v =>
   let k' := k.denote;
   let kOrd := k'.order;

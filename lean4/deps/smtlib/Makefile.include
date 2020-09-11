@@ -1,6 +1,5 @@
 LOCAL_LEAN :=\
  src/SmtLib/Denote/Array.lean\
- src/SmtLib/Denote/BitVec.lean\
  src/SmtLib/Denote/BuiltinId.lean\
  src/SmtLib/Denote/Env.lean\
  src/SmtLib/Denote/Model.lean\

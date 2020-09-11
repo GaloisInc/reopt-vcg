@@ -3,10 +3,10 @@ Denotations for SMT Terms (including well-formedness properties).
 
 Copyright (c) 2020 Galois Inc. All rights reserved.
 -/
-import Galois.Init.Order
+import Galois.Data.Bitvec
 import Galois.Data.List
+import Galois.Init.Order
 import SmtLib.Denote.Array
-import SmtLib.Denote.BitVec
 import SmtLib.Denote.Env
 import SmtLib.Denote.Model
 import SmtLib.Syntax
@@ -176,7 +176,7 @@ end WSTerm
 namespace SpecConst
 
 def semantics : forall {s : SmtSort}, SpecConst s -> s.denote.type
-  | _, binary n v => BitVec.ofNat n v
+  | _, binary n v => bitvec.of_nat n v
 
 end SpecConst
 
