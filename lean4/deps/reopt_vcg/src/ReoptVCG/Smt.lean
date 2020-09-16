@@ -185,12 +185,17 @@ tempDir ← getTemporaryDirectory;
 pure $ System.mkFilePath [tempDir, standaloneGoalFilename fnName lbl goalIndex]
 
 
+/-- Generate the comment and other less semantically relevant options to set up a proof script. -/
+def proofScriptPrelude (goalName : String) : Script :=
+let (_, _, cmds) := runSmtM IdGen.empty (do
+  comment goalName;
+  setLogic Logic.all;
+  setProduceModels true);
+cmds
+
 /-- Common things appearing at the top of every smt2 script. --/
 def checkNegatedGoal (goalName : String) (negatedGoal : SmtM (Term SmtSort.bool)) : SmtM Unit := do
-comment goalName;
-setLogic Logic.all;
-setProduceModels true;
-p ← negatedGoal;
+p ← negatedGoal; -- FIXME commands that appear before this do not appear in the final script =\
 checkSatAssuming [p];
 exit
 
@@ -206,9 +211,11 @@ def exportCheckSatAssuming
 : IO Unit := do
 cnt ← goalCounter.get;
 goalCounter.modify Nat.succ;
+let preludeCmds := proofScriptPrelude goalName;
 let (_, _, cmds) := runSmtM IdGen.empty (checkNegatedGoal goalName negatedGoal);
 let filePath := System.mkFilePath [outputDir, standaloneGoalFilename fnName blockLabel cnt];
 file ← IO.FS.Handle.mk filePath IO.FS.Mode.write;
+preludeCmds.forM (λ c => file.putStr c.toLine);
 cmds.forM (λ c => file.putStr c.toLine)
 
 def exportCallbacks
@@ -297,8 +304,10 @@ let resultFilePath := smtFilePath ++ ".result";
 IO.print $ "  Verifying " ++ propName ++ "... ";
 -- FIXME, uncomment this line after next lean4 bump
 -- IO.stdout.flush;
+let preludeCmds := proofScriptPrelude propName;
 let (_, _, cmds) := runSmtM IdGen.empty (checkNegatedGoal propName negGoal);
 IO.FS.withFile smtFilePath IO.FS.Mode.write (λ file => do
+  preludeCmds.forM (λ c => file.putStr c.toLine);
   cmds.forM (λ c => file.putStr c.toLine);
   file.flush);
 Galois.IO.system $ ictx.solverCommand++" "++smtFilePath++" > " ++resultFilePath;
