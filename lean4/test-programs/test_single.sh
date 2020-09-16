@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 if [ $# -ne 3 -a $# -ne 2 ]; then
-    echo "Usage: test_single.sh test-file [unit-test-exe-path] [yes/no]?"
+    echo "Usage: test_single.sh test-file [reopt-vcg-exe-path] [yes/no]?"
     exit 1
 fi
 
@@ -8,7 +8,7 @@ fi
 ulimit -s 8192
 
 if [ $# -lt 2 ]; then
-    TEST_EXE=../../../build/bin/reopt-vcg-unit-test
+    TEST_EXE=../build/bin/reopt-vcg
 else
     TEST_EXE=$1
 fi
