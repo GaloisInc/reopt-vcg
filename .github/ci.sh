@@ -24,6 +24,9 @@ case $COMMAND in
         pushd lean4/tests/src/Test/ > /dev/null
         bash test.sh
         popd > /dev/null
+        pushd lean4/test-programs/ > /dev/null
+        bash test.sh
+        popd > /dev/null
         ;;
     *) echo "unknown command"; exit 1;;
 esac    
