@@ -237,19 +237,19 @@ when cfg.verbose $
 match cfg.mode with
 -- Default: just use cvc4 with default args.
 | VerificationMode.defaultMode => do
-  psGen ← interactiveSmtGenerator cfg.annFile "cvc4" defaultCVC4Args;
-  pure (modAnn, psGen)
+  ps ← interactiveProverSession cfg.annFile "cvc4" defaultCVC4Args;
+  pure (modAnn, ps)
 -- Use the user-specified solver and args.
 | VerificationMode.runSolverMode solverCmd solverArgs => do
-  psGen ← interactiveSmtGenerator cfg.annFile solverCmd solverArgs;
-  pure (modAnn, psGen)
+  ps ← interactiveProverSession cfg.annFile solverCmd solverArgs;
+  pure (modAnn, ps)
 -- Output into the specified directory.
 | VerificationMode.exportMode outDir => do
   outDirExists ← IO.isDir outDir;
   unless outDirExists $ throw $ IO.userError $ "Output directory `"++outDir++"` does not exists.";
   -- FIXME create the directory if it's missing? (It's not clear there's a lean4 API for that yet)
-  let psGen := ProverSession.mk (exportCallbacks outDir) (pure 0);
-  pure (modAnn, psGen)
+  ps ← exportProverSession outDir;
+  pure (modAnn, ps)
   
 
 /-- Load the elf binary file and check it is a linux x86_64 binary (erroring if not). --/
@@ -287,8 +287,7 @@ def get_text_segment {c} (e : elf.ehdr c) (phdrs : List (elf.phdr c)) : Option (
 
 def runVerificationEvent (ps : ProverSession) : VerificationEvent → IO Unit
 | VerificationEvent.msg vMsg => IO.println vMsg.msg
-| VerificationEvent.goal vg => do
-  ps.blockCallback vg.fnName vg.blockLbl (λ prover => prover.checkSatAssuming vg.propName vg.negatedGoal)
+| VerificationEvent.goal vg => ps.checkSatAssuming vg
 
 def runBlockVerificationEvent (ps : ProverSession) : BlockVerificationEvent → IO Unit
 | BlockVerificationEvent.block bv => bv.blockVerificationEvents.forM (runVerificationEvent ps)

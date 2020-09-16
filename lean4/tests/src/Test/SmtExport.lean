@@ -32,14 +32,19 @@ Smt.assert $ Smt.eq (negb tt) Smt.false;
 Smt.assert $ andb tt (negb ff);
 pure Smt.false
 
-def proverAction1 (p : ProverInterface) : IO Unit :=
-p.checkSatAssuming "false-is-false\n(true-is-true?)" smtGoal1
-
 def testExportCallbacks : IO Unit := do
 let outDir := ".";
 let outFnNm := "foo";
 let blockLbl := LLVM.BlockLabel.mk $ LLVM.Ident.named "bar";
-exportCallbacks outDir outFnNm blockLbl proverAction1;
+let vg : VerificationGoal :=
+  {fnName := outFnNm,
+   blockLbl := blockLbl,
+   goalIndex := 0,
+   propName := "false-is-false\n(true-is-true?)",
+   negatedGoal := smtGoal1};
+ps ← exportProverSession outDir;
+ps.checkSatAssuming vg;
+ps.sessionComplete;
 let outFile := outDir ++ [System.FilePath.pathSeparator].asString ++ (standaloneGoalFilename outFnNm blockLbl 0);
 outFileContents ← IO.FS.readFile outFile;
 IO.println outFileContents
