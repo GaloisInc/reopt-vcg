@@ -62,4 +62,7 @@ jobs:
         run: .github/ci.sh build
 
       - shell: bash
+        run: .github/ci.sh cvc4-build
+
+      - shell: bash
         run: .github/ci.sh run-tests
