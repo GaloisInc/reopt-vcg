@@ -5,14 +5,16 @@ if [[ $# -gt 2 ]]; then
     exit 1
 fi
 
-if [[ $# -ne 0 ]]; then
+if [[ $# -gt 0 ]]; then
     TEST_EXE=$1
 else
     TEST_EXE=../../../../build/bin/reopt-vcg-unit-test
 fi
 
+HOMEDIR=$(cd "$(dirname "$TEST_EXE")"; pwd -P)
+export REOPTVCGHOME=$HOMEDIR/../..
 
-if [[ $# -ne 2 ]]; then
+if [[ $# -gt 2 ]]; then
     INTERACTIVE=no
 else
     INTERACTIVE=$2

@@ -8,17 +8,17 @@ fi
 ulimit -s 8192
 
 if [ $# -lt 2 ]; then
-    TEST_EXE=../../../build/bin/reopt-vcg-unit-test
+    TEST_EXE=../../../../build/bin/reopt-vcg-unit-test
 else
     TEST_EXE=$2
 fi
-if [ $# -ne 3 ]; then
+if [ $# -lt 3 ]; then
     INTERACTIVE=no
 else
     INTERACTIVE=$3
 fi
 
-f=$2
+f=$1
 ff=$(bash ./readlinkf.sh "$f")
 testname=$(basename "$ff")
 
