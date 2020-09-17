@@ -16,7 +16,10 @@ open Smt (SmtSort)
 -- Parse the ModuelAnnotations for the fib test example, printing any mismatches in expected field values,
 -- and return the underlying FunctionAnn
 def parseAnnotationsFibTest : IO FunctionAnn := do
-fileContents ← IO.FS.readFile "../../../test-programs/test_fib_diet_reopt.ann";
+homeDir ← (do
+  maybeVal ← IO.getEnv "REOPTVCGHOME";
+  pure $ maybeVal.getD (panic "REOPTVCGHOME environment variable not set"));
+fileContents ← IO.FS.readFile $ homeDir ++ "/test-programs/test_fib_diet_reopt.ann";
 match Lean.Json.parse fileContents with
 | Except.error errMsg => throw $ IO.userError $ "Failed to parse json string: " ++ errMsg
 | Except.ok js =>

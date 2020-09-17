@@ -34,8 +34,8 @@ ELF Header:
   Number of section headers:         17
   Section header string table index: 15
 -/
-def loadAndCheckAddElfHdr : IO String := do
-(hdr, phdrs, elfMem) ← ReoptVCG.loadElf "../../../test-programs/test_add_diet_lld.exe";
+def loadAndCheckAddElfHdr (homeDir : String) : IO String := do
+(hdr, phdrs, elfMem) ← ReoptVCG.loadElf (homeDir ++ "/test-programs/test_add_diet_lld.exe");
 unless (hdr.elf_data.repr == "ELFDATA2LSB") $
   IO.println $ "Incorrect elf_data: " ++ hdr.elf_data.repr;
 unless (hdr.osabi.val.toNat == 0) $
@@ -64,9 +64,12 @@ pure "done"
 
 
 def test : IO UInt32 := do
-loadElfTest "../../../test-programs/test_add_diet_lld.exe" >>= IO.println;
-loadElfTest "../../../test-programs/test_fib_diet_lld.exe" >>= IO.println;
-loadAndCheckAddElfHdr >>= IO.println;
+homeDir ← (do
+  maybeVal ← IO.getEnv "REOPTVCGHOME";
+  pure $ maybeVal.getD (panic "REOPTVCGHOME environment variable not set"));
+loadElfTest (homeDir ++ "/test-programs/test_add_diet_lld.exe") >>= IO.println;
+loadElfTest (homeDir ++ "/test-programs/test_fib_diet_lld.exe") >>= IO.println;
+loadAndCheckAddElfHdr homeDir >>= IO.println;
 pure 0
 
 
