@@ -263,7 +263,9 @@ match fileContents with
     throw $ IO.userError $ 
       "Expected elf header machine type EM_X86_64 but got `"++ hdr.machine.name ++"`.";
   -- Check the Elf file is a linux binary
-  unless (hdr.info.osabi == elf.osabi.ELFOSABI_SYSV || hdr.info.osabi == elf.osabi.ELFOSABI_LINUX) $
+  unless (hdr.info.osabi == elf.osabi.ELFOSABI_SYSV
+          || hdr.info.osabi == elf.osabi.ELFOSABI_LINUX
+          || hdr.info.osabi == elf.osabi.ELFOSABI_FREEBSD) $
     throw $ IO.userError $ "Expected Linux binary but got `"++ toString hdr.info.osabi.name ++"`.";
   let fnSymAddrMap := Std.RBMap.empty; -- TODO / FIXME actually get this info from the elf file
   pure (hdr, phdrs, elfMem, fnSymAddrMap)
