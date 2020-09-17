@@ -4,6 +4,13 @@ if [ $# -ne 3 -a $# -ne 2 ]; then
     exit 1
 fi
 
+path_to_cvc4=$(which cvc4)
+if [[ ! ( -x "$path_to_cvc4" || -h "$path_to_cvc4" ) ]] ; then
+    echo "Unable to find cvc4 in PATH"
+    echo "Current PATH=$PATH"
+    exit 1
+fi
+
 
 ulimit -s 8192
 
