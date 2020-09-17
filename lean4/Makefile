@@ -69,7 +69,7 @@ include deps/lean-llvm/Makefile.include
 include deps/llvm-tablegen-support/Makefile.include
 include deps/x86_semantics/Makefile.include
 include deps/reopt_vcg/Makefile.include
-include tests/Makefile.include
+include tests/unit-tests/Makefile.include
 
 
 # all the output directories we need
@@ -97,7 +97,7 @@ EXTRAOBJDIRS  = $(call build-dirs,$(EXTRAOBJFILES))
 # Applications
 
 include app/Makefile.include
-include tests/app/Makefile.include
+include tests/unit-tests/app/Makefile.include
 # include simulator/Makefile.include
 # include test-symbolic/Makefile.include
 
@@ -125,7 +125,7 @@ $(EXTRAOBJDIR)/libextraobjs.a: $(EXTRAOBJFILES)
 # $(BUILDDIR)/driver: ${CLEANFILES} ${EXTRAOBJFILES} build/deps/lean-llvm/src/Driver.cpp
 # 	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cxxflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86 asmparser` -lstdc++ -lm
 
-# $(BUILDDIR)/reopt-vcg-unit-test : ${CLEANFILES} ${EXTRAOBJFILES} build/tests/Main.cpp
+# $(BUILDDIR)/reopt-vcg-unit-test : ${CLEANFILES} ${EXTRAOBJFILES} build/tests/unit-tests/Main.cpp
 # 	${LEANC} ${CXXFLAGS} `${LLVM_CONFIG} --cxxflags` -Wno-variadic-macros -Wno-gnu-zero-variadic-macro-arguments  -fexceptions -o $@ $^ `${LLVM_CONFIG} --ldflags --system-libs --libs x86 asmparser` -lstdc++ -lm
 
 ${OLEANDIRS} ${CLEANDIRS} ${DEPDIRS} ${EXTRAOBJDIRS} ${BINDIR}:

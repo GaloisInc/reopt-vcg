@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-if [ $# -ne 3 -a $# -ne 2 ]; then
-    echo "Usage: test_single.sh test-file [unit-test-exe-path] [yes/no]?"
+if [[ $# -lt 1 || $# -gt 3 ]]; then
+    echo "Usage: test_single.sh test-file [reopt-vcg-exe-path] [yes/no]?"
     exit 1
 fi
 
@@ -8,9 +8,9 @@ fi
 ulimit -s 8192
 
 if [ $# -lt 2 ]; then
-    TEST_EXE=../../../build/bin/reopt-vcg-unit-test
+    TEST_EXE=../../../build/bin/reopt-vcg
 else
-    TEST_EXE=$1
+    TEST_EXE=$2
 fi
 if [ $# -ne 3 ]; then
     INTERACTIVE=no
@@ -18,7 +18,7 @@ else
     INTERACTIVE=$3
 fi
 
-f=$2
+f=$1
 ff=$(bash ./readlinkf.sh "$f")
 testname=$(basename "$ff")
 
@@ -34,8 +34,9 @@ if diff --color --help >/dev/null 2>&1; then
 fi
 
 echo "-- testing $f"
-$TEST_EXE "$testname" 2>&1 | sed 's|does\\not\\exist|does/not/exist|' | sed "/warning: imported file uses 'sorry'/d" | sed "/warning: using 'sorry'/d" | sed "/failed to elaborate theorem/d" | sed "s|^$ff|$f|" > "$f.produced.out"
-if test -f "$f.expected.out"; then
+mkdir -p "$f.produced.out"
+$TEST_EXE "$testname" --export "$f.produced.out"  1> /dev/null
+if test -d "$f.expected.out"; then
     if $DIFF -u --ignore-all-space -I "executing external script" "$f.expected.out" "$f.produced.out"; then
         echo "-- checked"
         exit 0
@@ -50,11 +51,11 @@ if test -f "$f.expected.out"; then
         exit 1
     fi
 else
-    echo "ERROR: file $f.expected.out does not exist"
+    echo "ERROR: directory $f.expected.out does not exist"
     if [ $INTERACTIVE == "yes" ]; then
         read -p "copy $f.produced.out (y/n)? "
         if [ $REPLY == "y" ]; then
-            cp -- "$f.produced.out" "$f.expected.out"
+            cp -r -- "$f.produced.out" "$f.expected.out"
             echo "-- copied $f.produced.out --> $f.expected.out"
         fi
     fi
