@@ -20,13 +20,7 @@ case $COMMAND in
     build)
         make -C lean4 LEAN_CXX=clang-8 LEAN=$PWD/opt/lean/bin/lean LEANC=$PWD/opt/lean/bin/leanc LLVM_CONFIG=llvm-config-8 CXX=clang-8 -j4
         ;;
-    cvc4-build)
-        mkdir -p lean4/deps/bin
-        chmod u+x lean4/deps/cvc4-2020-09-16-x86_64-linux-opt
-        ln -s lean4/deps/cvc4-2020-09-16-x86_64-linux-opt lean4/deps/bin/cvc4
-        ;;
     run-tests)
-        export PATH=$PWD/lean4/deps/bin:$PATH
         pushd lean4/tests/unit-tests/src/Test/ > /dev/null
         bash test.sh
         popd > /dev/null

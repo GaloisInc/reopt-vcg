@@ -4,6 +4,13 @@ if [[ $# -lt 1 || $# -gt 3 ]]; then
     exit 1
 fi
 
+CVC4_PATH=$(which cvc4)
+if [[ ! ( -x $CVC4_PATH || -h $CVC4_PATH) ]]; then
+    CVC4_PATH="$PWD/../../../deps/cvc4-2020-09-16-x86_64-linux-opt --lang=smt2 --arrays-exp --no-fmf-bound --incremental"
+else
+    CVC4_PATH="$CVC4_PATH --lang=smt2 --arrays-exp --no-fmf-bound --incremental"
+fi
+
 
 ulimit -s 8192
 
@@ -35,7 +42,7 @@ fi
 
 echo "-- testing $f"
 mkdir -p "$f.produced.out"
-$TEST_EXE "$testname" --export "$f.produced.out"  1> /dev/null
+$TEST_EXE "$testname" --solver "$CVC4_PATH" --export "$f.produced.out"  1> /dev/null
 if test -d "$f.expected.out"; then
     if $DIFF -u --ignore-all-space -I "executing external script" "$f.expected.out" "$f.produced.out"; then
         echo "-- checked"
