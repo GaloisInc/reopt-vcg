@@ -27,10 +27,13 @@ case $COMMAND in
         ;;
     run-tests)
         export PATH=$PWD/lean4/deps/bin:$PATH
-        pushd lean4/tests/src/Test/ > /dev/null
+        pushd lean4/tests/unit-tests/src/Test/ > /dev/null
         bash test.sh
         popd > /dev/null
-        pushd lean4/test-programs/ > /dev/null
+        pushd lean4/tests/integration-tests/interactive/ > /dev/null
+        bash test.sh
+        popd > /dev/null
+        pushd lean4/tests/integration-tests/export/ > /dev/null
         bash test.sh
         popd > /dev/null
         ;;
