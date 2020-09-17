@@ -8,7 +8,7 @@ fi
 if [[ $# -ne 0 ]]; then
     TEST_EXE=$1
 else
-    TEST_EXE=../../../build/bin/reopt-vcg-unit-test
+    TEST_EXE=../../../../build/bin/reopt-vcg-unit-test
 fi
 
 
