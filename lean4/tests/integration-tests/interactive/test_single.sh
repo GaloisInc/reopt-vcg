@@ -5,6 +5,14 @@ if [ $# -ne 3 -a $# -ne 2 ]; then
 fi
 
 
+CVC4_PATH=$(which cvc4)
+if [[ ! ( -x $CVC4_PATH || -h $CVC4_PATH) ]]; then
+    CVC4_PATH="$PWD/../../../deps/cvc4-2020-09-16-x86_64-linux-opt --lang=smt2 --arrays-exp --no-fmf-bound --incremental"
+else
+    CVC4_PATH="$CVC4_PATH --lang=smt2 --arrays-exp --no-fmf-bound --incremental"
+fi
+
+
 ulimit -s 8192
 
 if [ $# -lt 2 ]; then
@@ -34,7 +42,7 @@ if diff --color --help >/dev/null 2>&1; then
 fi
 
 echo "-- testing $f"
-$TEST_EXE "$testname" 2>&1 | sed 's|does\\not\\exist|does/not/exist|' | sed "/warning: imported file uses 'sorry'/d" | sed "/warning: using 'sorry'/d" | sed "/failed to elaborate theorem/d" | sed "s|^$ff|$f|" > "$f.produced.out"
+$TEST_EXE "$testname" --solver "$CVC4_PATH" 2>&1 | sed 's|does\\not\\exist|does/not/exist|' | sed "/warning: imported file uses 'sorry'/d" | sed "/warning: using 'sorry'/d" | sed "/failed to elaborate theorem/d" | sed "s|^$ff|$f|" > "$f.produced.out"
 if test -f "$f.expected.out"; then
     if $DIFF -u --ignore-all-space -I "executing external script" "$f.expected.out" "$f.produced.out"; then
         echo "-- checked"
