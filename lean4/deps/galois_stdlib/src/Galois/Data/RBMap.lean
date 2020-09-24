@@ -40,7 +40,7 @@ namespace RBMap
 
 -- It's not happy about the universes on this one if we try and add the level parameters (and even use max/ULift/etc) =\
 @[inline] def mapM {α β σ : Type} {lt : α → α → Bool} {m : Type → Type} [Monad m] (f : α → β → m σ) : RBMap α β lt → m (RBMap α σ lt)
-| ⟨t, _⟩ => t.mfold (λ acc k v => acc.insert k <$> (f k v)) RBMap.empty
+| ⟨t, _⟩ => t.foldM (λ acc k v => acc.insert k <$> (f k v)) RBMap.empty
 
 
 end RBMap

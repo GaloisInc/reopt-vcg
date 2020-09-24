@@ -10,11 +10,13 @@ import Lean.Data.Json.FromToJson
 import Std.Data.RBMap
 import LeanLLVM.AST
 import ReoptVCG.Elf
-import ReoptVCG.SMTParser
-import SMTLIB.Syntax
+import ReoptVCG.SmtParser
+import SmtLib.Smt
 import X86Semantics.Common
 
 open Std (RBMap)
+
+open Smt
 
 namespace LLVM
 namespace ident
@@ -25,7 +27,7 @@ end LLVM
 namespace ReoptVCG
 
 open elf.elf_class (ELF64)
-open Lean (Json HasFromJson HasToJson Array.hasFromJson List.hasToJson Nat.hasToJson Json.arr)
+open Lean (Json HasFromJson HasToJson Array.hasFromJson Array.hasToJson Nat.hasToJson Json.arr)
 open Lean.Json
 open WellFormedSExp
 
@@ -348,17 +350,17 @@ def x86ArgGPRegs : List x86.reg64 :=
 
 
 
-def parsePrecondition (llvmMap: LLVMTyEnv) (js:Json) : Except String (BlockExpr SMT.sort.smt_bool) := do
+def parsePrecondition (llvmMap: LLVMTyEnv) (js:Json) : Except String (BlockExpr SmtSort.bool) := do
 rawStr ← match js.getStr? with
   | none => Except.error $ "Expected precondition to be a string but got: " ++ js.pretty ++ "."
   | some s => Except.ok s;
-BlockExpr.parseAs SMT.sort.smt_bool llvmMap rawStr
+BlockExpr.parseAs SmtSort.bool llvmMap rawStr
 
 
-def blockExprToJson : ∀{tp:SMT.sort}, BlockExpr tp → Json :=
+def blockExprToJson : ∀{tp:SmtSort}, BlockExpr tp → Json :=
 λ _ _ => toJson "TODO: implement exprToJson"
 
-instance BlockExprHasToJson {tp:SMT.sort} : HasToJson (BlockExpr tp) :=
+instance BlockExprHasToJson {tp:SmtSort} : HasToJson (BlockExpr tp) :=
 ⟨blockExprToJson⟩
 
 
@@ -371,7 +373,7 @@ structure ReachableBlockAnn :=
  -- ^ The top of x87 stack (empty = 7, full = 0)
 (dfFlag : Bool)
  -- ^ The value of the DF flag (default = false)
-(preconds : Array (BlockExpr SMT.sort.smt_bool))
+(preconds : Array (BlockExpr SmtSort.bool))
  -- ^ List of preconditions for block.
 (allocas : RBMap LocalIdent AllocaAnn (λ x y => x<y))
 -- ^ Maps identifiers to the allocation used to initialize them.
@@ -386,7 +388,7 @@ namespace ReachableBlockAnn
 -- Default values for various ReachableBlockAnn optional entries.
 def x87TopDefault : Nat := 7
 def dfFlagDefault : Bool := false
-def precondsDefault : Array (BlockExpr SMT.sort.smt_bool) := Array.empty
+def precondsDefault : Array (BlockExpr SmtSort.bool) := Array.empty
 def allocasArrayDefault : Array AllocaAnn := Array.empty
 def memoryEventsDefault : Array MCMemoryEvent := Array.empty
 

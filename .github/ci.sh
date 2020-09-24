@@ -21,7 +21,13 @@ case $COMMAND in
         make -C lean4 LEAN_CXX=clang-8 LEAN=$PWD/opt/lean/bin/lean LEANC=$PWD/opt/lean/bin/leanc LLVM_CONFIG=llvm-config-8 CXX=clang-8 -j4
         ;;
     run-tests)
-        pushd lean4/tests/src/Test/ > /dev/null
+        pushd lean4/tests/unit-tests/src/Test/ > /dev/null
+        bash test.sh
+        popd > /dev/null
+        pushd lean4/tests/integration-tests/interactive/ > /dev/null
+        bash test.sh
+        popd > /dev/null
+        pushd lean4/tests/integration-tests/export/ > /dev/null
         bash test.sh
         popd > /dev/null
         ;;

@@ -4,9 +4,10 @@ import ReoptVCG.Elf
 import ReoptVCG.Annotations
 import ReoptVCG.VCGBlock
 import ReoptVCG.LoadLLVM
-import ReoptVCG.SMT
+import ReoptVCG.Smt
 import ReoptVCG.Types
-import SMTLIB.Syntax
+-- import SmtLib.syntax
+import SmtLib.Smt
 
 import X86Semantics.Common
 
@@ -58,6 +59,8 @@ open Lean.Json (parseObjValAsString)
 open elf.elf_class (ELF64)
 open LLVM (LLVMType LLVMType.prim LLVMType.ptr PrimType PrimType.integer)
 
+open Smt (SmtSort SmtSort.bitvec SmtSort.bv64)
+
 
 -- | Use a map from symbol names to address to find address.
 def getMCAddrOfLLVMFunction
@@ -72,9 +75,9 @@ match m.find? fnm with
 | Option.some expectedAddr => pure $ MCAddr.mk expectedAddr
 
 
-def llvmTypeToSort : LLVMType → Option SMT.sort
+def llvmTypeToSort : LLVMType → Option SmtSort
 | LLVMType.prim (PrimType.integer lw) =>
-  Option.some $ SMT.sort.bitvec lw
+  Option.some $ SmtSort.bitvec lw
 | LLVMType.ptr _ => Option.none
 | _ => Option.none
 
@@ -149,7 +152,7 @@ def parseAnnotatedBlock
 : ModuleVCG AnnotatedBlock := do
 let lbl := b.label;
 let (phiVarList, llvmStmts) := extractPhiStmtVars [] b.stmts.toList;
-let parseLLVMVar : (LLVM.Ident × LLVMType × BlockLabelValMap) → ModuleVCG (LLVM.Ident × SMT.sort) :=
+let parseLLVMVar : (LLVM.Ident × LLVMType × BlockLabelValMap) → ModuleVCG (LLVM.Ident × SmtSort) :=
   (λ (p : (LLVM.Ident × LLVMType × BlockLabelValMap)) =>
     let (nm, tp, _) := p;
     match llvmTypeToSort tp with
@@ -190,7 +193,7 @@ ModuleVCG (List LLVMMCArgBinding)
   | [] => functionError fnm $ FnError.custom $ 
           "Maximum of "++(x86ArgGPRegs.length.repr)++" i64 arguments supported"
   | (reg::restRegs) =>
-    let binding := LLVMMCArgBinding.mk nm (SMT.sort.bv64) reg;
+    let binding := LLVMMCArgBinding.mk nm (SmtSort.bv64) reg;
     parseLLVMArgs (binding::revBinds) restArgs restRegs
 | _, (⟨tp, nm⟩::restArgs), _ =>
   functionError fnm $ FnError.argTypeUnsupported nm tp
@@ -275,19 +278,19 @@ when cfg.verbose $
 match cfg.mode with
 -- Default: just use cvc4 with default args.
 | VerificationMode.defaultMode => do
-  psGen ← interactiveSMTGenerator cfg.annFile "cvc4" defaultCVC4Args;
-  pure (modAnn, psGen)
+  ps ← interactiveProverSession cfg.annFile "cvc4" defaultCVC4Args;
+  pure (modAnn, ps)
 -- Use the user-specified solver and args.
 | VerificationMode.runSolverMode solverCmd solverArgs => do
-  psGen ← interactiveSMTGenerator cfg.annFile solverCmd solverArgs;
-  pure (modAnn, psGen)
+  ps ← interactiveProverSession cfg.annFile solverCmd solverArgs;
+  pure (modAnn, ps)
 -- Output into the specified directory.
 | VerificationMode.exportMode outDir => do
   outDirExists ← IO.isDir outDir;
   unless outDirExists $ throw $ IO.userError $ "Output directory `"++outDir++"` does not exists.";
   -- FIXME create the directory if it's missing? (It's not clear there's a lean4 API for that yet)
-  let psGen := ProverSession.mk (exportCallbacks outDir) (pure 0);
-  pure (modAnn, psGen)
+  ps ← exportProverSession outDir;
+  pure (modAnn, ps)
   
 
 /-- Load the elf binary file and check it is a linux x86_64 binary (erroring if not). --/
@@ -301,7 +304,9 @@ match fileContents with
     throw $ IO.userError $ 
       "Expected elf header machine type EM_X86_64 but got `"++ hdr.machine.name ++"`.";
   -- Check the Elf file is a linux binary
-  unless (hdr.info.osabi == elf.osabi.ELFOSABI_SYSV || hdr.info.osabi == elf.osabi.ELFOSABI_LINUX) $
+  unless (hdr.info.osabi == elf.osabi.ELFOSABI_SYSV
+          || hdr.info.osabi == elf.osabi.ELFOSABI_LINUX
+          || hdr.info.osabi == elf.osabi.ELFOSABI_FREEBSD) $
     throw $ IO.userError $ "Expected Linux binary but got `"++ toString hdr.info.osabi.name ++"`.";
   let fnSymAddrMap := Std.RBMap.empty; -- TODO / FIXME actually get this info from the elf file
   pure (hdr, phdrs, elfMem, fnSymAddrMap)
@@ -323,8 +328,7 @@ def get_text_segment {c} (e : elf.ehdr c) (phdrs : List (elf.phdr c)) : Option (
 
 def runVerificationEvent (ps : ProverSession) : VerificationEvent → IO Unit
 | VerificationEvent.msg vMsg => IO.println vMsg.msg
-| VerificationEvent.goal vg => do
-  ps.blockCallback vg.fnName vg.blockLbl (λ prover => prover.checkSatAssuming vg.propName vg.negatedGoal)
+| VerificationEvent.goal vg => ps.checkSatAssuming vg
 
 def runBlockVerificationEvent (ps : ProverSession) : BlockVerificationEvent → IO Unit
 | BlockVerificationEvent.block bv => bv.blockVerificationEvents.forM (runVerificationEvent ps)

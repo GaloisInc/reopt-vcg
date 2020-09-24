@@ -40,7 +40,7 @@ end Prim
 
 section
 variables {m : Type → Type} [Monad m] [MonadIO m]
-@[inline] def system (command : String) : m Unit :=  IO.Prim.liftIO (IO.Prim.system command)
+@[inline] def system (command : String) : m Unit :=  liftIO (IO.Prim.system command)
 end
 end IO
 end Galois

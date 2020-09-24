@@ -5,7 +5,7 @@ import Galois.Init.Io
 import Main.Translate
 import X86Semantics.SymbolicBackend
 import DecodeX86.DecodeX86
-import SMTLIB.Syntax
+import SmtLib.Smt
 
 namespace x86
 namespace symbolic
@@ -31,7 +31,7 @@ def doit (bs : List String) : IO Unit := do
   let text_bytes := bytesToByteArray bs;
   let d := decodex86.mk_decoder text_bytes 0;
   let ((init_s, stdlib), (idGen', init_script)) :=
-      SMT.runsmtM SMT.IdGen.empty
+      Smt.runSmtM Smt.IdGen.empty
         (do init_s <- machine_state.declare_const;
             stdlib <- StdLib.make;
             pure (init_s, stdlib));

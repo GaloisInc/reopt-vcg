@@ -213,6 +213,23 @@ section arith
 
   instance bitvec_has_pow : HasPow (bitvec n) Nat := ⟨bitvec_pow⟩
 
+  protected def udiv (x y : bitvec n) : bitvec n := bitvec.of_nat n (x.to_nat / y.to_nat)
+  protected def sdiv (x y : bitvec n) : bitvec n := bitvec.of_int n (x.to_int / y.to_int)
+
+  protected def urem (x y : bitvec n) : bitvec n := bitvec.of_nat n (x.to_nat % y.to_nat)
+
+  -- Lean4 integer `mod` sign follows the dividend, which is what bvsrem does... funny.
+  protected def srem (x y : bitvec n) : bitvec n := bitvec.of_int n (Int.mod x.to_int y.to_int)
+
+  -- bvsmod sign follows the divisor
+  protected def smod (x y : bitvec n) : bitvec n :=
+  match x.to_int, y.to_int with
+  | Int.ofNat j,   Int.ofNat k   => bitvec.of_int n (Int.ofNat (j % k))
+  | Int.negSucc j, Int.ofNat k   => bitvec.of_int n (Int.ofNat (Nat.succ j % k))
+  | Int.ofNat j,   Int.negSucc k => bitvec.of_int n (-Int.ofNat (j % Nat.succ k))
+  | Int.negSucc j, Int.negSucc k => bitvec.of_int n (-Int.ofNat (Nat.succ j % Nat.succ k))
+
+
 end arith
 
 section shift
@@ -249,6 +266,15 @@ section listlike
   def append {m n} (x: bitvec m) (y: bitvec n) : bitvec (m + n)
     := ⟨ x.to_nat * 2^n + y.to_nat, power_hack _ _  /- Nat.mul_pow_add_lt_pow x.property y.property -/ ⟩
 
+  def repeat {n} (x: bitvec n) : forall (i : Nat), bitvec (i * n)
+  | Nat.zero => 0
+  | Nat.succ m => 
+    let rst : bitvec (m * n) := repeat m;
+    let res : bitvec (m * n + n) := @append (m * n) n rst x;
+    have hEq : (m * n + n) = (succ m * n) from Eq.symm $ Nat.succMul m n;
+    have tEq : bitvec (m * n + n) = bitvec (succ m * n) from congrArg bitvec hEq;
+    cast tEq res 
+
   protected
   def bsf' : ∀(n:Nat), Nat → Nat → Option Nat
     | 0,        idx, _ => none
@@ -283,6 +309,19 @@ section listlike
 
   def slice {w: Nat} (u l k:Nat) (H: w = k + (u + 1 - l)) (x: bitvec w) : bitvec (u + 1 - l) :=
      bitvec.of_nat _ (Nat.shiftr x.to_nat l)
+
+  def extract {w: Nat} (u l:Nat) (x: bitvec w) : bitvec (u + 1 - l) :=
+     bitvec.of_nat _ (Nat.shiftr x.to_nat l)
+
+  def rotateRight {w:Nat} (i:Nat) (x: bitvec w) : bitvec w :=
+    let lhs := x.shl (w - i);
+    let rhs := x.ushr w;
+    bitvec.or lhs rhs
+
+  def rotateLeft {w:Nat} (i:Nat) (x: bitvec w) : bitvec w :=
+    let lhs := x.shl i;
+    let rhs := x.ushr (w - i);
+    bitvec.or lhs rhs
 
   protected
   def foldl' {α : Sort _} (f : α -> Bool → α) (x : Nat) (init : α) : Nat → α
