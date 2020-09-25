@@ -163,7 +163,7 @@ def update_flag (idx : Fin 32) (f : s_bool -> s_bool) (s : machine_state) : mach
 def get_avxreg  (s : machine_state) (idx : Fin 16) : avx_word := 
   -- FIXME
   if h : 16 = s.avxregs.size
-  then Array.get s.avxregs (Eq.recOn h idx) else  SMT.bvimm _ 0
+  then Array.get s.avxregs (Eq.recOn h idx) else  Smt.bvimm _ 0
 
 def update_avxreg (idx : Fin 16) (f : avx_word -> avx_word) (s : machine_state) : machine_state :=
   -- FIXME

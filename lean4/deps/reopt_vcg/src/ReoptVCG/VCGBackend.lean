@@ -87,7 +87,7 @@ def update_reg64  (r : concrete_reg (bv gpreg_type.reg64.width))
 def get_avxreg  (s : RegState) (idx : Fin 16) : avx_word := 
   -- FIXME
   if h : 16 = s.avxregs.size
-  then Array.get s.avxregs (Eq.recOn h idx) else  SMT.bvimm _ 0
+  then Array.get s.avxregs (Eq.recOn h idx) else  Smt.bvimm _ 0
 
 def update_avxreg (idx : Fin 16) (f : avx_word -> avx_word) (s : RegState) : RegState :=
   -- FIXME
@@ -275,7 +275,7 @@ structure vcg_state :=
   (idGen  : IdGen)
   (revEvents : List Event)
 
-def vcg_state.empty : vcg_state := vcg_state.mk none SMT.IdGen.empty []
+def vcg_state.empty : vcg_state := vcg_state.mk none Smt.IdGen.empty []
 
 -- Stacking like this makes it easier to derive MonadState
 def base_system_m := (StateT vcg_state (ExceptT String Id))
