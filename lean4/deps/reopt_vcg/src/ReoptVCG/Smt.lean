@@ -39,6 +39,7 @@ def defaultCVC4Args : List String :=
     precondition expressions accordingly. --/
 class BlockExprEnv (α : Type u) :=
 (initGPReg64 : α → x86.reg64 → Term SmtSort.bv64)
+(initFlag : α → x86.flag → Term SmtSort.bool)
 (fnStartRegState : α → x86.reg64 → Term SmtSort.bv64)
 (evalVar : α → LLVM.Ident → Option (Sigma Term))
 (readMem : α → ∀(w : WordSize), x86.vcg.memaddr →  Term w.sort)
@@ -54,6 +55,9 @@ variable (e : BlockVCGExprEnv)
 def initGPReg64 (r : x86.reg64) : Term SmtSort.bv64 :=
 e.state.mcCurRegs.get_reg64 r
 
+def initFlag (r : x86.flag) : Term SmtSort.bool :=
+e.state.mcCurRegs.get_flag' r
+
 def fnStartRegState (r : x86.reg64) : Term SmtSort.bv64 :=
 e.context.mcStdLib.funStartRegs.get_reg64 r
 
@@ -64,6 +68,7 @@ end BlockVCGExprEnv
 
 instance BlockVCGExprEnv.isBlockExprEnv : BlockExprEnv BlockVCGExprEnv :=
 {initGPReg64 := BlockVCGExprEnv.initGPReg64,
+ initFlag    := BlockVCGExprEnv.initFlag,
  fnStartRegState := BlockVCGExprEnv.fnStartRegState,
  evalVar := BlockVCGExprEnv.evalVar,
  readMem := BlockVCGExprEnv.readMem
@@ -80,6 +85,7 @@ def ppLLVMIdent : LLVM.Ident → String
 def toSExp : ∀ {tp : SmtSort}, BlockExpr tp → SExp String
 | _, stackHigh => SExp.atom "stack_high"
 | _, initGPReg64 r => SExp.atom r.name
+| _, initFlag r    => SExp.atom r.name
 | _, fnStartGPReg64 r => SExp.list [SExp.atom "fnstart", SExp.atom r.name]
 | _, mcStack a w =>
   SExp.list [SExp.atom "mcstack",
@@ -103,6 +109,7 @@ def toString : ∀ {tp : SmtSort}, BlockExpr tp → String
 def toSmt {α : Type u} [BlockExprEnv α] (env: α) : ∀ {tp : SmtSort}, BlockExpr tp → Except BlockVCGError (Term tp)
 | _, stackHigh => pure $ BlockExprEnv.fnStartRegState env x86.reg64.rsp
 | _, initGPReg64 r => pure $ BlockExprEnv.initGPReg64 env r
+| _, initFlag r    => pure $ BlockExprEnv.initFlag env r
 | _, fnStartGPReg64 r => pure $ BlockExprEnv.fnStartRegState env r
 | _, mcStack a w => do
   t ← toSmt a;

@@ -118,6 +118,7 @@ inductive BlockError
 | missingAnnotations : BlockError
 | unsupportedPhiVarType : LLVM.Ident → LLVM.LLVMType → BlockError
 | blockAddrInvalid : elf.word elf.elf_class.ELF64 → BlockError
+| otherBlockError : String -> BlockError
 
 namespace BlockError
 
@@ -128,6 +129,7 @@ def pp : BlockError → String
   "Phi variable "++x.pp++" has unsupported type "++t.pp++"."
 | blockAddrInvalid addr => 
   "Annotated block address "++addr.pp_hex++" is not not in code segment."
+| otherBlockError msg => msg
 
 end BlockError
 

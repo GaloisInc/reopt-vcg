@@ -57,6 +57,9 @@ inductive BlockExpr : SmtSort → Type u
   -- This is the address the return address is stored at, and
   -- the curent frame.
 | initGPReg64 : x86.reg64 → BlockExpr SmtSort.bv64
+
+| initFlag : x86.flag -> BlockExpr SmtSort.bool
+
   -- ^ Denotes the value of a 64-bit general purpose register
   -- at the start of the block execution.
 | fnStartGPReg64 : x86.reg64 → BlockExpr SmtSort.bv64
@@ -177,9 +180,10 @@ partial def fromSExp
 | SExp.atom (Atom.ident "stack_high") =>
   Except.ok ⟨SmtSort.bv64, BlockExpr.stackHigh⟩
 | SExp.atom (Atom.ident nm) =>
-  match x86.reg64.fromName nm with
-  | some r => Except.ok ⟨SmtSort.bv64, BlockExpr.initGPReg64 r⟩
-  | none => Except.error $ "Could not interpret identifier as a variable: " ++ nm
+  match x86.reg64.fromName nm, x86.flag.fromName nm with
+  | some r, _ => Except.ok ⟨SmtSort.bv64, BlockExpr.initGPReg64 r⟩
+  | _, some r => Except.ok ⟨SmtSort.bool, BlockExpr.initFlag r⟩
+  | none, none => Except.error $ "Could not interpret identifier as a variable: " ++ nm
 | sexpr => Except.error $ "Could not interpret expression: " ++ sexpr.toString
 
 

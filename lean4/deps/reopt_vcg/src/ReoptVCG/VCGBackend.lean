@@ -56,6 +56,16 @@ def update_flag (idx : Fin 32) (f : s_bool -> s_bool) (s : RegState) : RegState 
   then { s with flags := Array.set s.flags (Eq.recOn h idx) (f (get_flag s idx)) }
   else s 
 
+
+def get_flag'  (s : RegState) (r : concrete_reg bit) : s_bool :=
+  match r with
+  | concrete_reg.flagreg idx => get_flag s idx
+
+def update_flag'  (r : concrete_reg bit)
+                  (f : s_bool -> s_bool) (s : RegState) : RegState :=
+  match r with
+  | concrete_reg.flagreg idx => update_flag idx f s
+
 def get_reg64  (s : RegState) (r : concrete_reg (bv gpreg_type.reg64.width)) : machine_word :=
   match gpreg_type.reg64.width, r with
   | _, concrete_reg.gpreg idx tp => s.get_gpreg idx
