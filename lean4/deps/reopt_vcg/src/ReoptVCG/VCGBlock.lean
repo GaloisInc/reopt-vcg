@@ -538,10 +538,14 @@ def arithOpFunc {n : Nat} : LLVM.ArithOp
 | _, _, _ => none -- FIXME
 
 
+-- we don't implement the usw ssw or exact flags
 def bitOpFunc {n : Nat} : LLVM.BitOp
                         -> Smt.Term (SmtSort.bitvec n)
                         -> Smt.Term (SmtSort.bitvec n)
                         -> Option (Smt.Term (SmtSort.bitvec n))
+| LLVM.BitOp.shl false false, x, y => Option.some (Smt.bvshl x y)
+| LLVM.BitOp.lshr false, x, y => Option.some (Smt.bvlshr x y)
+| LLVM.BitOp.ashr false, x, y => Option.some (Smt.bvashr x y)
 | LLVM.BitOp.and, x, y => Option.some (Smt.bvand x y)
 | LLVM.BitOp.or, x, y  => Option.some (Smt.bvor x y )
 | LLVM.BitOp.xor, x, y => Option.some (Smt.bvxor x y)
@@ -737,6 +741,12 @@ def stepNextStmt (stmt : LLVM.Stmt) : BlockVCG Bool := do
         if H : m <= n -- FIXME: we should move these out of VCGBackend
         then assignTerm (x86.vcg.bitvec.trunc m H l)
         else unimplemented
+      | SmtSort.bitvec n, SmtSort.bitvec m, LLVM.ConvOp.zext, l => do 
+        assignTerm (x86.vcg.bitvec.uresize n m l)
+      | SmtSort.bitvec n, SmtSort.bitvec m, LLVM.ConvOp.sext, l => do 
+        assignTerm (x86.vcg.bitvec.sresize n m l)
+      | SmtSort.bitvec n, SmtSort.bitvec m, LLVM.ConvOp.int_to_ptr, l => assignTerm l
+      | SmtSort.bitvec n, SmtSort.bitvec m, LLVM.ConvOp.ptr_to_int, l => assignTerm l
       | _, _, _, _ => unimplemented;
       pure true
     else BlockVCG.localBlockError "Unexpected type"
