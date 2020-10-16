@@ -51,4 +51,4 @@ Analyzing `main`
   Verifying main.block_0_201359.0 @ 0x201366: value of r15 at return is preserved.... OK
   Verifying main.block_0_201359.0 @ 0x201366: return values match... OK
 Verification of all goals succeeded.
-Verified 42/42 goal(s).
+Verified 42 out of 42 generated goal(s).

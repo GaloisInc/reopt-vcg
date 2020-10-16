@@ -45,7 +45,7 @@ let vg : VerificationGoal :=
 ps ← exportProverSession outDir;
 ps.checkSatAssuming vg;
 ps.sessionComplete;
-let outFile := outDir ++ [System.FilePath.pathSeparator].asString ++ (standaloneGoalFilename outFnNm blockLbl 0);
+let outFile := outDir ++ [System.FilePath.pathSeparator].asString ++ (standaloneGoalFilename vg);
 outFileContents ← IO.FS.readFile outFile;
 IO.println outFileContents
 

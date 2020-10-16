@@ -189,7 +189,7 @@ structure VerificationGoal :=
 (blockLbl  : LLVM.BlockLabel)
 -- ^ Block we are verifying the goal within.
 (goalIndex : Nat)
--- ^ Index of the goal.
+-- ^ Index of the goal for this block.
 (propName  : String)
 -- ^ Name of the proposition for reporting purposes.
 (negatedGoal   : SmtM (Term SmtSort.bool))

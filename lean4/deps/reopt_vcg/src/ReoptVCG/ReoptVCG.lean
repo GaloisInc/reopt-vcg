@@ -342,7 +342,8 @@ when cfg.verbose $ IO.println $ "Running VCG for the module...";
 fvEvents.forM (runFnVerificationEvent proverSession);
 -- print out results
 if mState.errorCount > 0 then do
-  _ ← IO.println (repr mState.errorCount ++ " errors during verification.");
+  _ ← proverSession.sessionComplete;
+  _ ← IO.println (repr mState.errorCount ++ " errors were encountered.");
   pure 1
 else proverSession.sessionComplete
 
