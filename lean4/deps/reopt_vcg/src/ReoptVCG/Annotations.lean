@@ -244,9 +244,14 @@ match tp with
 | _ => throw $ "Unexpected memory annotation type type: " ++ js.pretty
 
 
-def renderMemoryAnn (ann:MemoryAnn) : List (String × Json) :=
-[("TODO: implement renderMemoryAnn", toJson "TODO: implement renderMemoryAnn")]
-
+def renderMemoryAnn : MemoryAnn → List (String × Json)
+| MemoryAnn.binaryOnlyAccess =>
+  [("type", toJson "binary_only_access")]
+| MemoryAnn.jointStackAccess x =>
+  [("type", toJson "joint_stack_access"),
+   ("alloca", toJson x)]
+| MemoryAnn.heapAccess =>
+  [("type", toJson "heap_access")]
 
 ------------------------------------------------------------------------
 -- MCAddr
@@ -320,7 +325,9 @@ def MCMemoryEvent.fromJson (js : Json) : Option MCMemoryEvent :=
 (parseMCMemoryEvent js).toOption
 
 def MCMemoryEvent.toJson (me : MCMemoryEvent) : Json := 
-toJson $ "TODO: MCMemoryEvent.toJson"
+let entries : List (String × Json) := 
+  [ ("addr", toJson me.addr)] ++ (renderMemoryAnn me.info);
+toJson $ Std.RBMap.fromList entries Lean.strLt
 
 instance MCMemoryEvent.hasFromJson : HasFromJson MCMemoryEvent :=
 ⟨MCMemoryEvent.fromJson⟩
@@ -363,6 +370,7 @@ def blockExprToJson : ∀{tp:SmtSort}, BlockExpr tp → Json :=
 instance BlockExprHasToJson {tp:SmtSort} : HasToJson (BlockExpr tp) :=
 ⟨blockExprToJson⟩
 
+abbrev AllocaAnnMap : Type := RBMap LocalIdent AllocaAnn (λ x y => x<y)
 
 structure ReachableBlockAnn :=
 (startAddr : MCAddr) -- FIXME
@@ -375,7 +383,7 @@ structure ReachableBlockAnn :=
  -- ^ The value of the DF flag (default = false)
 (preconds : Array (BlockExpr SmtSort.bool))
  -- ^ List of preconditions for block.
-(allocas : RBMap LocalIdent AllocaAnn (λ x y => x<y))
+(allocas : AllocaAnnMap)
 -- ^ Maps identifiers to the allocation used to initialize them.
 --
 -- The same allocations should be used across the function, but

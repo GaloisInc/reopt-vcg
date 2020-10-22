@@ -167,11 +167,13 @@ def eqrange  {k : RangeSort} {v : SmtSort} : Term (array k.sort v) -> Term (arra
 
 -- BitVecs
 -- hex/binary literals
-def bvimm (n v : Nat) : Term (bitvec n) := const (bitvec n) (binary n v)
+def bvimm (width val : Nat) : Term (bitvec width) := 
+const (bitvec width) (binary width val)
+
 -- c.f. bitvec.of_int 
-def bvimm' (n : Nat) : Int -> Term (bitvec n)
-| Int.ofNat x   => bvimm n x
-| Int.negSucc x => bvimm n (Nat.ldiff (2^n-1) x)
+def bvimm' (width : Nat) : Int -> Term (bitvec width)
+| Int.ofNat x   => bvimm width x
+| Int.negSucc x => bvimm width (Nat.ldiff (2^width-1) x)
 
 def bvAsConst {n : Nat} : Term (bitvec n) -> Option Nat 
 | const _ (binary _ v) => some v

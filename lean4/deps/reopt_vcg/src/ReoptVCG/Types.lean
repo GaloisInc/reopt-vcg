@@ -3,8 +3,8 @@ import LeanLLVM.AST
 import LeanLLVM.PP
 import ReoptVCG.Elf
 import ReoptVCG.Annotations
-import ReoptVCG.VCGBackend
-import ReoptVCG.MCStdLib
+--import ReoptVCG.VCGBackend
+--import ReoptVCG.MCStdLib
 
 import SmtLib.Smt
 import DecodeX86.DecodeX86
@@ -13,6 +13,111 @@ import DecodeX86.DecodeX86
 def LLVM.Ident.pp : LLVM.Ident → String := LLVM.Doc.render ∘ LLVM.HasPP.pp
 def LLVM.LLVMType.pp : LLVM.LLVMType → String := LLVM.Doc.render ∘ LLVM.HasPP.pp
 def LLVM.BlockLabel.pp : LLVM.BlockLabel → String := LLVM.Doc.render ∘ LLVM.HasPP.pp
+
+open Smt (SmtSort SmtSort.bool SmtSort.bitvec SmtSort.array Term SmtM Command)
+
+
+
+-------------------------------------------------------
+-- Alloca Terms
+-------------------------------------------------------
+structure AllocaLlvm :=
+(baseAddress : Smt.Term SmtSort.bv64)
+-- ^ LLVM alloca base.
+(endAddress : Smt.Term SmtSort.bv64)
+-- ^ LLVM alloca end/
+(returnRegister  : Smt.Term SmtSort.bv64)
+-- ^ Register alloca is returned to.
+(isInAlloca : Smt.Term SmtSort.bv64 → Smt.Term SmtSort.bv64 → Smt.Term  SmtSort.bool)
+-- ^ Predicate @isInAlloca start end @ checks if a range 
+--   [start,end) is contained within the alloca.
+
+structure AllocaMC :=
+(baseAddress   : Smt.Term SmtSort.bv64)
+-- ^ Alloca base.
+(endAddress    : Smt.Term SmtSort.bv64)
+-- ^ Alloca end.
+(isInAlloca : Smt.Term SmtSort.bv64 → Smt.Term  SmtSort.bv64 → Smt.Term  SmtSort.bool)
+-- ^ Predicate @isInAlloca start end @ checks if a range 
+--   [start,end) is contained within the alloca.
+
+
+
+-------------------------------------------------------
+-- MC Types
+-------------------------------------------------------
+
+namespace x86
+namespace vcg
+
+open ReoptVCG
+
+structure RegState : Type :=
+  (gpregs : Array (Term (SmtSort.bitvec 64))) -- 16
+  (flags  : Array (Term SmtSort.bool)) -- 32
+  (ip     : (Term (SmtSort.bitvec 64)))
+
+
+
+-- This mirrors the Haskell prototype as far as possible, hence the slightly verbose names.
+inductive Event
+  | Command : Smt.Command -> Event
+  | Warning : String -> Event
+    -- ^ We added a warning about an issue in the VCG
+  | MCOnlyStackReadEvent : Term (SmtSort.bitvec 64) -> forall (n : Nat), Term (SmtSort.bitvec n) -> Event
+    -- ^ `MCOnlyReadEvent a w v` indicates that we read `w` bytes
+    -- from `a`, and assign the value returned to `v`.  This only
+    -- appears in the binary code.
+  | JointStackReadEvent : Term (SmtSort.bitvec 64) -> forall (n : Nat), Term (SmtSort.bitvec n) -> LocalIdent -> Event
+    -- ^ `JointReadEvent a w v llvmAlloca` indicates that we read `w` bytes from `a`,
+    -- and assign the value returned to `v`.  This appears in the both the binary
+    -- and LLVM.  The alloca name refers to the LLVM allocation this is part of,
+    -- and otherwise this is a binary only read.
+  | NonStackReadEvent : Term (SmtSort.bitvec 64) -> forall (n : Nat), Term (SmtSort.bitvec n) -> Event
+    -- ^ `NonStackReadEvent a w v` indicates that we read `w` bytes
+    -- from `a`, and assign the value returned to `v`.  The address `a` should not
+    -- be in the stack.
+  | MCOnlyStackWriteEvent : Term (SmtSort.bitvec 64) -> forall (n : Nat), Term (SmtSort.bitvec n) -> Event
+    -- ^ `MCOnlyStackWriteEvent a tp v` indicates that we write the `w` byte value `v`  to `a`.
+    --
+    -- This has side effects, so we record the event.
+  | JointStackWriteEvent : Term (SmtSort.bitvec 64) -> forall (n : Nat), Term (SmtSort.bitvec n) -> LocalIdent -> Event 
+    -- ^ `JointStackWriteEvent a w v` indicates that we write the `w` byte value `v`  to `a`.
+    -- The write affects the alloca pointed to by Allocaname.
+    --
+    -- This has side effects, so we record the event.
+  | NonStackWriteEvent : Term (SmtSort.bitvec 64) -> forall (n : Nat), Term (SmtSort.bitvec n) -> Event
+    -- ^ `NonStackWriteEvent a w v` indicates that we write the `w` byte value `v`  to `a`.  The
+    -- address `a` should not be in the stack.
+    --
+    -- This has side effects, so we record the event.
+  | FetchAndExecuteEvent : RegState -> Event
+    -- ^ A fetch and execute
+
+
+abbrev memory_t := SmtSort.array (SmtSort.bitvec 64) (SmtSort.bitvec 8)
+def memory := Term memory_t
+
+
+
+structure SupportedMemType (s : SmtSort) :=
+  (readMem  : memory -> Term (SmtSort.bitvec 64) -> Smt.Term s)
+  (writeMem : memory -> Term (SmtSort.bitvec 64) -> Smt.Term s -> memory)
+
+
+-- FIXME: the name is wrong, maybe something like MCSMTContext or something?
+-- cf. `mcMemDecls`
+structure MCStdLib :=
+  (memOps        : forall (w : WordSize), SupportedMemType w.sort)
+  (funStartRegs  : RegState)
+  (blockStartMem : memory)
+  (onStack       : Term (SmtSort.bitvec 64) -> Term (SmtSort.bitvec 64) -> Term SmtSort.bool)
+  (allocaMap     : Std.RBMap LocalIdent AllocaMC (λ x y => x < y))
+  (notInStack    : Term (SmtSort.bitvec 64) -> Term (SmtSort.bitvec 64) -> Term SmtSort.bool)
+
+
+end vcg
+end x86
 
 namespace LLVM
 
@@ -343,6 +448,7 @@ structure BlockVCGContext :=
 (mcBlockMap : MCBlockAnnMap)
   -- ^ Map from addresses to annotations of events on that address.
 (mcStdLib     : x86.vcg.MCStdLib)
+-- ^ Machine-code specific declarations.
 
 -- State that changes during execution of a BlockVCG action.
 structure BlockVCGState :=
@@ -362,14 +468,14 @@ structure BlockVCGState :=
   -- ^ Unprocessed events from last instruction.
 (idGen : IdGen)
   -- ^ Used to generate unique/fresh local variables for machine code SMT terms.
--- (mcPendingAllocaOffsetMap : RBMap LocalIdent AllocaAnn (λ x y => x < y)) -- TODO use later
+(mcPendingAllocaOffsetMap : Std.RBMap LocalIdent AllocaAnn (λ x y => x < y))
   -- ^ This is a map from allocation names to the annotations about their
   -- size and offset.
+(activeAllocaMap : Std.RBMap LocalIdent AllocaLlvm (fun x y => x < y))
+ -- ^ Allocation names that are active in this block and their associated LLVM terms.
 (llvmInstIndex : Nat)
   -- ^ Index of next LLVM instruction within block to execute
   -- Used for error reporting
---(activeAllocaSet : RBTree LocalIdent (λ x y => x < y)) -- TODO use later
- -- ^ Set of allocation names that are active.
 (llvmIdentMap : Std.RBMap LLVM.Ident (Sigma Smt.Term) (fun x y => x < y))
  -- ^ Mapping from llvm ident to their SMT equivalent.
 (smtContext : SmtM Unit)

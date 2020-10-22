@@ -5,6 +5,7 @@ import X86Semantics.Common
 import X86Semantics.BackendAPI
 
 import DecodeX86.DecodeX86
+import ReoptVCG.Types
 import ReoptVCG.Translate -- FIXME: this should be moved elsewhere
 
 import ReoptVCG.Annotations
@@ -28,11 +29,6 @@ abbrev memaddr := bitvec 64
 def byte    := bitvec 8
 
 def machine_word := bitvec 64
-
-structure RegState : Type :=
-  (gpregs : Array machine_word) -- 16
-  (flags  : Array s_bool) -- 32
-  (ip     : machine_word)
 
 namespace RegState
 
@@ -95,40 +91,6 @@ def declare_const (pfx : String) (ip : Nat) : SmtM RegState := do
 
 end RegState
 
--- This mirrors the Haskell prototype as far as possible, hence the slightly verbose names.
-inductive Event
-  | Command : Smt.Command -> Event
-  | Warning : String -> Event
-    -- ^ We added a warning about an issue in the VCG
-  | MCOnlyStackReadEvent : memaddr -> forall (n : Nat), bitvec n -> Event
-    -- ^ `MCOnlyReadEvent a w v` indicates that we read `w` bytes
-    -- from `a`, and assign the value returned to `v`.  This only
-    -- appears in the binary code.
-  | JointStackReadEvent : memaddr -> forall (n : Nat), bitvec n -> ReoptVCG.LocalIdent -> Event
-    -- ^ `JointReadEvent a w v llvmAlloca` indicates that we read `w` bytes from `a`,
-    -- and assign the value returned to `v`.  This appears in the both the binary
-    -- and LLVM.  The alloca name refers to the LLVM allocation this is part of,
-    -- and otherwise this is a binary only read.
-  | NonStackReadEvent : memaddr -> forall (n : Nat), bitvec n -> Event
-    -- ^ `NonStackReadEvent a w v` indicates that we read `w` bytes
-    -- from `a`, and assign the value returned to `v`.  The address `a` should not
-    -- be in the stack.
-  | MCOnlyStackWriteEvent : memaddr -> forall (n : Nat), bitvec n -> Event
-    -- ^ `MCOnlyStackWriteEvent a tp v` indicates that we write the `w` byte value `v`  to `a`.
-    --
-    -- This has side effects, so we record the event.
-  | JointStackWriteEvent : memaddr -> forall (n : Nat), bitvec n -> ReoptVCG.LocalIdent -> Event 
-    -- ^ `JointStackWriteEvent a w v` indicates that we write the `w` byte value `v`  to `a`.
-    -- The write affects the alloca pointed to by Allocaname.
-    --
-    -- This has side effects, so we record the event.
-  | NonStackWriteEvent : memaddr -> forall (n : Nat), bitvec n -> Event
-    -- ^ `NonStackWriteEvent a w v` indicates that we write the `w` byte value `v`  to `a`.  The
-    -- address `a` should not be in the stack.
-    --
-    -- This has side effects, so we record the event.
-  | FetchAndExecuteEvent : RegState -> Event
-    -- ^ A fetch and execute
 
 namespace Event
 

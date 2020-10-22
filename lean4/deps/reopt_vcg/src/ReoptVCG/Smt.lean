@@ -211,11 +211,8 @@ exit
     of commands to a file. -/
 def exportCheckSatAssuming
 (outputDir : String)
--- (goalCounter : IO.Ref Nat)
 (vg : VerificationGoal)
 : IO Unit := do
--- cnt ← goalCounter.get;
--- goalCounter.modify Nat.succ;
 let preludeCmds := proofScriptPrelude vg.propName;
 let (_, _, cmds) := runSmtM IdGen.empty (checkNegatedGoal vg.propName vg.negatedGoal);
 let filePath := System.mkFilePath [outputDir, standaloneGoalFilename vg];
@@ -231,7 +228,7 @@ def exportProverSession
 -- goalCounter <- IO.mkRef 0;
 let initSmtM : SmtM Unit := pure ();
 cmdRef <- IO.mkRef initSmtM;
-pure {checkSatAssuming := exportCheckSatAssuming outputDir, --goalCounter,
+pure {checkSatAssuming := exportCheckSatAssuming outputDir,
       sessionComplete := pure 0
      }
 
