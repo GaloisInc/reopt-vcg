@@ -115,18 +115,19 @@ def defineNotInStackRange (stack_alloc_min : memaddr) (stack_max : memaddr)
                    (Smt.bvule stack_max addr))
 
 
--- FIXME: define
--- def defineMCOnlyStackRange (on_stack : memaddr -> bitvec 64 -> s_bool) (allocas : ... )
---   : SmtM (memaddr -> bitvec 64 -> s_bool) := do
---   eName <- Smt.freshSymbol "e";
---   Smt.define_fun "mc_only_stack_range" [SmtSort.bitvec 64, SmtSort.bitvec 64] SmtSort.bool $
---     fun addr sz => 
---       Smt.smtLet eName (Smt.bvadd addr sz) $ fun e =>
---         Smt.and (on_stack addr sz)
---                      -- ++ [ isDisjoint ("a", "e") (allocaMCBaseVar nm, allocaMCEndVar nm)
---                      --    | a <- allocas
---                      --    , let nm = Ann.allocaIdent a
---                      --    ]
+def defineIsInMCOnlyStackRange
+  (onStack : (memaddr -> bitvec 64 -> s_bool))
+  (allocas : Std.RBMap LocalIdent AllocaMC (λ x y => x < y))
+  : SmtM (memaddr -> bitvec 64 -> s_bool) := do
+  eName <- Smt.freshSymbol "e";
+  Smt.defineFun "is_in_mc_only_stack_range" [SmtSort.bitvec 64, SmtSort.bitvec 64] SmtSort.bool $
+    fun addr sz =>
+      Smt.smtLet eName (Smt.bvadd addr sz) $ fun e =>
+        Smt.all $
+          (onStack addr sz)::(allocas.fold
+                               (λ ps _ a =>
+                                  (isDisjoint addr e a.baseAddress a.endAddress)::ps)
+                               [])
 
 
 -- nbits should be > 0, nbits should be a power of 2
@@ -208,14 +209,16 @@ def make (ip : Nat) (pageSize : Nat) (guardPageCount : Nat) (allocas : AllocaAnn
                   mcAlloc ← allocaMCBaseEndDecls alloc stackHighTerm;
                   pure $ m.insert ident mcAlloc)
                Std.RBMap.empty;
-  -- Declare mcOnlyStackRange
-  -- defineMCOnlyStackRange onStack
+  -- Declare isInMCOnlyStackRange
+  isInMCOnlyStackRange ← defineIsInMCOnlyStackRange onStack allocaMap;
   pure { memOps        := memOps
        , funStartRegs  := funStartRegs
        , blockStartMem := blockStartMem
        , onStack       := onStack
        , allocaMap     := allocaMap
-       , notInStack    := notInStack}
+       , notInStack    := notInStack
+       , isInMCOnlyStackRange := isInMCOnlyStackRange
+       }
 
 
 end MCStdLib

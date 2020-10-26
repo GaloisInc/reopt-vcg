@@ -315,16 +315,12 @@ def execMCOnlyEvents : MemAddr -> BlockVCG Unit
 
       -- We need to assert that this werite will not be visible to LLVM.
 
-      -- FIXME - once we have allocas this will need to be mcOnlyStackRange
       (do thisIP <- BlockVCGState.mcCurAddr <$> get;
           stdLib <- BlockVCGContext.mcStdLib <$> read;
           -- FIXME: assert 8 dvd n
-          proveTrue (stdLib.onStack mcAddr (Smt.bvimm _ (n / 8)))
+          proveTrue (stdLib.isInMCOnlyStackRange mcAddr (Smt.bvimm _ (n / 8)))
             ("machine code write at " ++ thisIP.ppHex ++ " is in unreserved stack space."));
 
-      -- do addr <- mcCurAddr <$> get;
-      --    proveTrue (evalRangeCheck mcOnlyStackRange mcAddr (memReprBytes tp)) $
-      --      printf "machine code write at %s is in unreserved stack space." (show addr)
       -- Update stack with write.
       mcWrite mcAddr (SmtSort.bitvec n) smtVal;
       -- Process next events
@@ -1001,13 +997,6 @@ def stepNextStmt (stmt : LLVM.Stmt) : BlockVCG Bool := do
 --------------------------------------------------------------------------------
 -- Alloca Declarations
 
-/-- The statement that either [low1,high1) preceeds and does not overlap
-    [low2,high2) or vice versa. --/
-def isDisjoint (low1 high1 low2 high2 : Smt.Term SmtSort.bv64)
-  : Smt.Term SmtSort.bool :=
-Smt.or (Smt.bvule high1 low2) (Smt.bvule high2 low1)
-
-
 -- | Add the LLVM declarations for an allocation.
 def allocaDeclarations
   (a : AllocaAnn)
@@ -1032,7 +1021,7 @@ let predNm : String := "llvmaddr_in_alloca_" ++ nm.name;
 rangeCheck ← BlockVCG.defineRangeCheck predNm baseVar endVar;
 -- Add assumption that LLVM allocation does not overlap with
 -- existing allocations.
-used.forM (λ _ a' => addAssert $ isDisjoint baseVar endVar a'.baseAddress a'.endAddress);
+used.forM (λ _ a' => addAssert $ x86.vcg.isDisjoint baseVar endVar a'.baseAddress a'.endAddress);
 -- Define register alloca is returned to.
 let regNm : LLVM.Ident := LLVM.Ident.named $ "llvm_" ++ nm.name;
 reg ←  defineTerm regNm baseVar;

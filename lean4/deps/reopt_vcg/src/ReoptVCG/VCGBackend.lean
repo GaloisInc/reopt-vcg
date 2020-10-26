@@ -30,6 +30,13 @@ def byte    := bitvec 8
 
 def machine_word := bitvec 64
 
+
+/-- The statement that either [low1,high1) preceeds and does not overlap
+    [low2,high2) or vice versa. --/
+def isDisjoint (low1 high1 low2 high2 : bitvec 64) : s_bool :=
+Smt.or (Smt.bvule high1 low2) (Smt.bvule high2 low1)
+
+
 namespace RegState
 
 def get_gpreg  (s : RegState) (idx : Fin 16) : machine_word := 

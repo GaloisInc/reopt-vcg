@@ -155,6 +155,24 @@ def eq {a : SmtSort} : Term a -> Term a -> Term bool       := binop (eq a)
 -- def distinct {a : SmtSort} : List (Term a) -> Term bool := Raw.Term.distinct
 def smtIte  {a : SmtSort} : Term bool -> Term a -> Term a -> Term a := ternop (smtIte a)
 
+-- Derived helpers
+private def allAux : Term bool → List (Term bool) → Term bool
+| p, [] => p
+| p, q::qs => allAux (and p q) qs
+
+def all : List (Term bool) → Term bool
+| [] => true
+| p::ps => allAux p ps
+
+private def anyAux : Term bool → List (Term bool) → Term bool
+| p, [] => p
+| p, q::qs => anyAux (or p q) qs
+
+def any : List (Term bool) → Term bool
+| [] => false
+| p::ps => anyAux p ps
+
+
 -- Arrays
 def select (k v : SmtSort) : Term (array k v) -> Term k -> Term v :=
   binop (select k v)

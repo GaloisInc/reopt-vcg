@@ -112,6 +112,7 @@ structure MCStdLib :=
   (onStack       : Term (SmtSort.bitvec 64) -> Term (SmtSort.bitvec 64) -> Term SmtSort.bool)
   (allocaMap     : Std.RBMap LocalIdent AllocaMC (λ x y => x < y))
   (notInStack    : Term (SmtSort.bitvec 64) -> Term (SmtSort.bitvec 64) -> Term SmtSort.bool)
+  (isInMCOnlyStackRange : Term (SmtSort.bitvec 64) -> Term (SmtSort.bitvec 64) -> Term SmtSort.bool)
 
 
 end vcg
