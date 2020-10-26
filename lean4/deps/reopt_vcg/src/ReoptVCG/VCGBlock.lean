@@ -80,11 +80,13 @@ def addAssert (p : Smt.Term SmtSort.bool) : BlockVCG Unit :=
 
 -- | @proveTrue p msg@ adds a proof obligation @p@ is true for all
 -- interpretations of constants with the message @msg@.
-def proveTrue (prop : Smt.Term SmtSort.bool) (propName : String) : BlockVCG Unit :=
-verifyGoal (Smt.not prop) propName
+def proveTrue (prop : Smt.Term SmtSort.bool) (msg : String) : BlockVCG Unit := do
+annMsg <- prependLocation msg;
+verifyGoal (Smt.not prop) annMsg
 
-def proveFalse (prop : Smt.Term SmtSort.bool) (propName : String) : BlockVCG Unit :=
-verifyGoal prop propName
+def proveFalse (prop : Smt.Term SmtSort.bool) (msg : String) : BlockVCG Unit := do
+annMsg <- prependLocation msg;
+verifyGoal prop annMsg
 
 def proveEq {s : SmtSort} (x y : Smt.Term s) (msg : String) : BlockVCG Unit := do
 annMsg <- prependLocation msg;
