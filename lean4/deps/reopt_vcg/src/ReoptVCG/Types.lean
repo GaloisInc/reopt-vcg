@@ -3,8 +3,6 @@ import LeanLLVM.AST
 import LeanLLVM.PP
 import ReoptVCG.Elf
 import ReoptVCG.Annotations
---import ReoptVCG.VCGBackend
---import ReoptVCG.MCStdLib
 
 import SmtLib.Smt
 import DecodeX86.DecodeX86
@@ -81,7 +79,7 @@ inductive Event
     -- ^ `MCOnlyStackWriteEvent a tp v` indicates that we write the `w` byte value `v`  to `a`.
     --
     -- This has side effects, so we record the event.
-  | JointStackWriteEvent : Term (SmtSort.bitvec 64) -> forall (n : Nat), Term (SmtSort.bitvec n) -> LocalIdent -> Event 
+  | JointStackWriteEvent : Term (SmtSort.bitvec 64) -> forall (n : Nat), Term (SmtSort.bitvec n) -> LocalIdent -> Event
     -- ^ `JointStackWriteEvent a w v` indicates that we write the `w` byte value `v`  to `a`.
     -- The write affects the alloca pointed to by Allocaname.
     --

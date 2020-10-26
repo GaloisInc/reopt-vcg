@@ -201,8 +201,8 @@ def make (ip : Nat) (pageSize : Nat) (guardPageCount : Nat) (allocas : AllocaAnn
   -- The return address top must be aligned to a 16-byte boundary.
   Smt.assert $ isAligned (Smt.bvadd stackHighTerm (Smt.bvimm _ 8)) 16;
 
-  allocaMap ← allocas.foldM 
-               (λ (m : Std.RBMap LocalIdent AllocaMC (λ x y => x<y)) 
+  allocaMap ← allocas.foldM
+               (λ (m : Std.RBMap LocalIdent AllocaMC (λ x y => x<y))
                   (ident : LocalIdent)
                   (alloc : AllocaAnn) => do
                   mcAlloc ← allocaMCBaseEndDecls alloc stackHighTerm;
@@ -211,7 +211,7 @@ def make (ip : Nat) (pageSize : Nat) (guardPageCount : Nat) (allocas : AllocaAnn
   -- Declare mcOnlyStackRange
   -- defineMCOnlyStackRange onStack
   pure { memOps        := memOps
-       , funStartRegs  := funStartRegs  
+       , funStartRegs  := funStartRegs
        , blockStartMem := blockStartMem
        , onStack       := onStack
        , allocaMap     := allocaMap

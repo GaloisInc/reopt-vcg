@@ -325,7 +325,7 @@ def MCMemoryEvent.fromJson (js : Json) : Option MCMemoryEvent :=
 (parseMCMemoryEvent js).toOption
 
 def MCMemoryEvent.toJson (me : MCMemoryEvent) : Json := 
-let entries : List (String × Json) := 
+let entries : List (String × Json) :=
   [ ("addr", toJson me.addr)] ++ (renderMemoryAnn me.info);
 toJson $ Std.RBMap.fromList entries Lean.strLt
 

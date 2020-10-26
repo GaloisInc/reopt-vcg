@@ -44,6 +44,9 @@ let msgEvent := VerificationEvent.msg ⟨locMsg⟩;
 modify (λ s => {s with verificationEvents := msgEvent :: s.verificationEvents})
 
 
+def missingFeature (msg : String) : BlockVCG Unit := do
+  log $ "TODO: " ++ msg
+
 
 -- | Report an error at the given location and stop verification of
 -- this block. FIXME this currently uses a callback (which will report an error via IO)
@@ -598,11 +601,10 @@ match mevt with
 | _ => localBlockError "Expected a machine code load event."
   
 
-def llvmStore (llvmAddr : BlockExpr SmtSort.bv64) {s : SmtSort} (llvmVal : BlockExpr s) : BlockVCG Unit := do
+def llvmStore (llvmAddr : Smt.Term SmtSort.bv64) {s : SmtSort} (llvmVal : Smt.Term s) : BlockVCG Unit := do
   mevt ← popMCEvent;
   match mevt with
-  | JointStackWriteEvent mcAddr mcType mcVal allocName => localBlockError "TODO: implement llvmStore JointStackWriteEvent"
-  -- -- do
+  | JointStackWriteEvent mcAddr mcValWidth mcVal allocName => do
   --   -- Check the number of bytes written are the same.
   --   unless (typeCompat llvmType mcType) $ do
   --     fatalBlockError $ "Machine code and LLVM writes have incompatible types:\n"
@@ -626,15 +628,18 @@ def llvmStore (llvmAddr : BlockExpr SmtSort.bv64) {s : SmtSort} (llvmVal : Block
   --   thisIP <- gets mcCurAddr
   --   proveEq llvmVal mcVal $
   --     (printf "Value written at addr %s equals LLVM value." (show thisIP))
-  | NonStackWriteEvent _mcAddr mcType mcVal => localBlockError "TODO: implement llvmStore NonStackWriteEvent"
-    -- do
-    -- -- Check types agree.
-    -- unless (typeCompat llvmType mcType) $ do
-    --   error "Macaw and LLVM writes have different types."
-    -- missingFeature "Assert machine code and llvm heap write addresses are equal."
-    -- -- Assert values are equal
-    -- proveEq llvmVal mcVal
-    --   ("Machine code heap store matches expected from LLVM")
+    localBlockError "TODO: implement llvmStore JointStackWriteEvent"
+  | NonStackWriteEvent mcAddr mcValWidth mcVal => do
+    proveEq llvmAddr mcAddr "Machine code and LLVM heap write addresses are equal";
+    let s' : SmtSort := SmtSort.bitvec mcValWidth;
+    if hEq : s' = s
+    then do
+      -- Assert values are equal
+      proveEq llvmVal (cast (congrArg Smt.Term hEq) mcVal)
+        "Machine code heap store matches expected from LLVM"
+    else do
+      localBlockError $ "Machine code write has type " ++ (toString $ toSExpr s') ++
+                        " while LLVM write has types " ++ (toString $ toSExpr s) ++ "."
   | _ => localBlockError "llvmStore: Expected a heap or joint stack write event."
 
 end
@@ -951,7 +956,11 @@ def stepNextStmt (stmt : LLVM.Stmt) : BlockVCG Bool := do
          | some x => do
            llvmLoad x addr mAlign;
            pure true
---  | store (addr:Typed Value) (val:Typed Value) (align:Option Nat)
+  | store (val:Typed Value) (addr:Typed Value) (_align:Option Nat) => do
+      addrTerm ← primEvalTypedValueAsBV64 addr;
+      ⟨_, valTerm⟩ ← tryPrimEval val.type val.value;
+      llvmStore addrTerm valTerm;
+      pure true
   | _ => unimplemented
   
 
