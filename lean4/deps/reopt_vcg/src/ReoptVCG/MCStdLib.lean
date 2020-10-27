@@ -158,7 +158,7 @@ namespace MCStdLib
 -- FIXME
 def rsp_idx : Fin 16 := 4
 
--- FIXME: some of this is not used in the absence of allocas -- BOOKMARK just added allocas
+
 def make (ip : Nat) (pageSize : Nat) (guardPageCount : Nat) (allocas : AllocaAnnMap) : SmtM MCStdLib := do
   -- FIXME: add checks
   memOps <- mkMemOps;
