@@ -20,7 +20,7 @@ abbrev GoalName := String
 -- (blockErrorCallback : Nat → Nat → String → IO Unit) -- what do we do there? Do nothing for now...?
 
 structure ProverSession :=
-(checkSatAssuming : VerificationGoal → IO Unit)
+(verifyGoal : VerificationGoal → IO Unit)
 (sessionComplete : IO UInt32)
 
 
@@ -200,24 +200,21 @@ let (_, _, cmds) := runSmtM IdGen.empty (do
   setProduceModels true);
 cmds
 
-/-- Common things appearing at the top of every smt2 script. --/
-def checkNegatedGoal (goalName : String) (negatedGoal : SmtM (Term SmtSort.bool)) : SmtM Unit := do
-p ← negatedGoal; -- FIXME commands that appear before this do not appear in the final script =\
-checkSatAssuming [p];
+/-- Check satisfiability with `goal` negated.  --/
+def checkSatWithGoalNegated (goalName : String) (goal : SmtM (Term SmtSort.bool)) : SmtM Unit := do
+p ← goal; -- FIXME commands that appear before this do not appear in the final script =\
+checkSatAssuming [Smt.not p];
 exit
 
 
 /-- Write assert the negated goal and write out the resulting script
     of commands to a file. -/
-def exportCheckSatAssuming
+def exportVerifyGoal
 (outputDir : String)
--- (goalCounter : IO.Ref Nat)
 (vg : VerificationGoal)
 : IO Unit := do
--- cnt ← goalCounter.get;
--- goalCounter.modify Nat.succ;
 let preludeCmds := proofScriptPrelude vg.propName;
-let (_, _, cmds) := runSmtM IdGen.empty (checkNegatedGoal vg.propName vg.negatedGoal);
+let (_, _, cmds) := runSmtM IdGen.empty (checkSatWithGoalNegated vg.propName vg.goal);
 let filePath := System.mkFilePath [outputDir, standaloneGoalFilename vg];
 file ← IO.FS.Handle.mk filePath IO.FS.Mode.write;
 preludeCmds.forM (λ c => file.putStr c.toLine);
@@ -231,7 +228,7 @@ def exportProverSession
 -- goalCounter <- IO.mkRef 0;
 let initSmtM : SmtM Unit := pure ();
 cmdRef <- IO.mkRef initSmtM;
-pure {checkSatAssuming := exportCheckSatAssuming outputDir, --goalCounter,
+pure {verifyGoal := exportVerifyGoal outputDir,
       sessionComplete := pure 0
      }
 
@@ -256,8 +253,8 @@ structure InteractiveContext :=
 -- | Function to verify an SMT proposition is provable in the given
 --   context and print the result to the user.
 def verifyGoal
-(negGoal : Smt.Term SmtSort.bool)
--- ^ Negation of goal to verify
+(goal : Smt.Term SmtSort.bool)
+-- ^ Goal to verify
 (propName : String)
 -- ^ Name of proposition for reporting purposes.
 : BlockVCG Unit := do
@@ -270,7 +267,7 @@ let newGoal : VerificationEvent :=
    blockLbl := ctx.currentBlock,
    goalIndex := goalIndex,
    propName := propName,
-   negatedGoal := do smtCtx; pure negGoal};
+   goal := do smtCtx; pure goal};
 modify (λ s => {s with
                   verificationEvents := newGoal :: s.verificationEvents,
                   goalIndex := s.goalIndex + 1});
@@ -292,7 +289,7 @@ IO.print $ "  Verifying " ++ vg.propName ++ "... ";
 -- FIXME, uncomment this line after next lean4 bump
 -- IO.stdout.flush;
 let preludeCmds := proofScriptPrelude vg.propName;
-let (_, _, cmds) := runSmtM IdGen.empty (checkNegatedGoal vg.propName vg.negatedGoal);
+let (_, _, cmds) := runSmtM IdGen.empty (checkSatWithGoalNegated vg.propName vg.goal);
 IO.FS.withFile smtFilePath IO.FS.Mode.write (λ file => do
   preludeCmds.forM (λ c => file.putStr c.toLine);
   cmds.forM (λ c => file.putStr c.toLine);
@@ -377,7 +374,7 @@ let whenDone : IO UInt32 := (do
   when (errorCnt > 0) $
     IO.println $ "Encountered"++(repr errorCnt)++"error(s).";
   pure $ if verSuccess then 0 else 1);
-pure { checkSatAssuming := doGoal,
+pure { verifyGoal := doGoal,
        sessionComplete := whenDone
      }
 

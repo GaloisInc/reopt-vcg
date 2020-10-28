@@ -287,7 +287,7 @@ def get_text_segment {c} (e : elf.ehdr c) (phdrs : List (elf.phdr c)) : Option (
 
 def runVerificationEvent (ps : ProverSession) : VerificationEvent → IO Unit
 | VerificationEvent.msg vMsg => IO.println vMsg.msg
-| VerificationEvent.goal vg => ps.checkSatAssuming vg
+| VerificationEvent.goal vg => ps.verifyGoal vg
 
 def runBlockVerificationEvent (ps : ProverSession) : BlockVerificationEvent → IO Unit
 | BlockVerificationEvent.block bv => bv.blockVerificationEvents.forM (runVerificationEvent ps)
