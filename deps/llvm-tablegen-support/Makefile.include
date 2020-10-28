@@ -1,0 +1,5 @@
+
+LOCAL_LEAN := lean/DecodeX86/DecodeX86.lean
+LOCAL_CXX  := src/Metadata.cpp src/lean_support.cpp src/X86Disassembler.cpp
+
+$(eval $(call add-package,lean,${LOCAL_LEAN},${LOCAL_CXX}))

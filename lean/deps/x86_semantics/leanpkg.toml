@@ -1,9 +1,0 @@
-[package]
-name = "x86_semantics"
-version = "0.1"
-lean_version = "3.4.1"
-path="src"
-
-[dependencies]
-galois_stdlib = { path = "../galois_stdlib" }
-sexpr = { path = "../sexpr" }

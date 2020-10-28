@@ -1,0 +1,6 @@
+
+HERE := $(realpath $(dir $(realpath $(lastword $(MAKEFILE_LIST)))))
+LOCALFILES := # RunelfSymb.lean 
+LEANFILES += $(patsubst %,${HERE}/%,${LOCALFILES})
+LEAN_PATH := ${LEAN_PATH}:MainSym=${HERE}
+
