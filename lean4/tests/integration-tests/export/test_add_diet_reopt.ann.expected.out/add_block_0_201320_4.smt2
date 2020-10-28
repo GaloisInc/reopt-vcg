@@ -1,4 +1,4 @@
-; machine code read at 0x201330 is not within stack space.
+; add.block_0_201320.1 @ 0x201330: machine code read at 0x201330 is not within stack space.
 (set-logic ALL)
 (set-option :produce-models true)
 (define-fun mem_readbv8 ((arg (Array (_ BitVec 64) (_ BitVec 8))) (arg0 (_ BitVec 64))) (_ BitVec 8) (select arg (bvadd arg0 #x0000000000000000)))
@@ -72,6 +72,7 @@
 (define-fun not_in_stack_range ((arg21 (_ BitVec 64)) (arg22 (_ BitVec 64))) Bool (let ((e0 (bvadd arg21 arg22))) (and (bvule arg21 e0) (or (bvule e0 stack_alloc_min) (bvule stack_max arg21)))))
 (assert (bvult fnstart_rsp (bvsub stack_max #x0000000000000008)))
 (assert (= (bvand (bvadd fnstart_rsp #x0000000000000008) #x000000000000000f) #x0000000000000000))
+(define-fun is_in_mc_only_stack_range ((arg23 (_ BitVec 64)) (arg24 (_ BitVec 64))) Bool (let ((e1 (bvadd arg23 arg24))) (on_stack arg23 arg24)))
 (define-fun %arg0 () (_ BitVec 64) fnstart_rdi)
 (assert (= fnstart_rbx fnstart_rbx))
 (assert (= fnstart_rsp fnstart_rsp))
@@ -84,13 +85,17 @@
 (define-fun %t0 () (_ BitVec 64) (bvadd %arg0 #x0000000000000001))
 ; LLVM:     ret i64 %t0
 (define-fun rsp () (_ BitVec 64) (bvsub fnstart_rsp #x0000000000000008))
+(assert (is_in_mc_only_stack_range rsp #x0000000000000008))
 (define-fun mem () (Array (_ BitVec 64) (_ BitVec 8)) (mem_writebv64 init_mem rsp fnstart_rbp))
 (define-fun addr () (_ BitVec 64) (bvadd rsp (bvadd (bvmul #x0000000000000001 #x0000000000000000) #xfffffffffffffff8)))
+(assert (is_in_mc_only_stack_range addr #x0000000000000008))
 (define-fun mem0 () (Array (_ BitVec 64) (_ BitVec 8)) (mem_writebv64 mem addr fnstart_rdi))
 (define-fun addr0 () (_ BitVec 64) (bvadd rsp (bvadd (bvmul #x0000000000000001 #x0000000000000000) #xfffffffffffffff8)))
 (declare-fun readv () (_ BitVec 64))
+(assert (on_stack addr0 #x0000000000000008))
 (assert (= readv (mem_readbv64 mem0 addr0)))
 (define-fun addr1 () (_ BitVec 64) (bvadd rsp (bvadd (bvmul #x0000000000000001 #x0000000000000000) #xfffffffffffffff0)))
+(assert (is_in_mc_only_stack_range addr1 #x0000000000000008))
 (define-fun mem1 () (Array (_ BitVec 64) (_ BitVec 8)) (mem_writebv64 mem0 addr1 readv))
 (define-fun addr2 () (_ BitVec 64) (bvadd rsp (bvadd (bvmul #x0000000000000001 #x0000000000000000) #xfffffffffffffff0)))
 (declare-fun readv0 () (_ BitVec 64))

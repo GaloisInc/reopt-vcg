@@ -1,4 +1,4 @@
-; jump register rip.
+; main.block_0_201089.1 @ 0x201098: jump register rip.
 (set-logic ALL)
 (set-option :produce-models true)
 (define-fun mem_readbv8 ((arg (Array (_ BitVec 64) (_ BitVec 8))) (arg0 (_ BitVec 64))) (_ BitVec 8) (select arg (bvadd arg0 #x0000000000000000)))
@@ -72,6 +72,7 @@
 (define-fun not_in_stack_range ((arg21 (_ BitVec 64)) (arg22 (_ BitVec 64))) Bool (let ((e0 (bvadd arg21 arg22))) (and (bvule arg21 e0) (or (bvule e0 stack_alloc_min) (bvule stack_max arg21)))))
 (assert (bvult fnstart_rsp (bvsub stack_max #x0000000000000008)))
 (assert (= (bvand (bvadd fnstart_rsp #x0000000000000008) #x000000000000000f) #x0000000000000000))
+(define-fun is_in_mc_only_stack_range ((arg23 (_ BitVec 64)) (arg24 (_ BitVec 64))) Bool (let ((e1 (bvadd arg23 arg24))) (on_stack arg23 arg24)))
 (declare-fun a0x201089_rax () (_ BitVec 64))
 (declare-fun a0x201089_rcx () (_ BitVec 64))
 (declare-fun a0x201089_rdx () (_ BitVec 64))
@@ -135,6 +136,7 @@
 (define-fun rax () (_ BitVec 64) (bvor (bvand a0x201089_rax (bvnot (bvshl ((_ zero_extend 56) ((_ repeat 8) #b1)) #x0000000000000000))) (bvshl ((_ zero_extend 56) ((_ sign_extend 0) #x00)) #x0000000000000000)))
 (define-fun rsp () (_ BitVec 64) (bvsub a0x201089_rsp #x0000000000000008))
 (define-fun addr () (_ BitVec 64) (bvsub a0x201089_rsp #x0000000000000008))
+(assert (is_in_mc_only_stack_range addr #x0000000000000008))
 (define-fun mem () (Array (_ BitVec 64) (_ BitVec 8)) (mem_writebv64 init_mem addr #x000000000020109d))
 (assert (= #x00000000002001d2 rdi))
 (assert (= %t1 a0x201089_rax))

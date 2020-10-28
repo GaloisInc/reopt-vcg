@@ -1,4 +1,4 @@
-; machine code write at 0x20101b is in unreserved stack space.
+; fib.block_0_201017.0 @ 0x20101b: machine code write at 0x20101b is in unreserved stack space.
 (set-logic ALL)
 (set-option :produce-models true)
 (define-fun mem_readbv8 ((arg (Array (_ BitVec 64) (_ BitVec 8))) (arg0 (_ BitVec 64))) (_ BitVec 8) (select arg (bvadd arg0 #x0000000000000000)))
@@ -72,6 +72,7 @@
 (define-fun not_in_stack_range ((arg21 (_ BitVec 64)) (arg22 (_ BitVec 64))) Bool (let ((e0 (bvadd arg21 arg22))) (and (bvule arg21 e0) (or (bvule e0 stack_alloc_min) (bvule stack_max arg21)))))
 (assert (bvult fnstart_rsp (bvsub stack_max #x0000000000000008)))
 (assert (= (bvand (bvadd fnstart_rsp #x0000000000000008) #x000000000000000f) #x0000000000000000))
+(define-fun is_in_mc_only_stack_range ((arg23 (_ BitVec 64)) (arg24 (_ BitVec 64))) Bool (let ((e1 (bvadd arg23 arg24))) (on_stack arg23 arg24)))
 (declare-fun a0x201017_rax () (_ BitVec 64))
 (declare-fun a0x201017_rcx () (_ BitVec 64))
 (declare-fun a0x201017_rdx () (_ BitVec 64))
@@ -136,7 +137,8 @@
 ; LLVM:     jump label %block_0_201058
 (define-fun addr () (_ BitVec 64) (bvadd a0x201017_rbp (bvadd (bvmul #x0000000000000001 #x0000000000000000) #xfffffffffffffff0)))
 (declare-fun readv () (_ BitVec 64))
+(assert (on_stack addr #x0000000000000008))
 (assert (= readv (mem_readbv64 init_mem addr)))
 (define-fun addr0 () (_ BitVec 64) (bvadd a0x201017_rbp (bvadd (bvmul #x0000000000000001 #x0000000000000000) #xfffffffffffffff8)))
-(check-sat-assuming ((not (on_stack addr0 #x0000000000000008))))
+(check-sat-assuming ((not (is_in_mc_only_stack_range addr0 #x0000000000000008))))
 (exit)
