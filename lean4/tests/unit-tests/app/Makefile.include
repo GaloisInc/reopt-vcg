@@ -1,4 +1,0 @@
-TARGETNAME := reopt-vcg-unit-test
-LOCAL_LEAN := Main.lean
-
-$(eval $(call add-target,$(TARGETNAME),${LOCAL_LEAN}))

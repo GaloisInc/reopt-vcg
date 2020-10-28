@@ -1,9 +1,0 @@
-[package]
-name = "reopt_vcg"
-version = "0.1"
-lean_version = "4.0.0"
-path="src"
-
-[dependencies]
-decodex86     = { path = "deps/llvm-tablegen-support" }
-x86_semantics = { path = "deps/x86_semantics" }
