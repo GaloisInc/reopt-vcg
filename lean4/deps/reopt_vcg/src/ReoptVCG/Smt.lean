@@ -20,7 +20,7 @@ abbrev GoalName := String
 -- (blockErrorCallback : Nat → Nat → String → IO Unit) -- what do we do there? Do nothing for now...?
 
 structure ProverSession :=
-(checkSatAssuming : VerificationGoal → IO Unit)
+(verifyGoal : VerificationGoal → IO Unit)
 (sessionComplete : IO UInt32)
 
 
@@ -209,7 +209,7 @@ exit
 
 /-- Write assert the negated goal and write out the resulting script
     of commands to a file. -/
-def exportCheckSatAssuming
+def exportVerifyGoal
 (outputDir : String)
 (vg : VerificationGoal)
 : IO Unit := do
@@ -228,7 +228,7 @@ def exportProverSession
 -- goalCounter <- IO.mkRef 0;
 let initSmtM : SmtM Unit := pure ();
 cmdRef <- IO.mkRef initSmtM;
-pure {checkSatAssuming := exportCheckSatAssuming outputDir,
+pure {verifyGoal := exportVerifyGoal outputDir,
       sessionComplete := pure 0
      }
 
@@ -374,7 +374,7 @@ let whenDone : IO UInt32 := (do
   when (errorCnt > 0) $
     IO.println $ "Encountered"++(repr errorCnt)++"error(s).";
   pure $ if verSuccess then 0 else 1);
-pure { checkSatAssuming := doGoal,
+pure { verifyGoal := doGoal,
        sessionComplete := whenDone
      }
 

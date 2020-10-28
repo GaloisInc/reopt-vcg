@@ -30,7 +30,7 @@ Smt.assert $ Smt.eq ff Smt.false;
 Smt.assert $ Smt.eq (negb ff) Smt.true;
 Smt.assert $ Smt.eq (negb tt) Smt.false;
 Smt.assert $ andb tt (negb ff);
-pure Smt.false
+pure Smt.true
 
 def testExportCallbacks : IO Unit := do
 let outDir := ".";
@@ -43,7 +43,7 @@ let vg : VerificationGoal :=
    propName := "false-is-false\n(true-is-true?)",
    goal := smtGoal1};
 ps ← exportProverSession outDir;
-ps.checkSatAssuming vg;
+ps.verifyGoal vg;
 ps.sessionComplete;
 let outFile := outDir ++ [System.FilePath.pathSeparator].asString ++ (standaloneGoalFilename vg);
 outFileContents ← IO.FS.readFile outFile;

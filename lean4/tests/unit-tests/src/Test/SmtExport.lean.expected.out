@@ -13,6 +13,6 @@
 (assert (= (negb ff) true))
 (assert (= (negb tt) false))
 (assert (andb tt (negb ff)))
-(check-sat-assuming (false))
+(check-sat-assuming ((not true)))
 (exit)
 
