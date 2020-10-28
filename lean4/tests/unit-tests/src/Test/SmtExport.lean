@@ -41,7 +41,7 @@ let vg : VerificationGoal :=
    blockLbl := blockLbl,
    goalIndex := 0,
    propName := "false-is-false\n(true-is-true?)",
-   negatedGoal := smtGoal1};
+   goal := smtGoal1};
 ps ← exportProverSession outDir;
 ps.checkSatAssuming vg;
 ps.sessionComplete;

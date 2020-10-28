@@ -296,7 +296,7 @@ structure VerificationGoal :=
 -- ^ Index of the goal for this block.
 (propName  : String)
 -- ^ Name of the proposition for reporting purposes.
-(negatedGoal   : SmtM (Term SmtSort.bool))
+(goal   : SmtM (Term SmtSort.bool))
 -- ^ SMT script which, if unsat, proves the goal
 
 -- | Log messages interleaved with verification

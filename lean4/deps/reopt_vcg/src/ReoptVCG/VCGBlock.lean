@@ -82,17 +82,13 @@ def addAssert (p : Smt.Term SmtSort.bool) : BlockVCG Unit :=
 -- interpretations of constants with the message @msg@.
 def proveTrue (prop : Smt.Term SmtSort.bool) (msg : String) : BlockVCG Unit := do
 annMsg <- prependLocation msg;
-verifyGoal (Smt.not prop) annMsg
+verifyGoal prop annMsg;
+-- Add command for future proofs
+addAssert prop
 
-def proveFalse (prop : Smt.Term SmtSort.bool) (msg : String) : BlockVCG Unit := do
-annMsg <- prependLocation msg;
-verifyGoal prop annMsg
 
 def proveEq {s : SmtSort} (x y : Smt.Term s) (msg : String) : BlockVCG Unit := do
-annMsg <- prependLocation msg;
-proveTrue (Smt.eq x y) annMsg; -- FIXME ? was proveFalseCallback/Smt.distinct
--- Add command for future proofs
-addAssert (Smt.eq x y)
+proveTrue (Smt.eq x y) msg -- FIXME ? was proveFalseCallback/Smt.distinct
 
 
 -- | Add assertion that the propositon is true without requiring it to be proven.

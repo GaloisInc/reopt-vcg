@@ -200,10 +200,10 @@ let (_, _, cmds) := runSmtM IdGen.empty (do
   setProduceModels true);
 cmds
 
-/-- Common things appearing at the top of every smt2 script. --/
-def checkNegatedGoal (goalName : String) (negatedGoal : SmtM (Term SmtSort.bool)) : SmtM Unit := do
-p ← negatedGoal; -- FIXME commands that appear before this do not appear in the final script =\
-checkSatAssuming [p];
+/-- Check satisfiability with `goal` negated.  --/
+def checkSatWithGoalNegated (goalName : String) (goal : SmtM (Term SmtSort.bool)) : SmtM Unit := do
+p ← goal; -- FIXME commands that appear before this do not appear in the final script =\
+checkSatAssuming [Smt.not p];
 exit
 
 
@@ -214,7 +214,7 @@ def exportCheckSatAssuming
 (vg : VerificationGoal)
 : IO Unit := do
 let preludeCmds := proofScriptPrelude vg.propName;
-let (_, _, cmds) := runSmtM IdGen.empty (checkNegatedGoal vg.propName vg.negatedGoal);
+let (_, _, cmds) := runSmtM IdGen.empty (checkSatWithGoalNegated vg.propName vg.goal);
 let filePath := System.mkFilePath [outputDir, standaloneGoalFilename vg];
 file ← IO.FS.Handle.mk filePath IO.FS.Mode.write;
 preludeCmds.forM (λ c => file.putStr c.toLine);
@@ -253,8 +253,8 @@ structure InteractiveContext :=
 -- | Function to verify an SMT proposition is provable in the given
 --   context and print the result to the user.
 def verifyGoal
-(negGoal : Smt.Term SmtSort.bool)
--- ^ Negation of goal to verify
+(goal : Smt.Term SmtSort.bool)
+-- ^ Goal to verify
 (propName : String)
 -- ^ Name of proposition for reporting purposes.
 : BlockVCG Unit := do
@@ -267,7 +267,7 @@ let newGoal : VerificationEvent :=
    blockLbl := ctx.currentBlock,
    goalIndex := goalIndex,
    propName := propName,
-   negatedGoal := do smtCtx; pure negGoal};
+   goal := do smtCtx; pure goal};
 modify (λ s => {s with
                   verificationEvents := newGoal :: s.verificationEvents,
                   goalIndex := s.goalIndex + 1});
@@ -289,7 +289,7 @@ IO.print $ "  Verifying " ++ vg.propName ++ "... ";
 -- FIXME, uncomment this line after next lean4 bump
 -- IO.stdout.flush;
 let preludeCmds := proofScriptPrelude vg.propName;
-let (_, _, cmds) := runSmtM IdGen.empty (checkNegatedGoal vg.propName vg.negatedGoal);
+let (_, _, cmds) := runSmtM IdGen.empty (checkSatWithGoalNegated vg.propName vg.goal);
 IO.FS.withFile smtFilePath IO.FS.Mode.write (λ file => do
   preludeCmds.forM (λ c => file.putStr c.toLine);
   cmds.forM (λ c => file.putStr c.toLine);
