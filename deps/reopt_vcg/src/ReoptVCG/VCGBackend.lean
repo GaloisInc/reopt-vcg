@@ -31,8 +31,8 @@ def byte    := bitvec 8
 def machine_word := bitvec 64
 
 
-/-- The statement that either [low1,high1) preceeds and does not overlap
-    [low2,high2) or vice versa. --/
+/- The statement that either [low1,high1) preceeds and does not overlap
+    [low2,high2) or vice versa. -/
 def isDisjoint (low1 high1 low2 high2 : bitvec 64) : s_bool :=
 Smt.or (Smt.bvule high1 low2) (Smt.bvule high2 low1)
 
@@ -42,21 +42,23 @@ namespace RegState
 def get_gpreg  (s : RegState) (idx : Fin 16) : machine_word := 
   -- FIXME
   if h : 16 = s.gpregs.size
-  then Array.get s.gpregs (Eq.recOn h idx) else Smt.bvimm _ 0
+  then s.gpregs.get (cast (congrArg Fin h) idx)
+  else Smt.bvimm _ 0
 
 def update_gpreg (idx : Fin 16) (f : machine_word -> machine_word) (s : RegState) : RegState :=
   -- FIXME
   if h : 16 = s.gpregs.size 
-  then { s with gpregs := Array.set s.gpregs (Eq.recOn h idx) (f (get_gpreg s idx)) }
+  then { s with gpregs := s.gpregs.set (cast (congrArg Fin h) idx) (f (get_gpreg s idx)) }
   else s 
 
 def get_flag  (s : RegState) (idx : Fin 32) : s_bool := 
   if h : 32 = s.flags.size
-  then Array.get s.flags (Eq.recOn h idx) else Smt.false
+  then s.flags.get (cast (congrArg Fin h) idx)
+  else Smt.false
 
 def update_flag (idx : Fin 32) (f : s_bool -> s_bool) (s : RegState) : RegState :=
   if h : 32 = s.flags.size
-  then { s with flags := Array.set s.flags (Eq.recOn h idx) (f (get_flag s idx)) }
+  then { s with flags := s.flags.set (cast (congrArg Fin h) idx) (f (get_flag s idx)) }
   else s 
 
 
@@ -86,14 +88,16 @@ def print_regs (s : RegState) : String :=
 -- FIXME: could use sz = ns.length
 protected 
 def declare_const_aux {s : SmtSort} (pfx : String) (ns : List String) (sz : Nat) : SmtM (Array (Term s)) := do
-  let base := mkArray sz 0;
-  let f    := fun n (_ : Nat) => Smt.declareFun (pfx ++ List.getD n ns "el") [] s;
-  Array.mapIdxM f base
+  let terms : Array (Term s) := Array.mkEmpty sz
+  for n in [:sz] do
+    let fn ← Smt.declareFun (pfx ++ List.getD n ns "el") [] s
+    terms := terms.push fn
+  pure terms
 
 -- We normally havea concrete rip
 def declare_const (pfx : String) (ip : Nat) : SmtM RegState := do
-  gprs  <- RegState.declare_const_aux pfx reg.r64_names 16;
-  flags <- RegState.declare_const_aux pfx reg.flag_names 32;
+  let gprs  <- RegState.declare_const_aux pfx reg.r64_names 16
+  let flags <- RegState.declare_const_aux pfx reg.flag_names 32
   pure { gpregs := gprs, flags := flags, ip := Smt.bvimm _ ip }
 
 end RegState
@@ -113,7 +117,7 @@ def repr : Event -> String
 | NonStackWriteEvent _ _ _ => "NonStackWriteEvent"
 | FetchAndExecuteEvent _   => "FetchAndExecuteEvent"
 
-instance : HasRepr Event := ⟨Event.repr⟩
+instance : Repr Event := ⟨Event.repr⟩
 
 end Event
 
@@ -132,7 +136,7 @@ def split_list {n:Nat} (x : bitvec n) (w : Nat) : List (bitvec w) :=
      bitvec.cong pf v);
   List.map ex1 idxs
 
-protected
+
 def concat_list_aux {n : Nat} : forall (m : Nat) (acc : bitvec m) (xs : List (bitvec n)), bitvec (m + n * xs.length) 
   | m, acc, [] => acc
   | m, acc, (x :: xs) => 
@@ -238,13 +242,13 @@ instance : MonadState vcg_state base_system_m :=
 instance : MonadExcept String base_system_m :=
   inferInstanceAs (MonadExcept String (StateT vcg_state (ExceptT String Id)))
 
-instance system_m.Monad : Monad system_m :=
+instance system_m.monad : Monad system_m :=
   inferInstanceAs (Monad (StateT RegState base_system_m))
 
-instance system_m.MonadState : MonadState RegState system_m :=
+instance system_m.monadState : MonadState RegState system_m :=
   inferInstanceAs (MonadState RegState (StateT RegState base_system_m))
 
-instance system_m.MonadExcept : MonadExcept String system_m :=
+instance system_m.monadExcept : MonadExcept String system_m :=
   inferInstanceAs (MonadExcept String (StateT RegState (StateT vcg_state (ExceptT String Id))))
 
 instance : MonadLift base_system_m system_m :=
@@ -252,6 +256,7 @@ instance : MonadLift base_system_m system_m :=
 
 namespace system_m
 
+protected
 def run {a : Type} (m : system_m a) (os : vcg_state) (s : RegState) 
   : (Except String ((a × RegState) × vcg_state)) := do
   ((m.run s).run os).run
@@ -270,7 +275,7 @@ def emit_event (e : Event) : system_m Unit :=
   monadLift (modify (fun (s : vcg_state) => { s with revEvents := e :: s.revEvents }) : base_system_m Unit)
 
 def getEventInfo : system_m MemoryAnn := do
-  s <- monadLift (get : base_system_m vcg_state);
+  let s ← monadLift (get : base_system_m vcg_state)
   match s.eventInfo with
   | none => throw "Missing event info"
   | some v => pure v
@@ -278,8 +283,8 @@ def getEventInfo : system_m MemoryAnn := do
 -- c.f. stmt2SMT
 def store_word (n : Nat) (addr : memaddr) (v : bitvec n) : system_m Unit := do
   -- addr can be a complicated expression, name to avoid term explosion
-  addr' <- name_term (some "addr") addr;
-  memEventInfo <- getEventInfo;
+  let addr' ← name_term (some "addr") addr
+  let memEventInfo ← getEventInfo
   match memEventInfo with
   | ReoptVCG.MemoryAnn.binaryOnlyAccess       => emit_event (Event.MCOnlyStackWriteEvent addr' n v)
   | ReoptVCG.MemoryAnn.jointStackAccess aname => emit_event (Event.JointStackWriteEvent addr' n v aname)
@@ -287,13 +292,13 @@ def store_word (n : Nat) (addr : memaddr) (v : bitvec n) : system_m Unit := do
 
 -- c.f. assignRhs2SMT
 def read_word (n : Nat) (addr : memaddr) : system_m (bitvec n) := do
-  addr' <- name_term (some "addr") addr;
-  resv  <- runSmtM (Smt.declareFun "readv" [] (SmtSort.bitvec n));
-  memEventInfo <- getEventInfo;
+  let addr' ← name_term (some "addr") addr
+  let resv  ← runSmtM (Smt.declareFun "readv" [] (SmtSort.bitvec n))
+  let memEventInfo ← getEventInfo
   match memEventInfo with
   | ReoptVCG.MemoryAnn.binaryOnlyAccess       => emit_event (Event.MCOnlyStackReadEvent addr' n resv)
   | ReoptVCG.MemoryAnn.jointStackAccess aname => emit_event (Event.JointStackReadEvent addr' n resv aname)
-  | ReoptVCG.MemoryAnn.heapAccess             => emit_event (Event.NonStackReadEvent addr' n resv);
+  | ReoptVCG.MemoryAnn.heapAccess             => emit_event (Event.NonStackReadEvent addr' n resv)
   pure resv
 
 end system_m
@@ -308,15 +313,16 @@ def backend : Backend :=
   , s_bool_imm := fun b => if b then Smt.true else Smt.false
 
   , monad := system_m
-  -- , Monad_backend := 
-  -- , MonadExcept_backend := 
+  , Monad_backend := inferInstance
+  , MonadExcept_backend := inferInstance
   
   , store_word := fun n addr bv => system_m.store_word (8 * n) addr bv
   , read_word  := fun addr n => system_m.read_word (8 * n) addr 
                
   , get_gpreg  := fun i => (fun s => RegState.get_gpreg s i) <$> get
-  , set_gpreg := fun i v => do s <- system_m.name_term (reg.r64_names.get? i.val) v;
-                               modify (RegState.update_gpreg i (fun _ => s))
+  , set_gpreg := fun i v => do 
+                     let s ← system_m.name_term (reg.r64_names.get? i.val) v
+                     modify (RegState.update_gpreg i (fun _ => s))
   , get_flag  :=  fun i => (fun s => RegState.get_flag s i) <$> get
   , set_flag := fun i v => modify (RegState.update_flag i (fun _ => v))
   
@@ -343,7 +349,7 @@ def backend : Backend :=
   , s_bvmul    := @Smt.bvmul
   , s_bvudiv   := @Smt.bvudiv 
   , s_bvurem   := @Smt.bvurem
-  , s_bvextract := fun (w i j : Nat) (x : bitvec w) => Smt.extract i j x
+  , s_bvextract := fun {w : Nat} (i j : Nat) (x : bitvec w) => Smt.extract i j x
 
   , s_sext    := bitvec.sresize
   , s_uext    := bitvec.uresize
@@ -373,7 +379,7 @@ def backend : Backend :=
   , s_bvlshr     := @Smt.bvlshr
   -- signed
   , s_bvsshr     := @Smt.bvashr
-  , s_parity     := fun (n : Nat) (x : bitvec n) => 
+  , s_parity     := fun {n : Nat} (x : bitvec n) => 
                     bitvec.to_bool (List.foldl Smt.bvxor (Smt.bvimm 1 0) (bitvec.split_list x 1))
 
   , s_bit_test   := fun {wr wi : Nat} (x : bitvec wr) (y : bitvec wi) => 

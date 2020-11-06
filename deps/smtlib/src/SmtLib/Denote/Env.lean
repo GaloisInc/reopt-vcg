@@ -55,11 +55,14 @@ def Env := Symbol -> Option ConstSort
 
 namespace Env
 
+@[reducible]
 def empty : Env := λ _ => none
 
+@[reducible]
 def extend (e : Env) (x : Symbol) (cs : ConstSort) :  Env :=
   upd e x (some cs)
 
+@[reducible]
 def extendMany (e : Env) (entries : List (Sigma SortedVar)) : Env :=
   entries.foldr (λ p e' => updMap e' p.snd.var (ConstSort.base p.fst)) e
 

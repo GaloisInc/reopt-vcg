@@ -8,27 +8,27 @@ namespace SExpr
 open WellFormedSExp
 open WellFormedSExp.SExp
 
-class HasToSExpr (a : Type) := (toSExpr : a -> SExpr)
+class ToSExpr (a : Type) := (toSExpr : a -> SExpr)
 
-open HasToSExpr
+open ToSExpr
 
-instance SExpr.HasToSExpr : HasToSExpr SExpr := ⟨id⟩
+instance SExpr.ToSExpr : ToSExpr SExpr := ⟨id⟩
 
-def List.toSExpr {a : Type} [HasToSExpr a] (ss : List a) : SExpr :=
-list $ ss.map HasToSExpr.toSExpr
+def List.toSExpr {a : Type} [ToSExpr a] (ss : List a) : SExpr :=
+list $ ss.map ToSExpr.toSExpr
 
-instance List.HasToSExpr {a : Type} [HasToSExpr a] : HasToSExpr (List a) :=
+instance List.ToSExpr {a : Type} [ToSExpr a] : ToSExpr (List a) :=
 ⟨List.toSExpr⟩
 
 def Nat.toSExpr : Nat → SExpr := atom ∘ Nat.repr
 def String.toSExpr : String → SExpr := atom
 
-instance Nat.HasToSExpr : HasToSExpr Nat := ⟨Nat.toSExpr⟩
-instance String.HasToSExpr : HasToSExpr String := ⟨String.toSExpr⟩
+instance Nat.ToSExpr : ToSExpr Nat := ⟨Nat.toSExpr⟩
+instance String.HasToSExpr : ToSExpr String := ⟨String.toSExpr⟩
 
 protected
 def app (f : SExpr) (args : List SExpr) : SExpr := list (f :: args)
 
 end SExpr
 
-export SExpr.HasToSExpr (toSExpr)
+export SExpr.ToSExpr (toSExpr)

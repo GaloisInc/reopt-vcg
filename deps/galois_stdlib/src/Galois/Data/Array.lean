@@ -2,7 +2,7 @@ namespace Array
 
 section
 universe u
-variables {α : Type u} [HasLess α] [DecidableRel (HasLess.Less : α → α → Prop)]
+variables {α : Type u} [Less α] [DecidableRel (Less.Less : α → α → Prop)]
 
 partial def ltAux (xs ys : Array α) : Nat → Bool
 | n =>
@@ -12,7 +12,7 @@ partial def ltAux (xs ys : Array α) : Nat → Bool
       let yn := ys.get ⟨n, hys⟩;
       if  xn < yn then true
       else if yn < xn then false
-      else ltAux (n+1)
+      else ltAux xs ys (n+1)
     else false
   else if xs.size < ys.size then
     true

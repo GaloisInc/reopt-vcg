@@ -41,7 +41,7 @@ def concat_list_aux {n : Nat} : forall (m : Nat) (acc : bitvec m) (xs : List (bi
   | m, acc, [] => acc
   | m, acc, (x :: xs) => 
     let pf : (m + n + n * List.length xs) = (m + n * List.length (x :: xs)) := I_am_really_sorry3 _;
-    bitvec.cong pf (concat_list_aux (m + n) (Smt.concat acc x) xs)
+    bitvec.cong pf (bitvec.concat_list_aux (m + n) (Smt.concat acc x) xs)
   
 def concat_list {n : Nat} : forall (xs : List (bitvec n)), bitvec (n * xs.length) 
   | []        => Smt.bvimm 0 0 -- FIXME: shouldn't happen, or raise an error
@@ -90,9 +90,9 @@ structure StdLib :=
 namespace StdLib
 
 def make : SmtM StdLib := do
-  rb <- Smt.defineFun "read_byte" [SmtSort.bitvec 64, memory_t] (SmtSort.bitvec 8)
+  let rb ← Smt.defineFun "read_byte" [SmtSort.bitvec 64, memory_t] (SmtSort.bitvec 8)
         (fun addr mem => Smt.select _ _ mem addr);
-  sb <- Smt.defineFun "write_byte" [SmtSort.bitvec 64, SmtSort.bitvec 8, memory_t] memory_t
+  let sb ←  Smt.defineFun "write_byte" [SmtSort.bitvec 64, SmtSort.bitvec 8, memory_t] memory_t
         (fun addr b mem => Smt.store _ _ mem addr b);
   pure { read_byte := rb, store_byte := sb }
 
@@ -141,21 +141,25 @@ namespace machine_state
 def get_gpreg  (s : machine_state) (idx : Fin 16) : machine_word := 
   -- FIXME
   if h : 16 = s.gpregs.size
-  then Array.get s.gpregs (Eq.recOn h idx) else Smt.bvimm _ 0
+  then
+    Array.get s.gpregs (cast (congrArg Fin h) idx)
+  else
+    Smt.bvimm _ 0
 
 def update_gpreg (idx : Fin 16) (f : machine_word -> machine_word) (s : machine_state) : machine_state :=
   -- FIXME
   if h : 16 = s.gpregs.size 
-  then { s with gpregs := Array.set s.gpregs (Eq.recOn h idx) (f (get_gpreg s idx)) }
+  then { s with gpregs := Array.set s.gpregs (cast (congrArg Fin h) idx) (f (get_gpreg s idx)) }
   else s 
 
 def get_flag  (s : machine_state) (idx : Fin 32) : s_bool := 
   if h : 32 = s.flags.size
-  then Array.get s.flags (Eq.recOn h idx) else Smt.false
+  then Array.get s.flags (cast (congrArg Fin h) idx)
+  else Smt.false
 
 def update_flag (idx : Fin 32) (f : s_bool -> s_bool) (s : machine_state) : machine_state :=
   if h : 32 = s.flags.size
-  then { s with flags := Array.set s.flags (Eq.recOn h idx) (f (get_flag s idx)) }
+  then { s with flags := Array.set s.flags (cast (congrArg Fin h) idx) (f (get_flag s idx)) }
   else s 
 
 def store_word {n : Nat} (s : machine_state) (stdlib : StdLib) (addr : machine_word) (b : bitvec (8 * n)) : machine_state :=
@@ -177,15 +181,18 @@ def print_regs (s : machine_state) : String :=
 -- FIXME: could use sz = ns.length
 protected 
 def declare_const_aux {s : SmtSort} (ns : List String) (sz : Nat) : SmtM (Array (Term s)) := do
-  let base := mkArray sz 0;
-  let f    := fun n (_ : Nat) => Smt.declareFun (List.getD n ns "el") [] s;
-  Array.mapIdxM f base
+  let a : (Array (Term s)) := Array.mkEmpty sz
+  for n in [:sz] do
+    let fn ← Smt.declareFun (List.getD n ns "el") [] s
+    a := a.push fn
+  pure a
+
 
 def declare_const : SmtM machine_state := do
-  mem   <- Smt.declareFun "memory" [] memory_t;
-  gprs  <- machine_state.declare_const_aux reg.r64_names 16;
-  flags <- machine_state.declare_const_aux reg.flag_names 32;
-  ip    <- Smt.declareFun "ip" [] (SmtSort.bitvec 64);
+  let mem   ← Smt.declareFun "memory" [] memory_t
+  let gprs  ← machine_state.declare_const_aux reg.r64_names 16
+  let flags ← machine_state.declare_const_aux reg.flag_names 32
+  let ip    ← Smt.declareFun "ip" [] (SmtSort.bitvec 64)
   pure { mem := mem, gpregs := gprs, flags := flags, ip := ip }
 
 end machine_state
@@ -205,7 +212,7 @@ def repr : Event -> String
   | Read _ _    => "Read"
   | Write _ _ _ => "Write"
 
-instance : HasRepr Event := ⟨Event.repr⟩
+instance : Repr Event := ⟨Event.repr⟩
 
 end Event
 
@@ -269,13 +276,13 @@ instance : MonadState os_state base_system_m :=
 instance : MonadExcept String base_system_m :=
   inferInstanceAs (MonadExcept String (StateT os_state (ExceptT String Id)))
 
-instance system_m.Monad : Monad system_m :=
+instance system_mMonad : Monad system_m :=
   inferInstanceAs (Monad (StateT machine_state base_system_m))
 
-instance system_m.MonadState : MonadState machine_state system_m :=
+instance system_mMonadState : MonadState machine_state system_m :=
   inferInstanceAs (MonadState machine_state (StateT machine_state base_system_m))
 
-instance system_m.MonadExcept : MonadExcept String system_m :=
+instance system_mMonadExcept : MonadExcept String system_m :=
   inferInstanceAs (MonadExcept String (StateT machine_state (StateT os_state (ExceptT String Id))))
 
 instance : MonadLift base_system_m system_m :=
@@ -284,6 +291,7 @@ instance : MonadLift base_system_m system_m :=
 
 namespace system_m
 
+protected
 def run {a : Type} (m : system_m a) (os : os_state) (s : machine_state) 
   : (Except String ((a × machine_state) × os_state)) := do
   ((m.run s).run os).run
@@ -316,22 +324,22 @@ def symbolicBackend (stdlib : StdLib) : Backend :=
   , s_bool_imm := fun b => if b then Smt.true else Smt.false
 
   , monad := system_m
-  -- , Monad_backend := 
-  -- , MonadExcept_backend := 
+  , Monad_backend := inferInstance
+  , MonadExcept_backend := inferInstance
   
   , store_word := fun n addr v => do 
                   -- FIXME: might want to name the new state
                   -- emit_trace_event (trace_event.write addr _ v);
-                  addr' <- system_m.name_term (some "addr") addr;
+                  let addr' ← system_m.name_term (some "addr") addr
                   modify (fun s => machine_state.store_word s stdlib addr' v)
   , read_word  := fun addr n => do
-                  addr' <- system_m.name_term (some "addr") addr;
-                  v <- (fun s => machine_state.read_word s stdlib addr' n) <$> get;
+                  let addr' ← system_m.name_term (some "addr") addr
+                  let v ← (fun s => machine_state.read_word s stdlib addr' n) <$> get
                   -- emit_trace_event (trace_event.read addr _ v);
                   pure v
                
   , get_gpreg  := fun i => (fun s => machine_state.get_gpreg s i) <$> get
-  , set_gpreg := fun i v => do s <- system_m.name_term (reg.r64_names.get? i.val) v;
+  , set_gpreg := fun i v => do let s ← system_m.name_term (reg.r64_names.get? i.val) v
                                modify (machine_state.update_gpreg i (fun _ => s))
   , get_flag  :=  fun i => (fun s => machine_state.get_flag s i) <$> get
   , set_flag := fun i v => modify (machine_state.update_flag i (fun _ => v))
@@ -359,7 +367,7 @@ def symbolicBackend (stdlib : StdLib) : Backend :=
   , s_bvmul    := @Smt.bvmul
   , s_bvudiv   := @Smt.bvudiv 
   , s_bvurem   := @Smt.bvurem
-  , s_bvextract := fun (w i j : Nat) (x : bitvec w) => Smt.extract i j x
+  , s_bvextract := fun {w : Nat} (i j : Nat) (x : bitvec w) => Smt.extract i j x
 
   , s_sext    := bitvec.sresize
   , s_uext    := bitvec.uresize
@@ -389,7 +397,7 @@ def symbolicBackend (stdlib : StdLib) : Backend :=
   , s_bvlshr     := @Smt.bvlshr
   -- signed
   , s_bvsshr     := @Smt.bvashr
-  , s_parity     := fun (n : Nat) (x : bitvec n) => 
+  , s_parity     := fun {n : Nat} (x : bitvec n) => 
                     bitvec.to_bool (List.foldl Smt.bvxor (Smt.bvimm 1 0) (bitvec.split_list x 1))
 
   , s_bit_test   := fun {wr wi : Nat} (x : bitvec wr) (y : bitvec wi) => 

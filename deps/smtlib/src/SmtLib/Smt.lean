@@ -8,8 +8,8 @@ import SmtLib.IdGen
 
 
 
-export SExpr.HasToSExpr (toSExpr)
-export Smt.IdGen
+export SExpr.ToSExpr (toSExpr)
+export Smt (IdGen)
 
 
 namespace Smt
@@ -17,22 +17,22 @@ namespace Smt
 open SExpr
 open SmtSort
 
-export Smt 
-(SmtSort.bool
- SmtSort.bitvec
- SmtSort.array
- SmtSort.bv8
- SmtSort.bv16
- SmtSort.bv32
- SmtSort.bv64)
---export SmtSort (bool bitvec array)
+export SmtSort ( bool
+                 bitvec
+                 array
+                 bv8
+                 bv16
+                 bv32
+                 bv64
+               )
 
 -- *** Exported API ***
 
 
 def Term (s : SmtSort) := Raw.Term (Raw.ConstSort.base s)
-instance Term.HasToSExpr (s : SmtSort) : HasToSExpr (Term s) := 
-  inferInstanceAs (HasToSExpr (Raw.Term (Raw.ConstSort.base s)))
+
+instance (s : SmtSort) : ToSExpr (Term s) := 
+  inferInstanceAs (ToSExpr (Raw.Term (Raw.ConstSort.base s)))
 
 def Symbol := Raw.Symbol
 
@@ -115,7 +115,7 @@ namespace Raw.Ident
 protected
 def expandIdentAux : forall {cs : ConstSort}, Raw.Term cs -> ConstSortToType cs
 | base s, i    => i
-| fsort s t, i => fun x => expandIdentAux (app i x)
+| fsort s t, i => fun x => Ident.expandIdentAux (app i x)
 
 def expandIdent {cs : ConstSort} (i : Raw.Ident cs) : ConstSortToType cs :=
   Raw.Ident.expandIdentAux (ident i)
@@ -143,43 +143,46 @@ def quadop {a b c d e : SmtSort}
            := app (app (app (app (ident (builtin i)) w) x) y) z
 
 -- Builtin terms
-def true  : Term bool                           := ident (builtin true)
-def false : Term bool                           := ident (builtin false)
-def not   : Term bool -> Term bool          := unop not
-def impl  : Term bool -> Term bool -> Term bool := binop impl
-def and   : Term bool -> Term bool -> Term bool := binop and
-def or    : Term bool -> Term bool -> Term bool := binop or
-def xor   : Term bool -> Term bool -> Term bool := binop xor
-def eq {a : SmtSort} : Term a -> Term a -> Term bool       := binop (eq a)
+protected def true  : Term bool := ident (builtin true)
+protected def false : Term bool := ident (builtin false)
+protected def not   : Term bool -> Term bool := unop not
+protected def impl  : Term bool -> Term bool -> Term bool := binop impl
+protected def and   : Term bool -> Term bool -> Term bool := binop and
+protected def or    : Term bool -> Term bool -> Term bool := binop or
+protected def xor   : Term bool -> Term bool -> Term bool := binop xor
+protected def eq {a : SmtSort} : Term a -> Term a -> Term bool       := binop (eq a)
 -- FIXME
 -- def distinct {a : SmtSort} : List (Term a) -> Term bool := Raw.Term.distinct
-def smtIte  {a : SmtSort} : Term bool -> Term a -> Term a -> Term a := ternop (smtIte a)
+protected def smtIte  {a : SmtSort} : Term bool -> Term a -> Term a -> Term a := ternop (smtIte a)
 
 -- Derived helpers
 private def allAux : Term bool → List (Term bool) → Term bool
 | p, [] => p
-| p, q::qs => allAux (and p q) qs
+| p, q::qs => allAux (Smt.and p q) qs
 
 def all : List (Term bool) → Term bool
-| [] => true
+| [] => Smt.true
 | p::ps => allAux p ps
 
 private def anyAux : Term bool → List (Term bool) → Term bool
 | p, [] => p
-| p, q::qs => anyAux (or p q) qs
+| p, q::qs => anyAux (Smt.or p q) qs
 
 def any : List (Term bool) → Term bool
-| [] => false
+| [] => Smt.false
 | p::ps => anyAux p ps
 
 
 -- Arrays
+protected
 def select (k v : SmtSort) : Term (array k v) -> Term k -> Term v :=
   binop (select k v)
 
+protected
 def store  (k v : SmtSort) : Term (array k v) -> Term k -> Term v -> Term (array k v) :=
   ternop (store k v)
 
+protected
 def eqrange  {k : RangeSort} {v : SmtSort} : Term (array k.sort v) -> Term (array k.sort v) -> Term k.sort -> Term k.sort -> Term bool
     := quadop (eqrange k v)
 
@@ -197,54 +200,92 @@ def bvAsConst {n : Nat} : Term (bitvec n) -> Option Nat
 | const _ (binary _ v) => some v
 | _                    => none
 
+protected
 def concat {n m : Nat} : Term (bitvec n) -> Term (bitvec m) -> Term (bitvec (n + m)) := 
   binop (concat n m)
+
+protected
 def extract {n : Nat} (i : Nat) (j : Nat) : Term (bitvec n) -> Term (bitvec (i + 1 - j)) :=
   unop (extract n i j)
+
+protected
 def bvnot {n : Nat} : Term (bitvec n) -> Term (bitvec n) := unop (bvnot n)
+
+protected
 def bvneg {n : Nat} : Term (bitvec n) -> Term (bitvec n) := unop (bvneg n)
 
 -- binops
+protected
 def bvand {n : Nat} : Term (bitvec n) -> Term (bitvec n) -> Term (bitvec n)  := binop (bvand  n)
+protected
 def bvor  {n : Nat} : Term (bitvec n) -> Term (bitvec n) -> Term (bitvec n)  := binop (bvor   n)
+protected
 def bvadd {n : Nat} : Term (bitvec n) -> Term (bitvec n) -> Term (bitvec n)  := binop (bvadd  n)
+protected
 def bvmul {n : Nat} : Term (bitvec n) -> Term (bitvec n) -> Term (bitvec n)  := binop (bvmul  n)
+protected
 def bvudiv {n : Nat} : Term (bitvec n) -> Term (bitvec n) -> Term (bitvec n) := binop (bvudiv n)
+protected
 def bvurem {n : Nat} : Term (bitvec n) -> Term (bitvec n) -> Term (bitvec n) := binop (bvurem n)
+protected
 def bvshl {n : Nat} : Term (bitvec n) -> Term (bitvec n) -> Term (bitvec n)  := binop (bvshl  n)
+protected
 def bvlshr {n : Nat} : Term (bitvec n) -> Term (bitvec n) -> Term (bitvec n) := binop (bvlshr n)
 -- comparison
+protected
 def bvult {n : Nat} : Term (bitvec n) -> Term (bitvec n) -> Term bool := binop (bvult n)
 
 
 -- Functions defined by Smt as abbrevs.
+protected
 def bvnand {n : Nat} : Term (bitvec n) -> Term (bitvec n) -> Term (bitvec n)  := binop (bvnand n) 
+protected
 def bvnor  {n : Nat} : Term (bitvec n) -> Term (bitvec n) -> Term (bitvec n)  := binop (bvnor  n) 
+protected
 def bvxor  {n : Nat} : Term (bitvec n) -> Term (bitvec n) -> Term (bitvec n)  := binop (bvxor  n) 
+protected
 def bvxnor {n : Nat} : Term (bitvec n) -> Term (bitvec n) -> Term (bitvec n)  := binop (bvxnor n) 
+protected
 def bvcomp {n : Nat} : Term (bitvec n) -> Term (bitvec n) -> Term (bitvec 1)  := binop (bvcomp n)
+protected
 def bvsub  {n : Nat} : Term (bitvec n) -> Term (bitvec n) -> Term (bitvec n)  := binop (bvsub  n) 
+protected
 def bvsdiv {n : Nat} : Term (bitvec n) -> Term (bitvec n) -> Term (bitvec n)  := binop (bvsdiv n) 
+protected
 def bvsrem {n : Nat} : Term (bitvec n) -> Term (bitvec n) -> Term (bitvec n)  := binop (bvsrem n) 
+protected
 def bvsmod {n : Nat} : Term (bitvec n) -> Term (bitvec n) -> Term (bitvec n)  := binop (bvsmod n) 
+protected
 def bvashr {n : Nat} : Term (bitvec n) -> Term (bitvec n) -> Term (bitvec n)  := binop (bvashr n) 
 
 -- Defined, param by i >= 1
+protected
 def repeat {n : Nat} (i : Nat) : Term (bitvec n) -> Term (bitvec (i * n)) := unop (repeat i n)
 
 -- Defined, param by i >= 0
+protected
 def zeroExtend  {n : Nat} (i : Nat) : Term (bitvec n) -> Term (bitvec (n + i)) := unop (zeroExtend  i n) 
+protected
 def signExtend  {n : Nat} (i : Nat) : Term (bitvec n) -> Term (bitvec (n + i)) := unop (signExtend  i n) 
+protected
 def rotateLeft  {n : Nat} (i : Nat) : Term (bitvec n) -> Term (bitvec n)       := unop (rotateLeft  i n) 
+protected
 def rotateRight {n : Nat} (i : Nat) : Term (bitvec n) -> Term (bitvec n)       := unop (rotateRight i n) 
 
-def bvule        {n : Nat} : Term (bitvec n) -> Term (bitvec n) -> Term bool := binop (bvule n) 
-def bvugt        {n : Nat} : Term (bitvec n) -> Term (bitvec n) -> Term bool := binop (bvugt n) 
-def bvuge        {n : Nat} : Term (bitvec n) -> Term (bitvec n) -> Term bool := binop (bvuge n) 
-def bvslt        {n : Nat} : Term (bitvec n) -> Term (bitvec n) -> Term bool := binop (bvslt n) 
-def bvsle        {n : Nat} : Term (bitvec n) -> Term (bitvec n) -> Term bool := binop (bvsle n) 
-def bvsgt        {n : Nat} : Term (bitvec n) -> Term (bitvec n) -> Term bool := binop (bvsgt n) 
-def bvsge        {n : Nat} : Term (bitvec n) -> Term (bitvec n) -> Term bool := binop (bvsge n) 
+protected
+def bvule {n : Nat} : Term (bitvec n) -> Term (bitvec n) -> Term bool := binop (bvule n) 
+protected
+def bvugt {n : Nat} : Term (bitvec n) -> Term (bitvec n) -> Term bool := binop (bvugt n) 
+protected
+def bvuge {n : Nat} : Term (bitvec n) -> Term (bitvec n) -> Term bool := binop (bvuge n) 
+protected
+def bvslt {n : Nat} : Term (bitvec n) -> Term (bitvec n) -> Term bool := binop (bvslt n) 
+protected
+def bvsle {n : Nat} : Term (bitvec n) -> Term (bitvec n) -> Term bool := binop (bvsle n) 
+protected
+def bvsgt {n : Nat} : Term (bitvec n) -> Term (bitvec n) -> Term bool := binop (bvsgt n) 
+protected
+def bvsge {n : Nat} : Term (bitvec n) -> Term (bitvec n) -> Term bool := binop (bvsge n) 
 
 -- Pure version, doesn't touch the symbol name
 def smtLet {s t : SmtSort} (v : Symbol) (e : Term s) (body : Term s -> Term t) : Term t :=
@@ -256,8 +297,8 @@ def Script : Type := List Command
 
 namespace Script
 
-instance : HasAppend Smt.Script :=
-inferInstanceAs (HasAppend (List Command))
+instance : Append Smt.Script :=
+  inferInstanceAs (Append (List Command))
 
 end Script
 
@@ -270,46 +311,49 @@ def SmtM := StateM SmtState
 instance : Monad SmtM := inferInstanceAs (Monad (StateM SmtState))
 instance : MonadStateOf SmtState SmtM := inferInstanceAs (MonadStateOf SmtState (StateM SmtState))
 
-/-- Generate a fresh symbol in the monad, if possible simply using the suggested string.  --/
+/- Generate a fresh symbol in the monad, if possible simply using the suggested string.  -/
 def freshSymbol (suggestedStr : String) : SmtM String := do
-  (idGen', sym) ← (λ (g:IdGen) => g.genId suggestedStr) <$> SmtState.idGen <$> get;
-  modify (λ s => {s with idGen := idGen'});
+  let (idGen', sym) ← (λ (g:IdGen) => g.genId suggestedStr) <$> SmtState.idGen <$> get
+  modify (λ s => {s with idGen := idGen'})
   pure sym
 
 def runSmtM {a : Type} (idGen : IdGen) (m : SmtM a) : (a × IdGen × Script) :=
-  let r := StateT.run m { idGen := idGen, revScript := [] };
+  let r := StateT.run m { idGen := idGen, revScript := [] }
   (r.fst, (r.snd.idGen, r.snd.revScript.reverse))
 
-theorem ConstSortToTypeFold {res : SmtSort} : forall {args : List SmtSort}, 
- ConstSortToType (List.foldr fsort (base res) args) = funType args res -- := sorryAx _
-| []       => rfl
-| hd :: tl => congrArg (fun r => (Term hd -> r)) (@ConstSortToTypeFold tl)
+theorem ConstSortToTypeFold : forall {args : List SmtSort} {res : SmtSort},
+ ConstSortToType (args.foldr fsort (base res)) = funType args res := sorryAx _ -- FIXME why doesn't this work =\
+-- | [], res       => rfl
+-- | hd :: tl, res => 
+--   have h : ConstSortToType (tl.foldr fsort (base res)) = funType tl res from ConstSortToTypeFold tl res
+--   congrArg (fun r => (Term hd -> r)) h
 
+protected
 def declareFun (s : String) (args : List SmtSort) (res : SmtSort) : SmtM (funType args res) := do
-  s' <- freshSymbol s;
+  let s' ← freshSymbol s
   let ident := Raw.Ident.symbol (List.foldr fsort (base res) args) s';
   do modify (fun st => {st with revScript := (declareFun s' args res) :: st.revScript });
      pure (Eq.mp ConstSortToTypeFold ident.expandIdent)
 
-def instArgsAux (res : SmtSort) : 
-    forall (args : List SmtSort) (body : funType args res) (acc : List (Sigma Raw.SortedVar)), 
+def instArgsAux : forall (args : List SmtSort) (res : SmtSort) (body : funType args res) (acc : List (Sigma Raw.SortedVar)), 
     SmtM (List (Sigma Raw.SortedVar) × Term res) 
-| [],       body, acc    => pure (acc.reverse, body)
-| hd :: tl, f,    acc    => do   
-  s <- freshSymbol "arg";  
-  let arg := mkSymbol s hd;
-  instArgsAux tl (f arg) (Sigma.mk hd (Raw.SortedVar.mk s) :: acc)
+| [], res, body, acc    => pure (acc.reverse, body)
+| hd :: tl, res, f, acc    => do   
+  let s ← freshSymbol "arg"
+  let arg := mkSymbol s hd
+  instArgsAux tl res (f arg) (Sigma.mk hd (Raw.SortedVar.mk s) :: acc)
 
 def instArgs (res : SmtSort) (args : List SmtSort) (body : funType args res)
     : SmtM (List (Sigma Raw.SortedVar) × Term res) :=
-    instArgsAux res args body []
+    instArgsAux args res body []
 
+protected
 def defineFun (s : String) (args : List SmtSort) (res : SmtSort) (body : funType args res)
   : SmtM (funType args res) := do
-  s' <- freshSymbol s;
-  let ident := Raw.Ident.symbol (List.foldr fsort (base res) args) s';
-  (args', body') <- instArgs res args body;
-  do modify (fun st => {st with revScript := (defineFun s' args' res body') :: st.revScript });
+  let s' ← freshSymbol s
+  let ident := Raw.Ident.symbol (List.foldr fsort (base res) args) s'
+  let (args', body') <- instArgs res args body
+  do modify (fun st => {st with revScript := (defineFun s' args' res body') :: st.revScript })
      pure (Eq.mp ConstSortToTypeFold ident.expandIdent)
 
 def isAtomic : forall {s : ConstSort}, Raw.Term s -> Bool
@@ -322,7 +366,7 @@ def isAtomic : forall {s : ConstSort}, Raw.Term s -> Bool
 
 -- Names the const if it is non-trivial, otherwise returns the original Term
 def nameTerm (name : String) {s : SmtSort} (tm : Term s) : SmtM (Term s) :=
-  if isAtomic tm then pure tm else  defineFun name [] s tm
+  if isAtomic tm then pure tm else Smt.defineFun name [] s tm
 
 
 
@@ -367,7 +411,7 @@ match rawStr.trim with
 -- #check false
 -- #eval toString (List.map toSExpr (runSmtM ex1))
 
-/-- Converts a command to a string terminated by a newline.--/
+/- Converts a command to a string terminated by a newline.-/
 def Command.toLine (c:Command) : String :=
 let cStr := (WellFormedSExp.SExp.toString (toSExpr c));
 if c.isComment

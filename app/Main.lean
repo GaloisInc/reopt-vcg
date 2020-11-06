@@ -13,9 +13,9 @@ inductive VCGCmd
 -- A container to accumulate user-provided command line arguments in
 -- while the are being processed.
 structure VCGArgs := 
-(annFile : Option String)
-(mode : VerificationMode)
-(verbose : Bool)
+  (annFile : Option String)
+  (mode : VerificationMode)
+  (verbose : Bool)
 
 -- | State of argument parsing before any user arguments have actually
 -- been processed.
@@ -24,7 +24,7 @@ def initVCGArgs := VCGArgs.mk Option.none VerificationMode.defaultMode true
 -- Function for parsing command line arguments to reopt-vcg.
 partial def parseArgs : List String →  VCGArgs → Except String VCGCmd
 | [], args => do 
-  annPath <- (args.annFile.map Except.ok).getD (throw "Missing VCG file to run.");
+  let annPath <- (args.annFile.map Except.ok).getD (throw "Missing VCG file to run.");
   pure $ VCGCmd.runVCG $ VCGConfig.mk annPath args.mode args.verbose
 | (s::ss), args =>
   if s == "--help" then
@@ -32,13 +32,13 @@ partial def parseArgs : List String →  VCGArgs → Except String VCGCmd
   else if s == "--verbose" then
     parseArgs ss $ {args with verbose := true}
   else if s == "--export" then do 
-    unless args.mode.isDefault $ throw "Export mode does not use a solver, but --solver was specified.";
+    unless args.mode.isDefault do throw "Export mode does not use a solver, but --solver was specified.";
     match ss with
     | [] => throw "missing argument for `--export` flag"
     | s'::ss' =>
     parseArgs ss' $ {args with mode := VerificationMode.exportMode s'}
   else if s == "--solver" then do
-    unless args.mode.isDefault $ throw "Cannot specify --export or --solver multiple times.";
+    unless args.mode.isDefault do throw "Cannot specify --export or --solver multiple times.";
     match ss with
     | [] => throw "missing argument for `--solver` flag"
     | s'::ss' =>
@@ -53,13 +53,13 @@ partial def parseArgs : List String →  VCGArgs → Except String VCGCmd
 
 
 def showUsage : IO Unit := do
-IO.println "Usage: reopt-vcg [--verbose] <input.json> {--export <export-dir> | --solver <solver-path>}"
+  IO.println "Usage: reopt-vcg [--verbose] <input.json> {--export <export-dir> | --solver <solver-path>}"
   
 def showHelp : IO Unit := do
-showUsage;
-IO.println
-  $  "reopt-vcg generates verification conditions to prove that reopt generated\n"
-  ++ "   LLVM is faithful to the input binary.\n"
+  showUsage;
+  IO.println
+    $  "reopt-vcg generates verification conditions to prove that reopt generated\n"
+    ++ "   LLVM is faithful to the input binary.\n"
 
 
 def main (args:List String) : IO UInt32 :=

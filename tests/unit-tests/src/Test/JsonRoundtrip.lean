@@ -14,29 +14,29 @@ namespace JsonRoundtrip
 -- objects are checked for equivalence, returning "pass" if they
 -- are equivalent or some error string if they are not.
 def roundtripTest (annFile : String) : IO String := do
-fileContents ← IO.FS.readFile annFile;
-match Lean.Json.parse fileContents with
-| Except.error errMsg => pure $ "Failed to parse json in `"++annFile++"`: " ++ errMsg
-| Except.ok js =>
-  match ReoptVCG.parseAnnotations js with
-  | Except.error errMsg => pure $ "Failed to parse json as a module annotation: " ++ errMsg
-  | Except.ok modAnn =>
-    let str := toString $ modAnn.toJson;
-    match Lean.Json.parse str with
-    | Except.error errMsg => pure $ "Failed to re-parse json from `"++annFile++"`: "++errMsg
-    | Except.ok js' =>
-      if Lean.Json.isEqv js js'
-      then pure "pass"
-      else pure $ "The following are not equivalent Json values: \n"++str++"\n\nand\n\n"++(toString js')
+  let fileContents ← IO.FS.readFile annFile;
+  match Lean.Json.parse fileContents with
+  | Except.error errMsg => pure $ "Failed to parse json in `"++annFile++"`: " ++ errMsg
+  | Except.ok js =>
+    match ReoptVCG.parseAnnotations js with
+    | Except.error errMsg => pure $ "Failed to parse json as a module annotation: " ++ errMsg
+    | Except.ok modAnn =>
+      let str := toString $ modAnn.toJson;
+      match Lean.Json.parse str with
+      | Except.error errMsg => pure $ "Failed to re-parse json from `"++annFile++"`: "++errMsg
+      | Except.ok js' =>
+        if Lean.Json.isEqv js js'
+        then pure "pass"
+        else pure $ "The following are not equivalent Json values: \n"++str++"\n\nand\n\n"++(toString js')
 
 
 def test : IO UInt32 := do
-homeDir ← (do
-  maybeVal ← IO.getEnv "REOPTVCGHOME";
-  pure $ maybeVal.getD (panic "REOPTVCGHOME environment variable not set"));
-roundtripTest (homeDir ++ "/test-programs/test_fib_diet_reopt.ann") >>= IO.println;
-roundtripTest (homeDir ++ "/test-programs/test_add_diet_reopt.ann") >>= IO.println;
-pure 0
+  let homeDir ← (do
+    let maybeVal ← IO.getEnv "REOPTVCGHOME";
+    pure $ maybeVal.getD (panic "REOPTVCGHOME environment variable not set"));
+  roundtripTest (homeDir ++ "/test-programs/test_fib_diet_reopt.ann") >>= IO.println;
+  roundtripTest (homeDir ++ "/test-programs/test_add_diet_reopt.ann") >>= IO.println;
+  pure 0
 
 end JsonRoundtrip
 end Test

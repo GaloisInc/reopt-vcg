@@ -54,18 +54,18 @@ def bv64 := bitvec 64
 protected def beq : SmtSort → SmtSort → Bool
 | bool, bool => true
 | bitvec n, bitvec m => n == m
-| array a b, array c d => beq a c && beq b d
+| array a b, array c d => SmtSort.beq a c && SmtSort.beq b d
 | _, _ => false
 
-instance : HasBeq SmtSort := ⟨SmtSort.beq⟩
+instance : BEq SmtSort := ⟨SmtSort.beq⟩
 
 protected
 def toSExpr : SmtSort -> SExpr
 | bool => atom "Bool"
 | bitvec n => indexed (atom "BitVec") [atom n.repr]
-| array k v => list [atom "Array", toSExpr k, toSExpr v]
+| array k v => list [atom "Array", SmtSort.toSExpr k, SmtSort.toSExpr v]
 
-instance : HasToSExpr SmtSort := ⟨SmtSort.toSExpr⟩
+instance : ToSExpr SmtSort := ⟨SmtSort.toSExpr⟩
 
 -- *MkDecEq> putStrLn $ mkDecEq "SmtSort" [("bool", []), ("bitvec", [False]), ("array", [True, True])] "decEq"
 protected def decEq : ∀(e e' : SmtSort), Decidable (e = e')
@@ -75,7 +75,7 @@ protected def decEq : ∀(e e' : SmtSort), Decidable (e = e')
   | (isTrue h1) => isTrue (h1 ▸ rfl)
   | (isFalse nh) => isFalse (fun h => SmtSort.noConfusion h $ fun h1' => absurd h1' nh))
 | (array c1 c2), (array c1' c2') => 
- (match decEq c1 c1', decEq c2 c2' with 
+ (match SmtSort.decEq c1 c1', SmtSort.decEq c2 c2' with 
   | (isTrue h1), (isTrue h2) => isTrue (h1 ▸ h2 ▸ rfl)
   | (isFalse nh), _ => isFalse (fun h => SmtSort.noConfusion h $ fun h1' h2' => absurd h1' nh)
   | (isTrue _), (isFalse nh) => isFalse (fun h => SmtSort.noConfusion h $ fun h1' h2' => absurd h2' nh))
@@ -89,7 +89,7 @@ protected def decEq : ∀(e e' : SmtSort), Decidable (e = e')
 instance : DecidableEq SmtSort := SmtSort.decEq
 
 def toString (s:SmtSort) : String := (SmtSort.toSExpr s).toString
-instance : HasToString SmtSort := ⟨SmtSort.toString⟩
+instance : ToString SmtSort := ⟨SmtSort.toString⟩
 
 end SmtSort
 
@@ -134,7 +134,8 @@ namespace Symbol
 
 def toSExpr (s : Symbol) : SExpr := atom s
 
-instance : HasToSExpr Symbol := ⟨toSExpr⟩ -- maybe should quote?
+instance : DecidableEq Symbol := inferInstanceAs (DecidableEq String)
+instance : ToSExpr Symbol := ⟨toSExpr⟩ -- maybe should quote?
 
 end Symbol
 
@@ -164,7 +165,7 @@ protected def toHexWithLeadingZeros : List Char → Nat → Nat → String
 | prev, 0, _ => prev.asString
 | prev, (Nat.succ w), x =>
   let c := (Nat.land x 0xf).digitChar;
-  toHexWithLeadingZeros (c::prev) w (Nat.shiftr x 4)
+  SpecConst.toHexWithLeadingZeros (c::prev) w (Nat.shiftr x 4)
 
 --- Print word as hex
 def ppBin (n : Nat) (v : Nat) : String := 
@@ -181,7 +182,7 @@ def toSExpr : forall {s : SmtSort}, SpecConst s -> SExpr
 | _, binary n v  => atom (ppBin n v)
 -- | string s    => String.toSExpr s
 
-instance {s : SmtSort} : HasToSExpr (SpecConst s) := ⟨SpecConst.toSExpr⟩
+instance {s : SmtSort} : ToSExpr (SpecConst s) := ⟨SpecConst.toSExpr⟩
 
 end SpecConst
 
@@ -214,7 +215,7 @@ open BuiltinIdent
 @[reducible]
 def nary (s : SmtSort) (t : SmtSort) : Nat -> ConstSort 
 | zero   => ConstSort.base t
-| succ n => ConstSort.fsort s (nary n) 
+| succ n => ConstSort.fsort s (nary s t n)
 
 -- distinct is a term as it has arbitrary arity
 inductive BuiltinIdent : ConstSort -> Type
@@ -354,7 +355,7 @@ def toSExpr : forall {cs : ConstSort}, BuiltinIdent cs -> SExpr
 | _, bvsgt _              => atom "bvsgt" 
 | _, bvsge _              => atom "bvsge" 
 
-instance {cs : ConstSort} : HasToSExpr (BuiltinIdent cs) := ⟨BuiltinIdent.toSExpr⟩
+instance {cs : ConstSort} : ToSExpr (BuiltinIdent cs) := ⟨BuiltinIdent.toSExpr⟩
 
 end BuiltinIdent
 
@@ -369,7 +370,7 @@ def toSExpr : forall {cs : ConstSort}, Ident cs -> SExpr
 | _, symbol _ s => atom s
 | _, builtin bi => BuiltinIdent.toSExpr bi
 
-instance {cs : ConstSort} : HasToSExpr (Ident cs)  := ⟨Ident.toSExpr⟩
+instance {cs : ConstSort} : ToSExpr (Ident cs)  := ⟨Ident.toSExpr⟩
 
 end Ident
 
@@ -382,7 +383,7 @@ protected
 def toSExpr : forall {s : SmtSort}, SortedVar s -> SExpr
 | s, x => List.toSExpr [Symbol.toSExpr x.var, SmtSort.toSExpr s]
 
-instance {s : SmtSort} : HasToSExpr (SortedVar s)  := ⟨SortedVar.toSExpr⟩
+instance {s : SmtSort} : ToSExpr (SortedVar s)  := ⟨SortedVar.toSExpr⟩
 
 end SortedVar
 
@@ -408,16 +409,16 @@ def toSExprAux : forall {cs : ConstSort} (t : Term cs), List SExpr -> SExpr
 -- identifier with base type, like 'true'
 | _, ident x, []    => toSExpr x
 | _, ident x, args  => SExpr.app (toSExpr x) args
-| _, app f x, args           => toSExprAux f (toSExprAux x [] :: args)
+| _, app f x, args           => Term.toSExprAux f (Term.toSExprAux x [] :: args)
 | _, smtLet v e body, _     => toSExpr [atom "let"
-                                        , toSExpr [toSExpr [toSExpr v, toSExprAux e []]]
-                                        , toSExprAux body []]
-| _, smtForall v body, _    => SExpr.app (atom "forall") [toSExpr [toSExpr v], toSExprAux body []]
-| _, smtExists v body, _    => SExpr.app (atom "exists") [toSExpr [toSExpr v], toSExprAux body []]
+                                        , toSExpr [toSExpr [toSExpr v, Term.toSExprAux e []]]
+                                        , Term.toSExprAux body []]
+| _, smtForall v body, _    => SExpr.app (atom "forall") [toSExpr [toSExpr v], Term.toSExprAux body []]
+| _, smtExists v body, _    => SExpr.app (atom "exists") [toSExpr [toSExpr v], Term.toSExprAux body []]
 
 def toSExpr {cs : ConstSort} (tm : Term cs) : SExpr := Term.toSExprAux tm []
 
-instance {cs : ConstSort} : HasToSExpr (Term cs) := ⟨Term.toSExpr⟩
+instance {cs : ConstSort} : ToSExpr (Term cs) := ⟨Term.toSExpr⟩
 
 end Term
 
@@ -507,7 +508,7 @@ def toSExpr : Command -> SExpr
   atom $ "; " ++ body.asString ++ "\n"
 | exit => SExpr.app (atom "exit") []
 
-instance : HasToSExpr Command := ⟨Command.toSExpr⟩
+instance : ToSExpr Command := ⟨Command.toSExpr⟩
 
 def isComment : Command → Bool
 | comment _ => true

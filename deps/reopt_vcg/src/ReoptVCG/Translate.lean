@@ -33,7 +33,7 @@ universe u
 protected
 def indexOfAux {α : Type u} [DecidableEq α] (v : α) : Nat -> List α -> Nat
   | n, [] => n
-  | n, (x :: xs) => if x = v then n else indexOfAux (n + 1) xs
+  | n, (x :: xs) => if x = v then n else List.indexOfAux v (n + 1) xs
 
 def indexOf {α : Type u} [DecidableEq α] (xs : List α) (v : α) : Nat := List.indexOfAux v 0 xs
 
@@ -45,17 +45,17 @@ namespace x86
 def some_gpr := Sigma (fun (tp : gpreg_type) => concrete_reg (bv tp.width))
 
 def register_to_reg (r : decodex86.register) : Option some_gpr :=
-  let idx := reg.r64_names.indexOf r.top;
+  let idx := reg.r64_names.indexOf r.top
   if H : idx = reg.r64_names.length 
   then none
-  else let prf : idx < 16 := I_am_really_sorry _;
-       let idx' := @Fin.mk 16 idx prf; -- (begin
-           -- destruct (lt_or_eq_of_le (index_of_lt reg.r64_names r.top)); intros Hle,
+  else let prf : idx < 16 := I_am_really_sorry _
+       let idx' := @Fin.mk 16 idx prf -- (begin
+           -- destruct (lt_or_eq_of_le (index_of_lt reg.r64_names r.top)) intros Hle,
            -- exact Hle,
            -- contradiction
            -- end)
        let mk : ∀(tp : gpreg_type), Option some_gpr
-                 := fun (tp : gpreg_type) => some ⟨tp, concrete_reg.gpreg idx' tp⟩;  
+                 := fun (tp : gpreg_type) => some ⟨tp, concrete_reg.gpreg idx' tp⟩  
        match (r.width, r.offset) with 
          | (8, 0)  => mk gpreg_type.reg8l
          | (8, 8)  => mk gpreg_type.reg8h
@@ -116,27 +116,27 @@ def operand_to_arg_lval
     -> M backend (@arg_lval backend)
   -- FIXME: check width?
   | (operand_value.register r) => do 
-    sgpr <- guard_some "operand_to_arg_lval register" (register_to_reg r) pure;
-    assert_types (bv sgpr.fst.width) tp;
+    let sgpr ← guard_some "operand_to_arg_lval register" (register_to_reg r) pure
+    assert_types (bv sgpr.fst.width) tp
     pure (arg_lval.reg sgpr.snd)
 
   -- FIXME: check width?
   | (operand_value.segment opt_r r) => do
-    throw_if (Option.isSome opt_r) "got a segment reg";
+    throw_if (Option.isSome opt_r) "got a segment reg"
     -- FIXME: clag
-    sgpr <- guard_some "operand_to_arg_value_lhs register" (register_to_reg r) pure;
-    assert_types (bv sgpr.fst.width) tp;
+    let sgpr ← guard_some "operand_to_arg_value_lhs register" (register_to_reg r) pure
+    assert_types (bv sgpr.fst.width) tp
     pure (arg_lval.reg sgpr.snd)
   | (operand_value.immediate nbytes val) => throw "operand_to_arg_lval: got an immdiate"
   -- FIXME: we use ip out of the state, we could use the value encoded in the decoded instruction 
   | (operand_value.rel_immediate next_addr nbytes val) => throw "operand_to_arg_lval: got an immdeiate"
   -- base + scale * idx + disp
   | (operand_value.memloc opt_seg opt_base scale opt_idx disp) => do
-    n <- match otp with | (operand_type.mem n) => pure n | other => throw "memloc not of mem type";
-    assert_types (bv n) tp;
-    throw_if (Option.isSome opt_seg) "got a segment reg";
-    b_v   <- option_register_to_bv64 backend opt_base;
-    idx_v <- option_register_to_bv64 backend opt_idx;
+    let n ← match otp with | (operand_type.mem n) => pure n | other => throw "memloc not of mem type"
+    assert_types (bv n) tp
+    throw_if (Option.isSome opt_seg) "got a segment reg"
+    let b_v   ← option_register_to_bv64 backend opt_base
+    let idx_v ← option_register_to_bv64 backend opt_idx
     pure (arg_lval.memloc n (backend.s_bvadd _ b_v
                               (backend.s_bvadd _ (backend.s_bvmul _ (backend.s_bv_imm _ scale) idx_v)
                               (backend.s_bv_imm _ disp))))
@@ -163,12 +163,13 @@ def operand_to_value
      | (operand_value.rel_immediate next_addr nbytes val) => do
        -- checks for width = 64 bit, basically
        -- @value.type_check nenv m _ _ (bv 64) (s.ip + nat_to_signed_bitvec val nbytes 64) tp
-       ip <- backend.s_get_ip;
+       let ip ← backend.s_get_ip
        value.type_check (bv 64)
                         (backend.s_bvadd _ ip (nat_to_signed_bitvec backend val nbytes 64))
                         tp
-     | _ => do lval <- operand_to_arg_lval backend tp op.type op.value;
-               arg_lval.to_value' lval tp
+     | _ => do 
+       let lval ← operand_to_arg_lval backend tp op.type op.value
+       arg_lval.to_value' lval tp
 
    
 def operand_to_arg_value_expr    
@@ -179,7 +180,7 @@ def first_comb.{u,v,w} {ε : Type u} {m : Type v → Type w}
   [MonadExcept ε m] {α : Type v} (e : ε) (f : ε -> ε -> ε) : List (m α) -> m α
   | []        => throw e
   | [x]       => x
-  | (x :: xs) => catch x $ fun e1 => catch (first_comb xs) $ fun e2 => throw (f e1 e2)
+  | (x :: xs) => tryCatch x $ fun e1 => tryCatch (first_comb e f xs) $ fun e2 => throw (f e1 e2)
 
 /-
 def test_pattern := match mov.patterns with | [x] := x | _ => sorry end
@@ -192,37 +193,37 @@ def make_environment_helper
   | [], []              => pure []
   | (binding.reg tp   :: rest), (op :: ops) =>
     annotate' "reg" $ do
-      av  <- operand_to_arg_value_lhs backend tp op;
+      let av  ← operand_to_arg_value_lhs backend tp op
       -- Mainly to check things are of the right form
-      match av with | (arg_value.lval (arg_lval.reg r)) => pure () | _ => throw "Not a register";
-      e   <- make_environment_helper rest ops;
+      match av with | (arg_value.lval (arg_lval.reg r)) => pure () | _ => throw "Not a register"
+      let e   ← make_environment_helper rest ops
       pure (av :: e)
 
   | (binding.addr tp   :: rest), (op :: ops)  =>
     annotate' "addr" $ do
-      av  <- operand_to_arg_value_lhs backend tp op;
+      let av  ← operand_to_arg_value_lhs backend tp op
       -- Mainly to check things are of the right form
-      match av with | (arg_value.lval (arg_lval.memloc _ _)) => pure () | _ => throw "Not a memloc";
-      e   <- make_environment_helper rest ops;
+      match av with | (arg_value.lval (arg_lval.memloc _ _)) => pure () | _ => throw "Not a memloc"
+      let e   ← make_environment_helper rest ops
       pure (av :: e)
 
   | (binding.imm tp   :: rest), (op :: ops) =>
     annotate' "imm" $ do
       -- FIXME: check that it is, in fact, an immediate
-      av  <- operand_to_arg_value_expr backend tp op;
-      e   <- make_environment_helper rest ops;
+      let av  ← operand_to_arg_value_expr backend tp op
+      let e   ← make_environment_helper rest ops
       pure (av :: e)
 
   | (binding.lhs tp   :: rest), (op :: ops) =>
     annotate' "lhs" $ do
-      av  <- operand_to_arg_value_lhs backend tp op;
-      e   <- make_environment_helper rest ops;
+      let av  ← operand_to_arg_value_lhs backend tp op
+      let e   ← make_environment_helper rest ops
       pure (av :: e)
       
   | (binding.expression tp :: rest), (op :: ops) => 
     annotate' "expression" $ do 
-      av  <- operand_to_arg_value_expr backend tp op;
-      e   <- make_environment_helper rest ops;
+      let av  ← operand_to_arg_value_expr backend tp op
+      let e   ← make_environment_helper rest ops
       pure (av :: e)
   | _, _ => throw "binding/operand mismatch"
 
@@ -239,13 +240,13 @@ inductive binding
 def instantiate_pattern  (inst : instruction) (i : decodex86.instruction) 
   : M backend (@environment backend × x86.pattern) :=
   first_comb "instantiate_pattern: no patterns" (fun l r => r) -- l ++ ", " ++ r)
-              (List.map (fun (p : x86.pattern) => 
-                do e <- make_environment_helper backend p.context.bindings.reverse i.operands;
-                   pure (e, p)) 
+              (List.map (fun (p : x86.pattern) => do
+                let e ← make_environment_helper backend p.context.bindings.reverse i.operands
+                pure (e, p))
               inst.patterns)
 
 def instruction_family (inst : decodex86.instruction) : String :=
-  let (pfx, rest) := List.span Char.isUpper inst.mnemonic.toList;
+  let (pfx, rest) := List.span Char.isUpper inst.mnemonic.toList
   (List.map Char.toLower pfx).asString
 
 def instruction_map : Std.RBMap String instruction (fun x y => decide (x < y)) :=
@@ -254,8 +255,9 @@ def instruction_map : Std.RBMap String instruction (fun x y => decide (x < y)) :
 def eval_instruction (i : decodex86.instruction) : M backend Unit :=
   match instruction_map.find? (instruction_family i) with               
   | none        => throw ("Unknown instruction: " ++ i.mnemonic)
-  | (some inst) => do (env, p) <- annotate' "pattern" (instantiate_pattern backend inst i);
-                      annotate' "pattern.eval" (pattern.eval p env)
+  | (some inst) => do 
+    let (env, p) ← annotate' "pattern" (instantiate_pattern backend inst i)
+    annotate' "pattern.eval" (pattern.eval p env)
   
 /- testing -/
 -- def get_sexp : String -> sexp := fun st => 

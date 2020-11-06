@@ -27,7 +27,7 @@ def Atom.toString : Atom → String
 | Atom.nat n => n.repr
 | Atom.ident nm => nm
 
-instance Atom.hasToString : HasToString Atom := ⟨Atom.toString⟩
+instance Atom.hasToString : ToString Atom := ⟨Atom.toString⟩
 
 def readAtom (str : String) : Except String Atom :=
 if str.isEmpty
@@ -39,17 +39,17 @@ else
 
 
 def readSExp (str:String) : Except String (SExp Atom) := do
-ss ← WellFormedSExp.SExp.readSExps readAtom str;
-match ss with
-| [] => Except.error "no s-expressions were found in the string"
-| [s] => pure s
-| _ => Except.error $ "multiple s-expressions were found in the string: " ++ str
+  let ss ← WellFormedSExp.SExp.readSExps readAtom str
+  match ss with
+  | [] => Except.error "no s-expressions were found in the string"
+  | [s] => pure s
+  | _ => Except.error $ "multiple s-expressions were found in the string: " ++ str
 
 
 
-/-- An expression in the SMT bitvector theory with 
+/- An expression in the SMT bitvector theory with 
     variables/constants which may appear in 
-    block preconditions. --/
+    block preconditions. -/
 inductive BlockExpr : SmtSort → Type u
 | stackHigh : BlockExpr SmtSort.bv64
   -- ^ Denotes the high address on the stack.
@@ -85,7 +85,7 @@ inductive BlockExpr : SmtSort → Type u
   -- satisfy the property that @v < 2^w@.
 | bvDecimal (v w : Nat) : BlockExpr (SmtSort.bitvec w)
 
-/-- Map from LLVM ident names to their sorts--/
+/- Map from LLVM ident names to their sorts -/
 abbrev LLVMTyEnv := RBMap LLVM.Ident SmtSort (λ x y => x<y)
 
 namespace BlockExpr
@@ -96,14 +96,14 @@ private def ppLLVMIdent : LLVM.Ident → String
 
 -- was `evalExpr`
 partial def fromSExp
-(llvmTyEnv : LLVMTyEnv)
-: (SExp Atom) → Except String (Sigma BlockExpr)
+  (llvmTyEnv : LLVMTyEnv)
+  : (SExp Atom) → Except String (Sigma BlockExpr)
 | SExp.list [SExp.atom (Atom.ident "="), x, y] => do
-  ⟨xtp, xe⟩ ← fromSExp x;
-  ⟨ytp, ye⟩ ← fromSExp y;
+  let ⟨xtp, xe⟩ ← fromSExp llvmTyEnv x;
+  let ⟨ytp, ye⟩ ← fromSExp llvmTyEnv y;
   if h : (xtp = ytp)
   then 
-    let hEq : BlockExpr xtp = BlockExpr ytp := h ▸ rfl;
+    let hEq : BlockExpr xtp = BlockExpr ytp := h ▸ rfl
     Except.ok ⟨SmtSort.bool, eq (cast hEq xe) ye⟩
   else Except.error $ 
        "The two operands in the term `"
@@ -112,8 +112,8 @@ partial def fromSExp
        ++ " was of type " ++ xtp.toString
        ++ " and the second was of type " ++ ytp.toString
 | SExp.list [SExp.atom (Atom.ident "bvsub"), x, y] => do
-  xRes ← fromSExp x;
-  yRes ← fromSExp y;
+  let xRes ← fromSExp llvmTyEnv x;
+  let yRes ← fromSExp llvmTyEnv y;
   match xRes, yRes with
   | ⟨SmtSort.bitvec xw, xe⟩, ⟨SmtSort.bitvec yw, ye⟩ =>
     if h : xw = yw
@@ -144,18 +144,18 @@ partial def fromSExp
               ++ " but found " ++ bvLit
   | _ => Except.error $ "unrecognized SMT expression: " ++ bvLit
 | SExp.list [SExp.atom (Atom.ident "mcstack"), sa, sw] => do
-  ⟨tp, a⟩ ← fromSExp sa;
+  let ⟨tp, a⟩ ← fromSExp llvmTyEnv sa;
   if h : tp = SmtSort.bv64
   then do
     let hEq : BlockExpr tp = BlockExpr SmtSort.bv64 := h ▸ rfl;
-    w ← match sw with
-        | SExp.list [SExp.atom (Atom.ident "_"),
-                     SExp.atom (Atom.ident "BitVec"),
-                     SExp.atom (Atom.nat w)] =>
-          match WordSize.fromNat w with
-          | some width => Except.ok width
-          | none => Except.error "mcstack could not interpret memory type."
-        | _ => Except.error "mcstack could not interpret memory type";
+    let w ← match sw with
+             | SExp.list [SExp.atom (Atom.ident "_"),
+                          SExp.atom (Atom.ident "BitVec"),
+                          SExp.atom (Atom.nat w)] =>
+               match WordSize.fromNat w with
+               | some width => Except.ok width
+               | none => Except.error "mcstack could not interpret memory type."
+             | _ => Except.error "mcstack could not interpret memory type"
     Except.ok ⟨w.sort, BlockExpr.mcStack (cast hEq a) w⟩
   else
     Except.error $ "Expected 64-bit address as first argument to mcstack"
@@ -193,13 +193,13 @@ def parseAs
 (llvmTyEnv : LLVMTyEnv)
 (input : String)
 : Except String (BlockExpr tp) := do
-⟨tp', e⟩ ← readSExp input >>= fromSExp llvmTyEnv;
-if h : tp' = tp
-then 
-  let hEq : BlockExpr tp' = BlockExpr tp := h ▸ rfl;
-  Except.ok $ cast hEq e
-else Except.error $ "expected " ++ input ++ " to be of type " ++ tp.toString
-                  ++ ", but it is of type " ++ tp'.toString
+  let ⟨tp', e⟩ ← readSExp input >>= fromSExp llvmTyEnv;
+  if h : tp' = tp
+  then 
+    let hEq : BlockExpr tp' = BlockExpr tp := h ▸ rfl;
+    Except.ok $ cast hEq e
+  else Except.error $ "expected " ++ input ++ " to be of type " ++ tp.toString
+                    ++ ", but it is of type " ++ tp'.toString
 
 
 end BlockExpr

@@ -19,7 +19,7 @@ private def bvEqRangeAux {n} (a1 a2 : Array (bitvec n) β) (low : bitvec n) : Na
 | Nat.zero => a1.select 0 == a2.select 0
 | Nat.succ i =>
   let idx := low + (bitvec.of_nat n i) + 1;
-  a1.select idx == a2.select idx && bvEqRangeAux i
+  a1.select idx == a2.select idx && bvEqRangeAux a1 a2 low i
 
 end
 
@@ -55,7 +55,7 @@ namespace ConstSort
 @[reducible]
 protected def denote : ConstSort → Type
 | ConstSort.base s => s.denote.type
-| ConstSort.fsort a b => a.denote.type → (denote b)
+| ConstSort.fsort a b => a.denote.type → (ConstSort.denote b)
 
 end ConstSort
 
@@ -63,7 +63,7 @@ namespace VarArgs
 
 private def varArgsPred (α : Type) : Nat → Type
 | 0 => Bool
-| Nat.succ n => α → varArgsPred n
+| Nat.succ n => α → varArgsPred α n
 
 
 private def distinctList {α : Type} [DecidableEq α] : List α → Bool
@@ -73,7 +73,7 @@ private def distinctList {α : Type} [DecidableEq α] : List α → Bool
 
 def distinct (s : SmtSort) : forall (n : Nat), List s.denote.type → (nary s SmtSort.bool n).denote
 | 0, args => distinctList args
-| Nat.succ n, args => λ a => (distinct n) (a::args)
+| Nat.succ n, args => λ a => (distinct s n) (a::args)
 
 end VarArgs
 
@@ -83,7 +83,7 @@ VarArgs.distinct s n []
 
 
 @[reducible]
-protected def BuiltinIdent.denote : forall cs, BuiltinIdent cs → cs.denote
+def denoteBuiltinIdent : forall cs, BuiltinIdent cs → cs.denote
 -- * Core theory
 | _, BuiltinIdent.true => true
 | _, BuiltinIdent.false => false
@@ -92,8 +92,11 @@ protected def BuiltinIdent.denote : forall cs, BuiltinIdent cs → cs.denote
 | _, BuiltinIdent.and => and
 | _, BuiltinIdent.or => or
 | _, BuiltinIdent.xor => xor
-| _, BuiltinIdent.eq s => λ x y => x = y
-| _, BuiltinIdent.smtIte s => λ t x y => if t then x else y
+| _, BuiltinIdent.eq s => λ x y => BEq.beq x y
+| _, BuiltinIdent.smtIte s => λ t x y =>
+                                match t with
+                                | true =>  x 
+                                | false => y
 | _, BuiltinIdent.distinct s n => mkDistinct s n
 
 | _, BuiltinIdent.select k v           => Array.select
@@ -123,7 +126,7 @@ protected def BuiltinIdent.denote : forall cs, BuiltinIdent cs → cs.denote
 | _, BuiltinIdent.bvnor   _            => λ b1 b2 => bitvec.not (bitvec.or b1 b2)
 | _, BuiltinIdent.bvxor   _            => bitvec.xor
 | _, BuiltinIdent.bvxnor  _            => λ b1 b2 => bitvec.not (bitvec.xor b1 b2)
-| _, BuiltinIdent.bvcomp  _            => λ b1 b2 => if b1 = b2 then 1 else 0
+| _, BuiltinIdent.bvcomp  _            => λ b1 b2 => if b1 = b2 then bitvec.of_nat _ 1 else bitvec.of_nat _ 0
 | _, BuiltinIdent.bvsub   _            => bitvec.sub
 | _, BuiltinIdent.bvsdiv  _            => bitvec.sdiv
 | _, BuiltinIdent.bvsrem  _            => bitvec.srem
@@ -145,6 +148,7 @@ protected def BuiltinIdent.denote : forall cs, BuiltinIdent cs → cs.denote
 | _, BuiltinIdent.bvsgt _              => λ x y => decide (bitvec.sgt x y)
 | _, BuiltinIdent.bvsge _              => λ x y => decide (bitvec.sge x y)
 
+def BuiltinIdent.denote : forall cs, BuiltinIdent cs → cs.denote := denoteBuiltinIdent
 
 end Raw
 
