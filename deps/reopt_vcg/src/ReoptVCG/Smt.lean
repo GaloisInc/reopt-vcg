@@ -32,11 +32,11 @@ def defaultCVC4Args : List String :=
 -- avoid the `unknown`s.
 ["--lang=smt2", "--arrays-exp", "--no-fmf-bound", "--incremental"]
 
-/-- Abstracts out the _specifics_ of how certain BlockExpr terms
+/- Abstracts out the _specifics_ of how certain BlockExpr terms
     should be emitted as SMT terms, so that the underlying SMT
     architecture can generate these ahead of time in whatever way is
     appropriate and then simply parameterize SMT generation of
-    precondition expressions accordingly. --/
+    precondition expressions accordingly. -/
 class BlockExprEnv (α : Type u) :=
 (initGPReg64 : α → x86.reg64 → Term SmtSort.bv64)
 (initFlag : α → x86.flag → Term SmtSort.bool)
@@ -112,14 +112,14 @@ def toSmt {α : Type u} [BlockExprEnv α] (env: α) : ∀ {tp : SmtSort}, BlockE
 | _, initFlag r    => pure $ BlockExprEnv.initFlag env r
 | _, fnStartGPReg64 r => pure $ BlockExprEnv.fnStartRegState env r
 | _, mcStack a w => do
-  t ← toSmt a;
+  let t ← toSmt env a
   pure $ BlockExprEnv.readMem env w t
 | _, llvmVar nm tp =>
   match BlockExprEnv.evalVar env nm with
   | some ⟨tp', t⟩ =>
     if h : tp = tp'
     then
-      let hEq : Term tp' = Term tp := h ▸ rfl;
+      let hEq : Term tp' = Term tp := h ▸ rfl
       pure $ cast hEq t
     else
       Except.error $ BlockVCGError.globalErr $
@@ -129,29 +129,29 @@ def toSmt {α : Type u} [BlockExprEnv α] (env: α) : ∀ {tp : SmtSort}, BlockE
     "Error while translating precondition to SMT! LLVM variable `"
     ++ nm.asString ++ "` had no entry in the phi variable map!"
 | _, eq e1 e2 => do
-  t1 ← toSmt e1;
-  t2 ← toSmt e2;
+  let t1 ← toSmt env e1
+  let t2 ← toSmt env e2
   pure $ Smt.eq t1 t2
 | _, bvAdd e1 e2 => do
-  t1 ← toSmt e1;
-  t2 ← toSmt e2;
+  let t1 ← toSmt env e1
+  let t2 ← toSmt env e2
   pure $ Smt.bvadd t1 t2
 | _, bvSub e1 e2 => do
-  t1 ← toSmt e1;
-  t2 ← toSmt e2;
+  let t1 ← toSmt env e1
+  let t2 ← toSmt env e2
   pure $ Smt.bvsub t1 t2
 | _, bvDecimal n width => pure $ Smt.bvimm width n
 
 end BlockExpr
 
-/-- Converts a BlockExpr into an SMT term in the BlockVCG context. --/
+/- Converts a BlockExpr into an SMT term in the BlockVCG context. -/
 def evalPrecondition {tp : SmtSort} (evalVar : LLVM.Ident → Option (Sigma Term)) (expr : BlockExpr tp) : BlockVCG (Term tp) := do
-ctx ← read;
-state ← get;
-let env := BlockVCGExprEnv.mk evalVar ctx state;
-match BlockExpr.toSmt env expr with
-| Except.error err => throw err
-| Except.ok res => pure res
+  let ctx ← read
+  let state ← get
+  let env := BlockVCGExprEnv.mk evalVar ctx state
+  match BlockExpr.toSmt env expr with
+  | Except.error err => throw err
+  | Except.ok res => pure res
 
 
 def ppBlockLabel (lbl:LLVM.BlockLabel) : String :=
@@ -161,76 +161,75 @@ match lbl.label with
 
 -- | Pretty print an error that occurs at the start of an instruction.
 def renderMCInstError (fnm : String) (blockLbl : LLVM.BlockLabel) (llvmInstrIdx : Nat) (addr : Nat) (msg : String) : String :=
-fnm++"."++(ppBlockLabel blockLbl)++"."++llvmInstrIdx.repr++" @ "++addr.ppHex++": "++msg
+  fnm++"."++(ppBlockLabel blockLbl)++"."++llvmInstrIdx.repr++" @ "++addr.ppHex++": "++msg
 
 def standaloneGoalFilename (vg : VerificationGoal) : String :=
-vg.fnName ++ "_" ++ (ppBlockLabel vg.blockLbl) ++ "_" ++ vg.goalIndex.repr ++ ".smt2"
+  vg.fnName ++ "_" ++ (ppBlockLabel vg.blockLbl) ++ "_" ++ vg.goalIndex.repr ++ ".smt2"
 
-/-- Return the absolute path to the directory where we can stash
-    temporary files during IO computations. --/
+/- Return the absolute path to the directory where we can stash
+    temporary files during IO computations. -/
 def getTemporaryDirectory : IO String := do
-if !System.Platform.isWindows
-then pure "/tmp"
-else do
-  let validateDir : String → String → IO String := (λ envVar dir => do
-    isValid ← IO.isDir dir;
-    if isValid
-    then pure dir
-    else throw $ IO.userError $ "Temporary directory specified by `"++envVar
-                                ++"` environment variable (i.e., `"++dir++"`) does not exist.");
-  tempMaybeStr ← IO.getEnv "TEMP";
-  tmpMaybeStr ← IO.getEnv "TMP";
-  match tempMaybeStr, tmpMaybeStr with
-  | some tmpDir, _ => validateDir "TEMP" tmpDir
-  | _, some tmpDir => validateDir "TMP" tmpDir
-  | _, _ => throw $ IO.userError $ "FATAL ERROR! On Windows, a temporary directory "
-                                   ++ "must be specified in the environment variable `TEMP` (or `TMP`)."
+  if !System.Platform.isWindows
+  then pure "/tmp"
+  else do
+    let validateDir : String → String → IO String := (λ envVar dir => do
+      let isValid ← IO.isDir dir
+      if isValid
+      then pure dir
+      else throw $ IO.userError $ "Temporary directory specified by `"++envVar
+                                ++"` environment variable (i.e., `"++dir++"`) does not exist.")
+    let tempMaybeStr ← IO.getEnv "TEMP"
+    let tmpMaybeStr ← IO.getEnv "TMP"
+    match tempMaybeStr, tmpMaybeStr with
+    | some tmpDir, _ => validateDir "TEMP" tmpDir
+    | _, some tmpDir => validateDir "TMP" tmpDir
+    | _, _ => throw $ IO.userError $ "FATAL ERROR! On Windows, a temporary directory "
+                                     ++ "must be specified in the environment variable `TEMP` (or `TMP`)."
 
-/-- Like `standaloneGoalFilename`, but gives an absolute path to a filename in the OS's temporary directory.--/
+/- Like `standaloneGoalFilename`, but gives an absolute path to a filename in the OS's temporary directory.-/
 def temporaryStandaloneGoalFilepath (vg : VerificationGoal) : IO String := do
-tempDir ← getTemporaryDirectory;
-pure $ System.mkFilePath [tempDir, standaloneGoalFilename vg]
+  let tempDir ← getTemporaryDirectory
+  pure $ System.mkFilePath [tempDir, standaloneGoalFilename vg]
 
 
-/-- Generate the comment and other less semantically relevant options to set up a proof script. -/
+/- Generate the comment and other less semantically relevant options to set up a proof script. -/
 def proofScriptPrelude (goalName : String) : Script :=
-let (_, _, cmds) := runSmtM IdGen.empty (do
-  comment goalName;
-  setLogic Logic.all;
-  setProduceModels true);
-cmds
+  let (_, _, cmds) := runSmtM IdGen.empty (do
+    comment goalName
+    setLogic Logic.all
+    setProduceModels true)
+  cmds
 
-/-- Check satisfiability with `goal` negated.  --/
+/- Check satisfiability with `goal` negated.  -/
 def checkSatWithGoalNegated (goalName : String) (goal : SmtM (Term SmtSort.bool)) : SmtM Unit := do
-p ← goal; -- FIXME commands that appear before this do not appear in the final script =\
-checkSatAssuming [Smt.not p];
-exit
+  let p ← goal -- FIXME commands that appear before this do not appear in the final script =\
+  checkSatAssuming [Smt.not p]
+  exit
 
 
-/-- Write assert the negated goal and write out the resulting script
+/- Write assert the negated goal and write out the resulting script
     of commands to a file. -/
 def exportVerifyGoal
 (outputDir : String)
 (vg : VerificationGoal)
 : IO Unit := do
-let preludeCmds := proofScriptPrelude vg.propName;
-let (_, _, cmds) := runSmtM IdGen.empty (checkSatWithGoalNegated vg.propName vg.goal);
-let filePath := System.mkFilePath [outputDir, standaloneGoalFilename vg];
-file ← IO.FS.Handle.mk filePath IO.FS.Mode.write;
-preludeCmds.forM (λ c => file.putStr c.toLine);
-cmds.forM (λ c => file.putStr c.toLine)
+  let preludeCmds := proofScriptPrelude vg.propName
+  let (_, _, cmds) := runSmtM IdGen.empty (checkSatWithGoalNegated vg.propName vg.goal)
+  let filePath := System.mkFilePath [outputDir, standaloneGoalFilename vg]
+  let file ← IO.FS.Handle.mk filePath IO.FS.Mode.write
+  preludeCmds.forM (λ c => file.putStr c.toLine)
+  cmds.forM (λ c => file.putStr c.toLine)
 
 
 def exportProverSession
 (outputDir : String)
 : IO ProverSession
 := do
--- goalCounter <- IO.mkRef 0;
-let initSmtM : SmtM Unit := pure ();
-cmdRef <- IO.mkRef initSmtM;
-pure {verifyGoal := exportVerifyGoal outputDir,
-      sessionComplete := pure 0
-     }
+  let initSmtM : SmtM Unit := pure ()
+  let cmdRef <- IO.mkRef initSmtM
+  pure { verifyGoal := exportVerifyGoal outputDir,
+         sessionComplete := pure 0
+       }
 
 
 ------------------------------------------------------------------------
@@ -258,20 +257,20 @@ def verifyGoal
 (propName : String)
 -- ^ Name of proposition for reporting purposes.
 : BlockVCG Unit := do
-ctx ← read;
-smtCtx ← BlockVCGState.smtContext <$> get;
-goalIndex ← BlockVCGState.goalIndex <$> get;
-let newGoal : VerificationEvent :=
-  VerificationEvent.goal
-  {fnName := ctx.llvmFunName,
-   blockLbl := ctx.currentBlock,
-   goalIndex := goalIndex,
-   propName := propName,
-   goal := do smtCtx; pure goal};
-modify (λ s => {s with
+  let ctx ← read
+  let smtCtx ← BlockVCGState.smtContext <$> get
+  let goalIndex ← BlockVCGState.goalIndex <$> get
+  let newGoal : VerificationEvent :=
+    VerificationEvent.goal
+    { fnName := ctx.llvmFunName,
+      blockLbl := ctx.currentBlock,
+      goalIndex := goalIndex,
+      propName := propName,
+      goal := do smtCtx; pure goal}
+  modify (λ s => {s with
                   verificationEvents := newGoal :: s.verificationEvents,
-                  goalIndex := s.goalIndex + 1});
-pure ()
+                  goalIndex := s.goalIndex + 1})
+  pure ()
 
 
 
@@ -281,101 +280,101 @@ def interactiveVerifyGoal
 (ictx : InteractiveContext)
 (vg : VerificationGoal)
 : IO Unit := do
-ictx.allGoalCounter.modify Nat.succ;
-smtFilePath ← temporaryStandaloneGoalFilepath vg;
-let resultFilePath := smtFilePath ++ ".result";
--- FIXME was stderr, fix with next Lean4 bump
-IO.print $ "  Verifying " ++ vg.propName ++ "... ";
--- FIXME, uncomment this line after next lean4 bump
--- IO.stdout.flush;
-let preludeCmds := proofScriptPrelude vg.propName;
-let (_, _, cmds) := runSmtM IdGen.empty (checkSatWithGoalNegated vg.propName vg.goal);
-IO.FS.withFile smtFilePath IO.FS.Mode.write (λ file => do
-  preludeCmds.forM (λ c => file.putStr c.toLine);
-  cmds.forM (λ c => file.putStr c.toLine);
-  file.flush);
-Galois.IO.system $ ictx.solverCommand++" "++smtFilePath++" > " ++resultFilePath;
-smtResult ← IO.FS.lines resultFilePath;
--- FIXME, this assumes the file has a single word in it essentially... might want to
--- make it slightly more complicated if
-let printExportInstructions : IO Unit := (do
-  let filePath := "<dir>" ++ [System.FilePath.pathSeparator].asString++(standaloneGoalFilename vg);
-  -- FIXME print to stderr after next lean4 bump
-  IO.println $ "    To see the output, run `reopt-vcg "++ictx.annFile++" --export <dir>`";
-  IO.println $ "    The SMT query will be stored in "++filePath;
-  IO.println $ "    The default invocation of CVC4 for these queries is as follows:";
-  IO.println $ "      `" ++ (String.intercalate " " ("cvc4"::defaultCVC4Args ++ [filePath]))++"`");
-match smtResult.get? 0 with
-| none => do
-  -- FIXME print to stderr on next lean4 bump (these and all below printlns in this function)
-  IO.println "ERROR";
-  IO.println "";
-  IO.println "    Verification failed: no response from the SMT solver was detected.";
-  printExportInstructions
-| some checkSatRes =>
-  match parseCheckSatResult checkSatRes with
-  | CheckSatResult.unsat => do
-    ictx.verifiedGoalCounter.modify Nat.succ;
-    IO.println $ "OK"
-  | CheckSatResult.sat => do
-    IO.println $ "FAIL";
-    IO.println $ "    Verification failed: the SMT query returned `sat`";
-    IO.println $ "";
+  ictx.allGoalCounter.modify Nat.succ
+  let smtFilePath ← temporaryStandaloneGoalFilepath vg
+  let resultFilePath := smtFilePath ++ ".result"
+  -- FIXME was stderr, fix with next Lean4 bump
+  IO.print $ "  Verifying " ++ vg.propName ++ "... "
+  -- FIXME, uncomment this line after next lean4 bump
+  -- IO.stdout.flush
+  let preludeCmds := proofScriptPrelude vg.propName
+  let (_, _, cmds) := runSmtM IdGen.empty (checkSatWithGoalNegated vg.propName vg.goal)
+  IO.FS.withFile smtFilePath IO.FS.Mode.write (λ file => do
+    preludeCmds.forM (λ c => file.putStr c.toLine)
+    cmds.forM (λ c => file.putStr c.toLine)
+    file.flush)
+  Galois.IO.system $ ictx.solverCommand++" "++smtFilePath++" > " ++resultFilePath
+  let smtResult ← IO.FS.lines resultFilePath
+  -- FIXME, this assumes the file has a single word in it essentially... might want to
+  -- make it slightly more complicated if
+  let printExportInstructions : IO Unit := (do
+    let filePath := "<dir>" ++ [System.FilePath.pathSeparator].asString++(standaloneGoalFilename vg)
+    -- FIXME print to stderr after next lean4 bump
+    IO.println $ "    To see the output, run `reopt-vcg "++ictx.annFile++" --export <dir>`"
+    IO.println $ "    The SMT query will be stored in "++filePath
+    IO.println $ "    The default invocation of CVC4 for these queries is as follows:"
+    IO.println $ "      `" ++ (String.intercalate " " ("cvc4"::defaultCVC4Args ++ [filePath]))++"`")
+  match smtResult.get? 0 with
+  | none => do
+    -- FIXME print to stderr on next lean4 bump (these and all below printlns in this function)
+    IO.println "ERROR"
+    IO.println ""
+    IO.println "    Verification failed: no response from the SMT solver was detected."
     printExportInstructions
-  | CheckSatResult.unknown => do
-    IO.println $ "FAIL";
-    IO.println $ "    Verification failed: the SMT query returned `unknown`";
-    IO.println $ "";
-    printExportInstructions
-  | CheckSatResult.unsupported => do
-    IO.println $ "ERROR";
-    IO.println $ "    Verification failed: the SMT query returned `unsupported`";
-    IO.println $ "";
-    printExportInstructions
-  | CheckSatResult.unrecognized msg => do
-    IO.println $ "ERROR";
-    IO.println $ "    Verification failed: the SMT solver did not return a recognized response to `check-sat-assuming`.";
-    IO.println $ "";
-    IO.println $ "    Response: ";
-    smtResult.forM IO.println;
-    IO.println $ "";
-    IO.println $ "";
-    IO.println $ "    This failure likely reflects a bug in reopt-vcg.";
-    IO.println $ "";
-    printExportInstructions
+  | some checkSatRes =>
+    match parseCheckSatResult checkSatRes with
+    | CheckSatResult.unsat => do
+      ictx.verifiedGoalCounter.modify Nat.succ
+      IO.println $ "OK"
+    | CheckSatResult.sat => do
+      IO.println $ "FAIL"
+      IO.println $ "    Verification failed: the SMT query returned `sat`"
+      IO.println $ ""
+      printExportInstructions
+    | CheckSatResult.unknown => do
+      IO.println $ "FAIL"
+      IO.println $ "    Verification failed: the SMT query returned `unknown`"
+      IO.println $ ""
+      printExportInstructions
+    | CheckSatResult.unsupported => do
+      IO.println $ "ERROR"
+      IO.println $ "    Verification failed: the SMT query returned `unsupported`"
+      IO.println $ ""
+      printExportInstructions
+    | CheckSatResult.unrecognized msg => do
+      IO.println $ "ERROR"
+      IO.println $ "    Verification failed: the SMT solver did not return a recognized response to `check-sat-assuming`."
+      IO.println $ ""
+      IO.println $ "    Response: "
+      smtResult.forM IO.println
+      IO.println $ ""
+      IO.println $ ""
+      IO.println $ "    This failure likely reflects a bug in reopt-vcg."
+      IO.println $ ""
+      printExportInstructions
 
 
 def interactiveProverSession (annFile solverPath : String) (solverArgs : List String) : IO ProverSession := do
--- Counter for all goals
-allGoalCounter ← IO.mkRef 0;
--- Counter for goals successfully verified.
-verifiedGoalCounter <- IO.mkRef 0;
--- Counter for errors
-errorCounter <- IO.mkRef 0;
-let doGoal : VerificationGoal → IO Unit :=
-  (let solverCmd := String.intercalate " " (solverPath::solverArgs);
-   let ictx : InteractiveContext:=
-     { annFile := annFile,
-       allGoalCounter := allGoalCounter,
-       verifiedGoalCounter := verifiedGoalCounter,
-       solverCommand := solverCmd
-     };
-   interactiveVerifyGoal ictx);
-let whenDone : IO UInt32 := (do
-  allCnt ← allGoalCounter.get;
-  verCnt ← verifiedGoalCounter.get;
-  errorCnt ← errorCounter.get;
-  let verSuccess := errorCnt == 0 && verCnt == allCnt;
-  if verSuccess then
-    IO.println "Verification of all goals succeeded."
-   else
-    IO.println "Verification of all goals failed.";
-  IO.println $ "Verified "++(repr verCnt)++" out of "++(repr allCnt)++" generated goal(s).";
-  when (errorCnt > 0) $
-    IO.println $ "Encountered"++(repr errorCnt)++"error(s).";
-  pure $ if verSuccess then 0 else 1);
-pure { verifyGoal := doGoal,
-       sessionComplete := whenDone
-     }
+  -- Counter for all goals
+  let allGoalCounter ← IO.mkRef 0
+  -- Counter for goals successfully verified.
+  let verifiedGoalCounter ← IO.mkRef 0
+  -- Counter for errors
+  let errorCounter ← IO.mkRef 0
+  let doGoal : VerificationGoal → IO Unit :=
+    (let solverCmd := String.intercalate " " (solverPath::solverArgs)
+     let ictx : InteractiveContext:=
+       { annFile := annFile,
+         allGoalCounter := allGoalCounter,
+         verifiedGoalCounter := verifiedGoalCounter,
+         solverCommand := solverCmd
+       }
+     interactiveVerifyGoal ictx)
+  let whenDone : IO UInt32 := (do
+    let allCnt ← allGoalCounter.get
+    let verCnt ← verifiedGoalCounter.get
+    let errorCnt ← errorCounter.get
+    let verSuccess := errorCnt == 0 && verCnt == allCnt
+    if verSuccess then
+      IO.println "Verification of all goals succeeded."
+    else
+      IO.println "Verification of all goals failed."
+    IO.println $ "Verified "++(repr verCnt)++" out of "++(repr allCnt)++" generated goal(s)."
+    when (errorCnt > 0) $
+      IO.println $ "Encountered"++(repr errorCnt)++"error(s)."
+    pure $ if verSuccess then 0 else 1)
+  pure { verifyGoal := doGoal,
+         sessionComplete := whenDone
+       }
 
 end ReoptVCG

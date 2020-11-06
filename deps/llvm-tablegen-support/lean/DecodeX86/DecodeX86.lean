@@ -16,7 +16,7 @@ structure register :=
 def register_to_String : register -> String := fun r =>
   String.intercalate " " ["(", "R", r.top, r.reg, repr r.width, repr r.offset, ")"]
 
-instance register_has_repr : HasRepr register := ⟨register_to_String⟩
+instance register_has_repr : Repr register := ⟨register_to_String⟩
 
 -- We don't care about most of these.
 -- static const char * oNArr[] = {
@@ -195,7 +195,7 @@ def operand_type_to_String : operand_type -> String
   | (operand_type.mem n) => "(mem " ++ repr n ++ ")"
   | (operand_type.other) => "other"
 
-instance operand_type_has_repr : HasRepr operand_type := ⟨operand_type_to_String⟩
+instance operand_type_has_repr : Repr operand_type := ⟨operand_type_to_String⟩
 
 inductive operand_value
   | register : register -> operand_value
@@ -211,7 +211,7 @@ def operand_value_to_String : operand_value -> String
   | (operand_value.rel_immediate off n v) => "(" ++ repr v ++ " + " ++ repr off ++ ")[" ++ repr n ++ "]"
   | (operand_value.memloc seg b s i d)  => "(" ++ repr seg ++ ":" ++ repr b ++ " + " ++ repr s ++ "*" ++ repr i ++ " + " ++ repr d ++ ")"
 
-instance operand_value_has_repr : HasRepr operand_value := ⟨operand_value_to_String⟩
+instance operand_value_has_repr : Repr operand_value := ⟨operand_value_to_String⟩
 
 structure operand := 
   (type  : operand_type)
@@ -220,21 +220,21 @@ structure operand :=
 def operand_to_String : operand -> String := fun op =>
   "(" ++ repr op.value ++ " :: " ++ repr op.type ++ ")"
 
-instance operand_has_repr : HasRepr operand := ⟨operand_to_String⟩
+instance operand_has_repr : Repr operand := ⟨operand_to_String⟩
 
 structure instruction :=
   (nbytes   : Nat)
   (mnemonic : String)
   (operands : List operand)
 
-instance instruction_has_repr : HasRepr instruction := 
+instance instruction_has_repr : Repr instruction := 
   ⟨fun i => i.mnemonic ++ " " ++ repr i.operands⟩
 
 structure unknown_byte :=
   (byte : Nat)
   (bytes_tried : Nat)
 
-instance unknown_bytes_has_repr : HasRepr unknown_byte := ⟨fun i => "???" ++ repr i.byte ++ "(" ++ repr i.bytes_tried ++ ")"⟩
+instance unknown_bytes_has_repr : Repr unknown_byte := ⟨fun i => "???" ++ repr i.byte ++ "(" ++ repr i.bytes_tried ++ ")"⟩
 
 def operand_memtyp_map : RBMap String Nat (fun s1 s2 => decide (s1 < s2)) :=
   List.foldl (fun m (v : String × Nat) => m.insert v.fst v.snd) 

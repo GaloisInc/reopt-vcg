@@ -18,7 +18,7 @@ def bytes : WordSize → Nat
 | word64 => 8
 
 
-/-- Bit width (i.e., the nominal width) --/
+/- Bit width (i.e., the nominal width) -/
 def bits (w:WordSize) : Nat := 8 * w.bytes
 
 def sort (w:WordSize) : SmtSort := SmtSort.bitvec w.bits

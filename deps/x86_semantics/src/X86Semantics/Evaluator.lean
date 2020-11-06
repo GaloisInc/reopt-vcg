@@ -13,7 +13,7 @@ axiom I_am_really_sorry : ∀(P : Prop),  P
 
 -- FIXME: move
 def annotate {ε} {m} [Monad m] [MonadExcept ε m]
-  {a} (f : ε -> ε) (c : m a) : m a := catch c (fun e => throw (f e))
+  {a} (f : ε -> ε) (c : m a) : m a := tryCatch c (fun e => throw (f e))
 
 def annotate' {m} [Monad m] [MonadExcept String m]
   {a} (e : String) (c : m a) : m a := annotate (fun s => e ++ ": " ++ s) c
@@ -152,21 +152,27 @@ def evaluator := StateT (@evaluator_state backend) (ExceptT String (M backend))
 
 -- FIXME: this is repeated from the stdlib, not sure why it needs to be
 instance (ε): MonadExcept ε (Except ε) := 
-  { throw := fun α e => Except.error e, catch := fun α m f => match m with | (Except.error e) => f e | _ => m }
+  { throw := fun e => Except.error e, 
+    tryCatch := fun m f => match m with | (Except.error e) => f e | _ => m
+  }
 
 instance (ε) [Inhabited ε] : Alternative (Except ε) := 
-  { failure := fun α => Except.error (arbitrary ε)
-  , orelse  := fun α => MonadExcept.orelse }
+  { failure := Except.error (arbitrary ε)
+  , orelse  := MonadExcept.orelse }
 
 instance MonadExcept_ExceptT (ε) (m)  [Monad m]: MonadExcept ε (ExceptT ε m) := 
-  { throw := fun α e => ExceptT.mk (pure (Except.error e))
-  , catch := fun α m f => ExceptT.mk (do
-          v <- m.run;
-          match v with | (Except.error e) => (f e).run | _ => ExceptT.mk (pure v) )}
+  { throw := fun e => ExceptT.mk (pure (Except.error e))
+  , tryCatch := fun m f => ExceptT.mk $ do
+                    let v ← m.run
+                    match v with
+                    | (Except.error e) => (f e).run
+                    | _ => ExceptT.mk (pure v)
+  }
 
 instance Alternative_ExceptT (ε) (m) [Inhabited ε] [Monad m] : Alternative (ExceptT ε m) := 
-  { failure := fun α => throw (arbitrary ε)
-  , orelse  := fun α => MonadExcept.orelse }
+  { failure := throw (arbitrary ε)
+  , orelse  := MonadExcept.orelse
+  }
 
 
 -- theorem value.type_eval_is_id: ∀{tp : type}, value nenv (eval_type nenv tp) = value nenv tp :=
@@ -182,8 +188,9 @@ instance Alternative_ExceptT (ε) (m) [Inhabited ε] [Monad m] : Alternative (Ex
 
 namespace value 
 
-def eval_cong {tp tp' : type} (v : @value backend tp)  (pf : tp = tp') 
-  : @value backend tp' := Eq.recOn pf v
+def eval_cong {tp tp' : type} (v : @value backend tp)  (pf : tp = tp') : @value backend tp' := 
+  have h : @value backend tp = @value backend tp' from congrArg (@value backend) pf
+  cast h v
 
 -- This allows us to resolve arith in nat_exprs
 def type_check {m} [Monad m] [MonadExcept String m] (tp : type) (v : @value backend tp) (tp' : type)
@@ -202,32 +209,37 @@ end value
 
 -- system_m stuff
 
-def M.read_memory_at (addr : backend.machine_word) (n : Nat) : M backend (backend.s_bv n) 
-  := do w <- backend.read_word addr (n / 8);
-        if H : 8 * (n / 8) = n
-        then pure (Eq.ndrecOn H w) -- emit_read_event addr n res;
-        else throw "read_memory_at: width not a multiple of 8"
+def M.read_memory_at (addr : backend.machine_word) (n : Nat) : M backend (backend.s_bv n)  := do 
+  let w ← backend.read_word addr (n / 8)
+  if h : 8 * (n / 8) = n
+  then pure (Eq.ndrecOn h w) -- emit_read_event addr n res;
+  else throw "read_memory_at: width not a multiple of 8"
 
-def M.write_memory_at : ∀{tp : type} (addr : backend.machine_word) 
-  (bytes : @value backend tp), M backend Unit
+-- (store_word (n : Nat) (addr : s_bv 64) (b : s_bv (8 * n)) : monad Unit)
+
+def M.write_memory_at : ∀{tp : type} (addr : backend.machine_word) (bytes : @value backend tp), M backend Unit
   | (bv width), addr, bytes =>
-    (if H : width = 8 * (width / 8)
-     then backend.store_word (width / 8) addr (Eq.ndrecOn H bytes) -- emit_write_event addr width bytes
-     else throw "write_memory_at: width not a multiple of 8")
+    if H : width = 8 * (width / 8)
+    then
+      let bytes' : backend.s_bv (8 * (width / 8)) := cast (congrArg backend.s_bv H) bytes 
+      backend.store_word (width / 8) addr bytes' -- emit_write_event addr width bytes
+    else
+      throw "write_memory_at: width not a multiple of 8"
   | _, _, _ => throw "write_memory_at not a bv"
 
 -- end SystemM
 
 namespace evaluator
-def run {a : Type} (m : evaluator a) (s : evaluator_state) 
-        : M backend (Except String (a × @evaluator_state backend)) :=
-    (m.run s).run
 
-def run' {a : Type} (m : evaluator a) (e : environment) : M backend a :=
-  do r <- m.run { environment := e, locals := {} };
-     match r with
-     | Except.ok v    => pure v.fst
-     | Except.error e => throw e
+protected
+def run {a : Type} (m : evaluator a) (s : evaluator_state) : M backend (Except String (a × @evaluator_state backend)) :=
+  (m.run s).run
+
+def run' {a : Type} (m : evaluator a) (e : environment) : M backend a := do 
+  let r ← evaluator.run m { environment := e, locals := {} }
+  match r with
+  | Except.ok v    => pure v.fst
+  | Except.error e => throw e
 
 def run_M {a : Type} (m : M backend a) : @evaluator backend a :=
     monadLift m
@@ -240,13 +252,13 @@ def mux_m (b : backend.s_bool)
           (m1 : @evaluator backend Unit) 
           (m2 : @evaluator backend Unit)
           : @evaluator backend Unit := do
-    s <- get;
-    let tunnel (m : @evaluator backend Unit) : M backend Unit :=
-      (do r <- (m.run s : M backend (Except String (Unit × @evaluator_state backend)));
-         match r with
-         | Except.ok v    => pure ()
-         | Except.error e => throw e);
-     run_M (backend.s_mux_m b (tunnel m1) (tunnel m2))
+  let s <- get;
+  let tunnel (m : @evaluator backend Unit) : M backend Unit := do
+    let r ← (m.run s : M backend (Except String (Unit × @evaluator_state backend)))
+    match r with
+    | Except.ok v    => pure ()
+    | Except.error e => throw e
+  run_M (backend.s_mux_m b (tunnel m1) (tunnel m2))
 
 -- def evaluator.map_machine_state (f : machine_state → machine_state) : evaluator system_m Unit :=
 --     monadLift (modify f : system_m Unit)
@@ -260,33 +272,33 @@ def read_memory_at (addr : backend.machine_word) (n : Nat)
 def write_memory_at {tp : type} (addr : backend.machine_word) (bytes : value tp) :
   @evaluator backend Unit :=  evaluator.run_M (M.write_memory_at addr bytes)
 
-def arg_at_idx (idx : Nat) : @evaluator backend (@arg_value backend) :=
-  do s <- get;
-     match s.environment.get? idx with
-       | (some a) => pure a
-       | none     => throw "evaluator.arg_at_idx: no arg at idx"
+def arg_at_idx (idx : Nat) : @evaluator backend (@arg_value backend) := do
+  let s ← get
+  match s.environment.get? idx with
+  | (some a) => pure a
+  | none     => throw "evaluator.arg_at_idx: no arg at idx"
 
 -- We should factor out the type check, although it might depend on
 -- the functor (value in this case) if we generalise equality
-def local_at_idx (idx : Nat) (tp : type) : @evaluator backend (@value backend tp) :=
-  do s <- get;
-     (match s.locals.find? idx with
-     | (some (Sigma.mk tp' v)) => value.type_check _ v tp
-     | none                    => throw "local_at_idx: no arg at idx")
+def local_at_idx (idx : Nat) (tp : type) : @evaluator backend (@value backend tp) := do
+  let s ← get
+  match s.locals.find? idx with
+  | (some (Sigma.mk tp' v)) => value.type_check _ v tp
+  | none                    => throw "local_at_idx: no arg at idx"
 
 end evaluator
 
 namespace concrete_reg
 
 def set' : ∀{tp : type}, concrete_reg tp -> @value backend tp -> M backend Unit
-  | ._, (concrete_reg.gpreg idx rtp), b => do
-        w <- backend.get_gpreg idx;
-        backend.set_gpreg idx (reg.inject rtp b w) 
-  | ._, (concrete_reg.flagreg idx),   b => 
-        backend.set_flag idx b
+  | _, (concrete_reg.gpreg idx rtp), b => do
+    let w ← backend.get_gpreg idx;
+    backend.set_gpreg idx (reg.inject rtp b w) 
+  | _, (concrete_reg.flagreg idx),   b => 
+    backend.set_flag idx b
 
-def set {tp : type} (r : concrete_reg tp) (v : @value backend tp) : @evaluator backend Unit
-  := evaluator.run_M (set' r v)
+def set {tp : type} (r : concrete_reg tp) (v : @value backend tp) : @evaluator backend Unit :=
+  evaluator.run_M (set' r v)
   
 def from_state : ∀{tp : type}, concrete_reg tp -> M backend (@value backend tp)
   | _, (concrete_reg.gpreg idx rtp) => reg.project rtp <$> backend.get_gpreg idx
@@ -301,20 +313,21 @@ namespace arg_lval
 
 def to_value' : @arg_lval backend -> ∀(tp : type), M backend (@value backend tp)
   | (@arg_lval.reg backend tp r), tp' => do 
-    v <- concrete_reg.from_state r;
+    let v ← concrete_reg.from_state r;
     value.type_check tp v tp'
   | (arg_lval.memloc width addr), tp' => do
-    w <- M.read_memory_at addr width;
+    let w ← M.read_memory_at addr width;
     value.type_check (bv width) w tp'
 
-def to_value (lv : @arg_lval backend) (tp : type) : @evaluator backend (@value backend tp)
-  := evaluator.run_M (to_value' lv tp)
+def to_value (lv : @arg_lval backend) (tp : type) : @evaluator backend (@value backend tp) :=
+  evaluator.run_M (to_value' lv tp)
 
-def set_value : @arg_lval backend -> ∀{tp : type}, @value backend tp 
-  -> @evaluator backend Unit
-  | (@arg_lval.reg _ tp r), tp', v => do v' <- value.type_check _ v tp;
-                                         concrete_reg.set r v'
-  | (arg_lval.memloc _width addr), tp, v => evaluator.write_memory_at addr v
+def set_value : @arg_lval backend -> ∀{tp : type}, @value backend tp -> @evaluator backend Unit
+  | (@arg_lval.reg _ tp r), tp', v => do
+    let v' ← value.type_check _ v tp
+    concrete_reg.set r v'
+  | (arg_lval.memloc _width addr), tp, v =>
+    evaluator.write_memory_at addr v
 
 
 end arg_lval
@@ -335,19 +348,19 @@ def arg_value.set_value : @arg_value backend -> ∀{tp : type}, @value backend t
 
 def addr.read : ∀{tp : type}, addr tp -> @evaluator backend (@value backend tp)
   | tp, (addr.arg _ idx) => do 
-      av <- evaluator.arg_at_idx idx;
-      arg_value.to_value av tp
+    let av ← evaluator.arg_at_idx idx
+    arg_value.to_value av tp
 
 def addr.set : ∀{tp : type}, addr tp -> @value backend tp -> @evaluator backend Unit
   | tp, (addr.arg _ idx), v => do 
-      av <- evaluator.arg_at_idx idx; -- FIXME: we should really check if this is a memloc first.
-      arg_value.set_value av v
+    let av ← evaluator.arg_at_idx idx -- FIXME: we should really check if this is a memloc first.
+    arg_value.set_value av v
 
 -- This is the least-worst option.  The other alternative is to have a
 -- value constructor for functions, which we only need here.
 inductive hlist.{u,v} {α : Type u} (f : α -> Type v): List α -> Type (max u v)
-  | hnil  : hlist []
-  | hcons {xs : List α} (x : α) : f x -> hlist xs -> hlist (x :: xs)
+  | hnil  : hlist f []
+  | hcons {xs : List α} (x : α) : f x -> hlist f xs -> hlist f (x :: xs)
 
 -- namespace nat_expr
 
@@ -408,7 +421,11 @@ def has_eq_dec : ∀(tp : type), Decidable (has_eq tp)
   | double     => isTrue True.intro  
   | x86_80     => isTrue True.intro  
   | (vec _ tp) => has_eq_dec tp
-  | (pair tp tp') => @And.Decidable _ _ (has_eq_dec tp) (has_eq_dec tp')
+  | (pair tp tp') =>
+    have hL : Decidable (has_eq tp)  from has_eq_dec tp
+    have hR : Decidable (has_eq tp') from has_eq_dec tp'
+    have h  : Decidable (has_eq tp ∧ has_eq tp') from inferInstance
+    h
   | (fn _ _)   => isFalse notFalse
 
 @[reducible]
@@ -419,18 +436,21 @@ def has_mux_dec : ∀(tp : type), Decidable (has_mux tp)
   | double     => isTrue True.intro  
   | x86_80     => isTrue True.intro  
   | (vec _ tp) => has_mux_dec tp
-  | (pair tp tp') => @And.Decidable _ _ (has_mux_dec tp) (has_mux_dec tp')
+  | (pair tp tp') =>
+    have hL : Decidable (has_mux tp)  from has_mux_dec tp
+    have hR : Decidable (has_mux tp') from has_mux_dec tp'
+    have h  : Decidable (has_mux tp ∧ has_mux tp') from inferInstance
+    h
   | (fn _ _)   => isFalse notFalse
 
-instance decidable_pred_type_has_eq:  DecidablePred has_eq := has_eq_dec
-instance decidable_pred_type_has_mux: DecidablePred has_mux := has_mux_dec
+instance decidable_pred_type_has_eq  :  DecidablePred has_eq := has_eq_dec
+instance decidable_pred_type_has_mux :  DecidablePred has_mux := has_mux_dec
 
 end type
 
 namespace value
 
-def partial_eq : ∀{tp : type}, type.has_eq tp -> @value backend tp -> @value backend tp
-  -> backend.s_bool
+def partial_eq : ∀{tp : type}, type.has_eq tp -> @value backend tp -> @value backend tp -> backend.s_bool
   | (bv _), _, v1, v2      => backend.s_bveq v1 v2
   | bit,    _, v1, v2      => backend.s_bool_eq v1 v2
   | float,  _, v1, v2      => backend.s_bool_imm true
@@ -453,113 +473,113 @@ def mux (b : backend.s_bool) : ∀{tp : type}, type.has_mux tp
   -- This is very inefficient, maybe make Arrays part of backend?  This type is mainly for AVX etc.
   | (vec _ tp), pf, v1, v2 => 
      let pf' : type.has_mux tp := pf;
-     let bs  := List.zipWith (mux pf') (Array.toList v1) (Array.toList v2); -- ).all (fun (v : (value tp × value tp)) => value.partial_eq pf' v.fst v.snd)
+     let bs  := List.zipWith (mux b pf') (Array.toList v1) (Array.toList v2); -- ).all (fun (v : (value tp × value tp)) => value.partial_eq pf' v.fst v.snd)
      bs.toArray
-  | (pair tp tp'), pf, v1, v2 => (mux pf.left v1.fst v2.fst, mux pf.right v1.snd v2.snd)
+  | (pair tp tp'), pf, v1, v2 => (mux b pf.left v1.fst v2.fst, mux b pf.right v1.snd v2.snd)
 
 end value
 
 def prim.eval : ∀{tp : type}, prim tp -> @evaluator backend (@value backend tp)
   -- `(eq tp)` returns `true` if two values are equal.
-  | ._, (prim.eq tp) => 
+  | _, (prim.eq tp) => 
     if pf : type.has_eq tp 
     then pure (value.partial_eq pf)
     else throw "prim.eval.eq: eq at unsupported type"
   -- `(neq tp)` returns `true` if two values are not equal.
-  | ._, (prim.neq tp) => 
+  | _, (prim.neq tp) => 
     if pf : type.has_eq tp 
     then pure (fun v1 v2 => backend.s_not (value.partial_eq pf v1 v2))
     else throw "prim.eval.neq: neq at unsupported type"
   -- `(mux tp) c t f` evaluates to `t` when `c` is true and `f` otherwise.
   -- This only evaluates `t` when `c` is true, and only evaluates `f` when
   -- `c` is false.
-  | ._, (prim.mux tp) => 
+  | _, (prim.mux tp) => 
     if pf : type.has_mux tp
     then pure (fun bv v1 v2 => value.mux bv pf v1 v2)
     else throw "prim.eval.mux: mux at unsupported type"
   -- `zero` is the zero bit
-  | ._, prim.bit_zero => pure backend.false
+  | _, prim.bit_zero => pure backend.false
   -- `one` is the one bit
-  | ._, prim.bit_one => pure backend.true
+  | _, prim.bit_one => pure backend.true
 
-  | ._, prim.bit_or  => pure backend.s_or
-  | ._, prim.bit_and => pure backend.s_and
-  | ._, prim.bit_xor => pure backend.s_xor
+  | _, prim.bit_or  => pure backend.s_or
+  | _, prim.bit_and => pure backend.s_and
+  | _, prim.bit_xor => pure backend.s_xor
 
   -- `bvnat` constructs a bit vector from a natural number.
-  | ._, (prim.bv_nat w n) => pure (backend.s_bv_imm w n)
+  | _, (prim.bv_nat w n) => pure (backend.s_bv_imm w n)
   -- `(add i)` returns the sum of two i-bit numbers.
-  | ._, (prim.add i)        => pure (backend.s_bvadd i)
+  | _, (prim.add i)        => pure (backend.s_bvadd i)
   -- `(adc i)` returns the sum of two i-bit numbers and a carry bit.
-  | ._, (prim.adc i)         => pure (fun x y b => 
+  | _, (prim.adc i)         => pure (fun x y b => 
         backend.s_bvadd _ x (backend.s_bvadd _ y (backend.bit_to_bitvec _ b)))
-  | ._, (prim.uadc_overflows i) => pure (fun x y b => 
+  | _, (prim.uadc_overflows i) => pure (fun x y b => 
         backend.s_bvult (backend.s_bvadd _ x (backend.s_bvadd _ y (backend.bit_to_bitvec _ b))) x)
-  | ._, (prim.sadc_overflows i) => pure (fun x y b => 
+  | _, (prim.sadc_overflows i) => pure (fun x y b => 
         backend.s_bvslt (backend.s_bvadd _ x (backend.s_bvadd _ y (backend.bit_to_bitvec _ b))) x)
   -- `(bvsub i)` substracts two i-bit bitvectors.
-  | ._, (prim.sub i) => pure (backend.s_bvsub i)
+  | _, (prim.sub i) => pure (backend.s_bvsub i)
   -- `(ssbb_overflows i)` true if signed sub overflows, the bit
   -- is a borrow bit.
   -- FIXME: is this correct?
-  | ._, (prim.ssbb_overflows i) => pure (fun x y b =>
+  | _, (prim.ssbb_overflows i) => pure (fun x y b =>
         backend.s_bvslt (backend.s_bvsub _ (backend.s_bvsub _ x y) (backend.bit_to_bitvec _ b)) x)
   -- `(usbb_overflows i)` true if unsigned sub overflows,
   -- the bit is a borrow bit.
-  | ._, (prim.usbb_overflows i) => pure (fun x y b =>
+  | _, (prim.usbb_overflows i) => pure (fun x y b =>
         backend.s_bvult (backend.s_bvsub _ x (backend.bit_to_bitvec _ b)) y)
   -- `(neg tp)` Two's Complement negation.
-  | ._, (prim.neg i) => pure (backend.s_bvneg i)
+  | _, (prim.neg i) => pure (backend.s_bvneg i)
 
   -- `(mul i)` returns the product of two i-bit numbers.
-  | ._, (prim.mul i)            => pure (backend.s_bvmul i)
+  | _, (prim.mul i)            => pure (backend.s_bvmul i)
 
   -- `(quotRem i) n d` returns a pair `(q,r)` where `q` is a `floor (n/d)`
   -- and `r` is `n - d * floor (n/d)`.
   -- `n` and `d` are treated as unsigned values.
   -- If `d = 0` or `floor(n/d) >= 2^n`, then this triggers a #DE exception.
-  | ._, (prim.quotRem i) => throw "prim.eval.quotRem unimplemented"
+  | _, (prim.quotRem i) => throw "prim.eval.quotRem unimplemented"
 
   -- `(squotRem i) n d` returns a pair `(q,r)` where `q` is a `trunc (n/d)`
   -- and `r` is `n - d * trunc (n/d)`.  `trunc` always round to zero.
   -- `n` and `d` are treated as signed values.
   -- If `d = 0`, `trunc(n/d) >= 2^(n-1)` or `trunc(n/d) < -2^(n-1), then this
   -- triggers a #DE exception when evaluated.
-  | ._, (prim.squotRem i) => throw "prim.eval.squotRem unimplemented"
+  | _, (prim.squotRem i) => throw "prim.eval.squotRem unimplemented"
 
-  | ._, (prim.ule i) => pure (fun x y => backend.s_not (backend.s_bvult y x))
-  | ._, (prim.ult i) => pure (fun x y => backend.s_bvult x y)
+  | _, (prim.ule i) => pure (fun x y => backend.s_not (backend.s_bvult y x))
+  | _, (prim.ult i) => pure (fun x y => backend.s_bvult x y)
 
   -- `(slice w u l)` takes bits `u` through `l` out of a `w`-bit number.
   --  prim (bv w .→ bv (u+1-l))
-  | tp, (prim.slice w u l) => pure (fun v => backend.s_bvextract w u l v)
+  | _, (prim.slice w u l) => pure (fun v => backend.s_bvextract w u l v)
        -- let n := u + 1 - l;
        -- H <- annotate' "slice" (assert (w = w - n + n));
        -- let f : bitvec w → bitvec n := (bitvec.slice u l (w - n) H.default);
        -- pure f
   -- `(sext i o)` sign extends an `i`-bit number to a `o`-bit number.
-  | ._, (prim.sext i o) => do -- H <- annotate' "sext" (assert (i ≤ o));
+  | _, (prim.sext i o) => do -- H <- annotate' "sext" (assert (i ≤ o));
                              pure (backend.s_sext i o)
   -- `(uext i o)` unsigned extension of an `i`-bit number to a `o`-bit number.
-  | ._, (prim.uext i o) => do -- H <- annotate' "uext" (assert (i ≤ o));
+  | _, (prim.uext i o) => do -- H <- annotate' "uext" (assert (i ≤ o));
                              pure (backend.s_uext i o)
   -- `(trunc i o)` truncates an `i`-bit number to a `o`-bit number.
-  | ._, (prim.trunc i o) => do -- H <- annotate' "trunc" (assert (o ≤ i));
+  | _, (prim.trunc i o) => do -- H <- annotate' "trunc" (assert (o ≤ i));
                                pure (backend.s_trunc i o)
 
-  | ._, (prim.cat i) => pure (fun x y => 
-       let prf : i + i = (2 * i) := I_am_really_sorry _;
-       Eq.recOn prf (backend.s_bvappend x y))
+  | _, (prim.cat i) => pure (fun x y => 
+    let prf : i + i = (2 * i) := I_am_really_sorry _
+    cast (congrArg backend.s_bv prf) (backend.s_bvappend x y))
   --(begin simp [eval_nat_expr, nat_expr.eval_default_mul_eq, nat_expr.eval, eval_default_2, two_mul], 
   --end)
 
   -- | bv_least_nibble (i:Nat) : prim (bv i .→ bv 4)
-  | ._, (prim.msb i)    => pure (backend.s_bvmsb i)
-  | ._, (prim.bv_and i) => pure (backend.s_bvand i)
-  | ._, (prim.bv_or i)  => pure (backend.s_bvor i)
-  | ._, (prim.bv_xor i) => pure (backend.s_bvxor i)
-  | ._, (prim.bv_complement i) => pure (backend.s_bvnot i)
-  | ._, (prim.shl i)    => pure (fun x (y : backend.s_bv 8) => 
+  | _, (prim.msb i)    => pure (backend.s_bvmsb i)
+  | _, (prim.bv_and i) => pure (backend.s_bvand i)
+  | _, (prim.bv_or i)  => pure (backend.s_bvor i)
+  | _, (prim.bv_xor i) => pure (backend.s_bvxor i)
+  | _, (prim.bv_complement i) => pure (backend.s_bvnot i)
+  | _, (prim.shl i)    => pure (fun x (y : backend.s_bv 8) => 
         backend.s_bvshl _ x (backend.s_uext _ _ y))
   --- `(shl_carry w) c b i` returns the `i`th bit
   --- in the bitvector [c]++b where `i` is treated as an unsigned
@@ -567,7 +587,7 @@ def prim.eval : ∀{tp : type}, prim tp -> @evaluator backend (@value backend tp
   -- e.g., If `i` is `0`, then this returns `c`.  If `i`
   -- exceeds the number of bits in `[c] ++ b` (i.e., i >= w+1),
   -- the the result is false.
-  | ._, (prim.shl_carry w) => throw "prim.eval.shl_carry unimplemented"
+  | _, (prim.shl_carry w) => throw "prim.eval.shl_carry unimplemented"
 -- pure (fun c x (y : backend.s_bv 8) => 
  --        backend.s_bvshl _ x (backend.s_uext _ _ y))
 
@@ -581,7 +601,7 @@ def prim.eval : ∀{tp : type}, prim tp -> @evaluator backend (@value backend tp
    --- `(shr i) x y` shifts the bits in `x` to the right by
    --- `y` bits where `y` is treated as an unsigned integer.
    --- The new bits shifted in from the right are all zero.
-   | ._, (prim.shr i) => pure (fun x (y : backend.s_bv 8) => 
+   | _, (prim.shr i) => pure (fun x (y : backend.s_bv 8) => 
         backend.s_bvlshr x (backend.s_uext _ _ y))
    --- `(shr_carry w) b c i` returns the `i`th bit
    --- in the bitvector b++[c] where `i` is treated as an unsigned
@@ -589,7 +609,7 @@ def prim.eval : ∀{tp : type}, prim tp -> @evaluator backend (@value backend tp
    -- e.g., If `i` is `0`, then this returns `c`.  If `i`
    -- exceeds the number of bits in `b++[c]` (i.e., i >= w+1),
    -- the the result is false.
-  | ._, (prim.shr_carry w) => throw "prim.eval.shr_carry unimplemented"
+  | _, (prim.shr_carry w) => throw "prim.eval.shr_carry unimplemented"
  -- pure (fun b c (i : bitvec 8) => 
        -- match i.to_nat with
        -- | Nat.zero     => c
@@ -599,7 +619,7 @@ def prim.eval : ∀{tp : type}, prim tp -> @evaluator backend (@value backend tp
    --- `(sar i) x y` arithmetically shifts the bits in `x` to
    --- the left by `y` bits where `y` is treated as an unsigned integer.
    --- The new bits shifted in all match the most-significant bit in y.
-   | ._, (prim.sar i) => pure (fun x (y : backend.s_bv 8) => 
+   | _, (prim.sar i) => pure (fun x (y : backend.s_bv 8) => 
         backend.s_bvsshr x (backend.s_uext _ _ y))
    --- `(sar_carry w) b c i` returns the `i`th bit
    --- in the bitvector b++[c] where `i` is treated as an unsigned
@@ -607,7 +627,7 @@ def prim.eval : ∀{tp : type}, prim tp -> @evaluator backend (@value backend tp
    -- e.g., If `i` is `0`, then this returns `c`.  If `i`
    -- exceeds the number of bits in `b++[c]` (i.e., i >= w+1),
    -- the the result is equal to the most-signfiicant bit.
-   | ._, (prim.sar_carry w) => throw "prim.eval.sar_carry unimplemented"
+   | _, (prim.sar_carry w) => throw "prim.eval.sar_carry unimplemented"
        --  pure (fun b c (i : bitvec 8) => 
        -- match i.to_nat with
        -- | Nat.zero     => c
@@ -617,42 +637,42 @@ def prim.eval : ∀{tp : type}, prim tp -> @evaluator backend (@value backend tp
        --   --      (bitvec.msb b)
        -- (if n < w then bitvec.nth b n else bitvec.msb b))
    
-  | ._, (prim.even_parity i) => pure (fun b => backend.s_not (backend.s_parity b))
+  | _, (prim.even_parity i) => pure (fun b => backend.s_not (backend.s_parity b))
   -- `(bsf i)` returns the index of least-significant bit that is 1.
-  | ._, (prim.bsf i)         => throw "prim.eval.bsf unimplemented"
+  | _, (prim.bsf i)         => throw "prim.eval.bsf unimplemented"
   -- `(bsr i)` returns the index of most-significant bit that is 1.
-  | ._, (prim.bsr i)         => throw "prim.eval.bsr unimplemented"
+  | _, (prim.bsr i)         => throw "prim.eval.bsr unimplemented"
   -- `(bswap i)` reverses the bytes in the bitvector.
-  | ._, (prim.bswap i)       => throw "prim.eval.bswap unimplemented"
+  | _, (prim.bswap i)       => throw "prim.eval.bswap unimplemented"
   -- `(btc w j) base idx` interprets base as bitvector and returns
   -- a bitvector contains the same bits as `base` except the `i`th bit
   -- (where 0 denotes the least-significant bit) is complemented.
   -- The value `i` is `idx` as a unsigned integer modulo `w`.
-  | ._, (prim.btc w j)         => throw "prim.eval.btc unimplemented"
+  | _, (prim.btc w j)         => throw "prim.eval.btc unimplemented"
   -- `(btr w j) base idx` interprets base as bitvector and returns
   -- a bitvector contains the same bits as `base` except the `i`th bit
   -- (where 0 denotes the least-significant bit) is cleared.
   -- The value `i` is `idx` as a unsigned integer modulo `w`.
-  | ._, (prim.btr w j)         => throw "prim.eval.btr unimplemented"
+  | _, (prim.btr w j)         => throw "prim.eval.btr unimplemented"
   -- `(bts w j) base idx` interprets base as bitvector and returns
   -- a bitvector contains the same bits as `base` except the `i`th bit
   -- (where 0 denotes the least-significant bit) is set.
   -- The value `i` is `idx` as a unsigned integer modulo `w`.
-  | ._, (prim.bts w j)         => throw "prim.eval.bts unimplemented"
+  | _, (prim.bts w j)         => throw "prim.eval.bts unimplemented"
 
   -- `bv_to_x86_80` converts a bitvector to an extended precision number (lossless)
-  | ._, (prim.bv_to_x86_80 w)  => throw "prim.eval.bv_to_x86_80 unimplemented"
+  | _, (prim.bv_to_x86_80 w)  => throw "prim.eval.bv_to_x86_80 unimplemented"
   -- `float_to_x86_80` converts a float to an extended precision number (lossless)
-  | ._, prim.float_to_x86_80   => throw "prim.eval.float_to_x86_80 unimplemented"
+  | _, prim.float_to_x86_80   => throw "prim.eval.float_to_x86_80 unimplemented"
   -- `double_to_x86_80` converts a double to an extended precision number (lossless)
-  | ._, prim.double_to_x86_80   => throw "prim.eval.double_to_x86_80 unimplemented"
+  | _, prim.double_to_x86_80   => throw "prim.eval.double_to_x86_80 unimplemented"
   -- `x87_fadd` adds two extended precision values using the flags in the x87 register.
-  | ._, prim.x87_fadd           => throw "prim.eval.dx87_fadd unimplemented"
+  | _, prim.x87_fadd           => throw "prim.eval.dx87_fadd unimplemented"
 
   -- Return first element of a pair
-  | ._, (prim.pair_fst x y) => pure (fun (v : value x × value y) => v.fst)
+  | _, (prim.pair_fst x y) => pure (fun (v : value x × value y) => v.fst)
   -- Return second element of a pair.
-  | ._, (prim.pair_snd x y) => pure (fun (v : value x × value y) => v.snd)
+  | _, (prim.pair_snd x y) => pure (fun (v : value x × value y) => v.snd)
 
 -- FIXME: move into the backend?
 def value.make_undef : ∀(tp : type), @value backend tp 
@@ -661,77 +681,77 @@ def value.make_undef : ∀(tp : type), @value backend tp
   | float  => ()
   | double => ()
   | x86_80 => ()
-  | (vec w tp) => mkArray w (value.make_undef tp)
-  | (pair tp tp') => (value.make_undef tp, value.make_undef tp')
-  | (fn arg res) => fun _ => value.make_undef res
+  | (vec w tp) => mkArray w (make_undef tp)
+  | (pair tp tp') => (make_undef tp, make_undef tp')
+  | (fn arg res) => fun _ => make_undef res
 
 def expression.eval : ∀{tp : type}, expression tp -> @evaluator backend (@value backend tp)
-  | ._, (expression.primitive p) => prim.eval p
-  | ._, (@expression.bit_test wr wi re idxe) => do
-    r   <- expression.eval re;
-    idx <- expression.eval idxe;
+  | _, (expression.primitive p) => prim.eval p
+  | _, (@expression.bit_test wr wi re idxe) => do
+    let r   ← eval re
+    let idx ← eval idxe
     pure (backend.s_bit_test r idx)
-  | ._, (expression.mulc m xe) => do
-    x <- expression.eval xe;
+  | _, (expression.mulc m xe) => do
+    let x ← eval xe
     pure (backend.s_bvmul _ (backend.s_bv_imm 64 m) x)
-  | ._, (expression.quotc m xe) => throw "expression.eval.quotc unimplemented"
-  | ._, (expression.undef tp)   => pure (value.make_undef tp)
-  | ._, (expression.app f a) => (expression.eval f) <*> (expression.eval a)
-  | ._, (expression.get_reg r) => concrete_reg.read r
-  | ._, (expression.read tp addre) => do
-    addr   <- expression.eval addre;
-    (match tp with
-      | (bv we) => evaluator.read_memory_at addr we
-      | _ => throw "expression.eval.read Trying to store non-bitvector")
+  | _, (expression.quotc m xe) => throw "expression.eval.quotc unimplemented"
+  | _, (expression.undef tp)   => pure (value.make_undef tp)
+  | _, (expression.app f a) => (eval f) <*> (eval a)
+  | _, (expression.get_reg r) => concrete_reg.read r
+  | _, (expression.read tp addre) => do
+    let addr ← eval addre
+    match tp with
+    | (bv we) => evaluator.read_memory_at addr we
+    | _ => throw "expression.eval.read Trying to store non-bitvector"
 
-  | ._, (expression.streg idx) => throw "expression.eval.streg unimplemented"
-  | ._, (expression.get_local idx tp) => evaluator.local_at_idx idx tp
+  | _, (expression.streg idx) => throw "expression.eval.streg unimplemented"
+  | _, (expression.get_local idx tp) => evaluator.local_at_idx idx tp
   -- This is overly general, we might not know that av here is an rval
-  | ._, (expression.imm_arg idx tp) => do
-    av <- evaluator.arg_at_idx idx;
-    (match av with
+  | _, (expression.imm_arg idx tp) => do
+    let av ← evaluator.arg_at_idx idx
+    match av with
     | (arg_value.rval v) => value.type_check _ v tp
-    | _ => throw "expression.eval.imm_arg Not an rval")
+    | _ => throw "expression.eval.imm_arg Not an rval"
 
-  | ._, (expression.addr_arg idx) => do
-    av <- evaluator.arg_at_idx idx;
-    (match av with
+  | _, (expression.addr_arg idx) => do
+    let av ← evaluator.arg_at_idx idx
+    match av with
     | (arg_value.lval (arg_lval.memloc _ addr)) => pure addr
-    | _ => throw "expression.eval.addr_arg Not an memloc lval")
+    | _ => throw "expression.eval.addr_arg Not an memloc lval"
   -- FIXME: isn't specific to arg_lval
-  | ._, (expression.read_arg idx tp) => do
-    av <- evaluator.arg_at_idx idx;
+  | _, (expression.read_arg idx tp) => do
+    let av ← evaluator.arg_at_idx idx
     arg_value.to_value av tp
 
 def lhs.set : ∀{tp : type}, lhs tp -> @value backend tp -> @evaluator backend Unit
-  | ._, (lhs.set_reg r), v        => concrete_reg.set r v
-  | ._, (lhs.write_addr ae tp), v => do
-    a <- expression.eval ae;
+  | _, (lhs.set_reg r), v        => concrete_reg.set r v
+  | _, (lhs.write_addr ae tp), v => do
+    let a ← expression.eval ae
     evaluator.write_memory_at a v
-  | ._, (lhs.write_arg idx _tp), v => do
-    av <- evaluator.arg_at_idx idx;
+  | _, (lhs.write_arg idx _tp), v => do
+    let av ← evaluator.arg_at_idx idx
     -- fixme: we ignore tp here?
     arg_value.set_value av v
-  | ._, (lhs.streg idx), v  => throw "lhs.set: unsupported FP write"
+  | _, (lhs.streg idx), v  => throw "lhs.set: unsupported FP write"
 
 def lhs.read : ∀{tp : type}, lhs tp -> @evaluator backend (@value backend tp)
-  | ._, (lhs.set_reg r)        => concrete_reg.read r
-  | ._, (lhs.write_addr ae tp) => do
-    addr <- expression.eval ae;
-   (match tp with
-     | (bv we) => evaluator.read_memory_at addr we
-     | _ => throw "lhs.read Trying to store non-bitvector")
-  | ._, (lhs.write_arg idx tp) => do
-    av <- evaluator.arg_at_idx idx;
+  | _, (lhs.set_reg r)        => concrete_reg.read r
+  | _, (lhs.write_addr ae tp) => do
+    let addr ← expression.eval ae
+    match tp with
+    | (bv we) => evaluator.read_memory_at addr we
+    | _ => throw "lhs.read Trying to store non-bitvector"
+  | _, (lhs.write_arg idx tp) => do
+    let av ← evaluator.arg_at_idx idx;
     -- fixme: we ignore tp here?
     arg_value.to_value av tp
-  | ._, (lhs.streg idx) => throw "lhs.set: unsupported FP write"
+  | _, (lhs.streg idx) => throw "lhs.set: unsupported FP write"
 
 def evaluator.push64 (v : value (bv 64)) : @evaluator backend Unit := do
-  sp <- lhs.read rsp;
-  let sp' := backend.s_bvsub _ sp (backend.s_bv_imm _ 8); do
-    lhs.set rsp sp';
-    evaluator.write_memory_at sp' v
+  let sp ← lhs.read rsp
+  let sp' := backend.s_bvsub _ sp (backend.s_bv_imm _ 8)
+  lhs.set rsp sp'
+  evaluator.write_memory_at sp' v
 
 -- def read_cpuid : @evaluator backend Unit :=
 --   -- Copied from the cpuid results from my macbook
@@ -782,28 +802,29 @@ def event.eval : event -> @evaluator backend Unit
   | (event.unsupported msg) => throw ("event.eval: unsupported: " ++ msg)
   | event.pop_x87_register_stack => throw "pop_x87_register_stack"
   | (event.call addr) => do
-    new_ip <- expression.eval addr;
-    old_ip <- evaluator.run_M backend.s_get_ip;
-    evaluator.push64 old_ip;
+    let new_ip ← expression.eval addr
+    let old_ip ← evaluator.run_M backend.s_get_ip
+    evaluator.push64 old_ip
     evaluator.run_M (backend.s_set_ip new_ip)
 
   | (event.jmp addr) => do
-    new_ip <- expression.eval addr;
+    let new_ip ← expression.eval addr
     evaluator.run_M (backend.s_set_ip new_ip)
   | (event.branch c addr) => do
-    new_ip <- expression.eval addr;
-    b      <- expression.eval c;
+    let new_ip ← expression.eval addr
+    let b      ← expression.eval c;
     evaluator.run_M (backend.s_cond_set_ip b new_ip)
   | event.hlt => throw "halt"
   | (event.xchg addr1 addr2) => throw "xchg"
   | event.cpuid => evaluator.run_M backend.s_read_cpuid
 
 def action.eval : action -> @evaluator backend Unit
-  | (action.set l e) => do v <- expression.eval e;
-                           lhs.set l v
+  | (action.set l e) => do
+    let v ← expression.eval e
+    lhs.set l v
   | (action.set_cond l c e) => do
-    b <- expression.eval c;
-    v <- expression.eval e;
+    let b ← expression.eval c
+    let v ← expression.eval e
     evaluator.mux_m b (lhs.set l v) (pure ())
   | (@action.set_aligned (bv _) l e align) => throw "set_aligned: buggy case" -- FIXME: compiler bug
     -- v <- expression.eval os_state e,
@@ -812,7 +833,7 @@ def action.eval : action -> @evaluator backend Unit
     -- else throw "Unaligned set_aligned"
   | (@action.set_aligned _ l e align) => throw "set_aligned: not a bv"
   | (@action.local_def tp idx e) => do 
-    v <- expression.eval e;
+    let v ← expression.eval e
     modify (fun s => { s with locals := s.locals.insert idx (Sigma.mk tp v)})
   | (action.event e) => event.eval e
 

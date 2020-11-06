@@ -58,23 +58,25 @@ def empty : machine_state :=
 def get_gpreg  (s : machine_state) (idx : Fin 16) : machine_word := 
   -- FIXME
   if h : 16 = s.gpregs.size
-  then Array.get s.gpregs (Eq.recOn h idx) else 0
+  then s.gpregs.get (cast (congrArg Fin h) idx)
+  else 0
 
 
 
 def update_gpreg (idx : Fin 16) (f : machine_word -> machine_word) (s : machine_state) : machine_state :=
   -- FIXME
   if h : 16 = s.gpregs.size 
-  then { s with gpregs := Array.set s.gpregs (Eq.recOn h idx) (f (get_gpreg s idx)) }
+  then { s with gpregs := s.gpregs.set (cast (congrArg Fin h) idx) (f (get_gpreg s idx)) }
   else s 
 
 def get_flag  (s : machine_state) (idx : Fin 32) : Bool := 
   if h : 32 = s.flags.size
-  then Array.get s.flags (Eq.recOn h idx) else false
+  then s.flags.get (cast (congrArg Fin h) idx)
+  else false
 
 def update_flag (idx : Fin 32) (f : Bool -> Bool) (s : machine_state) : machine_state :=
   if h : 32 = s.flags.size
-  then { s with flags := Array.set s.flags (Eq.recOn h idx) (f (get_flag s idx)) }
+  then { s with flags := s.flags.set (cast (congrArg Fin h) idx) (f (get_flag s idx)) }
   else s 
 
 -- def store_bytes (addr : machine_word) (bs : List (bitvec 8)) (s : machine_state) : machine_state := 
@@ -124,7 +126,7 @@ namespace x86_64
 -- For now we just pick a reasonably rsp, initialise s.t. argc == 0
 
 def initialise (st : machine_state) : machine_state :=
-    let rsp_idx : Fin 16 := 4; -- FIXME
+    let rsp_idx : Fin 16 := Fin.ofNat 4; -- FIXME
     let stack_top := bitvec.of_nat 64 (2 ^ 47);
     let words     := [ 0 /- argc -/, 0 /- argv term. -/, 0 /- envp term -/, 0, 0 /- auxv term (2 words) -/ ];
     let f (acc : (bitvec 64 × machine_state)) (v : Nat) : bitvec 64 × machine_state :=         
@@ -146,6 +148,7 @@ inductive trace_event
   | read    : machine_word -> ∀(n:Nat), bitvec n -> trace_event
   | write   : machine_word -> ∀(n:Nat), bitvec n -> trace_event
 
+protected
 def trace_event.repr : trace_event -> String 
   | trace_event.syscall n args => 
     let pfx := "syscall " ++ repr n ++ " " ++ repr args.length;
@@ -153,7 +156,7 @@ def trace_event.repr : trace_event -> String
   | trace_event.read addr n b  => "read " ++ addr.pp_hex ++ " " ++ repr n ++ " " ++ b.pp_hex
   | trace_event.write addr n b => "write " ++ addr.pp_hex ++ " " ++ repr n ++ " " ++ b.pp_hex
 
-instance trace_event_repr : HasRepr trace_event := ⟨trace_event.repr⟩
+instance trace_event_repr : Repr trace_event := ⟨trace_event.repr⟩
 
 structure os_state :=
   (current_ip : machine_word)
@@ -180,28 +183,28 @@ instance : MonadIO system_m :=
 
 def throwString {α} (err : String) : system_m α := throw $ IO.userError err
 def catchString {α} (m : system_m α) (h : String → system_m α) : system_m α := 
-let handler : IO.Error → system_m α := 
-  λ e => match e with
-         | IO.Error.userError msg => h msg
-         | _ => throw e;
-catch m handler
+  let handler : IO.Error → system_m α := 
+    λ e => match e with
+           | IO.Error.userError msg => h msg
+           | _ => throw e;
+  tryCatch m handler
 
 -- FIXME `MonadIO` now requires a `MonadExcept IO.Error` instance,
 -- which means we now have two `MonadExcept _` instances for system_m,
 -- which can be a pain to deal with.
 instance : MonadExcept String system_m :=
   {throw := @system_m.throwString,
-   catch := @system_m.catchString }
+   tryCatch := @system_m.catchString }
 
 end system_m
 
-
+protected
 def system_m.run {a : Type} (m : system_m a) (os : os_state) (s : machine_state) 
   : IO (Except String ((a × machine_state) × os_state)) :=
-λ rw => match ((m.run s).run os).run rw with
-  | EStateM.Result.ok a rw'    => EStateM.Result.ok (Except.ok a) rw'
-  | EStateM.Result.error (IO.Error.userError msg) rw' => EStateM.Result.ok (Except.error msg) rw'
-  | EStateM.Result.error e rw' => EStateM.Result.error e rw'
+  λ rw => match ((m.run s).run os).run rw with
+          | EStateM.Result.ok a rw'    => EStateM.Result.ok (Except.ok a) rw'
+          | EStateM.Result.error (IO.Error.userError msg) rw' => EStateM.Result.ok (Except.error msg) rw'
+          | EStateM.Result.error e rw' => EStateM.Result.error e rw'
 
 
 def emit_trace_event (e : trace_event) : system_m Unit :=
@@ -211,22 +214,22 @@ def emit_trace_event (e : trace_event) : system_m Unit :=
 
 -- FIXME: these should maybe be in common?
 
-def rax_idx : Fin 16 := 0
-def rcx_idx : Fin 16 := 1
-def rdx_idx : Fin 16 := 2
-def rbx_idx : Fin 16 := 3
-def rsp_idx : Fin 16 := 4
-def rbp_idx : Fin 16 := 5
-def rsi_idx : Fin 16 := 6
-def rdi_idx : Fin 16 := 7
-def r8_idx  : Fin 16 := 8
-def r9_idx  : Fin 16 := 9
-def r10_idx : Fin 16 := 10
-def r11_idx : Fin 16 := 11
-def r12_idx : Fin 16 := 12
-def r13_idx : Fin 16 := 13
-def r14_idx : Fin 16 := 14
-def r15_idx : Fin 16 := 15
+def rax_idx : Fin 16 := Fin.ofNat 0
+def rcx_idx : Fin 16 := Fin.ofNat 1
+def rdx_idx : Fin 16 := Fin.ofNat 2
+def rbx_idx : Fin 16 := Fin.ofNat 3
+def rsp_idx : Fin 16 := Fin.ofNat 4
+def rbp_idx : Fin 16 := Fin.ofNat 5
+def rsi_idx : Fin 16 := Fin.ofNat 6
+def rdi_idx : Fin 16 := Fin.ofNat 7
+def r8_idx  : Fin 16 := Fin.ofNat 8
+def r9_idx  : Fin 16 := Fin.ofNat 9
+def r10_idx : Fin 16 := Fin.ofNat 10
+def r11_idx : Fin 16 := Fin.ofNat 11
+def r12_idx : Fin 16 := Fin.ofNat 12
+def r13_idx : Fin 16 := Fin.ofNat 13
+def r14_idx : Fin 16 := Fin.ofNat 14
+def r15_idx : Fin 16 := Fin.ofNat 15
 
 -- def simple_syscall (f : system_state os_state -> machine_word) : system_m Unit :=
 --   modify (fun s => { s with machine_state := s.machine_state.update_gpreg rax_idx (fun _ => f s) })
@@ -236,7 +239,7 @@ def emit_syscall_trace (syscall_no : Nat) (args : List machine_word) : system_m 
 
 def raw_syscall {a : Type} (f : machine_word -> machine_word -> machine_word -> machine_word -> machine_word -> machine_word -> system_m a)
   : system_m a := do
-  s <- get;
+  let s ← get
   f (s.get_gpreg rdi_idx)
     (s.get_gpreg rsi_idx)
     (s.get_gpreg rdx_idx)
@@ -247,25 +250,25 @@ def raw_syscall {a : Type} (f : machine_word -> machine_word -> machine_word -> 
 def syscall0 (sys_f : system_m machine_word)
              (syscall_no : Nat) 
              : system_m Unit := do
-  res <- raw_syscall (fun _ _ _ _ _ _ => do emit_syscall_trace syscall_no []; sys_f);
+  let res ← raw_syscall (fun _ _ _ _ _ _ => do emit_syscall_trace syscall_no []; sys_f)
   modify (machine_state.update_gpreg rax_idx (fun _ => res))
 
 def syscall1 (sys_f : machine_word -> system_m machine_word) 
              (syscall_no : Nat)
              : system_m Unit := do
-  res <- raw_syscall (fun a _ _ _ _ _ => do emit_syscall_trace syscall_no [a]; sys_f a);
+  let res ← raw_syscall (fun a _ _ _ _ _ => do emit_syscall_trace syscall_no [a]; sys_f a)
   modify (machine_state.update_gpreg rax_idx (fun _ => res))
 
 def syscall3 (sys_f : machine_word -> machine_word -> machine_word -> system_m machine_word) 
              (syscall_no : Nat)
              : system_m Unit := do
-  res <- raw_syscall (fun a b c _ _ _ => do emit_syscall_trace syscall_no [a, b, c]; sys_f a b c);
+  let res ← raw_syscall (fun a b c _ _ _ => do emit_syscall_trace syscall_no [a, b, c]; sys_f a b c)
   modify (machine_state.update_gpreg rax_idx (fun _ => res))
 
 def syscall6 (sys_f : machine_word -> machine_word -> machine_word -> machine_word -> machine_word -> machine_word -> system_m machine_word) 
              (syscall_no : Nat)
              : system_m Unit := do
-  res <- raw_syscall (fun a b c d e f => do emit_syscall_trace syscall_no [a, b, c, d, e, f]; sys_f a b c d e f);
+  let res ← raw_syscall (fun a b c d e f => do emit_syscall_trace syscall_no [a, b, c, d, e, f]; sys_f a b c d e f)
   modify (machine_state.update_gpreg rax_idx (fun _ => res))
 
 -- Stub calls
@@ -292,13 +295,13 @@ def sys_exit : syscall_t :=
 
 def sys_write : syscall_t :=
   syscall3 (fun filedes buf nbytes => do
-               s <- get;
-               let m_bytes := s.mem.read_bytes buf nbytes.to_nat;
+               let s ←  get
+               let m_bytes := s.mem.read_bytes buf nbytes.to_nat
                match m_bytes with
                | none      => throw ("sys_write: unable to read " ++ nbytes.to_nat.repr ++ " bytes at " ++ buf.pp_hex)
                | (some bs) => if filedes = 1 
-                              then do let str := String.mk (bs.map (fun (b : byte) => Char.ofNat b.toNat));
-                                      IO.print str;
+                              then do let str := String.mk (bs.map (fun (b : byte) => Char.ofNat b.toNat))
+                                      IO.print str
                                       pure nbytes -- always succeed
                               else throw ("sys_write: unable to write to filedes " ++ filedes.to_nat.repr)
            )
@@ -313,18 +316,18 @@ def syscalls : RBMap Nat syscall_t (fun x y => decide (x < y)) :=
                   ] (fun x y => decide (x < y))
 
 def syscall_handler : system_m Unit := do
-  s <- get;
-  let syscall_no := (s.get_gpreg rax_idx).to_nat;
+  let s ← get
+  let syscall_no := (s.get_gpreg rax_idx).to_nat
   match syscalls.find? syscall_no with
-     | none     => throw ("Unknown syscall: " ++ repr syscall_no)
-     | (some m) => m syscall_no
+  | none     => throw ("Unknown syscall: " ++ repr syscall_no)
+  | (some m) => m syscall_no
 
 
 def set_reg32 (idx : Fin 16) (x : bitvec 32) : system_m Unit :=
   modify (machine_state.update_gpreg rax_idx (fun _ => bitvec.uresize x 64))
 
 -- FIXME: a hack
-def read_cpuid : system_m Unit :=
+def read_cpuid : system_m Unit := do
   -- Copied from the cpuid results from my macbook
   -- Note: CPUID is allowed to return 0s 
   let cpuid_values : RBMap Nat (Nat × Nat × Nat × Nat) (fun x y => decide (x < y)) :=
@@ -351,20 +354,19 @@ def read_cpuid : system_m Unit :=
                     , (2147483654, (0x0, 0x0, 0x1006040, 0x0))
                     , (2147483655, (0x0, 0x0, 0x0, 0x100))
                     , (2147483656, (0x3027, 0x0, 0x0, 0x0))
-                    ] (fun x y => decide (x < y)); -- FIXME: we need to look at rcx sometimes as well
-    let cpuid_fn (n : Nat) : (Nat × Nat × Nat × Nat) :=
+                    ] (fun x y => decide (x < y)) -- FIXME: we need to look at rcx sometimes as well
+  let cpuid_fn (n : Nat) : (Nat × Nat × Nat × Nat) :=
       match cpuid_values.find? n with
       | none     => (0, 0, 0, 0)
-      | (some r) => r;
-    do 
-      s <- get;
-      let raxv :=  bitvec.uresize (s.get_gpreg rax_idx) 32;
-      match cpuid_fn raxv.to_nat with 
-      | (axv, bxv, cxv, dxv) => do
-        set_reg32 rax_idx (bitvec.of_nat 32 axv);
-        set_reg32 rbx_idx (bitvec.of_nat 32 bxv);
-        set_reg32 rcx_idx (bitvec.of_nat 32 cxv);
-        set_reg32 rdx_idx (bitvec.of_nat 32 dxv) 
+      | (some r) => r
+   let s ← get
+   let raxv :=  bitvec.uresize (s.get_gpreg rax_idx) 32
+   match cpuid_fn raxv.to_nat with 
+   | (axv, bxv, cxv, dxv) => do
+     set_reg32 rax_idx (bitvec.of_nat 32 axv)
+     set_reg32 rbx_idx (bitvec.of_nat 32 bxv)
+     set_reg32 rcx_idx (bitvec.of_nat 32 cxv)
+     set_reg32 rdx_idx (bitvec.of_nat 32 dxv) 
 
 end x86_64
 end linux
@@ -382,15 +384,15 @@ def concreteBackend : Backend :=
   , s_bool_imm := fun b => b
 
   , monad := linux.x86_64.system_m
-  -- , Monad_backend := 
-  -- , MonadExcept_backend := 
+  , Monad_backend := inferInstance
+  , MonadExcept_backend := inferInstance
   
   , store_word := fun n addr v => do 
-                  emit_trace_event (trace_event.write addr _ v);
+                  emit_trace_event (trace_event.write addr _ v)
                   modify (fun s => machine_state.store_word s addr v)
   , read_word  := fun addr n => do
-                  v <- (fun s => machine_state.read_word s addr n) <$> get;
-                  emit_trace_event (trace_event.read addr _ v);
+                  let v ← (fun s => machine_state.read_word s addr n) <$> get
+                  emit_trace_event (trace_event.read addr _ v)
                   pure v
                
   , get_gpreg  := fun i => (fun s => machine_state.get_gpreg s i) <$> get
@@ -421,7 +423,7 @@ def concreteBackend : Backend :=
   , s_bvmul    := @bitvec.mul
   , s_bvudiv   := fun (n : Nat) (x y : bitvec n) => bitvec.of_nat n 0 -- FIXME
   , s_bvurem   := fun (n : Nat) (x y : bitvec n) => bitvec.of_nat n 0 -- FIXME
-  , s_bvextract := fun (w i j : Nat) (x : bitvec w) =>
+  , s_bvextract := fun {w : Nat} (i j : Nat) (x : bitvec w) =>
                        let n := i + 1 - j;
                        if H : w = w - n + n 
                        then bitvec.slice i j (w - n) H x
@@ -456,12 +458,12 @@ def concreteBackend : Backend :=
   , s_bvshl      := fun (n : Nat) ( x y : bitvec n) => bitvec.shl x (y.to_nat)
   , s_bvmsb      := @bitvec.msb
   -- unsigned
-  , s_bvlshr     := fun (n : Nat) ( x y : bitvec n) => bitvec.ushr x (y.to_nat)
+  , s_bvlshr     := fun {n : Nat} ( x y : bitvec n) => bitvec.ushr x (y.to_nat)
   -- signed
-  , s_bvsshr     := fun (n : Nat) ( x y : bitvec n) => bitvec.sshr x (y.to_nat)
+  , s_bvsshr     := fun {n : Nat} ( x y : bitvec n) => bitvec.sshr x (y.to_nat)
   , s_parity     := @bitvec.parity
   , s_bit_test   := fun {wr wi : Nat} (x : bitvec wr) (y : bitvec wi) =>
-                    bitvec.nth x (y.to_nat)
+                        bitvec.nth x (y.to_nat)
    
   -- System operations
   , s_os_transition := linux.x86_64.syscall_handler

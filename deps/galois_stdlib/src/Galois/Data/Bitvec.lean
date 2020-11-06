@@ -24,8 +24,8 @@ axiom power_hack (n : Nat) (e : Nat) : n < 2 ^ e
 
 def bitvec (sz : Nat) := { x // x < 2 ^ sz }
 
-instance bitvec_DecidableEq {n : Nat}: DecidableEq (bitvec n) :=
-  Subtype.DecidableEq
+instance bitvec_DecidableEq {sz : Nat}: DecidableEq (bitvec sz) :=
+  inferInstanceAs (DecidableEq { x // x < 2 ^ sz })
 
 
 namespace bitvec
@@ -37,7 +37,7 @@ def to_nat {w : Nat} (b : bitvec w) : Nat := b.val
 --   { decEq := (λx y, @decEq _ (@Subtype.DecidableEq Nat (λn, n < 2 ^ w) _) x y) }
 
 -- By default just show a bitvector as a nat.
-instance (w:Nat) : HasRepr (bitvec w) := ⟨fun v => repr (v.to_nat)⟩
+instance (w:Nat) : Repr (bitvec w) := ⟨fun v => repr (v.to_nat)⟩
 
 section to_hex
 
@@ -56,7 +56,7 @@ section zero
     ⟨0, zero_lt_pow n⟩
 
   -- bitvectors have a zero, at every length
-  instance {n:Nat} : HasZero (bitvec n) := ⟨bitvec.zero n⟩
+  instance {n:Nat} : Inhabited (bitvec n) := ⟨bitvec.zero n⟩
 
   -- @[simp]
   -- lemma bitvec_zero_zero (x : bitvec 0) : x.to_Nat = 0 :=
@@ -84,10 +84,8 @@ section one
   -- 1 is really just 0. This turns out to simplify things.
   protected
   def one : ∀(n:Nat), bitvec n
-  | 0        => 0
+  | 0        => bitvec.zero 0
   | (Nat.succ _) => ⟨1, one_le_pow_2 (Nat.zero_lt_succ _)⟩
-
-  instance {n:Nat} : HasOne (bitvec n)  := ⟨bitvec.one n⟩
 
 end one
 
@@ -107,10 +105,12 @@ protected def cong {a b : Nat} (h : a = b) : bitvec a → bitvec b
 -- FIXME: more efficient implementation of of_Nat
 -- protected def of_nat (n : Nat) (x:Nat) : bitvec n := ⟨ x % (Nat.shiftl 1 n), power_hack _ _⟩
 
-protected def of_nat (n : Nat) (x:Nat) : bitvec n :=
-  ⟨ x % 2^n, Nat.modLt _ (Nat.posPowOfPos n (zero_lt_pow 1))⟩
+protected def of_nat (width : Nat) (x:Nat) : bitvec width :=
+  ⟨ x % 2^width, Nat.modLt _ (Nat.posPowOfPos width (zero_lt_pow 1))⟩
 
-instance Nat_to_bitvec_coe {w : Nat} : HasCoe Nat (bitvec w) := ⟨bitvec.of_nat w⟩
+instance {w : Nat} : OfNat (bitvec w) := ⟨bitvec.of_nat w⟩
+
+instance Nat_to_bitvec_coe {w : Nat} : Coe Nat (bitvec w) := ⟨bitvec.of_nat w⟩
 
 -- theorem of_Nat_to_Nat {n : Nat} (x : bitvec n)
 -- : bitvec.of_Nat n (bitvec.to_Nat x) = x :=
@@ -168,8 +168,8 @@ section bitwise
   -- logical bitwise xor
   def xor {w:Nat} (x y : bitvec w) : bitvec w := bitvec.of_nat w (Nat.lxor x.to_nat y.to_nat)
 
-  infix `.&&.`:70 := and
-  infix `.||.`:65 := or
+  infix:70 " .&&. " => and
+  infix:65 " .||. " => or
 
 end bitwise
 
@@ -201,17 +201,17 @@ section arith
      -- end
      ⟩
 
-  instance : HasAdd (bitvec n)  := ⟨bitvec.add⟩
-  instance : HasSub (bitvec n)  := ⟨bitvec.sub⟩
-  instance : HasNeg (bitvec n)  := ⟨bitvec.neg⟩
+  instance : Add (bitvec n)  := ⟨bitvec.add⟩
+  instance : Sub (bitvec n)  := ⟨bitvec.sub⟩
+  instance : Neg (bitvec n)  := ⟨bitvec.neg⟩
 
   protected def mul (x y : bitvec n) : bitvec n := bitvec.of_nat n (x.to_nat * y.to_nat)
 
-  instance : HasMul (bitvec n) := ⟨bitvec.mul⟩
+  instance : Mul (bitvec n) := ⟨bitvec.mul⟩
 
   def bitvec_pow (x: bitvec n) (k:Nat) : bitvec n := bitvec.of_nat n (x.to_nat^k)
 
-  instance bitvec_has_pow : HasPow (bitvec n) Nat := ⟨bitvec_pow⟩
+  instance bitvec_has_pow : Pow (bitvec n) Nat := ⟨bitvec_pow⟩
 
   protected def udiv (x y : bitvec n) : bitvec n := bitvec.of_nat n (x.to_nat / y.to_nat)
   protected def sdiv (x y : bitvec n) : bitvec n := bitvec.of_int n (x.to_int / y.to_int)
@@ -269,7 +269,7 @@ section listlike
   def repeat {n} (x: bitvec n) : forall (i : Nat), bitvec (i * n)
   | Nat.zero => 0
   | Nat.succ m => 
-    let rst : bitvec (m * n) := repeat m;
+    let rst : bitvec (m * n) := repeat x m;
     let res : bitvec (m * n + n) := @append (m * n) n rst x;
     have hEq : (m * n + n) = (succ m * n) from Eq.symm $ Nat.succMul m n;
     have tEq : bitvec (m * n + n) = bitvec (succ m * n) from congrArg bitvec hEq;
@@ -282,7 +282,7 @@ section listlike
       if Nat.test_bit x idx then
         some idx
       else
-        bsf' m (idx+1) x
+        bitvec.bsf' m (idx+1) x
 
   --- index of least-significant bit that is 1.
   def bsf : ∀{n:Nat}, bitvec n → Option Nat
@@ -295,7 +295,7 @@ section listlike
       if Nat.test_bit x idx then
         some idx
       else
-        bsr' x idx
+        bitvec.bsr' x idx
 
   --- index of the most-significant bit that is 1.
   def bsr : ∀{n:Nat}, bitvec n → Option Nat
@@ -326,7 +326,7 @@ section listlike
   protected
   def foldl' {α : Sort _} (f : α -> Bool → α) (x : Nat) (init : α) : Nat → α
     | zero       => init
-    | (succ idx) => f (foldl' idx) (x.test_bit idx)
+    | (succ idx) => f (bitvec.foldl' f x init idx) (x.test_bit idx)
     
   -- foldl follows nth's behaviour, so 
   -- foldl f i b = f (f (f i b!0) b!1) b!2 etc.
@@ -336,7 +336,7 @@ section listlike
   protected
   def foldr' {α : Sort _} (f : Bool → α → α) (x : Nat) (init : α) (n : Nat) : Nat → α
     | zero       => init
-    | (succ idx) => f  (x.test_bit (n - succ idx)) (foldr' idx)
+    | (succ idx) => f  (x.test_bit (n - succ idx)) (bitvec.foldr' f x init n idx)
     
   -- foldr follows nth's behaviour, so 
   -- foldr f i b = f b!0 (f b!1 ... (f b!(n-1) i))
@@ -417,7 +417,7 @@ def concat_list {m:Nat}(input: List (bitvec m)) (n:Nat) : bitvec n :=
 -- The head of the List has the most-significant bits.
 def split_to_list (x:Nat) (w:Nat) : Nat → List (bitvec w)
 | Nat.zero => []
-| (Nat.succ n) => bitvec.of_nat w (Nat.shiftr x (n*w)) :: split_to_list n
+| (Nat.succ n) => bitvec.of_nat w (Nat.shiftr x (n*w)) :: split_to_list x w n
 
 -- theorem length_split_to_list (x:Nat) (w : Nat) (m:Nat) : List.length (split_to_list x w m) = m :=
 -- begin

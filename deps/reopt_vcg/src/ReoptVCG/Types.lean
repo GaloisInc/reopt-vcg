@@ -12,7 +12,7 @@ def LLVM.Ident.pp : LLVM.Ident → String := LLVM.Doc.render ∘ LLVM.HasPP.pp
 def LLVM.LLVMType.pp : LLVM.LLVMType → String := LLVM.Doc.render ∘ LLVM.HasPP.pp
 def LLVM.BlockLabel.pp : LLVM.BlockLabel → String := LLVM.Doc.render ∘ LLVM.HasPP.pp
 
-open Smt (SmtSort SmtSort.bool SmtSort.bitvec SmtSort.array Term SmtM Command)
+open Smt (SmtSort SmtSort.bv64 SmtSort.bool SmtSort.bitvec SmtSort.array Term SmtM Command)
 
 
 
@@ -125,7 +125,7 @@ namespace BlockLabel
 def lt : forall (x y : BlockLabel), Prop
   | { label := x }, {label := y } => x < y
 
-instance : HasLess BlockLabel := ⟨lt⟩
+instance : Less BlockLabel := ⟨lt⟩
  
 instance decideableBlockLabelLt : ∀(x y:BlockLabel), Decidable (x < y)
 | { label := x }, { label := y } =>
@@ -191,7 +191,7 @@ structure ModuleVCGContext :=
 -------------------------------------------------------
 
 
-/-- Errors that are tied to a specific function. --/
+/- Errors that are tied to a specific function. -/
 inductive FnError
 | notFound : FnError
 | argTypeUnsupported : LLVM.Ident -> LLVM.LLVMType -> FnError
@@ -212,7 +212,7 @@ def pp : FnError → String
 | entryUnreachable => "Function entry marked unreachable."
 | custom msg  => msg
 
-instance : HasToString FnError := ⟨pp⟩
+instance : ToString FnError := ⟨pp⟩
 
 end FnError
 
@@ -417,14 +417,14 @@ structure AnnotatedBlock :=
 (stmts : List LLVM.Stmt)
 
 
-/--  Maps LLM block labels to their associated annotations. --/
+/-  Maps LLM block labels to their associated annotations. -/
 @[reducible]
 def ReachableBlockAnnMap := Std.RBMap LLVM.BlockLabel AnnotatedBlock (λ x y => x<y)
 
 -- | Find a block with the given label in the config.
 def findBlock (m : ReachableBlockAnnMap) (lbl: LLVM.BlockLabel) : Option (BlockAnn × PhiVarMap) := do
-ab <- m.find? lbl;
-pure (ab.annotation, ab.phiVarMap)
+  let ab ← m.find? lbl;
+  pure (ab.annotation, ab.phiVarMap)
 
 -------------------------------------------------------
 -- BlockVCG
@@ -535,15 +535,15 @@ def fatalThrow {a} (msg : String) : BlockVCG a := throw $ BlockVCGError.globalEr
 end BlockVCG
 
 -- FIXME: move
-/-- Lift an Except to IO, throwing any occurring error with the given prefix at the front of the message. --/
-def elseThrowPrefixed {ε α : Type} [HasToString ε] (e : Except ε α) (pfx : String) : IO α :=
-match e with
-| Except.ok a    => pure a
-| Except.error e => throw (IO.userError $ pfx ++ (toString e))
+/- Lift an Except to IO, throwing any occurring error with the given prefix at the front of the message. -/
+def elseThrowPrefixed {ε α : Type} [ToString ε] (e : Except ε α) (pfx : String) : IO α :=
+  match e with
+  | Except.ok a    => pure a
+  | Except.error e => throw (IO.userError $ pfx ++ (toString e))
 
 
 
-/-- Maps between LLVM argument and machine code name. --/
+/- Maps between LLVM argument and machine code name. -/
 structure LLVMMCArgBinding :=
 (llvmArgName : LLVM.Ident)
 (smtSort: Smt.SmtSort)

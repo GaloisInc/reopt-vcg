@@ -2,73 +2,81 @@
 universes u
 
 @[reducible]
-abbrev DecidableLess (α : Type u) [HasLess α] :=
-∀ (a b : α), Decidable (a < b)
+abbrev DecidableLess (α : Type u) [Less α] :=
+  ∀ (a b : α), Decidable (a < b)
 
-class HasLessOrder (α : Type u) extends HasLess α :=
-(transitive : ∀ (x y z : α), x < y → y < z → x < z)
-(asymmetric : ∀ (x y : α), x < y → ¬(y < x))
-(total : ∀ (x y : α), x < y ∨ x = y ∨ y < x)
+class LessOrder (α : Type u) extends Less α :=
+  (transitive : ∀ (x y z : α), x < y → y < z → x < z)
+  (asymmetric : ∀ (x y : α), x < y → ¬(y < x))
+  (total : ∀ (x y : α), x < y ∨ x = y ∨ y < x)
 
 
-class DecidableLessOrder (α : Type u) extends HasLessOrder α :=
-(ltDec : DecidableLess α)
-(eqDec : DecidableEq α)
+class DecidableLessOrder (α : Type u) extends LessOrder α :=
+  (ltDec : DecidableLess α)
+  (eqDec : DecidableEq α)
 
 
 namespace Subtype
 variables {α : Type u} {p : α → Prop}
-instance [h : HasLess α] : HasLess {x : α // p x} :=
-⟨λ ⟨a, _⟩ ⟨b, _⟩ => a < b⟩
 
-protected theorem lt [HasLess α] : ∀ {a1 a2 : {x // p x}}, a1.val < a2.val → a1 < a2
-| ⟨a, h1⟩, ⟨b, h2⟩, ltPf => ltPf
+protected
+instance Less [h : Less α] : Less {x : α // p x} :=
+  ⟨λ ⟨a, _⟩ ⟨b, _⟩ => a < b⟩
 
-protected theorem ltInv [HasLess α] : ∀ {a1 a2 : {x // p x}}, a1 < a2 → a1.val < a2.val
-| ⟨a, h1⟩, ⟨b, h2⟩, ltPf => ltPf
+protected theorem lt [Less α] : ∀ {a1 a2 : {x // p x}}, a1.val < a2.val → a1 < a2
+  | ⟨a, h1⟩, ⟨b, h2⟩, ltPf => ltPf
 
-protected theorem ltInvNeg [HasLess α] : ∀ {a1 a2 : {x // p x}}, ¬(a1.val < a2.val) → ¬(a1 < a2)
-| ⟨a, h1⟩, ⟨b, h2⟩, valNotLtPf => λ ltPf => absurd (Subtype.ltInv ltPf) valNotLtPf
+protected theorem ltInv [Less α] : ∀ {a1 a2 : {x // p x}}, a1 < a2 → a1.val < a2.val
+  | ⟨a, h1⟩, ⟨b, h2⟩, ltPf => ltPf
 
-instance [HasLess α] [DecidableLess α] : DecidableLess {x : α // p x} :=
-fun ⟨a, h₁⟩ ⟨b, h₂⟩ =>
-  if valLtPf : a < b then isTrue (Subtype.lt valLtPf)
-  else isFalse (fun ltPf => absurd ltPf (Subtype.ltInvNeg valLtPf))
+protected theorem ltInvNeg [Less α] : ∀ {a1 a2 : {x // p x}}, ¬(a1.val < a2.val) → ¬(a1 < a2)
+  | ⟨a, h1⟩, ⟨b, h2⟩, valNotLtPf => λ ltPf => absurd (Subtype.ltInv ltPf) valNotLtPf
 
-axiom Less.transitivity [HasLess α] :
-(∀ (x y z : α), x < y → y < z → x < z) →
-(∀ (x y z : {x : α // p x}), x < y → y < z → x < z)
+protected
+instance DecidableLess [Less α] [DecidableLess α] : DecidableLess {x : α // p x} :=
+  fun a b =>
+    if valLtPf : a.val < b.val then isTrue (Subtype.lt valLtPf)
+    else isFalse (fun ltPf => absurd ltPf (Subtype.ltInvNeg valLtPf))
 
-axiom Less.asymmetry [HasLess α] :
-(∀ (x y : α), x < y → ¬(y < x)) →
-(∀ (x y : {x : α // p x}), x < y → ¬(y < x))
+axiom Less.transitivity [Less α] :
+  (∀ (x y z : α), x < y → y < z → x < z) →
+  (∀ (x y z : {x : α // p x}), x < y → y < z → x < z)
 
-axiom Less.totality [HasLess α] :
-(∀ (x y : α), x < y ∨ x = y ∨ y < x) →
-(∀ (x y : {x : α // p x}), x < y ∨ x = y ∨ y < x)
+axiom Less.asymmetry [Less α] :
+  (∀ (x y : α), x < y → ¬(y < x)) →
+  (∀ (x y : {x : α // p x}), x < y → ¬(y < x))
+
+axiom Less.totality [Less α] :
+  (∀ (x y : α), x < y ∨ x = y ∨ y < x) →
+  (∀ (x y : {x : α // p x}), x < y ∨ x = y ∨ y < x)
 
 
-instance {α : Type u} {p : α → Prop} [h : HasLessOrder α] : HasLessOrder {x : α // p x} :=
-{ transitive := Subtype.Less.transitivity h.transitive,
-  asymmetric := Subtype.Less.asymmetry h.asymmetric,
-  total := Subtype.Less.totality h.total
-}
+instance {α : Type u} {p : α → Prop} [h : LessOrder α] : LessOrder {x : α // p x} :=
+  { transitive := Subtype.Less.transitivity h.transitive,
+    asymmetric := Subtype.Less.asymmetry h.asymmetric,
+    total := Subtype.Less.totality h.total
+  }
 
 end Subtype
 
 
-namespace LessOrder
+instance DecidableLessOrderImpliesDecidableLess {α : Type u} [h : DecidableLessOrder α] : DecidableLess α :=
+  let h : DecidableLess α := h.ltDec;
+  inferInstanceAs _
+
+instance DecidableLessOrderImpliesDecidableEq {α : Type u} [h : DecidableLessOrder α] : DecidableEq α :=
+  let h : DecidableEq α := h.eqDec;
+  inferInstanceAs _
 
 
-end LessOrder
 
 namespace DecidableLessOrder
 
 instance {α : Type u} [h : DecidableLessOrder α] : DecidableLess α :=
-h.ltDec
+  h.ltDec
 
 instance {α : Type u} [h : DecidableLessOrder α] : DecidableEq α :=
-h.eqDec
+  h.eqDec
 
 
 end DecidableLessOrder

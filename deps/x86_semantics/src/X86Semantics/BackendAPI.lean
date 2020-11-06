@@ -100,8 +100,8 @@ def machine_word (be : Backend) : Type := be.s_bv 64
 def s_bool_eq (be : Backend) (b1 : be.s_bool) (b2 : be.s_bool) :=
   be.s_mux_bool b1 b2 (be.s_not b2)
 
-def false (be : Backend) : be.s_bool := be.s_bool_imm false
-def true (be : Backend) : be.s_bool := be.s_bool_imm true
+protected def false (be : Backend) : be.s_bool := be.s_bool_imm false
+protected def true (be : Backend) : be.s_bool := be.s_bool_imm true
 
 def bit_to_bitvec (be : Backend) (n : Nat) (b : be.s_bool) : be.s_bv n := 
   be.s_mux_bv b (be.s_bv_imm n 1) (be.s_bv_imm n 0)

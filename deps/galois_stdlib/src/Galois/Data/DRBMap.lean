@@ -40,8 +40,8 @@ def DRBMap (α : Type u) (β : α → Type v) (lt : α → α → Bool) : Type (
 @[inline] def DRBMap.empty {α : Type u} {β : α → Type v} {lt : α → α → Bool} : DRBMap α β lt :=
 mkDRBMap _ _ _
 
-instance DRBMap.HasEmptyc (α : Type u) (β : α → Type v) (lt : α → α → Bool) : HasEmptyc (DRBMap α β lt) :=
-⟨DRBMap.empty⟩
+-- instance DRBMap.HasEmptyc (α : Type u) (β : α → Type v) (lt : α → α → Bool) : HasEmptyc (DRBMap α β lt) :=
+-- ⟨DRBMap.empty⟩
 
 namespace DRBMap
 variables {α : Type u} {β : α → Type v} {σ : Type w} {lt : α → α → Bool}
@@ -81,7 +81,7 @@ t.foldM (fun _ k v => f k v) ⟨⟩
   | some ⟨k, v⟩ => some ⟨k, v⟩
   | none        => none
 
-instance [HasRepr α] [forall (a : α), HasRepr (β a)] : HasRepr (DRBMap α β lt) :=
+instance [Repr α] [forall (a : α), Repr (β a)] : Repr (DRBMap α β lt) :=
 ⟨fun t => "rbmapOf " ++ repr t.toList⟩
 
 @[inline] def insert : DRBMap α β lt → forall (a : α), (β a) → DRBMap α β lt

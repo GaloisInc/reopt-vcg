@@ -30,7 +30,7 @@ def arg_index := Nat
 
 inductive one_of (l:List Nat) : Type
 | elem{} (v : Nat) : -- l.contains v
-                    one_of
+                    one_of l
 
 namespace one_of
 
@@ -38,7 +38,7 @@ namespace one_of
 def to_nat {l:List Nat} : one_of l → Nat
 | (one_of.elem _ x) => x
 
-instance (l:List Nat) : HasCoe (one_of l) Nat :=
+instance (l:List Nat) : Coe (one_of l) Nat :=
 ⟨ one_of.to_nat ⟩
 
 end one_of
@@ -64,7 +64,7 @@ namespace type
 
 -- c.f. scripts/mk_dec_eq.hs
 -- *MkDecEq> writeFile "typeDecEq" (mkDecEq "type" ctors_type "hasDecEq")
-protected def hasDecEq : ∀(e e' : type), Decidable (e = e')
+protected def decEq : ∀(e e' : type), Decidable (e = e')
 | (bv c1), (bv c1') => 
  (match decEq c1 c1' with 
   | (isTrue h1) => isTrue (h1 ▸ rfl)
@@ -74,17 +74,17 @@ protected def hasDecEq : ∀(e e' : type), Decidable (e = e')
 | double, double => isTrue rfl
 | x86_80, x86_80 => isTrue rfl
 | (vec c1 c2), (vec c1' c2') => 
- (match decEq c1 c1', hasDecEq c2 c2' with 
+ (match decEq c1 c1', type.decEq c2 c2' with 
   | (isTrue h1), (isTrue h2) => isTrue (h1 ▸ h2 ▸ rfl)
   | (isFalse nh), _ => isFalse (fun h => type.noConfusion h $ fun h1' h2' => absurd h1' nh)
   | (isTrue _), (isFalse nh) => isFalse (fun h => type.noConfusion h $ fun h1' h2' => absurd h2' nh))
 | (pair c1 c2), (pair c1' c2') => 
- (match hasDecEq c1 c1', hasDecEq c2 c2' with 
+ (match type.decEq c1 c1', type.decEq c2 c2' with 
   | (isTrue h1), (isTrue h2) => isTrue (h1 ▸ h2 ▸ rfl)
   | (isFalse nh), _ => isFalse (fun h => type.noConfusion h $ fun h1' h2' => absurd h1' nh)
   | (isTrue _), (isFalse nh) => isFalse (fun h => type.noConfusion h $ fun h1' h2' => absurd h2' nh))
 | (fn c1 c2), (fn c1' c2') => 
- (match hasDecEq c1 c1', hasDecEq c2 c2' with 
+ (match type.decEq c1 c1', type.decEq c2 c2' with 
   | (isTrue h1), (isTrue h2) => isTrue (h1 ▸ h2 ▸ rfl)
   | (isFalse nh), _ => isFalse (fun h => type.noConfusion h $ fun h1' h2' => absurd h1' nh)
   | (isTrue _), (isFalse nh) => isFalse (fun h => type.noConfusion h $ fun h1' h2' => absurd h2' nh))
@@ -146,7 +146,7 @@ protected def hasDecEq : ∀(e e' : type), Decidable (e = e')
 | (fn _ _), (pair _ _) => isFalse (fun h => type.noConfusion h)
 
 instance decidable_eq_type : DecidableEq type := -- by tactic.mk_dec_eq_instance
-  type.hasDecEq
+  type.decEq
 
 end type
 
@@ -191,8 +191,8 @@ inductive concrete_reg : type → Type
 
 -- Type for x86 registers
 inductive reg (tp:type) : Type
-| concrete  (c:concrete_reg tp) : reg
-| arg {} (idx:arg_index) : reg
+| concrete  (c:concrete_reg tp) : reg tp
+| arg {} (idx:arg_index) : reg tp
 
 namespace reg
 
@@ -249,7 +249,7 @@ namespace concrete_reg
 
 protected
 def name : ∀{tp:type}, concrete_reg tp → String
-| ._, (gpreg idx tp) =>
+| _, (gpreg idx tp) =>
   (match tp with
   | gpreg_type.reg8l => List.get! idx.val reg.r8l_names
   | gpreg_type.reg8h => List.get! idx.val reg.r8h_names
@@ -257,7 +257,7 @@ def name : ∀{tp:type}, concrete_reg tp → String
   | gpreg_type.reg32 => List.get! idx.val reg.r32_names
   | gpreg_type.reg64 => List.get! idx.val reg.r64_names)
  
-| ._, (flagreg idx) =>
+| _, (flagreg idx) =>
    (match List.get? idx.val reg.flag_names with
    | (Option.some nm) => nm
    | Option.none      => "RESERVED_" ++ idx.val.repr)
@@ -273,22 +273,22 @@ namespace reg64
 
 private def mkReg64 (idx: Fin 16) : reg64 := concrete_reg.gpreg idx gpreg_type.reg64
 
-def rax : reg64 := mkReg64 0
-def rcx : reg64 := mkReg64 1
-def rdx : reg64 := mkReg64 2
-def rbx : reg64 := mkReg64 3
-def rsp : reg64 := mkReg64 4
-def rbp : reg64 := mkReg64 5
-def rsi : reg64 := mkReg64 6
-def rdi : reg64 := mkReg64 7
-def r8  : reg64 := mkReg64 8
-def r9  : reg64 := mkReg64 9
-def r10 : reg64 := mkReg64 10
-def r11 : reg64 := mkReg64 11
-def r12 : reg64 := mkReg64 12
-def r13 : reg64 := mkReg64 13
-def r14 : reg64 := mkReg64 14
-def r15 : reg64 := mkReg64 15
+def rax : reg64 := mkReg64 $ Fin.ofNat 0
+def rcx : reg64 := mkReg64 $ Fin.ofNat 1
+def rdx : reg64 := mkReg64 $ Fin.ofNat 2
+def rbx : reg64 := mkReg64 $ Fin.ofNat 3
+def rsp : reg64 := mkReg64 $ Fin.ofNat 4
+def rbp : reg64 := mkReg64 $ Fin.ofNat 5
+def rsi : reg64 := mkReg64 $ Fin.ofNat 6
+def rdi : reg64 := mkReg64 $ Fin.ofNat 7
+def r8  : reg64 := mkReg64 $ Fin.ofNat 8
+def r9  : reg64 := mkReg64 $ Fin.ofNat 9
+def r10 : reg64 := mkReg64 $ Fin.ofNat 10
+def r11 : reg64 := mkReg64 $ Fin.ofNat 11
+def r12 : reg64 := mkReg64 $ Fin.ofNat 12
+def r13 : reg64 := mkReg64 $ Fin.ofNat 13
+def r14 : reg64 := mkReg64 $ Fin.ofNat 14
+def r15 : reg64 := mkReg64 $ Fin.ofNat 15
 
 def fromName : String → Option reg64
 | "rax" => some reg64.rax
@@ -319,15 +319,15 @@ namespace flag
 
 private def mkFlag (idx: Fin 32) : flag := concrete_reg.flagreg idx
 
-def cf  := mkFlag  0
-def pf  := mkFlag  2
-def af  := mkFlag  4
-def zf  := mkFlag  6
-def sf  := mkFlag  7
-def tf  := mkFlag  8
-def if' := mkFlag  9
-def df  := mkFlag 10
-def of  := mkFlag 11
+def cf  := mkFlag $ Fin.ofNat  0
+def pf  := mkFlag $ Fin.ofNat  2
+def af  := mkFlag $ Fin.ofNat  4
+def zf  := mkFlag $ Fin.ofNat  6
+def sf  := mkFlag $ Fin.ofNat  7
+def tf  := mkFlag $ Fin.ofNat  8
+def if' := mkFlag $ Fin.ofNat  9
+def df  := mkFlag $ Fin.ofNat 10
+def of  := mkFlag $ Fin.ofNat 11
 
 def fromName : String -> Option flag 
 | "cf" => some cf 
@@ -358,7 +358,7 @@ end reg
 
 -- Denotes an address to a value of a specific type.
 inductive addr (tp:type) : Type
-| arg {} (idx: arg_index) : addr
+| arg {} (idx: arg_index) : addr tp
 
 namespace addr
 
@@ -372,7 +372,7 @@ end addr
 
 section prim
 -- local
-infixr `.→`:30 := type.fn
+infixr:30 " .→ " => type.fn
 
 -- This denotes primitive operations that are part of the semantics.
 -- Unless otherwise specified primitive functions evaluate all their
@@ -636,12 +636,11 @@ namespace expression
 def of_addr : ∀{tp:type}, addr tp → expression (bv 64)
 | tp, (@addr.arg _ i) => expression.addr_arg i
 
-instance prim_is_expr (rtp:type) : HasCoe (prim rtp) (expression rtp) := ⟨expression.primitive⟩
+instance prim_is_expr (rtp:type) : Coe (prim rtp) (expression rtp) := ⟨expression.primitive⟩
 
-instance (a:type) (f:type) : HasCoeToFun (expression (type.fn a f)) :=
-{ F := fun _ => ∀(y:expression a), expression f
-, coe := app
-}
+instance (a:type) (f:type) : CoeFun (expression (type.fn a f)) (fun _ => ∀(y:expression a), expression f) :=
+  { coe := app }
+
 
 def add : ∀{w:Nat}, expression (bv w) → expression (bv w) → expression (bv w)
 --| ._ (primitive (prim.bv_nat ._ n)) (primitive (prim.bv_nat w m)) => prim.bv_nat w (n + m)
@@ -654,13 +653,15 @@ def sub : ∀{w:Nat}, expression (bv w) → expression (bv w) → expression (bv
 def neg : ∀{w:Nat}, expression (bv w) → expression (bv w)
   | _, x => app (primitive (prim.neg _)) x
 
-instance (w:Nat) : HasZero (expression (bv w)) := ⟨prim.bv_nat w 0⟩
-instance (w:Nat) : HasOne  (expression (bv w)) := ⟨prim.bv_nat w 1⟩
-instance (w:Nat) : HasAdd  (expression (bv w)) := ⟨add⟩
-instance (w:Nat) : HasSub  (expression (bv w)) := ⟨sub⟩
-instance (w:Nat) : HasNeg  (expression (bv w)) := ⟨neg⟩
+instance type_is_sort : CoeSort type Type := {coe := expression}
 
-def adc         {w:Nat} (x y : expression (bv w)) (b : expression bit) : expression (bv w) := prim.adc   w x y b
+instance (w:Nat) : OfNat (coeSort (bv w)) := ⟨λ n => expression.primitive $ prim.bv_nat w n⟩
+instance (w:Nat) : OfNat (expression (bv w)) := ⟨λ n => prim.bv_nat w n⟩
+instance (w:Nat) : Add  (expression (bv w)) := ⟨add⟩
+instance (w:Nat) : Sub  (expression (bv w)) := ⟨sub⟩
+instance (w:Nat) : Neg  (expression (bv w)) := ⟨neg⟩
+
+def adc         {w:Nat} (x y : expression (bv w)) (b : expression bit) : expression (bv w) := prim.adc w x y b
 def bswap       {w:Nat} (v : expression (bv w))                        : expression (bv w) := prim.bswap w v
 def bit_or            (x y : expression bit)                         : expression bit    := prim.bit_or  x y
 def bit_and           (x y : expression bit)                         : expression bit    := prim.bit_and x y
@@ -674,26 +675,26 @@ def of_reg {tp:type} : reg tp → expression tp
 | (reg.concrete r) => expression.get_reg r
 | (reg.arg _ a) => expression.read_arg a tp
 
-instance addr_is_expression (tp:type) : HasCoe (addr tp) (expression tp) :=
+instance addr_is_expression (tp:type) : Coe (addr tp) (expression tp) :=
 ⟨ expression.read_addr ⟩
 
+instance all_reg_is_expression {tp:type} : Coe (reg tp) (expression tp) := ⟨expression.of_reg⟩
 
-
-instance type_is_sort     : HasCoeToSort type := ⟨Type, expression⟩
-instance all_reg_is_expression : has_coe1 reg expression := ⟨fun _ => expression.of_reg⟩
+instance all_reg_is_expression' : has_coe1 reg expression := 
+  ⟨expression.of_reg⟩
 
 end expression
 
 protected
 def expression.imm : ∀{tp:type}, imm tp → expression tp
-| ._, (@imm.arg i tp) => expression.imm_arg i tp
+| _, (@imm.arg i tp) => expression.imm_arg i tp
 
-instance expression.imm_is_expression (tp:type) : HasCoe (imm tp) (expression tp) := ⟨expression.imm⟩
+instance expression.imm_is_expression (tp:type) : Coe (imm tp) (expression tp) := ⟨expression.imm⟩
 
 -- Operations on expressions
 
-def slice {w:Nat} (x:expression (bv w)) (u:Nat) (l:Nat)
-: expression (bv (u+1-l)) := prim.slice w u l x
+def slice {w:Nat} (x:expression (bv w)) (u:Nat) (l:Nat) : expression (bv (u+1-l)) := 
+  prim.slice w u l x
 
 def trunc {w:Nat} (x: bv w) (o:Nat) : bv o := prim.trunc w o x
 
@@ -709,20 +710,23 @@ def neq {tp:type} (x y : tp) : bit := prim.neq tp x y
 
 def eq {tp:type} (x y : tp) : bit := prim.eq tp x y
 
-def bit_one  : bit := prim.bit_one
-def bit_zero : bit := prim.bit_zero
+def bit_one  : bit := expression.primitive prim.bit_one
+def bit_zero : bit := expression.primitive prim.bit_zero
 
-instance bv_has_mul (w:Nat) : HasMul (bv w) := ⟨fun x y => prim.mul w x y⟩
+instance bv_has_mul (w:Nat) : Mul (expression (bv w)) := ⟨fun x y => prim.mul w x y⟩
 
 -- Add two 80-bit numbers using the current x87 floating point control.
-def x87_fadd (x y : x86_80) : x86_80 := prim.x87_fadd x y
+def x87_fadd (x y : expression x86_80) : expression x86_80 := prim.x87_fadd x y
 
-instance float_extends_to_80  : HasCoe float  x86_80 := ⟨prim.float_to_x86_80⟩
+instance float_extends_to_80  : Coe (expression float) (expression x86_80) := 
+  ⟨expression.app prim.float_to_x86_80⟩
 
-instance double_extends_to_80 : HasCoe double x86_80 := ⟨prim.double_to_x86_80⟩
+instance double_extends_to_80 : Coe (expression double) (expression x86_80) := 
+  ⟨expression.app prim.double_to_x86_80⟩
 
 -- These are lossless conversions.
-instance bv_to_x86_80  (w:one_of [16,32]) : HasCoe (bv w) x86_80 := ⟨prim.bv_to_x86_80 w⟩
+instance bv_to_x86_80  (w:one_of [16,32]) : Coe (expression (bv w)) (expression x86_80) := 
+  ⟨expression.app (prim.bv_to_x86_80 w)⟩
 
 ------------------------------------------------------------------------
 -- Left-hand sides for assignments.
@@ -753,79 +757,85 @@ end lhs
 
 namespace expression
 def of_lhs : ∀{tp:type}, lhs tp → expression tp
-| ._, (lhs.set_reg r) => expression.get_reg r
-| ._, (lhs.write_addr a tp) => expression.read tp a
-| ._, (lhs.write_arg idx tp) => expression.read_arg idx tp
-| ._, (lhs.streg idx) => expression.streg idx
+| _, (lhs.set_reg r) => expression.get_reg r
+| _, (lhs.write_addr a tp) => expression.read tp a
+| _, (lhs.write_arg idx tp) => expression.read_arg idx tp
+| _, (lhs.streg idx) => expression.streg idx
 
-instance all_lhs_is_expression : has_coe1 lhs expression := ⟨fun _ => expression.of_lhs⟩
-
-instance lhs_is_expression (tp:type) : HasCoe (lhs tp) (expression tp) := ⟨expression.of_lhs⟩
+instance all_lhs_is_expression {tp:type} : Coe (lhs tp) (expression tp) := 
+  ⟨expression.of_lhs⟩
+instance all_lhs_is_expression' : has_coe1 lhs expression := 
+  ⟨expression.of_lhs⟩
 
 end expression
 
+namespace lhs
+
+def expr {tp : type} (l : lhs tp) : expression tp := expression.of_lhs l
+
+end lhs
 
 section
 
 def reg8lLhs (i:Fin 16) : lhs (bv 8) := lhs.set_reg $ concrete_reg.gpreg i gpreg_type.reg8l
 def reg8hLhs (i:Fin 16) : lhs (bv 8) := lhs.set_reg $ concrete_reg.gpreg i gpreg_type.reg8h
 
-def al  := reg8lLhs 0
-def cl  := reg8lLhs 1
-def dl  := reg8lLhs 2
-def bl  := reg8lLhs 3
-def spl := reg8lLhs 4
-def bpl := reg8lLhs 5
-def sil := reg8lLhs 6
-def dil := reg8lLhs 7
-def ah  := reg8hLhs 0
+def al  := reg8lLhs $ Fin.ofNat 0
+def cl  := reg8lLhs $ Fin.ofNat 1
+def dl  := reg8lLhs $ Fin.ofNat 2
+def bl  := reg8lLhs $ Fin.ofNat 3
+def spl := reg8lLhs $ Fin.ofNat 4
+def bpl := reg8lLhs $ Fin.ofNat 5
+def sil := reg8lLhs $ Fin.ofNat 6
+def dil := reg8lLhs $ Fin.ofNat 7
+def ah  := reg8hLhs $ Fin.ofNat 0
 
 def reg16Lhs (i:Fin 16) := lhs.set_reg $ concrete_reg.gpreg i gpreg_type.reg16
 
-def ax := reg16Lhs 0
-def cx := reg16Lhs 1
-def dx := reg16Lhs 2
-def bx := reg16Lhs 3
+def ax := reg16Lhs $ Fin.ofNat 0
+def cx := reg16Lhs $ Fin.ofNat 1
+def dx := reg16Lhs $ Fin.ofNat 2
+def bx := reg16Lhs $ Fin.ofNat 3
 
 def reg32Lhs (i:Fin 16) := lhs.set_reg $ concrete_reg.gpreg i gpreg_type.reg32
 
-def eax := reg32Lhs 0
-def ecx := reg32Lhs 1
-def edx := reg32Lhs 2
-def ebx := reg32Lhs 3
+def eax := reg32Lhs $ Fin.ofNat 0
+def ecx := reg32Lhs $ Fin.ofNat 1
+def edx := reg32Lhs $ Fin.ofNat 2
+def ebx := reg32Lhs $ Fin.ofNat 3
 
 def reg64Lhs (i:Fin 16) := lhs.set_reg $ concrete_reg.gpreg i gpreg_type.reg64
 
-def rax := reg64Lhs 0
-def rcx := reg64Lhs 1
-def rdx := reg64Lhs 2
-def rbx := reg64Lhs 3
-def rsp := reg64Lhs 4
-def rbp := reg64Lhs 5
-def rsi := reg64Lhs 6
-def rdi := reg64Lhs 7
-def r8  := reg64Lhs 8
-def r9  := reg64Lhs 9
-def r10 := reg64Lhs 10
-def r11 := reg64Lhs 11
-def r12 := reg64Lhs 12
-def r13 := reg64Lhs 13
-def r14 := reg64Lhs 14
-def r15 := reg64Lhs 15
+def rax := reg64Lhs $ Fin.ofNat 0
+def rcx := reg64Lhs $ Fin.ofNat 1
+def rdx := reg64Lhs $ Fin.ofNat 2
+def rbx := reg64Lhs $ Fin.ofNat 3
+def rsp := reg64Lhs $ Fin.ofNat 4
+def rbp := reg64Lhs $ Fin.ofNat 5
+def rsi := reg64Lhs $ Fin.ofNat 6
+def rdi := reg64Lhs $ Fin.ofNat 7
+def r8  := reg64Lhs $ Fin.ofNat 8
+def r9  := reg64Lhs $ Fin.ofNat 9
+def r10 := reg64Lhs $ Fin.ofNat 10
+def r11 := reg64Lhs $ Fin.ofNat 11
+def r12 := reg64Lhs $ Fin.ofNat 12
+def r13 := reg64Lhs $ Fin.ofNat 13
+def r14 := reg64Lhs $ Fin.ofNat 14
+def r15 := reg64Lhs $ Fin.ofNat 15
 
 def flagregLhs (i:Fin 32) := lhs.set_reg $ concrete_reg.flagreg i
 
-def cf  := flagregLhs  0
-def pf  := flagregLhs  2
-def af  := flagregLhs  4
-def zf  := flagregLhs  6
-def sf  := flagregLhs  7
-def tf  := flagregLhs  8
-def if' := flagregLhs  9
-def df  := flagregLhs 10
-def of  := flagregLhs 11
+def cf  := flagregLhs $ Fin.ofNat  0
+def pf  := flagregLhs $ Fin.ofNat  2
+def af  := flagregLhs $ Fin.ofNat  4
+def zf  := flagregLhs $ Fin.ofNat  6
+def sf  := flagregLhs $ Fin.ofNat  7
+def tf  := flagregLhs $ Fin.ofNat  8
+def if' := flagregLhs $ Fin.ofNat  9
+def df  := flagregLhs $ Fin.ofNat 10
+def of  := flagregLhs $ Fin.ofNat 11
 
-def st0 : lhs x86_80 := lhs.streg 0
+def st0 : lhs x86_80 := lhs.streg $ Fin.ofNat 0
 
 end
 
@@ -893,30 +903,32 @@ def context.add (b:binding) (ctx:context) : context :=
 -- instance : HasInsert binding context := ⟨context.add⟩
 def context.insert := context.add
 
-instance : HasEmptyc context :=
-⟨{bindings := []}⟩
+def context.empty : context := {bindings := []}
+
+instance : EmptyCollection context :=
+  ⟨context.empty⟩
 
 ------------------------------------------------------------------------
 -- Patterns
 
 structure pattern :=
-(context : context)
-(actions : List action)
+  (context : context)
+  (actions : List action)
 
 ------------------------------------------------------------------------
 -- instruction
 
 structure instruction :=
-(mnemonic:String)
-(patterns:List pattern)
+  (mnemonic:String)
+  (patterns:List pattern)
 
 ------------------------------------------------------------------------
 -- is_bound_var
 
 -- Class for types that may be used as arguments in defining semantics.
 class is_bound_var (tp:Type) :=
-(to_binding{} : binding)
-(mk_arg{} : arg_index → tp)
+  (to_binding{} : binding)
+  (mk_arg{} : arg_index → tp)
 
 -- instance one_of_is_bound_var (range:List Nat) : is_bound_var (one_of range) :=
 -- { to_binding := binding.one_of range
@@ -971,10 +983,12 @@ structure semantics (α:Type) :=
 (monad : StateM semantics_state α)
 
 instance : Monad semantics :=
-{ pure := fun _ x => { monad := pure x }
-, bind := fun _ _ m h => { monad := m.monad >>= fun v => (h v).monad }
-, map := fun _ _ f m => { monad := f <$> m.monad }
+{ pure := fun x => { monad := pure x }
+, bind := fun m h => { monad := m.monad >>= fun v => (h v).monad }
 }
+
+instance : Functor semantics :=
+  { map := fun f m => { monad := f <$>  m.monad } }
 
 namespace semantics
 
@@ -982,7 +996,7 @@ namespace semantics
 protected
 def next_local_index : semantics Nat :=
   { monad := do
-      s ← get;
+      let s ← get;
       set { s with local_variable_count := s.local_variable_count + 1 };
       pure s.local_variable_count
   }
@@ -1020,7 +1034,7 @@ def set_cond {tp:type} (l:lhs tp) (c: expression bit) (v:expression tp) : semant
 
 --- Evaluate the given expression and return a local expression that will not mutate.
 def eval {tp : type} (v:expression tp) : semantics (expression tp) := do
-  idx ← semantics.next_local_index;
+  let idx ← semantics.next_local_index;
   semantics.add_action (action.local_def idx v);
   pure (expression.get_local idx tp)
 
@@ -1106,14 +1120,16 @@ instance pattern_list_is_monad_state : MonadState (List pattern) pattern_list
 -- end
 
 -- Record pattern in current instruction
-def mk_pattern {α:Type} [h : pattern_def ∅ α] (x:α) : pattern_list Unit := do
-  modify (List.append (pattern_def.define ∅ x))
+ def mk_pattern {α:Type} [h : pattern_def ∅ α] (x:α) : pattern_list Unit := do
+   modify (List.append (pattern_def.define ∅ x))
+def instr_pat {α:Type} [h : pattern_def context.empty α] (x:α) : pattern_list Unit := do
+  modify (List.append (pattern_def.define context.empty x))
 
 
 ------------------------------------------------------------------------
 -- definst
 
--- Create an instruction definition from mnemonic name and likst of patterns.
+-- Create an instruction definition from mnemonic name and list of patterns.
 def definst (mnem:String) (pat: pattern_list Unit) : instruction :=
 { mnemonic := mnem
 , patterns := (pat.run []).snd.reverse

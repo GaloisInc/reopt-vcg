@@ -98,7 +98,7 @@ else
 theorem updMapWS : ∀ {e : Env} (x : Symbol) (xCS : ConstSort) (pf : e x = none)
                    {cs : ConstSort} {t : Term cs} (ws : WS e t), WS (updMap e x xCS) t
 -- const
-| e, x, xCS, _, _, (Term.const _ sc), _ =>
+| e, x, xCS, pf, (ConstSort.base _), (Term.const _ sc), _ =>
   WS.const (updMap e x xCS) sc
 -- ident
 | _, x, xCS, pf, _, (Term.ident y), (Term.WS.ident yWS) =>
@@ -227,24 +227,24 @@ inductive Interp : forall (e:Env) (m:Model e) {cs:ConstSort}, WSTerm e cs → cs
 -- forall holds
 | smtForallTrue : ∀ (e : Env) (m:Model e) {s : SmtSort} (x : SortedVar s)
                   (t : WSTerm (updMap e x.var (ConstSort.base s)) ConstSort.bool),
-  (∀ (v : s.denote.type), Interp (updMap e x.var (ConstSort.base s)) (m.extend x.var v) t true) →
+  (∀ (v : s.denote.type), Interp (updMap e x.var (ConstSort.base s)) (@Model.extend _ (ConstSort.base s) m x.var v) t true) →
   Interp e m ⟨Term.smtForall x t.term, WS.smtForall t.ws⟩ true
 -- forall does not hold
 | smtForallFalse : ∀ (e : Env) (m:Model e) {s : SmtSort} (x : SortedVar s) 
                   (t : WSTerm (updMap e x.var (ConstSort.base s)) ConstSort.bool)
                   (witness : s.denote.type),
-  Interp (updMap e x.var (ConstSort.base s)) (m.extend x.var witness) t false →
+  Interp (updMap e x.var (ConstSort.base s)) (@Model.extend _ (ConstSort.base s) m x.var witness) t false →
   Interp e m ⟨Term.smtForall x t.term, WS.smtForall t.ws⟩ false
 -- exists holds
 | smtExistsTrue : ∀ (e : Env) (m:Model e) {s : SmtSort} (x : SortedVar s) 
                   (t : WSTerm (updMap e x.var (ConstSort.base s)) ConstSort.bool)
                   (witness : s.denote.type),
-  Interp (updMap e x.var (ConstSort.base s)) (m.extend x.var witness) t true →
+  Interp (updMap e x.var (ConstSort.base s)) (@Model.extend _ (ConstSort.base s) m x.var witness) t true →
   Interp e m ⟨Term.smtExists x t.term, WS.smtExists t.ws⟩ true
 -- exists does not hold
 | smtExistsFalse : ∀ (e : Env) (m:Model e) {s : SmtSort} (x : SortedVar s) 
                      (t : WSTerm (updMap e x.var (ConstSort.base s)) ConstSort.bool),
-  (∀ (v : s.denote.type), Interp (updMap e x.var (ConstSort.base s)) (m.extend x.var v) t false) →
+  (∀ (v : s.denote.type), Interp (updMap e x.var (ConstSort.base s)) (@Model.extend _ (ConstSort.base s) m x.var v) t false) →
   Interp e m ⟨Term.smtExists x t.term, WS.smtExists t.ws⟩ false
 
 
@@ -342,18 +342,21 @@ def defineFun
   {cdom : SmtSort}
   (body : Term (ConstSort.base cdom))
   (wsPf : Term.WS (ctx.env.extendMany dom) body) : Context :=
-let f : NamedFunDef := ⟨fNm, ⟨dom, cdom, body⟩⟩;
-let env' := ctx.env.extend f.name f.funSort;
-let defines' := f::ctx.defines;
-let fWS : NamedFunDef.WS env' f := ⟨upd.atKey ctx.env fNm (some f.funSort), FunDef.updMapWS fNm f.funSort pf ⟨wsPf⟩⟩;
-let wsDefines' : defines'.Forall (NamedFunDef.WS env') :=
-  List.Forall.cons fWS (ctx.wsDefines.map (@NamedFunDef.updMapWS ctx.env f.name f.funSort pf));
-{ctx with
-  env := env',
-  wsAsserts := ctx.wsAsserts.map (@Term.updMapWS ctx.env f.name f.funSort pf ConstSort.bool),
-  defines := defines',
-  wsDefines := wsDefines'
-}
+  let f : NamedFunDef := ⟨fNm, ⟨dom, cdom, body⟩⟩;
+  let env' := ctx.env.extend f.name f.funSort;
+  let defines' := f::ctx.defines;
+  have bodyWS : Term.WS (ctx.env.extendMany f.funDef.domain) f.funDef.body from wsPf
+  have fDefWS : FunDef.WS ctx.env f.funDef from ⟨bodyWS⟩
+  have fWS : NamedFunDef.WS env' f from 
+    ⟨upd.atKey ctx.env f.name (some f.funSort), FunDef.updMapWS f.name f.funSort pf fDefWS⟩
+  have wsDefines' : defines'.Forall (NamedFunDef.WS env') from
+    List.Forall.cons fWS (ctx.wsDefines.map (@NamedFunDef.updMapWS ctx.env f.name f.funSort pf))
+  {ctx with
+    env := env',
+    wsAsserts := ctx.wsAsserts.map (@Term.updMapWS ctx.env f.name f.funSort pf ConstSort.bool),
+    defines := defines',
+    wsDefines := wsDefines'
+  }
 
 end Context
 

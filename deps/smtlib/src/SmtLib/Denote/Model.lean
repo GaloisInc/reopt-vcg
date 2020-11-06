@@ -28,7 +28,7 @@ namespace Model
 def extend {e : Env} {cs : ConstSort} (m : Model e) (k : Symbol) (v : cs.denote) 
   : Model (e.extend k cs) :=
    let pf : forall {sym} (pf : k = sym), denoteDefault ((e.extend k cs) sym) = cs.denote :=
-     fun _ pf => congrArg denoteDefault (difPos pf);
+     fun pf => congrArg denoteDefault (difPos pf);
   { values := fun sym => 
            if H : k = sym then cast (pf H).symm v 
            else 

@@ -7,8 +7,8 @@ namespace LoadElf
 open elf
 
 def loadElfTest (filePath : String) : IO String := do
-(hdr, phdrs, elfMem) ← ReoptVCG.loadElf filePath;
-pure "pass"
+  let (hdr, phdrs, elfMem) ← ReoptVCG.loadElf filePath;
+  pure "pass"
 
 
 /-
@@ -35,42 +35,42 @@ ELF Header:
   Section header string table index: 15
 -/
 def loadAndCheckAddElfHdr (homeDir : String) : IO String := do
-(hdr, phdrs, elfMem) ← ReoptVCG.loadElf (homeDir ++ "/test-programs/test_add_diet_lld.exe");
-unless (hdr.elf_data.repr == "ELFDATA2LSB") $
-  IO.println $ "Incorrect elf_data: " ++ hdr.elf_data.repr;
-unless (hdr.osabi.val.toNat == 0) $
-  IO.println $ "Incorrect osabi: " ++ hdr.osabi.val.toNat.repr;
-unless (hdr.abi_version.toNat == 0) $
-  IO.println $ "Incorrect abi_version: " ++ hdr.abi_version.toNat.repr;
-unless (hdr.elf_type.val.toNat == 2) $
-  IO.println $ "Incorrect elf_type: " ++ hdr.elf_type.val.toNat.repr;
-unless (hdr.machine.val.toNat == 62) $
-  IO.println $ "Incorrect machine: " ++ hdr.machine.val.toNat.repr;
-unless (hdr.entry.toNat == 0x201367) $
-  IO.println $ "Incorrect entry point address: " ++ repr hdr.entry.toNat;
-unless (hdr.phoff.toNat == 64) $
-  IO.println $ "Incorrect program header table offset: " ++ hdr.phoff.toNat.repr;
-unless (hdr.shoff.toNat == 4248) $
-  IO.println $ "Incorrect section header table offset: " ++ hdr.shoff.toNat.repr;
-unless (hdr.flags.toNat == 0) $
-  IO.println $ "Incorrect elf header flags: " ++ hdr.flags.toNat.repr;
-unless (hdr.phnum.toNat == 6) $
-  IO.println $ "Incorrect number of program headers: " ++ hdr.phnum.toNat.repr;
-unless (hdr.shnum.toNat == 17) $
-  IO.println $ "Incorrect number of section headers: " ++ hdr.shnum.toNat.repr;
-unless (hdr.shstrndx.toNat == 15) $
-  IO.println $ "Incorrect section header string table index: " ++ hdr.shstrndx.toNat.repr;
-pure "done"
+  let (hdr, phdrs, elfMem) ← ReoptVCG.loadElf (homeDir ++ "/test-programs/test_add_diet_lld.exe");
+  unless (hdr.elf_data.repr == "ELFDATA2LSB") do
+    IO.println $ "Incorrect elf_data: " ++ hdr.elf_data.repr;
+  unless (hdr.osabi.val.toNat == 0) do
+    IO.println $ "Incorrect osabi: " ++ hdr.osabi.val.toNat.repr;
+  unless (hdr.abi_version.toNat == 0) do
+    IO.println $ "Incorrect abi_version: " ++ hdr.abi_version.toNat.repr;
+  unless (hdr.elf_type.val.toNat == 2) do
+    IO.println $ "Incorrect elf_type: " ++ hdr.elf_type.val.toNat.repr;
+  unless (hdr.machine.val.toNat == 62) do
+    IO.println $ "Incorrect machine: " ++ hdr.machine.val.toNat.repr;
+  unless (hdr.entry.toNat == 0x201367) do
+    IO.println $ "Incorrect entry point address: " ++ repr hdr.entry.toNat;
+  unless (hdr.phoff.toNat == 64) do
+    IO.println $ "Incorrect program header table offset: " ++ hdr.phoff.toNat.repr;
+  unless (hdr.shoff.toNat == 4248) do
+    IO.println $ "Incorrect section header table offset: " ++ hdr.shoff.toNat.repr;
+  unless (hdr.flags.toNat == 0) do
+    IO.println $ "Incorrect elf header flags: " ++ hdr.flags.toNat.repr;
+  unless (hdr.phnum.toNat == 6) do
+    IO.println $ "Incorrect number of program headers: " ++ hdr.phnum.toNat.repr;
+  unless (hdr.shnum.toNat == 17) do
+    IO.println $ "Incorrect number of section headers: " ++ hdr.shnum.toNat.repr;
+  unless (hdr.shstrndx.toNat == 15) do
+    IO.println $ "Incorrect section header string table index: " ++ hdr.shstrndx.toNat.repr;
+  pure "done"
 
 
 def test : IO UInt32 := do
-homeDir ← (do
-  maybeVal ← IO.getEnv "REOPTVCGHOME";
-  pure $ maybeVal.getD (panic "REOPTVCGHOME environment variable not set"));
-loadElfTest (homeDir ++ "/test-programs/test_add_diet_lld.exe") >>= IO.println;
-loadElfTest (homeDir ++ "/test-programs/test_fib_diet_lld.exe") >>= IO.println;
-loadAndCheckAddElfHdr homeDir >>= IO.println;
-pure 0
+  let homeDir ← (do
+    let maybeVal ← IO.getEnv "REOPTVCGHOME";
+    pure $ maybeVal.getD (panic "REOPTVCGHOME environment variable not set"));
+  loadElfTest (homeDir ++ "/test-programs/test_add_diet_lld.exe") >>= IO.println;
+  loadElfTest (homeDir ++ "/test-programs/test_fib_diet_lld.exe") >>= IO.println;
+  loadAndCheckAddElfHdr homeDir >>= IO.println;
+  pure 0
 
 
 end LoadElf
