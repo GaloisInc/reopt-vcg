@@ -4,15 +4,13 @@
 import SmtLib.Smt
 import ReoptVCG.VCGBackend
 import ReoptVCG.WordSize
+import ReoptVCG.Types
 
 namespace x86
 namespace vcg
 
 open Smt (SmtSort SmtSort.bool SmtSort.bitvec SmtSort.array Term SmtM Command)
-
-
-abbrev memory_t := SmtSort.array (SmtSort.bitvec 64) (SmtSort.bitvec 8)
-def memory := Term memory_t
+open ReoptVCG
 
 -------------------------------------------------------
 -- MC memory operations
@@ -46,10 +44,6 @@ def read_word (n : Nat) (m : memory) (addr : memaddr) : bitvec (8 * n) :=
 
 end memory
 
-structure SupportedMemType (s : SmtSort) :=
-  (readMem  : memory -> memaddr -> Smt.Term s)
-  (writeMem : memory -> memaddr -> Smt.Term s -> memory)
-
 namespace SupportedMemType
 
 def make (nBytes : Nat) : SmtM (SupportedMemType (SmtSort.bitvec (8 * nBytes))) := do
@@ -62,13 +56,6 @@ def make (nBytes : Nat) : SmtM (SupportedMemType (SmtSort.bitvec (8 * nBytes))) 
 
 end SupportedMemType
 
--- FIXME: the name is wrong, maybe something like MCSMTContext or something?
--- cf. `mcMemDecls`
-structure MCStdLib :=
-  (memOps        : forall (w : WordSize), SupportedMemType w.sort)
-  (funStartRegs  : RegState)
-  (blockStartMem : memory)
-  (onStack       : memaddr -> bitvec 64 -> s_bool)
 
 namespace MCStdLib
 
@@ -128,31 +115,51 @@ def defineNotInStackRange (stack_alloc_min : memaddr) (stack_max : memaddr)
                    (Smt.bvule stack_max addr))
 
 
--- FIXME: define
--- def defineMCOnlyStackRange (on_stack : memaddr -> bitvec 64 -> s_bool) (allocas : ... )
---   : SmtM (memaddr -> bitvec 64 -> s_bool) := do
---   eName <- Smt.freshSymbol "e";
---   Smt.define_fun "mc_only_stack_range" [SmtSort.bitvec 64, SmtSort.bitvec 64] SmtSort.bool $
---     fun addr sz => 
---       Smt.smtLet eName (Smt.bvadd addr sz) $ fun e =>
---         Smt.and (on_stack addr sz)
---                      -- ++ [ isDisjoint ("a", "e") (allocaMCBaseVar nm, allocaMCEndVar nm)
---                      --    | a <- allocas
---                      --    , let nm = Ann.allocaIdent a
---                      --    ]
+def defineIsInMCOnlyStackRange
+  (onStack : (memaddr -> bitvec 64 -> s_bool))
+  (allocas : Std.RBMap LocalIdent AllocaMC (λ x y => x < y))
+  : SmtM (memaddr -> bitvec 64 -> s_bool) := do
+  eName <- Smt.freshSymbol "e";
+  Smt.defineFun "is_in_mc_only_stack_range" [SmtSort.bitvec 64, SmtSort.bitvec 64] SmtSort.bool $
+    fun addr sz =>
+      Smt.smtLet eName (Smt.bvadd addr sz) $ fun e =>
+        Smt.all $
+          (onStack addr sz)::(allocas.fold
+                               (λ ps _ a =>
+                                  (isDisjoint addr e a.baseAddress a.endAddress)::ps)
+                               [])
 
 
 -- nbits should be > 0, nbits should be a power of 2
 def isAligned {n : Nat} (v : bitvec n) (nbits : Nat) : s_bool := 
   Smt.eq (Smt.bvand v (Smt.bvimm _ (nbits - 1))) (Smt.bvimm _ 0)
 
+
+/-- @allocaMCBaseEndDecls a@ introduces variables for defining the
+    extent in the machine code stack of an LLVM alloca. --/
+def allocaMCBaseEndDecls (a : AllocaAnn) (stackHighTerm : bitvec 64) : SmtM AllocaMC := do
+let nm : String := a.ident.name;
+let baseNm : String := "alloca_" ++ nm ++ "_mc_base";
+let baseAddr : bitvec 64 := Smt.bvimm 64 a.binOffset;
+let endNm := "alloca_" ++ nm ++ "_mc_end";
+let endAddr : bitvec 64 := Smt.bvsub baseAddr (Smt.bvimm 64 a.size);
+-- Define machine code base for allocation.
+baseTerm ← Smt.defineFun baseNm [] (SmtSort.bitvec 64) $ Smt.bvsub stackHighTerm baseAddr;
+endTerm ← Smt.defineFun endNm [] (SmtSort.bitvec 64) $ Smt.bvsub stackHighTerm endAddr;
+-- Introduce predicate to check machine-code addresses.
+let predNm : String := "mcaddr_in_alloca_" ++ nm;
+rangeCheck ← defineRangeCheck predNm baseTerm endTerm;
+pure {baseAddress := baseTerm,
+      endAddress  := endTerm,
+      isInAlloca  := rangeCheck}
+
 namespace MCStdLib
 
 -- FIXME
 def rsp_idx : Fin 16 := 4
 
--- FIXME: some of this is not used in the absence of allocas
-def make (ip : Nat) (pageSize : Nat) (guardPageCount : Nat) : SmtM MCStdLib := do
+
+def make (ip : Nat) (pageSize : Nat) (guardPageCount : Nat) (allocas : AllocaAnnMap) : SmtM MCStdLib := do
   -- FIXME: add checks
   memOps <- mkMemOps;
 
@@ -195,13 +202,22 @@ def make (ip : Nat) (pageSize : Nat) (guardPageCount : Nat) : SmtM MCStdLib := d
   -- The return address top must be aligned to a 16-byte boundary.
   Smt.assert $ isAligned (Smt.bvadd stackHighTerm (Smt.bvimm _ 8)) 16;
 
-  -- ++ concatMap allocaMCBaseEndDecls allocas -- FIXME
-  -- Declare mcOnlyStackRange
-  -- defineMCOnlyStackRange onStack
-  pure { memOps       := memOps
-       , funStartRegs := funStartRegs  
+  allocaMap ← allocas.foldM
+               (λ (m : Std.RBMap LocalIdent AllocaMC (λ x y => x<y))
+                  (ident : LocalIdent)
+                  (alloc : AllocaAnn) => do
+                  mcAlloc ← allocaMCBaseEndDecls alloc stackHighTerm;
+                  pure $ m.insert ident mcAlloc)
+               Std.RBMap.empty;
+  -- Declare isInMCOnlyStackRange
+  isInMCOnlyStackRange ← defineIsInMCOnlyStackRange onStack allocaMap;
+  pure { memOps        := memOps
+       , funStartRegs  := funStartRegs
        , blockStartMem := blockStartMem
-       , onStack      := onStack
+       , onStack       := onStack
+       , allocaMap     := allocaMap
+       , notInStack    := notInStack
+       , isInMCOnlyStackRange := isInMCOnlyStackRange
        }
 
 

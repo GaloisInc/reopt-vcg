@@ -328,7 +328,7 @@ def get_text_segment {c} (e : elf.ehdr c) (phdrs : List (elf.phdr c)) : Option (
 
 def runVerificationEvent (ps : ProverSession) : VerificationEvent → IO Unit
 | VerificationEvent.msg vMsg => IO.println vMsg.msg
-| VerificationEvent.goal vg => ps.checkSatAssuming vg
+| VerificationEvent.goal vg => ps.verifyGoal vg
 
 def runBlockVerificationEvent (ps : ProverSession) : BlockVerificationEvent → IO Unit
 | BlockVerificationEvent.block bv => bv.blockVerificationEvents.forM (runVerificationEvent ps)
@@ -386,7 +386,8 @@ when cfg.verbose $ IO.println $ "Running VCG for the module...";
 fvEvents.forM (runFnVerificationEvent proverSession);
 -- print out results
 if mState.errorCount > 0 then do
-  _ ← IO.println (repr mState.errorCount ++ " errors during verification.");
+  _ ← proverSession.sessionComplete;
+  _ ← IO.println (repr mState.errorCount ++ " errors were encountered.");
   pure 1
 else proverSession.sessionComplete
 

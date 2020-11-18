@@ -454,6 +454,38 @@ def fromName : String → Option reg64
 
 end reg64
 
+
+abbrev flag := concrete_reg bit
+
+namespace flag
+
+private def mkFlag (idx: Fin 32) : flag := concrete_reg.flagreg idx
+
+def cf  := mkFlag  0
+def pf  := mkFlag  2
+def af  := mkFlag  4
+def zf  := mkFlag  6
+def sf  := mkFlag  7
+def tf  := mkFlag  8
+def if' := mkFlag  9
+def df  := mkFlag 10
+def of  := mkFlag 11
+
+def fromName : String -> Option flag 
+| "cf" => some cf 
+| "pf" => some pf 
+| "af" => some af 
+| "zf" => some zf 
+| "sf" => some sf 
+| "tf" => some tf 
+| "if" => some if'
+| "df" => some df 
+| "of" => some of 
+| _    => none
+
+end flag
+
+
 namespace reg
 
 protected

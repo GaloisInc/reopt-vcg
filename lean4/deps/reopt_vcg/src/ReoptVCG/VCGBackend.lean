@@ -9,6 +9,10 @@ import SmtLib.Smt
 import X86Semantics.Common
 import X86Semantics.BackendAPI
 
+import DecodeX86.DecodeX86
+import ReoptVCG.Types
+import ReoptVCG.Translate -- FIXME: this should be moved elsewhere
+
 import ReoptVCG.Annotations
 
 namespace x86
@@ -32,11 +36,12 @@ def byte    := bitvec 8
 def machine_word := bitvec 64
 def avx_word := bitvec 256
 
-structure RegState : Type :=
-  (gpregs : Array machine_word) -- 16
-  (flags  : Array s_bool) -- 32
-  (avxregs : Array avx_word)  
-  (ip     : machine_word)
+
+/-- The statement that either [low1,high1) preceeds and does not overlap
+    [low2,high2) or vice versa. --/
+def isDisjoint (low1 high1 low2 high2 : bitvec 64) : s_bool :=
+Smt.or (Smt.bvule high1 low2) (Smt.bvule high2 low1)
+
 
 namespace RegState
 
@@ -68,9 +73,6 @@ def get_reg64' (n : Nat) (pf : n = 64) (s : RegState) (r : concrete_reg (bv n)) 
   | _, pf, concrete_reg.avxreg _ avxreg_type.xmm => 
     let pf' : ¬ (Eq 128 64) := Nat.neOfBeqEqFf rfl; absurd pf pf'
 
-def get_reg64 (s : RegState) (r : concrete_reg (bv gpreg_type.reg64.width)) : machine_word :=
-  get_reg64' _ rfl s r
-
 def update_reg64' (n : Nat) (pf : n = 64) (r : concrete_reg (bv n)) 
                   (f : machine_word -> machine_word) (s : RegState) : RegState :=
   match n, pf, r with
@@ -79,6 +81,18 @@ def update_reg64' (n : Nat) (pf : n = 64) (r : concrete_reg (bv n))
     let pf' : ¬ (Eq 256 64) := Nat.neOfBeqEqFf rfl; absurd pf pf'
   | _, pf, concrete_reg.avxreg _ avxreg_type.xmm => 
     let pf' : ¬ (Eq 128 64) := Nat.neOfBeqEqFf rfl; absurd pf pf'
+
+def get_flag'  (s : RegState) (r : concrete_reg bit) : s_bool :=
+  match r with
+  | concrete_reg.flagreg idx => get_flag s idx
+
+def update_flag'  (r : concrete_reg bit)
+                  (f : s_bool -> s_bool) (s : RegState) : RegState :=
+  match r with
+  | concrete_reg.flagreg idx => update_flag idx f s
+
+def get_reg64 (s : RegState) (r : concrete_reg (bv gpreg_type.reg64.width)) : machine_word :=
+  get_reg64' _ rfl s r
 
 def update_reg64  (r : concrete_reg (bv gpreg_type.reg64.width)) 
                   (f : machine_word -> machine_word) (s : RegState) : RegState :=
@@ -116,40 +130,6 @@ def declare_const (pfx : String) (ip : Nat) : SmtM RegState := do
 
 end RegState
 
--- This mirrors the Haskell prototype as far as possible, hence the slightly verbose names.
-inductive Event
-  | Command : Smt.Command -> Event
-  | Warning : String -> Event
-    -- ^ We added a warning about an issue in the VCG
-  | MCOnlyStackReadEvent : memaddr -> forall (n : Nat), bitvec n -> Event
-    -- ^ `MCOnlyReadEvent a w v` indicates that we read `w` bytes
-    -- from `a`, and assign the value returned to `v`.  This only
-    -- appears in the binary code.
-  | JointStackReadEvent : memaddr -> forall (n : Nat), bitvec n -> ReoptVCG.LocalIdent -> Event
-    -- ^ `JointReadEvent a w v llvmAlloca` indicates that we read `w` bytes from `a`,
-    -- and assign the value returned to `v`.  This appears in the both the binary
-    -- and LLVM.  The alloca name refers to the LLVM allocation this is part of,
-    -- and otherwise this is a binary only read.
-  | NonStackReadEvent : memaddr -> forall (n : Nat), bitvec n -> Event
-    -- ^ `NonStackReadEvent a w v` indicates that we read `w` bytes
-    -- from `a`, and assign the value returned to `v`.  The address `a` should not
-    -- be in the stack.
-  | MCOnlyStackWriteEvent : memaddr -> forall (n : Nat), bitvec n -> Event
-    -- ^ `MCOnlyStackWriteEvent a tp v` indicates that we write the `w` byte value `v`  to `a`.
-    --
-    -- This has side effects, so we record the event.
-  | JointStackWriteEvent : memaddr -> forall (n : Nat), bitvec n -> ReoptVCG.LocalIdent -> Event 
-    -- ^ `JointStackWriteEvent a w v` indicates that we write the `w` byte value `v`  to `a`.
-    -- The write affects the alloca pointed to by Allocaname.
-    --
-    -- This has side effects, so we record the event.
-  | NonStackWriteEvent : memaddr -> forall (n : Nat), bitvec n -> Event
-    -- ^ `NonStackWriteEvent a w v` indicates that we write the `w` byte value `v`  to `a`.  The
-    -- address `a` should not be in the stack.
-    --
-    -- This has side effects, so we record the event.
-  | FetchAndExecuteEvent : RegState -> Event
-    -- ^ A fetch and execute
 
 namespace Event
 

@@ -7,91 +7,91 @@ LLVM module loaded!
 Compiling VCG data for the module...
 Running VCG for the module...
 Analyzing `fib`
-  Verifying machine code write at 0x201000 is in unreserved stack space.... OK
-  Verifying machine code write at 0x201008 is in unreserved stack space.... OK
-  Verifying machine code read at 0x20100c is not within stack space.... OK
-  Verifying true branch register rip.... OK
-  Verifying true branch precondition: (= (llvm t5) rdi)... OK
-  Verifying true branch precondition: (= (llvm t5) (mcstack (bvsub stack_high (_ bv24 64)) (_ BitVec 64)))... OK
-  Verifying true branch precondition: (= rbx (fnstart rbx))... OK
-  Verifying true branch precondition: (= rsp (bvsub stack_high (_ bv40 64)))... OK
-  Verifying true branch precondition: (= rbp (bvsub stack_high (_ bv8 64)))... OK
-  Verifying true branch precondition: (= r12 (fnstart r12))... OK
-  Verifying true branch precondition: (= r13 (fnstart r13))... OK
-  Verifying true branch precondition: (= r14 (fnstart r14))... OK
-  Verifying true branch precondition: (= r15 (fnstart r15))... OK
-  Verifying true branch precondition: (= rdi (mcstack (bvsub stack_high (_ bv24 64)) (_ BitVec 64)))... OK
-  Verifying true branch precondition: (= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))... OK
-  Verifying false branch register rip.... OK
-  Verifying false branch precondition: (= (llvm t4) rdi)... OK
-  Verifying false branch precondition: (= (llvm t4) (mcstack (bvsub stack_high (_ bv24 64)) (_ BitVec 64)))... OK
-  Verifying false branch precondition: (= rbx (fnstart rbx))... OK
-  Verifying false branch precondition: (= rsp (bvsub stack_high (_ bv40 64)))... OK
-  Verifying false branch precondition: (= rbp (bvsub stack_high (_ bv8 64)))... OK
-  Verifying false branch precondition: (= r12 (fnstart r12))... OK
-  Verifying false branch precondition: (= r13 (fnstart r13))... OK
-  Verifying false branch precondition: (= r14 (fnstart r14))... OK
-  Verifying false branch precondition: (= r15 (fnstart r15))... OK
-  Verifying false branch precondition: (= rdi (mcstack (bvsub stack_high (_ bv24 64)) (_ BitVec 64)))... OK
-  Verifying false branch precondition: (= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))... OK
-  Verifying machine code read at 0x201017 is not within stack space.... OK
-  Verifying machine code write at 0x20101b is in unreserved stack space.... OK
-  Verifying jump register rip.... OK
-  Verifying jump precondition: (= (llvm t15) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 64)))... OK
-  Verifying jump precondition: (= rbx (fnstart rbx))... OK
-  Verifying jump precondition: (= rsp (bvsub stack_high (_ bv40 64)))... OK
-  Verifying jump precondition: (= rbp (bvsub stack_high (_ bv8 64)))... OK
-  Verifying jump precondition: (= r12 (fnstart r12))... OK
-  Verifying jump precondition: (= r13 (fnstart r13))... OK
-  Verifying jump precondition: (= r14 (fnstart r14))... OK
-  Verifying jump precondition: (= r15 (fnstart r15))... OK
-  Verifying jump precondition: (= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))... OK
-  Verifying machine code read at 0x201024 is not within stack space.... OK
-  Verifying machine code write at 0x201031 is in unreserved stack space.... OK
+  Verifying fib.block_0_201000.4 @ 0x201000: machine code write at 0x201000 is in unreserved stack space.... OK
+  Verifying fib.block_0_201000.4 @ 0x201008: machine code write at 0x201008 is in unreserved stack space.... OK
+  Verifying fib.block_0_201000.4 @ 0x20100c: machine code read at 0x20100c is not within stack space.... OK
+  Verifying fib.block_0_201000.4 @ 0x201011: true branch register rip.... OK
+  Verifying fib.block_0_201000.4 @ 0x201011: true branch precondition: (= (llvm t5) rdi)... OK
+  Verifying fib.block_0_201000.4 @ 0x201011: true branch precondition: (= (llvm t5) (mcstack (bvsub stack_high (_ bv24 64)) (_ BitVec 64)))... OK
+  Verifying fib.block_0_201000.4 @ 0x201011: true branch precondition: (= rbx (fnstart rbx))... OK
+  Verifying fib.block_0_201000.4 @ 0x201011: true branch precondition: (= rsp (bvsub stack_high (_ bv40 64)))... OK
+  Verifying fib.block_0_201000.4 @ 0x201011: true branch precondition: (= rbp (bvsub stack_high (_ bv8 64)))... OK
+  Verifying fib.block_0_201000.4 @ 0x201011: true branch precondition: (= r12 (fnstart r12))... OK
+  Verifying fib.block_0_201000.4 @ 0x201011: true branch precondition: (= r13 (fnstart r13))... OK
+  Verifying fib.block_0_201000.4 @ 0x201011: true branch precondition: (= r14 (fnstart r14))... OK
+  Verifying fib.block_0_201000.4 @ 0x201011: true branch precondition: (= r15 (fnstart r15))... OK
+  Verifying fib.block_0_201000.4 @ 0x201011: true branch precondition: (= rdi (mcstack (bvsub stack_high (_ bv24 64)) (_ BitVec 64)))... OK
+  Verifying fib.block_0_201000.4 @ 0x201011: true branch precondition: (= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))... OK
+  Verifying fib.block_0_201000.4 @ 0x201011: false branch register rip.... OK
+  Verifying fib.block_0_201000.4 @ 0x201011: false branch precondition: (= (llvm t4) rdi)... OK
+  Verifying fib.block_0_201000.4 @ 0x201011: false branch precondition: (= (llvm t4) (mcstack (bvsub stack_high (_ bv24 64)) (_ BitVec 64)))... OK
+  Verifying fib.block_0_201000.4 @ 0x201011: false branch precondition: (= rbx (fnstart rbx))... OK
+  Verifying fib.block_0_201000.4 @ 0x201011: false branch precondition: (= rsp (bvsub stack_high (_ bv40 64)))... OK
+  Verifying fib.block_0_201000.4 @ 0x201011: false branch precondition: (= rbp (bvsub stack_high (_ bv8 64)))... OK
+  Verifying fib.block_0_201000.4 @ 0x201011: false branch precondition: (= r12 (fnstart r12))... OK
+  Verifying fib.block_0_201000.4 @ 0x201011: false branch precondition: (= r13 (fnstart r13))... OK
+  Verifying fib.block_0_201000.4 @ 0x201011: false branch precondition: (= r14 (fnstart r14))... OK
+  Verifying fib.block_0_201000.4 @ 0x201011: false branch precondition: (= r15 (fnstart r15))... OK
+  Verifying fib.block_0_201000.4 @ 0x201011: false branch precondition: (= rdi (mcstack (bvsub stack_high (_ bv24 64)) (_ BitVec 64)))... OK
+  Verifying fib.block_0_201000.4 @ 0x201011: false branch precondition: (= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))... OK
+  Verifying fib.block_0_201017.0 @ 0x201017: machine code read at 0x201017 is not within stack space.... OK
+  Verifying fib.block_0_201017.0 @ 0x20101b: machine code write at 0x20101b is in unreserved stack space.... OK
+  Verifying fib.block_0_201017.0 @ 0x20101f: jump register rip.... OK
+  Verifying fib.block_0_201017.0 @ 0x20101f: jump precondition: (= (llvm t15) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 64)))... OK
+  Verifying fib.block_0_201017.0 @ 0x20101f: jump precondition: (= rbx (fnstart rbx))... OK
+  Verifying fib.block_0_201017.0 @ 0x20101f: jump precondition: (= rsp (bvsub stack_high (_ bv40 64)))... OK
+  Verifying fib.block_0_201017.0 @ 0x20101f: jump precondition: (= rbp (bvsub stack_high (_ bv8 64)))... OK
+  Verifying fib.block_0_201017.0 @ 0x20101f: jump precondition: (= r12 (fnstart r12))... OK
+  Verifying fib.block_0_201017.0 @ 0x20101f: jump precondition: (= r13 (fnstart r13))... OK
+  Verifying fib.block_0_201017.0 @ 0x20101f: jump precondition: (= r14 (fnstart r14))... OK
+  Verifying fib.block_0_201017.0 @ 0x20101f: jump precondition: (= r15 (fnstart r15))... OK
+  Verifying fib.block_0_201017.0 @ 0x20101f: jump precondition: (= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))... OK
+  Verifying fib.block_0_201024.1 @ 0x201024: machine code read at 0x201024 is not within stack space.... OK
+  Verifying fib.block_0_201024.1 @ 0x201031: machine code write at 0x201031 is in unreserved stack space.... OK
   Verifying fib.block_0_201024.1 @ 0x201031: argument matches register $rdi... OK
   Verifying fib.block_0_201024.1 @ 0x201031: return address matches next instruction.... OK
-  Verifying jump register rip.... OK
-  Verifying jump precondition: (= (llvm t8) rax)... OK
-  Verifying jump precondition: (= (llvm t9) (mcstack (bvsub stack_high (_ bv24 64)) (_ BitVec 64)))... OK
-  Verifying jump precondition: (= rbx (fnstart rbx))... OK
-  Verifying jump precondition: (= rsp (bvsub stack_high (_ bv40 64)))... OK
-  Verifying jump precondition: (= rbp (bvsub stack_high (_ bv8 64)))... OK
-  Verifying jump precondition: (= r12 (fnstart r12))... OK
-  Verifying jump precondition: (= r13 (fnstart r13))... OK
-  Verifying jump precondition: (= r14 (fnstart r14))... OK
-  Verifying jump precondition: (= r15 (fnstart r15))... OK
-  Verifying jump precondition: (= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))... OK
-  Verifying machine code read at 0x201036 is not within stack space.... OK
-  Verifying machine code write at 0x201044 is in unreserved stack space.... OK
-  Verifying machine code write at 0x201048 is in unreserved stack space.... OK
+  Verifying fib.block_0_201024.2 @ 0x201031: jump register rip.... OK
+  Verifying fib.block_0_201024.2 @ 0x201031: jump precondition: (= (llvm t8) rax)... OK
+  Verifying fib.block_0_201024.2 @ 0x201031: jump precondition: (= (llvm t9) (mcstack (bvsub stack_high (_ bv24 64)) (_ BitVec 64)))... OK
+  Verifying fib.block_0_201024.2 @ 0x201031: jump precondition: (= rbx (fnstart rbx))... OK
+  Verifying fib.block_0_201024.2 @ 0x201031: jump precondition: (= rsp (bvsub stack_high (_ bv40 64)))... OK
+  Verifying fib.block_0_201024.2 @ 0x201031: jump precondition: (= rbp (bvsub stack_high (_ bv8 64)))... OK
+  Verifying fib.block_0_201024.2 @ 0x201031: jump precondition: (= r12 (fnstart r12))... OK
+  Verifying fib.block_0_201024.2 @ 0x201031: jump precondition: (= r13 (fnstart r13))... OK
+  Verifying fib.block_0_201024.2 @ 0x201031: jump precondition: (= r14 (fnstart r14))... OK
+  Verifying fib.block_0_201024.2 @ 0x201031: jump precondition: (= r15 (fnstart r15))... OK
+  Verifying fib.block_0_201024.2 @ 0x201031: jump precondition: (= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))... OK
+  Verifying fib.block_0_201036.1 @ 0x201036: machine code read at 0x201036 is not within stack space.... OK
+  Verifying fib.block_0_201036.1 @ 0x201044: machine code write at 0x201044 is in unreserved stack space.... OK
+  Verifying fib.block_0_201036.1 @ 0x201048: machine code write at 0x201048 is in unreserved stack space.... OK
   Verifying fib.block_0_201036.1 @ 0x201048: argument matches register $rdi... OK
   Verifying fib.block_0_201036.1 @ 0x201048: return address matches next instruction.... OK
-  Verifying jump register rip.... OK
-  Verifying jump precondition: (= (llvm t12) rax)... OK
-  Verifying jump precondition: (= (llvm t13) (mcstack (bvsub stack_high (_ bv32 64)) (_ BitVec 64)))... OK
-  Verifying jump precondition: (= rbx (fnstart rbx))... OK
-  Verifying jump precondition: (= rsp (bvsub stack_high (_ bv40 64)))... OK
-  Verifying jump precondition: (= rbp (bvsub stack_high (_ bv8 64)))... OK
-  Verifying jump precondition: (= r12 (fnstart r12))... OK
-  Verifying jump precondition: (= r13 (fnstart r13))... OK
-  Verifying jump precondition: (= r14 (fnstart r14))... OK
-  Verifying jump precondition: (= r15 (fnstart r15))... OK
-  Verifying jump precondition: (= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))... OK
-  Verifying machine code read at 0x20104d is not within stack space.... OK
-  Verifying machine code write at 0x201054 is in unreserved stack space.... OK
-  Verifying jump register rip.... OK
-  Verifying jump precondition: (= (llvm t15) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 64)))... OK
-  Verifying jump precondition: (= rbx (fnstart rbx))... OK
-  Verifying jump precondition: (= rsp (bvsub stack_high (_ bv40 64)))... OK
-  Verifying jump precondition: (= rbp (bvsub stack_high (_ bv8 64)))... OK
-  Verifying jump precondition: (= r12 (fnstart r12))... OK
-  Verifying jump precondition: (= r13 (fnstart r13))... OK
-  Verifying jump precondition: (= r14 (fnstart r14))... OK
-  Verifying jump precondition: (= r15 (fnstart r15))... OK
-  Verifying jump precondition: (= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))... OK
-  Verifying machine code read at 0x201058 is not within stack space.... OK
-  Verifying machine code read at 0x201060 is not within stack space.... OK
-  Verifying machine code read at 0x201061 is not within stack space.... OK
+  Verifying fib.block_0_201036.2 @ 0x201048: jump register rip.... OK
+  Verifying fib.block_0_201036.2 @ 0x201048: jump precondition: (= (llvm t12) rax)... OK
+  Verifying fib.block_0_201036.2 @ 0x201048: jump precondition: (= (llvm t13) (mcstack (bvsub stack_high (_ bv32 64)) (_ BitVec 64)))... OK
+  Verifying fib.block_0_201036.2 @ 0x201048: jump precondition: (= rbx (fnstart rbx))... OK
+  Verifying fib.block_0_201036.2 @ 0x201048: jump precondition: (= rsp (bvsub stack_high (_ bv40 64)))... OK
+  Verifying fib.block_0_201036.2 @ 0x201048: jump precondition: (= rbp (bvsub stack_high (_ bv8 64)))... OK
+  Verifying fib.block_0_201036.2 @ 0x201048: jump precondition: (= r12 (fnstart r12))... OK
+  Verifying fib.block_0_201036.2 @ 0x201048: jump precondition: (= r13 (fnstart r13))... OK
+  Verifying fib.block_0_201036.2 @ 0x201048: jump precondition: (= r14 (fnstart r14))... OK
+  Verifying fib.block_0_201036.2 @ 0x201048: jump precondition: (= r15 (fnstart r15))... OK
+  Verifying fib.block_0_201036.2 @ 0x201048: jump precondition: (= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))... OK
+  Verifying fib.block_0_20104d.1 @ 0x20104d: machine code read at 0x20104d is not within stack space.... OK
+  Verifying fib.block_0_20104d.1 @ 0x201054: machine code write at 0x201054 is in unreserved stack space.... OK
+  Verifying fib.block_0_20104d.1 @ 0x201054: jump register rip.... OK
+  Verifying fib.block_0_20104d.1 @ 0x201054: jump precondition: (= (llvm t15) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 64)))... OK
+  Verifying fib.block_0_20104d.1 @ 0x201054: jump precondition: (= rbx (fnstart rbx))... OK
+  Verifying fib.block_0_20104d.1 @ 0x201054: jump precondition: (= rsp (bvsub stack_high (_ bv40 64)))... OK
+  Verifying fib.block_0_20104d.1 @ 0x201054: jump precondition: (= rbp (bvsub stack_high (_ bv8 64)))... OK
+  Verifying fib.block_0_20104d.1 @ 0x201054: jump precondition: (= r12 (fnstart r12))... OK
+  Verifying fib.block_0_20104d.1 @ 0x201054: jump precondition: (= r13 (fnstart r13))... OK
+  Verifying fib.block_0_20104d.1 @ 0x201054: jump precondition: (= r14 (fnstart r14))... OK
+  Verifying fib.block_0_20104d.1 @ 0x201054: jump precondition: (= r15 (fnstart r15))... OK
+  Verifying fib.block_0_20104d.1 @ 0x201054: jump precondition: (= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))... OK
+  Verifying fib.block_0_201058.0 @ 0x201058: machine code read at 0x201058 is not within stack space.... OK
+  Verifying fib.block_0_201058.0 @ 0x201060: machine code read at 0x201060 is not within stack space.... OK
+  Verifying fib.block_0_201058.0 @ 0x201061: machine code read at 0x201061 is not within stack space.... OK
   Verifying fib.block_0_201058.0 @ 0x201061: stack height at return matches init.... OK
   Verifying fib.block_0_201058.0 @ 0x201061: return address matches entry value.... OK
   Verifying fib.block_0_201058.0 @ 0x201061: value of rbp at return is preserved.... OK
@@ -102,37 +102,37 @@ Analyzing `fib`
   Verifying fib.block_0_201058.0 @ 0x201061: value of r15 at return is preserved.... OK
   Verifying fib.block_0_201058.0 @ 0x201061: return values match... OK
 Analyzing `main`
-  Verifying machine code write at 0x201070 is in unreserved stack space.... OK
-  Verifying machine code write at 0x201078 is in unreserved stack space.... OK
-  Verifying machine code write at 0x201084 is in unreserved stack space.... OK
+  Verifying main.block_0_201070.0 @ 0x201070: machine code write at 0x201070 is in unreserved stack space.... OK
+  Verifying main.block_0_201070.0 @ 0x201078: machine code write at 0x201078 is in unreserved stack space.... OK
+  Verifying main.block_0_201070.0 @ 0x201084: machine code write at 0x201084 is in unreserved stack space.... OK
   Verifying main.block_0_201070.0 @ 0x201084: argument matches register $rdi... OK
   Verifying main.block_0_201070.0 @ 0x201084: return address matches next instruction.... OK
-  Verifying jump register rip.... OK
-  Verifying jump precondition: (= (llvm t1) rax)... OK
-  Verifying jump precondition: (= rbx (fnstart rbx))... OK
-  Verifying jump precondition: (= rsp (bvsub stack_high (_ bv24 64)))... OK
-  Verifying jump precondition: (= rbp (bvsub stack_high (_ bv8 64)))... OK
-  Verifying jump precondition: (= r12 (fnstart r12))... OK
-  Verifying jump precondition: (= r13 (fnstart r13))... OK
-  Verifying jump precondition: (= r14 (fnstart r14))... OK
-  Verifying jump precondition: (= r15 (fnstart r15))... OK
-  Verifying jump precondition: (= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))... OK
-  Verifying machine code write at 0x201098 is in unreserved stack space.... OK
+  Verifying main.block_0_201070.1 @ 0x201084: jump register rip.... OK
+  Verifying main.block_0_201070.1 @ 0x201084: jump precondition: (= (llvm t1) rax)... OK
+  Verifying main.block_0_201070.1 @ 0x201084: jump precondition: (= rbx (fnstart rbx))... OK
+  Verifying main.block_0_201070.1 @ 0x201084: jump precondition: (= rsp (bvsub stack_high (_ bv24 64)))... OK
+  Verifying main.block_0_201070.1 @ 0x201084: jump precondition: (= rbp (bvsub stack_high (_ bv8 64)))... OK
+  Verifying main.block_0_201070.1 @ 0x201084: jump precondition: (= r12 (fnstart r12))... OK
+  Verifying main.block_0_201070.1 @ 0x201084: jump precondition: (= r13 (fnstart r13))... OK
+  Verifying main.block_0_201070.1 @ 0x201084: jump precondition: (= r14 (fnstart r14))... OK
+  Verifying main.block_0_201070.1 @ 0x201084: jump precondition: (= r15 (fnstart r15))... OK
+  Verifying main.block_0_201070.1 @ 0x201084: jump precondition: (= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))... OK
+  Verifying main.block_0_201089.0 @ 0x201098: machine code write at 0x201098 is in unreserved stack space.... OK
   Verifying main.block_0_201089.0 @ 0x201098: argument matches register $rdi... OK
   Verifying main.block_0_201089.0 @ 0x201098: argument matches register $rsi... OK
   Verifying main.block_0_201089.0 @ 0x201098: return address matches next instruction.... OK
-  Verifying jump register rip.... OK
-  Verifying jump precondition: (= rbx (fnstart rbx))... OK
-  Verifying jump precondition: (= rsp (bvsub stack_high (_ bv24 64)))... OK
-  Verifying jump precondition: (= rbp (bvsub stack_high (_ bv8 64)))... OK
-  Verifying jump precondition: (= r12 (fnstart r12))... OK
-  Verifying jump precondition: (= r13 (fnstart r13))... OK
-  Verifying jump precondition: (= r14 (fnstart r14))... OK
-  Verifying jump precondition: (= r15 (fnstart r15))... OK
-  Verifying jump precondition: (= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))... OK
-  Verifying machine code write at 0x20109f is in unreserved stack space.... OK
-  Verifying machine code read at 0x2010a8 is not within stack space.... OK
-  Verifying machine code read at 0x2010a9 is not within stack space.... OK
+  Verifying main.block_0_201089.1 @ 0x201098: jump register rip.... OK
+  Verifying main.block_0_201089.1 @ 0x201098: jump precondition: (= rbx (fnstart rbx))... OK
+  Verifying main.block_0_201089.1 @ 0x201098: jump precondition: (= rsp (bvsub stack_high (_ bv24 64)))... OK
+  Verifying main.block_0_201089.1 @ 0x201098: jump precondition: (= rbp (bvsub stack_high (_ bv8 64)))... OK
+  Verifying main.block_0_201089.1 @ 0x201098: jump precondition: (= r12 (fnstart r12))... OK
+  Verifying main.block_0_201089.1 @ 0x201098: jump precondition: (= r13 (fnstart r13))... OK
+  Verifying main.block_0_201089.1 @ 0x201098: jump precondition: (= r14 (fnstart r14))... OK
+  Verifying main.block_0_201089.1 @ 0x201098: jump precondition: (= r15 (fnstart r15))... OK
+  Verifying main.block_0_201089.1 @ 0x201098: jump precondition: (= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))... OK
+  Verifying main.block_0_20109d.0 @ 0x20109f: machine code write at 0x20109f is in unreserved stack space.... OK
+  Verifying main.block_0_20109d.0 @ 0x2010a8: machine code read at 0x2010a8 is not within stack space.... OK
+  Verifying main.block_0_20109d.0 @ 0x2010a9: machine code read at 0x2010a9 is not within stack space.... OK
   Verifying main.block_0_20109d.0 @ 0x2010a9: stack height at return matches init.... OK
   Verifying main.block_0_20109d.0 @ 0x2010a9: return address matches entry value.... OK
   Verifying main.block_0_20109d.0 @ 0x2010a9: value of rbp at return is preserved.... OK
@@ -143,4 +143,4 @@ Analyzing `main`
   Verifying main.block_0_20109d.0 @ 0x2010a9: value of r15 at return is preserved.... OK
   Verifying main.block_0_20109d.0 @ 0x2010a9: return values match... OK
 Verification of all goals succeeded.
-Verified 134/134 goal(s).
+Verified 134 out of 134 generated goal(s).
