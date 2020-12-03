@@ -1,5 +1,6 @@
 def nop : instruction :=
   definst "nop" $ do
-    pattern do
+    instr_pat $
+     let action : semantics Unit := do
       pure ()
-    pat_end
+     action

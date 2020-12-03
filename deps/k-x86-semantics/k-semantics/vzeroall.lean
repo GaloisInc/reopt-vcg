@@ -1,6 +1,7 @@
 def vzeroall : instruction :=
   definst "vzeroall" $ do
-    pattern do
+    instr_pat $
+     let action : semantics Unit := do
       setRegister ymm0 (expression.bv_nat 256 0);
       setRegister ymm1 (expression.bv_nat 256 0);
       setRegister ymm10 (expression.bv_nat 256 0);
@@ -18,4 +19,4 @@ def vzeroall : instruction :=
       setRegister ymm8 (expression.bv_nat 256 0);
       setRegister ymm9 (expression.bv_nat 256 0);
       pure ()
-    pat_end
+     action

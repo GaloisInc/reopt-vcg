@@ -1,11 +1,12 @@
 def divq : instruction :=
   definst "divq" $ do
-    pattern fun (mem_0 : Mem) => do
-      v_1 <- getRegister rdx;
-      v_2 <- getRegister rax;
-      v_3 <- eval (concat v_1 v_2);
-      v_4 <- evaluateAddress mem_0;
-      v_5 <- load v_4 8;
+    instr_pat $ fun (mem_0 : Mem) =>
+     let action : semantics Unit := do
+      let v_1 <- getRegister rdx;
+      let v_2 <- getRegister rax;
+      let v_3 <- eval (concat v_1 v_2);
+      let v_4 <- evaluateAddress mem_0;
+      let v_5 <- load v_4 8;
       setRegister rax (/- (_,_) -/  div_quotient_int64 v_3 v_5);
       setRegister rdx (/- (_,_) -/  div_remainder_int64 v_3 v_5);
       setRegister af undef;
@@ -15,12 +16,13 @@ def divq : instruction :=
       setRegister sf undef;
       setRegister zf undef;
       pure ()
-    pat_end;
-    pattern fun (r64_0 : reg (bv 64)) => do
-      v_1 <- getRegister rdx;
-      v_2 <- getRegister rax;
-      v_3 <- eval (concat v_1 v_2);
-      v_4 <- getRegister (lhs.of_reg r64_0);
+     action;
+    instr_pat $ fun (r64_0 : reg (bv 64)) =>
+     let action : semantics Unit := do
+      let v_1 <- getRegister rdx;
+      let v_2 <- getRegister rax;
+      let v_3 <- eval (concat v_1 v_2);
+      let v_4 <- getRegister (lhs.of_reg r64_0);
       setRegister rax (/- (_,_) -/  div_quotient_int64 v_3 v_4);
       setRegister rdx (/- (_,_) -/  div_remainder_int64 v_3 v_4);
       setRegister af undef;
@@ -30,4 +32,4 @@ def divq : instruction :=
       setRegister sf undef;
       setRegister zf undef;
       pure ()
-    pat_end
+     action

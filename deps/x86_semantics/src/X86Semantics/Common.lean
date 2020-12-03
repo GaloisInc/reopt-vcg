@@ -306,21 +306,21 @@ namespace concrete_reg
 --   concrete_reg.hasDecEq tp
 
 def nondepEq : ∀(tp tp' : type) (e : concrete_reg tp) (e' : concrete_reg tp'), Bool
-| ._, ._, (gpreg c1 c2), (gpreg c1' c2') => 
+| _, _, (gpreg c1 c2), (gpreg c1' c2') => 
  (match decEq c1 c1', decEq c2 c2' with 
   | (isTrue h1), (isTrue h2) => true
   | _, _                     => false )
-| ._, ._, (flagreg c1), (flagreg c1') => if c1 = c1' then true else false
-| ._, ._, (avxreg c1 c2), (avxreg c1' c2') => 
+| _, _, (flagreg c1), (flagreg c1') => if c1 = c1' then true else false
+| _, _, (avxreg c1 c2), (avxreg c1' c2') => 
  (match decEq c1 c1', decEq c2 c2' with 
   | (isTrue h1), (isTrue h2) => true
   | _,_                      => false)
-| ._, ._, (gpreg _ _), (flagreg _)  => false
-| ._, ._, (gpreg _ _), (avxreg _ _) => false
-| ._, ._, (flagreg _), (gpreg _ _)  => false
-| ._, ._, (flagreg _), (avxreg _ _) => false
-| ._, ._, (avxreg _ _), (gpreg _ _) => false
-| ._, ._, (avxreg _ _), (flagreg _) => false
+| _, _, (gpreg _ _), (flagreg _)  => false
+| _, _, (gpreg _ _), (avxreg _ _) => false
+| _, _, (flagreg _), (gpreg _ _)  => false
+| _, _, (flagreg _), (avxreg _ _) => false
+| _, _, (avxreg _ _), (gpreg _ _) => false
+| _, _, (avxreg _ _), (flagreg _) => false
 
 
 end concrete_reg
@@ -398,10 +398,10 @@ def name : ∀{tp:type}, concrete_reg tp → String
    | (Option.some nm) => nm
    | Option.none      => "RESERVED_" ++ idx.val.repr)
 
-| ._, (avxreg idx tp) =>
+| _, (avxreg idx tp) =>
   (match tp with
-  | avxreg_type.xmm => "xmm" ++ HasRepr.repr idx
-  | avxreg_type.ymm => "ymm" ++ HasRepr.repr idx
+  | avxreg_type.xmm => "xmm" ++ Repr.repr idx
+  | avxreg_type.ymm => "ymm" ++ Repr.repr idx
   )
 
 protected def repr {tp:type} (r:concrete_reg tp) : String :=
@@ -737,51 +737,51 @@ end prim
 --namespace prim
 --
 -- def pp : ∀{tp:type}, prim tp → String
--- | ._ (add i) => "add " ++ i.pp
--- | ._ (adc i) => "adc " ++ i.pp
--- | ._ (mul i) => "mul " ++ i.pp
--- | ._ (quot i) => "quot " ++ i.pp
--- | ._ (rem i) => "rem " ++ i.pp
--- | ._ (squot i) => "squot " ++ i.pp
--- | ._ (srem i) => "srem " ++ i.pp
--- | ._ (slice w u l) => "slice " ++ w.pp ++ " " ++ u.pp ++ " " ++ l.pp
--- | ._ (sext i o) => "sext " ++ i.pp ++ " " ++ o.pp
--- | ._ (uext i o) => "uext " ++ i.pp ++ " " ++ o.pp
--- | ._ (trunc i o) => "trunc " ++ i.pp ++ " " ++ o.pp
--- | ._ (bsf i) => "bsf " ++ i.pp
--- | ._ (bsr i) => "bsr " ++ i.pp
--- | ._ (bswap i) => "bswap " ++ i.pp
--- | ._ bit_zero => sexp.app "bit" ["0"]
--- | ._ bit_one  => sexp.app "bit" ["1"]
--- | ._ (eq tp) => "eq " ++ tp.pp
--- | ._ (neq tp) => "neq " ++ tp.pp
--- | ._ (neg tp) => "neg " ++ tp.pp
--- | ._ x87_fadd => "x87_fadd"
--- | ._ float_to_x86_80 => "float_to_x86_80"
--- | ._ double_to_x86_80 => "double_to_X86_80"
--- | ._ (bv_to_x86_80 w) => "sext " ++ w.pp
--- | ._ (bv_nat w n) => sexp.app "bv_nat" [w.pp, n.pp]
--- | ._ (sub i) => "sub " ++ i.pp
--- | ._ (ssbb_overflows i) => "ssbb_overflows " ++ i.pp
--- | ._ (usbb_overflows i) => "usbb_overflows " ++ i.pp
--- | ._ (uadc_overflows i) => "uadc_overflows " ++ i.pp
--- | ._ (sadc_overflows i) => "sadc_overflows " ++ i.pp
--- | ._ (and i) => "and " ++ i.pp
--- | ._ (or  i) => "or "  ++ i.pp
--- | ._ (xor i) => "xor " ++ i.pp
--- | ._ (shl i) => "shl " ++ i.pp
--- | ._ (shr i) => "shr " ++ i.pp
--- | ._ (sar i) => "sar " ++ i.pp
--- | ._ (bv_bit i) => "bv_bit " ++ i.pp
--- | ._ (complement i) => "complement " ++ i.pp
--- | ._ (cat i) => "cat " ++ i.pp
--- | ._ (msb i) => "msb " ++ i.pp
--- | ._ (even_parity i) => "even_parity " ++ i.pp
--- | ._ bit_or  => "bit_or"
--- | ._ bit_and => "bit_and"
--- | ._ bit_xor => "bit_xor"
--- | ._ (ule i) => "ule " ++ i.pp
--- | ._ (ult i) => "ult " ++ i.pp
+-- | _ (add i) => "add " ++ i.pp
+-- | _ (adc i) => "adc " ++ i.pp
+-- | _ (mul i) => "mul " ++ i.pp
+-- | _ (quot i) => "quot " ++ i.pp
+-- | _ (rem i) => "rem " ++ i.pp
+-- | _ (squot i) => "squot " ++ i.pp
+-- | _ (srem i) => "srem " ++ i.pp
+-- | _ (slice w u l) => "slice " ++ w.pp ++ " " ++ u.pp ++ " " ++ l.pp
+-- | _ (sext i o) => "sext " ++ i.pp ++ " " ++ o.pp
+-- | _ (uext i o) => "uext " ++ i.pp ++ " " ++ o.pp
+-- | _ (trunc i o) => "trunc " ++ i.pp ++ " " ++ o.pp
+-- | _ (bsf i) => "bsf " ++ i.pp
+-- | _ (bsr i) => "bsr " ++ i.pp
+-- | _ (bswap i) => "bswap " ++ i.pp
+-- | _ bit_zero => sexp.app "bit" ["0"]
+-- | _ bit_one  => sexp.app "bit" ["1"]
+-- | _ (eq tp) => "eq " ++ tp.pp
+-- | _ (neq tp) => "neq " ++ tp.pp
+-- | _ (neg tp) => "neg " ++ tp.pp
+-- | _ x87_fadd => "x87_fadd"
+-- | _ float_to_x86_80 => "float_to_x86_80"
+-- | _ double_to_x86_80 => "double_to_X86_80"
+-- | _ (bv_to_x86_80 w) => "sext " ++ w.pp
+-- | _ (bv_nat w n) => sexp.app "bv_nat" [w.pp, n.pp]
+-- | _ (sub i) => "sub " ++ i.pp
+-- | _ (ssbb_overflows i) => "ssbb_overflows " ++ i.pp
+-- | _ (usbb_overflows i) => "usbb_overflows " ++ i.pp
+-- | _ (uadc_overflows i) => "uadc_overflows " ++ i.pp
+-- | _ (sadc_overflows i) => "sadc_overflows " ++ i.pp
+-- | _ (and i) => "and " ++ i.pp
+-- | _ (or  i) => "or "  ++ i.pp
+-- | _ (xor i) => "xor " ++ i.pp
+-- | _ (shl i) => "shl " ++ i.pp
+-- | _ (shr i) => "shr " ++ i.pp
+-- | _ (sar i) => "sar " ++ i.pp
+-- | _ (bv_bit i) => "bv_bit " ++ i.pp
+-- | _ (complement i) => "complement " ++ i.pp
+-- | _ (cat i) => "cat " ++ i.pp
+-- | _ (msb i) => "msb " ++ i.pp
+-- | _ (even_parity i) => "even_parity " ++ i.pp
+-- | _ bit_or  => "bit_or"
+-- | _ bit_and => "bit_and"
+-- | _ bit_xor => "bit_xor"
+-- | _ (ule i) => "ule " ++ i.pp
+-- | _ (ult i) => "ult " ++ i.pp
 --
 -- end prim
 
@@ -799,11 +799,11 @@ instance (a:type) (f:type) : CoeFun (expression (type.fn a f)) (fun _ => ∀(y:e
 
 
 def add : ∀{w:Nat}, expression (bv w) → expression (bv w) → expression (bv w)
---| ._ (primitive (prim.bv_nat ._ n)) (primitive (prim.bv_nat w m)) => prim.bv_nat w (n + m)
+--| _ (primitive (prim.bv_nat _ n)) (primitive (prim.bv_nat w m)) => prim.bv_nat w (n + m)
 | i, x, y => prim.add i x y
 
 def sub : ∀{w:Nat}, expression (bv w) → expression (bv w) → expression (bv w)
---| ._ (primitive (prim.bv_nat ._ n)) (primitive (prim.bv_nat w m)) => prim.bv_nat w (n - m)
+--| _ (primitive (prim.bv_nat _ n)) (primitive (prim.bv_nat w m)) => prim.bv_nat w (n - m)
 | i, x, y => prim.sub i x y
 
 def neg : ∀{w:Nat}, expression (bv w) → expression (bv w)
@@ -834,8 +834,7 @@ def of_reg {tp:type} : reg tp → expression tp
 instance addr_is_expression (tp:type) : Coe (addr tp) (expression tp) :=
 ⟨ expression.read_addr ⟩
 
-instance type_is_sort     : HasCoeToSort type := ⟨Type, expression⟩
-instance all_reg_is_expression' : has_coe1 reg expression := ⟨fun _ => expression.of_reg⟩
+instance all_reg_is_expression' : has_coe1 reg expression := ⟨expression.of_reg⟩
 instance all_reg_is_expression {tp:type} : Coe (reg tp) (expression tp) := ⟨expression.of_reg⟩
 
 end expression
@@ -994,41 +993,41 @@ def st0 : lhs x86_80 := lhs.streg $ Fin.ofNat 0
 
 def xmmreg (i:Fin 16) := lhs.set_reg $ concrete_reg.avxreg i avxreg_type.xmm
 
-def xmm0 := xmmreg 0
-def xmm1 := xmmreg 1
-def xmm2 := xmmreg 2
-def xmm3 := xmmreg 3
-def xmm4 := xmmreg 4
-def xmm5 := xmmreg 5
-def xmm6 := xmmreg 6
-def xmm7 := xmmreg 7
-def xmm8 := xmmreg 8
-def xmm9 := xmmreg 9
-def xmm10 := xmmreg 10
-def xmm11 := xmmreg 11
-def xmm12 := xmmreg 12
-def xmm13 := xmmreg 13
-def xmm14 := xmmreg 14
-def xmm15 := xmmreg 15
+def xmm0 := xmmreg $ Fin.ofNat 0
+def xmm1 := xmmreg $ Fin.ofNat 1
+def xmm2 := xmmreg $ Fin.ofNat 2
+def xmm3 := xmmreg $ Fin.ofNat 3
+def xmm4 := xmmreg $ Fin.ofNat 4
+def xmm5 := xmmreg $ Fin.ofNat 5
+def xmm6 := xmmreg $ Fin.ofNat 6
+def xmm7 := xmmreg $ Fin.ofNat 7
+def xmm8 := xmmreg $ Fin.ofNat 8
+def xmm9 := xmmreg $ Fin.ofNat 9
+def xmm10 := xmmreg $ Fin.ofNat 0
+def xmm11 := xmmreg $ Fin.ofNat 1
+def xmm12 := xmmreg $ Fin.ofNat 2
+def xmm13 := xmmreg $ Fin.ofNat 3
+def xmm14 := xmmreg $ Fin.ofNat 4
+def xmm15 := xmmreg $ Fin.ofNat 5
 
 def ymmreg (i:Fin 16) := lhs.set_reg $ concrete_reg.avxreg i avxreg_type.ymm
 
-def ymm0 := ymmreg 0
-def ymm1 := ymmreg 1
-def ymm2 := ymmreg 2
-def ymm3 := ymmreg 3
-def ymm4 := ymmreg 4
-def ymm5 := ymmreg 5
-def ymm6 := ymmreg 6
-def ymm7 := ymmreg 7
-def ymm8 := ymmreg 8
-def ymm9 := ymmreg 9
-def ymm10 := ymmreg 10
-def ymm11 := ymmreg 11
-def ymm12 := ymmreg 12
-def ymm13 := ymmreg 13
-def ymm14 := ymmreg 14
-def ymm15 := ymmreg 15
+def ymm0 := ymmreg $ Fin.ofNat 0
+def ymm1 := ymmreg $ Fin.ofNat 1
+def ymm2 := ymmreg $ Fin.ofNat 2
+def ymm3 := ymmreg $ Fin.ofNat 3
+def ymm4 := ymmreg $ Fin.ofNat 4
+def ymm5 := ymmreg $ Fin.ofNat 5
+def ymm6 := ymmreg $ Fin.ofNat 6
+def ymm7 := ymmreg $ Fin.ofNat 7
+def ymm8 := ymmreg $ Fin.ofNat 8
+def ymm9 := ymmreg $ Fin.ofNat 9
+def ymm10 := ymmreg $ Fin.ofNat 10
+def ymm11 := ymmreg $ Fin.ofNat 11
+def ymm12 := ymmreg $ Fin.ofNat 12
+def ymm13 := ymmreg $ Fin.ofNat 13
+def ymm14 := ymmreg $ Fin.ofNat 14
+def ymm15 := ymmreg $ Fin.ofNat 15
 
 end
 
@@ -1084,7 +1083,7 @@ inductive binding
 | expression : type → binding
 
 inductive exact_reg (tp : type) (r : concrete_reg tp) : Type
-| is_exact_reg : exact_reg
+| is_exact_reg : exact_reg tp r
 
 ------------------------------------------------------------------------
 -- context

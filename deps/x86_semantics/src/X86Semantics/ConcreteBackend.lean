@@ -85,12 +85,12 @@ def update_flag (idx : Fin 32) (f : Bool -> Bool) (s : machine_state) : machine_
 def get_avxreg  (s : machine_state) (idx : Fin 16) : avx_word := 
   -- FIXME
   if h : 16 = s.avxregs.size
-  then Array.get s.avxregs (Eq.recOn h idx) else 0
+  then s.avxregs.get (cast (congrArg _ h) idx) else 0
 
 def update_avxreg (idx : Fin 16) (f : avx_word -> avx_word) (s : machine_state) : machine_state :=
   -- FIXME
   if h : 16 = s.avxregs.size 
-  then { s with avxregs := Array.set s.avxregs (Eq.recOn h idx) (f (get_avxreg s idx)) }
+  then { s with avxregs := s.avxregs.set (cast (congrArg _ h) idx) (f (get_avxreg s idx)) }
   else s 
 
 -- def store_bytes (addr : machine_word) (bs : List (bitvec 8)) (s : machine_state) : machine_state := 

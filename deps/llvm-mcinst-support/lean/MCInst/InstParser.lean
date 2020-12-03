@@ -84,7 +84,7 @@ namespace mcinst
 
 
 def register := String
-instance register_has_repr: HasRepr register := ⟨fun s => s⟩
+instance register_has_repr: Repr register := ⟨fun s => s⟩
 
 inductive operand 
   | register  : register -> operand
@@ -112,20 +112,20 @@ def operand_to_String : operand -> String
      --    | none => "" 
      --    | some r' => ",%" ++ repr r' ++ (if s = 1 then "" else "," ++ repr s))))
 
-instance operand_has_repr : HasRepr operand := ⟨operand_to_String⟩
+instance operand_has_repr : Repr operand := ⟨operand_to_String⟩
 
 structure instruction :=
   (mnemonic : String)
   (args     : List operand)
 
-instance instruction_has_repr : HasRepr instruction := 
+instance instruction_has_repr : Repr instruction := 
   ⟨fun (i : instruction) => i.mnemonic ++ " " ++ repr i.args⟩
 
 namespace instparser
 
 open Parser
 
-abbreviation OpParser := Parser Char
+abbrev OpParser := Parser Char
 
 -- def register := Sigma (fun tp => concrete_reg tp)
 
@@ -133,12 +133,12 @@ def digitP : OpParser Nat :=
   optional (fun c => if c.isDigit then some (c.toNat - '0'.toNat) else none)
   
 def natP : OpParser Nat :=
-  do ds <- many1 digitP;
+  do let ds <- many1 digitP;
      pure (ds.foldl (fun acc d => acc * 10 + d) 0)
 
 def intP : OpParser Int :=
   (do exact '-';
-      n <- natP;
+      let n <- natP;
       pure (Int.negOfNat n)) <|> 
       (Int.ofNat <$> natP)
 
@@ -149,24 +149,24 @@ def nonWSP : OpParser String :=
   string1P (fun c => not (Char.isWhitespace c))
 
 def registerP : OpParser register :=
-  do _ <- exact '%';
+  do let _ <- exact '%';
      string1P Char.isAlphanum
 
 -- offset OR offset?(base_reg,scale_reg?,scale_imm?)
 -- we default to 1 for scale_imm if it doesn't exist     
 def memlocP : OpParser operand :=
-  (do disp <- intP <|> pure 0;
-      _ <- exact '(';
-      base <- registerP;
-      (idx, scale) <- (do _ <- exact ',';
-                          idx <- registerP;
-                          scale <- (exact ',' *> natP) <|> pure 1;
-                          pure (some idx, scale))
+  (do let disp <- intP <|> pure 0;
+      let _ <- exact '(';
+      let base <- registerP;
+      let (idx, scale) <- (do let _ <- exact ',';
+                              let idx <- registerP;
+                              let scale <- (exact ',' *> natP) <|> pure 1;
+                              pure (some idx, scale))
                       <|> pure (none, 1);
-      _ <- exact ')';
+      let _ <- exact ')';
       pure (operand.memloc disp none (some base) scale idx))
   <|>  -- Absolute address
-  do disp <- intP; pure (operand.memloc disp none none 0 none)
+  do let disp <- intP; pure (operand.memloc disp none none 0 none)
 
 def operandP : OpParser operand :=
   operand.register <$> registerP
@@ -200,13 +200,13 @@ def usesAlternateOperandSyntax :=
 
 def instructionP : OpParser instruction :=
   do exact '\t';
-     mn <- string1P Char.isAlphanum;
+     let mn <- string1P Char.isAlphanum;
      let opP := if usesAlternateOperandSyntax.elem mn 
                 then altOperandP 
                 else operandP;
-     args <- (exact '\t' *>
-              sepBy (do exact ','; exact ' '; pure ()) opP)
-             <|> pure [];
+     let args <- (exact '\t' *>
+                  sepBy (do exact ','; exact ' '; pure ()) opP)
+                 <|> pure [];
      pure (instruction.mk mn args)
      
 end instparser

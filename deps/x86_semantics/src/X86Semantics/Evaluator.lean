@@ -527,8 +527,8 @@ def prim.eval : ∀{tp : type}, prim tp -> @evaluator backend (@value backend tp
   | _, prim.bit_xor => pure backend.s_xor
 
   -- `bvnat` constructs a bit vector from a natural number.
-  | ._, (prim.bv_nat w n)    => pure (backend.s_bv_imm w n)
-  | ._, (prim.bv_int_sext w) => pure (backend.s_bv_imm_int w)
+  | _, (prim.bv_nat w n)    => pure (backend.s_bv_imm w n)
+  | _, (prim.bv_int_sext w) => pure (backend.s_bv_imm_int w)
 
   -- `(add i)` returns the sum of two i-bit numbers.
   | _, (prim.add i)        => pure (backend.s_bvadd i)
@@ -591,9 +591,7 @@ def prim.eval : ∀{tp : type}, prim tp -> @evaluator backend (@value backend tp
   | _, (prim.trunc i o) => do -- H <- annotate' "trunc" (assert (o ≤ i));
                                pure (backend.s_trunc i o)
 
-  | _, (prim.cat i j) => pure (fun x y => 
-       let prf : i + i = (2 * i) := I_am_really_sorry _;
-       Eq.recOn prf (backend.s_bvappend x y))
+  | _, (prim.cat i j) => pure (fun x y =>  (backend.s_bvappend x y))
   --(begin simp [eval_nat_expr, nat_expr.eval_default_mul_eq, nat_expr.eval, eval_default_2, two_mul], 
   --end)
 
@@ -684,12 +682,12 @@ def prim.eval : ∀{tp : type}, prim tp -> @evaluator backend (@value backend tp
   -- The value `i` is `idx` as a unsigned integer modulo `w`.
   | _, (prim.bts w j)         => throw "prim.eval.bts unimplemented"
 
-  | ._, prim.bv_bitcast_to_fp fc => throw "prim.eval.bv_bitcast_to_fp unimplemented"
-  | ._, prim.fp_bitcast_to_bv fc => throw "prim.eval.fp_bitcast_to_bv unimplemented"
-  | ._, prim.fp_add fc           => throw "prim.eval.fp_add unimplemented"
-  | ._, prim.fp_sub fc           => throw "prim.eval.fp_sub unimplemented"
-  | ._, prim.fp_mul fc           => throw "prim.eval.fp_mul unimplemented"
-  | ._, prim.fp_div fc           => throw "prim.eval.fp_div unimplemented"
+  | _, prim.bv_bitcast_to_fp fc => throw "prim.eval.bv_bitcast_to_fp unimplemented"
+  | _, prim.fp_bitcast_to_bv fc => throw "prim.eval.fp_bitcast_to_bv unimplemented"
+  | _, prim.fp_add fc           => throw "prim.eval.fp_add unimplemented"
+  | _, prim.fp_sub fc           => throw "prim.eval.fp_sub unimplemented"
+  | _, prim.fp_mul fc           => throw "prim.eval.fp_mul unimplemented"
+  | _, prim.fp_div fc           => throw "prim.eval.fp_div unimplemented"
 
   -- `bv_to_x86_80` converts a bitvector to an extended precision number (lossless)
   | _, (prim.bv_to_x86_80 w)  => throw "prim.eval.bv_to_x86_80 unimplemented"
@@ -709,12 +707,12 @@ def prim.eval : ∀{tp : type}, prim tp -> @evaluator backend (@value backend tp
 def value.make_undef : ∀(tp : type), @value backend tp 
   | (bv e) => backend.s_bv_imm e 0
   | bit    => backend.s_bool_imm false
-  | int    => 0
+  | int    => Int.ofNat 0
   | float _ => ()
   | x86_80  => ()
-  | (vec w tp) => mkArray w (value.make_undef tp)
-  | (pair tp tp') => (value.make_undef tp, value.make_undef tp')
-  | (fn arg res) => fun _ => value.make_undef res
+  | (vec w tp) => mkArray w (make_undef tp)
+  | (pair tp tp') => (make_undef tp, make_undef tp')
+  | (fn arg res) => fun _ => make_undef res
 
 def expression.eval : ∀{tp : type}, expression tp -> @evaluator backend (@value backend tp)
   | _, (expression.primitive p) => prim.eval p
@@ -725,31 +723,31 @@ def expression.eval : ∀{tp : type}, expression tp -> @evaluator backend (@valu
   | _, (expression.mulc m xe) => do
     let x ← eval xe
     pure (backend.s_bvmul _ (backend.s_bv_imm 64 m) x)
-  | _, (expression.quotc m xe) => throw "expression.eval.quotc unimplemented"
+  | _, (expression.quotc m xe) => throw "eval.quotc unimplemented"
   | _, (expression.undef tp)   => pure (value.make_undef tp)
-  | _, (expression.app f a) => (expression.eval f) <*> (expression.eval a)
+  | _, (expression.app f a) => (eval f) <*> (eval a)
   | _, (expression.get_reg r) => concrete_reg.read r
   | _, expression.get_rip     => evaluator.run_M (backend.s_get_ip)
   | _, (expression.read tp addre) => do
-    let addr   <- expression.eval addre;
+    let addr   <- eval addre;
     (match tp with
       | (bv we) => evaluator.read_memory_at addr we
-      | _ => throw "expression.eval.read Trying to store non-bitvector")
+      | _ => throw "eval.read Trying to store non-bitvector")
 
-  | _, (expression.streg idx) => throw "expression.eval.streg unimplemented"
+  | _, (expression.streg idx) => throw "eval.streg unimplemented"
   | _, (expression.get_local idx tp) => evaluator.local_at_idx idx tp
   -- This is overly general, we might not know that av here is an rval
   | _, (expression.imm_arg idx tp) => do
     let av ← evaluator.arg_at_idx idx
     match av with
     | (arg_value.rval v) => value.type_check _ v tp
-    | _ => throw "expression.eval.imm_arg Not an rval"
+    | _ => throw "eval.imm_arg Not an rval"
 
   | _, (expression.addr_arg idx) => do
     let av ← evaluator.arg_at_idx idx
     match av with
     | (arg_value.lval (arg_lval.memloc _ addr)) => pure addr
-    | _ => throw "expression.eval.addr_arg Not an memloc lval"
+    | _ => throw "eval.addr_arg Not an memloc lval"
   -- FIXME: isn't specific to arg_lval
   | _, (expression.read_arg idx tp) => do
     let av ← evaluator.arg_at_idx idx

@@ -167,12 +167,12 @@ def update_flag (idx : Fin 32) (f : s_bool -> s_bool) (s : machine_state) : mach
 def get_avxreg  (s : machine_state) (idx : Fin 16) : avx_word := 
   -- FIXME
   if h : 16 = s.avxregs.size
-  then Array.get s.avxregs (Eq.recOn h idx) else  Smt.bvimm _ 0
+  then s.avxregs.get (cast (congrArg _ h) idx) else  Smt.bvimm _ 0
 
 def update_avxreg (idx : Fin 16) (f : avx_word -> avx_word) (s : machine_state) : machine_state :=
   -- FIXME
   if h : 16 = s.avxregs.size 
-  then { s with avxregs := Array.set s.avxregs (Eq.recOn h idx) (f (get_avxreg s idx)) }
+  then { s with avxregs := s.avxregs.set (cast (congrArg _ h) idx) (f (get_avxreg s idx)) }
   else s 
 
 def store_word {n : Nat} (s : machine_state) (stdlib : StdLib) (addr : machine_word) (b : bitvec (8 * n)) : machine_state :=
@@ -359,7 +359,7 @@ def symbolicBackend (stdlib : StdLib) : Backend :=
   , set_flag := fun i v => modify (machine_state.update_flag i (fun _ => v))
 
   , get_avxreg  := fun i => (fun s => machine_state.get_avxreg s i) <$> get
-  , set_avxreg := fun i v => do s <- system_m.name_term (some ("xmm" ++ HasRepr.repr i)) v;
+  , set_avxreg := fun i v => do let s <- system_m.name_term (some ("xmm" ++ Repr.repr i)) v;
                                 modify (machine_state.update_avxreg i (fun _ => s))
   
   , s_mux_bool := fun (b : s_bool) (x y : s_bool) => Smt.smtIte b x y

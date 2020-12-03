@@ -86,7 +86,7 @@ def store (ptr : expression (bv 64)) {tp : type} (v : expression tp) (n : Nat) :
   set (lhs.write_addr ptr tp) v
 
 -- def getRegister {t : type} (r : reg t) : semantics t := eval (expression.of_reg r)
-def getRegister {t : type} (r : lhs t) : semantics t := eval (expression.of_lhs r)
+def getRegister {t : type} (r : lhs t) : semantics (expression t) := eval (expression.of_lhs r)
 def setRegister {t : type} (r : lhs t) (e : expression t) : semantics Unit := (set r e)
 def notBool_ (e : bit) : bit := eq e bit_zero
 
@@ -109,7 +109,7 @@ def bv1ToBool (e : bv 1) : bit := expression.bit_test e (expression.bv_nat 1 0)
 
 -- FIXME: cl is a lhs in Common, not a concrete_reg
 @[reducible]
-def clReg := exact_reg _ (concrete_reg.gpreg 1 gpreg_type.reg8l)
+def clReg := exact_reg _ (concrete_reg.gpreg (Fin.ofNat 1) gpreg_type.reg8l)
 
 -- FIXME: we could maybe do this in the K backend?
 def div_quotient_int8 (num : bv 16) (denom : bv 8) : bv 8 :=
@@ -130,11 +130,11 @@ def div_quotient_int32 (num : bv 64) (denom : bv 32) : bv 32 :=
 def div_remainder_int32 (num : bv 64) (denom : bv 32) : bv 32 :=
   pair_snd (prim.quotRem 32 num denom)
 
--- def div_quotient_int64 (num : bv 128) (denom : bv 64) : bv 64 :=
---   pair_fst (prim.quotRem 64 num denom)
+def div_quotient_int64 (num : bv 128) (denom : bv 64) : bv 64 :=
+  pair_fst (prim.quotRem 64 num denom)
 
--- def div_remainder_int64 (num : bv 128) (denom : bv 64) : bv 64 :=
---   pair_snd (prim.quotRem 64 num denom)
+def div_remainder_int64 (num : bv 128) (denom : bv 64) : bv 64 :=
+  pair_snd (prim.quotRem 64 num denom)
 
 -- Signed
 def idiv_quotient_int8 (num : bv 16) (denom : bv 8) : bv 8 :=
@@ -155,11 +155,11 @@ def idiv_quotient_int32 (num : bv 64) (denom : bv 32) : bv 32 :=
 def idiv_remainder_int32 (num : bv 64) (denom : bv 32) : bv 32 :=
   pair_snd (prim.squotRem 32 num denom)
 
--- def idiv_quotient_int64 (num : bv 128) (denom : bv 64) : bv 64 :=
---   pair_fst (prim.squotRem 64 num denom)
+def idiv_quotient_int64 (num : bv 128) (denom : bv 64) : bv 64 :=
+  pair_fst (prim.squotRem 64 num denom)
 
--- def idiv_remainder_int64 (num : bv 128) (denom : bv 64) : bv 64 :=
---   pair_snd (prim.squotRem 64 num denom)
+def idiv_remainder_int64 (num : bv 128) (denom : bv 64) : bv 64 :=
+  pair_snd (prim.squotRem 64 num denom)
 
 -- def bv_to_fp (e : bv ) (mbits ebits : Nat) : fp c := 
 -- def fp_to_bv 
@@ -173,7 +173,7 @@ def mux {tp:type} (c:bit) (t f : tp) : tp := prim.mux tp c t f
 @[reducible]
 def Mem : Type := addr (bv 64)
 
-def evaluateAddress (m : Mem) : semantics (bv 64) := eval (expression.of_addr m)
+def evaluateAddress (m : Mem) : semantics (expression (bv 64)) := eval (expression.of_addr m)
  
 -- x is an immediate usually
 -- assume that the int is n bits, extend to m bits.  The K here might be a bit broken?
@@ -187,7 +187,7 @@ def extractMInt {w:Nat} (x: expression (bv w)) (u:Nat) (l:Nat)
 def extract {w:Nat} (x: expression (bv w)) (u:Nat) (l:Nat)
   : expression (bv ((w - u - 1) + 1 - (w - l))) := slice x (w - u - 1) (w - l)
 
-notation `pattern` body `pat_end` := mk_pattern body
+-- notation `pattern` body `pat_end` := mk_pattern body
 
 end k_x86_semantics
 end x86

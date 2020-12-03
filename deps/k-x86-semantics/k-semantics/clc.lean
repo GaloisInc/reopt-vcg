@@ -1,6 +1,7 @@
 def clc : instruction :=
   definst "clc" $ do
-    pattern do
+    instr_pat $
+     let action : semantics Unit := do
       setRegister cf bit_zero;
       pure ()
-    pat_end
+     action

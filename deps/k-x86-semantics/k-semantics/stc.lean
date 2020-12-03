@@ -1,6 +1,7 @@
 def stc : instruction :=
   definst "stc" $ do
-    pattern do
+    instr_pat $
+     let action : semantics Unit := do
       setRegister cf bit_one;
       pure ()
-    pat_end
+     action

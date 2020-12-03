@@ -101,7 +101,6 @@ skip_opcode_prefixes = [
 ]
 
 submodules_dir_path = os.path.join(
-  os.path.dirname(
     os.path.dirname(
       os.path.dirname(
         os.path.dirname(
@@ -111,7 +110,6 @@ submodules_dir_path = os.path.join(
         ),
       ),
     ),
-  ),
   'submodules',
 )
 
