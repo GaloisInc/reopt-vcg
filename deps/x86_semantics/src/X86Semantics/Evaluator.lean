@@ -175,8 +175,8 @@ instance (ε): MonadExcept ε (Except ε) :=
   }
 
 instance (ε) [Inhabited ε] : Alternative (Except ε) := 
-  { failure := Except.error (arbitrary ε)
-  , orelse  := MonadExcept.orelse }
+  { failure := Except.error arbitrary
+  , orElse  := MonadExcept.orelse }
 
 instance MonadExcept_ExceptT (ε) (m)  [Monad m]: MonadExcept ε (ExceptT ε m) := 
   { throw := fun e => ExceptT.mk (pure (Except.error e))
@@ -188,8 +188,8 @@ instance MonadExcept_ExceptT (ε) (m)  [Monad m]: MonadExcept ε (ExceptT ε m) 
   }
 
 instance Alternative_ExceptT (ε) (m) [Inhabited ε] [Monad m] : Alternative (ExceptT ε m) := 
-  { failure := throw (arbitrary ε)
-  , orelse  := MonadExcept.orelse
+  { failure := throw arbitrary
+  , orElse  := MonadExcept.orelse
   }
 
 

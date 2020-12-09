@@ -18,7 +18,7 @@ open x86
 def get_text_segment {c} (e : elf.ehdr c) (phdrs : List (elf.phdr c)) : Option (elf.phdr c) :=
     phdrs.find? (fun p => p.flags.has_X)
 
-def throwS {a : Type} {m : Type -> Type} [MonadIO m] (e : String) : m a := 
+def throwS {a : Type} {m : Type -> Type} [MonadLiftT IO m] (e : String) : m a := 
   monadLift (throw (IO.userError e) : IO a)
 
 -- def lift_eval {α : Type *} |  evaluator α) : io a

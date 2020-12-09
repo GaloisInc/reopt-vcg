@@ -1,0 +1,27 @@
+
+* Installing K
+```
+# from top directory
+pushd submodules/k
+git submodule update --init
+brew cask install adoptopenjdk
+xattr -d com.apple.quarantine /Library/Java/JavaVirtualMachines/adoptopenjdk-13.0.1.jdk
+brew install maven
+# wait for a whole bunch of stuff to download and build (takes a while)
+mvn package
+popd
+export _JAVA_OPTIONS="-Xmx16g" # Set max heap size for java
+# Takes about 20 minutes
+python3  lean4/deps/k-x86-semantics/k-semantics/collect.py
+# takes about 42 minutes
+python3  lean4/deps/k-x86-semantics/k-semantics/generate.py
+
+
+
+```
+
+* Notes
+- Most Java is in java-backend/src/main/java/org/kframework/backend/java/symbolic/SymbolicRewriter.java
+
+* Errors 
+ - adc doesn't produce correct OF register (could be our simplifications)?

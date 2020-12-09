@@ -413,7 +413,7 @@ match rawStr.trim with
 
 /- Converts a command to a string terminated by a newline.-/
 def Command.toLine (c:Command) : String :=
-let cStr := (WellFormedSExp.SExp.toString (toSExpr c));
+let cStr := (WellFormedSExp.SExp.toString (ToSExpr.toSExpr c));
 if c.isComment
 then cStr
 else cStr ++ "\n"

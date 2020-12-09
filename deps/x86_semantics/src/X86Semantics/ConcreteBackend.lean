@@ -29,7 +29,7 @@ def bitvec.sext {n} (m : Nat) (p: n ≤ m) (x:bitvec n) : bitvec m :=
 
 -- Returns the number of bits that are tt mod 2
 def bitvec.parity {n : Nat} (b : bitvec n) : Bool :=
-  bitvec.foldl xor false b
+  bitvec.foldl (λx y => not (x == y)) false b
 
 -- example : bitvec.parity (3 : bitvec 4) = false := by refl
 -- example : bitvec.parity (7 : bitvec 4) = true := by refl
@@ -185,15 +185,15 @@ abbrev system_m := StateT machine_state base_system_m
 
 namespace base_system_m
 
-instance : MonadIO base_system_m :=
-  inferInstanceAs (MonadIO (StateT os_state IO))
+instance : MonadLiftT IO base_system_m :=
+  inferInstanceAs (MonadLiftT IO (StateT os_state IO))
 
 end base_system_m
 
 namespace system_m
 
-instance : MonadIO system_m :=
-  inferInstanceAs (MonadIO (StateT machine_state base_system_m))
+instance : MonadLiftT IO system_m :=
+  inferInstanceAs (MonadLiftT IO (StateT machine_state base_system_m))
 
 def throwString {α} (err : String) : system_m α := throw $ IO.userError err
 def catchString {α} (m : system_m α) (h : String → system_m α) : system_m α := 
@@ -423,7 +423,7 @@ def concreteBackend : Backend :=
   , s_not      := not
   , s_or       := or
   , s_and      := and
-  , s_xor      := xor
+  , s_xor      := (λx y => not (x == y))
  
   -- - Comparison
   , s_bveq     := fun {n : Nat} x y => decide (x = y)

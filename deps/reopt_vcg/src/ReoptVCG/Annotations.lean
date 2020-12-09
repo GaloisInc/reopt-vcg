@@ -123,7 +123,7 @@ namespace LocalIdent
 def lt : forall (x y : LocalIdent), Prop
   | { name := x }, {name := y } => x < y
 
-instance : Less LocalIdent := ⟨lt⟩
+instance : HasLess LocalIdent := ⟨lt⟩
 
 instance decLt : ∀(x y:LocalIdent), Decidable (x < y)
 | { name := x }, { name := y } =>

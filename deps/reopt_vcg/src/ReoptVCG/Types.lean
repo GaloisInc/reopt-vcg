@@ -124,7 +124,7 @@ namespace BlockLabel
 def lt : forall (x y : BlockLabel), Prop
   | { label := x }, {label := y } => x < y
 
-instance : Less BlockLabel := ⟨lt⟩
+instance : HasLess BlockLabel := ⟨lt⟩
  
 instance decideableBlockLabelLt : ∀(x y:BlockLabel), Decidable (x < y)
 | { label := x }, { label := y } =>

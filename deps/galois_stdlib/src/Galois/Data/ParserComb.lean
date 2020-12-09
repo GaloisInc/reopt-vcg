@@ -101,7 +101,7 @@ def whitespaceP : CharParser Unit :=
 do _ <-token Char.isWhitespace;
    pure ()
 
-def parseFile {a : Type} {m : Type → Type} [Monad m] [MonadIO m] (p : CharParser a) (fname : String)
+def parseFile {a : Type} {m : Type → Type} [Monad m] [MonadLiftT IO m] (p : CharParser a) (fname : String)
   : m (Option a) := 
   do let s ← IO.FS.readFile fname;
      pure (runParser p s.toList)

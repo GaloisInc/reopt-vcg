@@ -41,19 +41,19 @@ def FiniteMap.decEq
 instance [DecidableEq α] [DecidableEq β] : DecidableEq (FiniteMap α β) :=
   FiniteMap.decEq
 
-def FiniteMap.less [Less α] [Less β] : FiniteMap α β → FiniteMap α β → Prop
+def FiniteMap.less [HasLess α] [HasLess β] : FiniteMap α β → FiniteMap α β → Prop
   | a1, a2 => (a1.entries, a1.default) < (a2.entries, a2.default)
 
 protected
-instance FiniteMap.Less [Less α] [Less β] : Less (FiniteMap α β) :=
+instance FiniteMap.HasLess [HasLess α] [HasLess β] : HasLess (FiniteMap α β) :=
   ⟨@FiniteMap.less α β _ _⟩
 
 
 def FiniteMap.decLt
   [DecidableEq α]
   [DecidableEq β]
-  [Less α]
-  [Less β]
+  [HasLess α]
+  [HasLess β]
   [DecidableLess α]
   [DecidableLess β]
   : ∀ (fm1 fm2 : FiniteMap α β),
@@ -67,8 +67,8 @@ def FiniteMap.decLt
 instance FiniteMap.DecidableLess
   [DecidableEq α]
   [DecidableEq β]
-  [Less α]
-  [Less β]
+  [HasLess α]
+  [HasLess β]
   [DecidableLess α]
   [DecidableLess β]
   : ∀ (x y : FiniteMap α β), Decidable (x < y) :=
@@ -78,8 +78,8 @@ instance FiniteMap.DecidableLess
 end
 
 -- FIXME prove when tactics are enabled
-theorem Less.transitivity {α : Type u} {β : Type v}
- [Less α] [Less β]
+theorem HasLess.transitivity {α : Type u} {β : Type v}
+ [HasLess α] [HasLess β]
  [DecidableEq α] [DecidableEq β] :
  (∀ (x y z : α), x < y → y < z → x < z) →
  (∀ (x y z : β), x < y → y < z → x < z) →
@@ -87,8 +87,8 @@ theorem Less.transitivity {α : Type u} {β : Type v}
  sorry
 
 -- FIXME prove when tactics are enabled
-theorem Less.asymmetry {α : Type u} {β : Type v}
- [Less α] [Less β]
+theorem HasLess.asymmetry {α : Type u} {β : Type v}
+ [HasLess α] [HasLess β]
  [DecidableEq α] [DecidableEq β] :
  (∀ (x y : α), x < y → ¬(y < x)) →
  (∀ (x y : β), x < y → ¬(y < x)) →
@@ -96,8 +96,8 @@ theorem Less.asymmetry {α : Type u} {β : Type v}
  sorry
 
 -- FIXME prove when tactics are enabled
-theorem Less.totality {α : Type u} {β : Type v}
- [Less α] [Less β]
+theorem HasLess.totality {α : Type u} {β : Type v}
+ [HasLess α] [HasLess β]
  [DecidableEq α] [DecidableEq β] :
  (∀ (x y : α), x < y ∨ x = y ∨ y < x) →
  (∀ (x y : β), x < y ∨ x = y ∨ y < x) →
@@ -106,7 +106,7 @@ theorem Less.totality {α : Type u} {β : Type v}
 
 instance {α : Type u} {β : Type v}
   [DecidableEq α] [DecidableEq β]
-  [Less α] [Less β]
+  [HasLess α] [HasLess β]
   [hA : LessOrder α] [hB : LessOrder β]
   : LessOrder (FiniteMap α β) :=
   -- FIXME why don't these definitions work...?
@@ -151,8 +151,8 @@ open Subtype
 instance [hA : DecidableLessOrder α] [hB : DecidableLessOrder β] : DecidableEq (Array α β) :=
   inferInstanceAs (DecidableEq {fm : FiniteMap α β // FiniteMap.WellFormed fm})
 
-instance [hA : DecidableLessOrder α] [hB : DecidableLessOrder β] : Less (Array α β) :=
-  inferInstanceAs (Less {fm : FiniteMap α β // FiniteMap.WellFormed fm})
+instance [hA : DecidableLessOrder α] [hB : DecidableLessOrder β] : HasLess (Array α β) :=
+  inferInstanceAs (HasLess {fm : FiniteMap α β // FiniteMap.WellFormed fm})
 
 instance [hA : DecidableLessOrder α] [hB : DecidableLessOrder β] : DecidableLess (Array α β) :=
   inferInstanceAs (DecidableLess {fm : FiniteMap α β // FiniteMap.WellFormed fm})

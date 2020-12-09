@@ -179,11 +179,11 @@ def evaluateAddress (m : Mem) : semantics (expression (bv 64)) := eval (expressi
 -- assume that the int is n bits, extend to m bits.  The K here might be a bit broken?
 def handleImmediateWithSignExtend (x : expression int) (n m : Nat) := prim.bv_int_sext m x
 
-@[elabSimple]
+-- @[elabSimple]
 def extractMInt {w:Nat} (x: expression (bv w)) (u:Nat) (l:Nat)
   : expression (bv ((w - u - 1) + 1 - (w - l))) := slice x (w - u - 1) (w - l)
 
-@[elabSimple]
+-- @[elabSimple]
 def extract {w:Nat} (x: expression (bv w)) (u:Nat) (l:Nat)
   : expression (bv ((w - u - 1) + 1 - (w - l))) := slice x (w - u - 1) (w - l)
 

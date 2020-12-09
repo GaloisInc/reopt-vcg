@@ -91,7 +91,7 @@ def denoteBuiltinIdent : forall cs, BuiltinIdent cs → cs.denote
 | _, BuiltinIdent.impl => λ p q => !p || q
 | _, BuiltinIdent.and => and
 | _, BuiltinIdent.or => or
-| _, BuiltinIdent.xor => xor
+| _, BuiltinIdent.xor => λ p q => not (p == q)
 | _, BuiltinIdent.eq s => λ x y => BEq.beq x y
 | _, BuiltinIdent.smtIte s => λ t x y =>
                                 match t with

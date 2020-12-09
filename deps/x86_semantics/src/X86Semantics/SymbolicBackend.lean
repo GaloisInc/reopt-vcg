@@ -194,7 +194,7 @@ def print_regs (s : machine_state) : String :=
 -- FIXME: could use sz = ns.length
 protected 
 def declare_const_aux {s : SmtSort} (ns : List String) (sz : Nat) : SmtM (Array (Term s)) := do
-  let a : (Array (Term s)) := Array.mkEmpty sz
+  let mut a : (Array (Term s)) := Array.mkEmpty sz
   for n in [:sz] do
     let fn ← Smt.declareFun (List.getD n ns "el") [] s
     a := a.push fn
@@ -314,7 +314,7 @@ def runSmtM {a : Type} (m : SmtM a) : system_m a := do
   let run' := fun (s : os_state) => 
                   (let r := Smt.runSmtM s.idGen m;
                   (r.fst, {s with trace := (List.map Event.Command r.snd.snd.reverse) ++ s.trace
-                          , idGen   := r.snd.fst}));
+                                , idGen   := r.snd.fst}));
   monadLift (modifyGet run' : base_system_m a)
 
 def name_term {s : SmtSort} (name : Option String) (tm : Term s) : system_m (Term s) :=

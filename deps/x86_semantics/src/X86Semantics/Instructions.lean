@@ -14,9 +14,9 @@ open semantics
 
 -- set_option class.instance_max_depth 1000
 
--- Introduces notation x[h..l] to slice the h..l bits out of x.
+-- Introduces notation x[h~~l] to slice the h~~l bits out of x.
 -- local
-notation:1025 x "[[" h ".." l "]]" => slice x h l
+notation:1025 x "[[" h "~~" l "]]" => slice x h l
 
 
 
@@ -60,7 +60,7 @@ infixl:70 " .&. " => and
 ------------------------------------------------------------------------
 -- utility functions
 
-def nat_to_bv {w:ℕ} (n:ℕ) : bv w := expression.primitive $ prim.bv_nat w n
+def nat_to_bv {w:ℕ} (n:ℕ) : expression (bv w) := expression.primitive $ prim.bv_nat w n
 
 def undef {tp:type} : expression tp := expression.undef tp
 
@@ -124,21 +124,21 @@ def imul : instruction :=
      let action : semantics Unit := do
        let tmp ← eval $ sext al.expr 16 * sext src _
        ax .= tmp
-       set_overflow $ sext (tmp[[7..0]]) _ ≠ tmp
+       set_overflow $ sext (tmp[[7~~0]]) _ ≠ tmp
      action
    instr_pat $ fun (src : expression (bv 16)) => 
      let action : semantics Unit := do
        let tmp ← eval $ sext ax.expr 32 * sext src _
-       dx .= tmp[[31..16]]
-       ax .= tmp[[15.. 0]]
-       set_overflow $ sext (tmp[[15..0]]) _ ≠ tmp
+       dx .= tmp[[31~~16]]
+       ax .= tmp[[15~~ 0]]
+       set_overflow $ sext (tmp[[15~~0]]) _ ≠ tmp
      action
    instr_pat $ fun (src : expression (bv 32)) => 
      let action : semantics Unit := do
        let tmp ← eval $ sext eax.expr 64 * sext src _
-       edx .= tmp[[63..32]]
-       eax .= tmp[[31.. 0]]
-       set_overflow $ sext tmp[[31..0]] _ ≠ tmp
+       edx .= tmp[[63~~32]]
+       eax .= tmp[[31~~ 0]]
+       set_overflow $ sext tmp[[31~~0]] _ ≠ tmp
      action
    instr_pat $ fun (w : one_of [8,16,32,64]) (dest : lhs (bv w)) (src : expression (bv w)) =>
      let action : semantics Unit := do
@@ -162,28 +162,28 @@ def mul : instruction := do
      let action : semantics Unit := do
        let tmp ← eval $ uext al.expr 16 * uext src 16
        ax .= tmp
-       set_overflow $ tmp[[16..8]] ≠ 0
+       set_overflow $ tmp[[16~~8]] ≠ 0
      action
    instr_pat $ fun (src : expression (bv 16)) =>
      let action : semantics Unit := do
        let tmp ← eval $ uext ax.expr 32 * uext src _
-       dx .= tmp[[31..16]]
-       ax .= tmp[[15.. 0]]
-       set_overflow $ tmp[[31..16]] ≠ 0
+       dx .= tmp[[31~~16]]
+       ax .= tmp[[15~~ 0]]
+       set_overflow $ tmp[[31~~16]] ≠ 0
      action
    instr_pat $ fun (src : expression (bv 32)) =>
      let action : semantics Unit := do
        let tmp ← eval $ uext eax.expr 64 * uext src _
-       edx .= tmp[[63..32]]
-       eax .= tmp[[31.. 0]]
-       set_overflow $ tmp[[63..32]] ≠ 0
+       edx .= tmp[[63~~32]]
+       eax .= tmp[[31~~ 0]]
+       set_overflow $ tmp[[63~~32]] ≠ 0
      action
    instr_pat $ fun (src : expression (bv 64)) =>
      let action : semantics Unit := do
        let tmp ← eval $ uext rax.expr 128 * uext src _
-       rdx .= tmp[[127..64]]
-       rax .= tmp[[63..0]]
-       set_overflow $ tmp[[127..64]] ≠ 0
+       rdx .= tmp[[127~~64]]
+       rax .= tmp[[63~~0]]
+       set_overflow $ tmp[[127~~64]] ≠ 0
      action
 
 -- ------------------------------------------------------------------------
@@ -446,37 +446,37 @@ def div : instruction := do
 -- idiv definition
 -- Signed Divide
 
--- def idiv : instruction := do
---  definst "idiv" $ do
---    -- TODO: would it be better to have a single div primitive?
---    instr_pat $ fun (src : expression (bv 8)) =>
---      let action : semantics Unit := do
---        let r ← eval $ prim.squotRem 8 (⇑ ax) src
---        al .= pair_fst r
---        ah .= pair_snd r
---        set_undef [cf, of, sf, zf, af, pf]
---      action
---    instr_pat $ fun (src : expression (bv 16)) =>
---      let action : semantics Unit := do
---        let r ← eval $ prim.squotRem 16 (cat (⇑ dx) (⇑ ax)) src
---        ax .= pair_fst r
---        dx .= pair_snd r
---        set_undef [cf, of, sf, zf, af, pf]
---      action
---    instr_pat $ fun (src : expression (bv 32)) =>
---      let action : semantics Unit := do
---        let r ← eval $ prim.squotRem 32 (cat (⇑ edx) (⇑ eax)) src
---        eax .= pair_fst r
---        edx .= pair_snd r
---        set_undef [cf, of, sf, zf, af, pf]
---      action
---    instr_pat $ fun (src : expression (bv 64)) =>
---      let action : semantics Unit := do
---        let r ← eval $ prim.quotRem 64 (cat (⇑ rdx) (⇑ rax)) src
---        rax .= pair_fst r
---        rdx .= pair_snd r
---        set_undef [cf, of, sf, zf, af, pf]
---      action
+def idiv : instruction := do
+ definst "idiv" $ do
+   -- TODO: would it be better to have a single div primitive?
+   instr_pat $ fun (src : expression (bv 8)) =>
+     let action : semantics Unit := do
+       let r ← eval $ prim.squotRem 8 (⇑ ax) src
+       al .= pair_fst r
+       ah .= pair_snd r
+       set_undef [cf, of, sf, zf, af, pf]
+     action
+   instr_pat $ fun (src : expression (bv 16)) =>
+     let action : semantics Unit := do
+       let r ← eval $ prim.squotRem 16 (cat (⇑ dx) (⇑ ax)) src
+       ax .= pair_fst r
+       dx .= pair_snd r
+       set_undef [cf, of, sf, zf, af, pf]
+     action
+   instr_pat $ fun (src : expression (bv 32)) =>
+     let action : semantics Unit := do
+       let r ← eval $ prim.squotRem 32 (cat (⇑ edx) (⇑ eax)) src
+       eax .= pair_fst r
+       edx .= pair_snd r
+       set_undef [cf, of, sf, zf, af, pf]
+     action
+   instr_pat $ fun (src : expression (bv 64)) =>
+     let action : semantics Unit := do
+       let r ← eval $ prim.quotRem 64 (cat (⇑ rdx) (⇑ rax)) src
+       rax .= pair_fst r
+       rdx .= pair_snd r
+       set_undef [cf, of, sf, zf, af, pf]
+     action
 
 ------------------------------------------------------------------------
 -- and definition
@@ -957,302 +957,302 @@ def cmovcc_instructions : List instruction :=
 -- leave definition
 -- High Level Procedure Exit
 
--- def leave : instruction :=
---  definst "leave" $ do
---    instr_pat $ 
---      let action : semantics Unit := do
---        rsp .= rbp
---        let v ← eval (expression.read (bv 64) (⇑ rsp))
---        rsp .= rsp + nat_to_bv 8
---        rbp .= v
---      action
+def leave : instruction :=
+ definst "leave" $ do
+   instr_pat $ 
+     let action : semantics Unit := do
+       rsp .= rbp
+       let v ← eval (expression.read (bv 64) (⇑ rsp))
+       rsp .= ⇑rsp + nat_to_bv 8
+       rbp .= v
+     action
 
--- ------------------------------------------------------------------------
--- -- pop definition
+------------------------------------------------------------------------
+-- pop definition
 
--- -- Pop a Value from the Stack
--- def pop_def : instruction :=
---  definst "pop" $ do
---    instr_pat $ fun (w : one_of [16, 32, 64]) (dest: lhs (bv w)) =>
---      let action : semantics Unit := do
---        let v ← eval (expression.read (bv w) (⇑ rsp))
---        rsp  .= rsp + nat_to_bv (w/8)
---        dest .= v
---      action
+-- Pop a Value from the Stack
+def pop_def : instruction :=
+ definst "pop" $ do
+   instr_pat $ fun (w : one_of [16, 32, 64]) (dest: lhs (bv w)) =>
+     let action : semantics Unit := do
+       let v ← eval (expression.read (bv w) (⇑ rsp))
+       rsp  .= ⇑rsp + nat_to_bv (w/8)
+       dest .= v
+     action
 
--- ------------------------------------------------------------------------
--- -- push definition
--- -- Push Word => doubleword or Quadword Onto the Stack
+------------------------------------------------------------------------
+-- push definition
+-- Push Word => doubleword or Quadword Onto the Stack
  
--- def push_def : instruction :=
---  definst "push" $ do
---    instr_pat $ fun (w : one_of [8, 16, 32, 64]) (value: expression (bv w)) =>
---      let action : semantics Unit := do
---        rsp .= rsp - nat_to_bv (w/8)
---        lhs.write_addr (⇑ rsp) _ .= value
---      action
-
-
--- ------------------------------------------------------------------------
--- -- ret definition
--- -- Return from Procedure
--- def ret : instruction :=
---  definst "retq" $ do
---    instr_pat $ 
---      let action : semantics Unit := do
---        let addr ← eval $ expression.read (bv 64) (⇑ rsp)
---        rsp .= rsp + nat_to_bv 8
---        record_event (event.jmp addr)
---      action
---    instr_pat $ fun (off : expression (bv 16)) =>
---      let action : semantics Unit := do
---        let addr ← eval $ expression.read (bv 64) (⇑ rsp)
---        rsp .= rsp + (nat_to_bv 8 + uext off 64)
---        record_event (event.jmp addr)
---      action
-
--- ------------------------------------------------------------------------
--- -- cbw definition
--- -- Convert Byte to Word
--- def cbw : instruction :=
---  definst "cbw" $ do
---    instr_pat $ 
---      let action : semantics Unit := do
---        ax .= sext (⇑ al) 16
---      action
-
--- ------------------------------------------------------------------------
--- -- cdq definition
--- -- Convert Doubleword to Quadword
--- def cdq : instruction :=
---  definst "cdq" $ do
---    instr_pat $ 
---      let action : semantics Unit := do
---        let quadword := sext (⇑ eax) 64
---        edx .= quadword[[63..32]]
---      action
-
--- ------------------------------------------------------------------------
--- -- cdqe definition
--- -- Convert Doubleword to Quadword
--- def cdqe : instruction :=
---  definst "cdqe" $ do
---    instr_pat $
---      let action : semantics Unit := do
---        rax .= sext (⇑ eax) 64
---      action
-
--- ------------------------------------------------------------------------
--- -- clc definition
--- -- Clear Carry Flag
--- def clc : instruction :=
---  definst "clc" $ do
---    instr_pat $
---      let action : semantics Unit := do
---        cf .= bit_zero
---      action
-
--- ------------------------------------------------------------------------
--- -- cld definition
--- -- Clear Direction Flag
--- def cld : instruction :=
---  definst "cld" $ do
---    instr_pat $
---      let action : semantics Unit := do
---        df .= bit_zero
---      action
-
--- ------------------------------------------------------------------------
--- -- cqo definition
--- -- Convert Quadword to Octword
--- def cqo : instruction :=
---  definst "cqo" $ do
---    instr_pat $
---      let action : semantics Unit := do
---        let octword := sext (⇑ rax) 128
---        rdx .= octword[[127..64]]
---      action
-
--- ------------------------------------------------------------------------
--- -- cwd definition
--- -- Convert Word to Doubleword
--- def cwd : instruction :=
---  definst "cwd" $ do
---    instr_pat $
---      let action : semantics Unit := do
---        let doubleword := sext (⇑ ax) 32
---        dx .= doubleword[[31..16]]
---      action
-
--- ------------------------------------------------------------------------
--- -- cwde definition
--- -- Convert Word to Doubleword
--- def cwde : instruction :=
---  definst "cwde" $ do
---    instr_pat $
---      let action : semantics Unit := do
---        eax .= sext (⇑ ax) 32
---      action
+def push_def : instruction :=
+ definst "push" $ do
+   instr_pat $ fun (w : one_of [8, 16, 32, 64]) (value: expression (bv w)) =>
+     let action : semantics Unit := do
+       rsp .= ⇑rsp - nat_to_bv (w/8)
+       lhs.write_addr (⇑ rsp) _ .= value
+     action
 
 
 ------------------------------------------------------------------------
+-- ret definition
+-- Return from Procedure
+def ret : instruction :=
+ definst "retq" $ do
+   instr_pat $ 
+     let action : semantics Unit := do
+       let addr ← eval $ expression.read (bv 64) (⇑ rsp)
+       rsp .= ⇑rsp + nat_to_bv 8
+       record_event (event.jmp addr)
+     action
+   instr_pat $ fun (off : expression (bv 16)) =>
+     let action : semantics Unit := do
+       let addr ← eval $ expression.read (bv 64) (⇑ rsp)
+       rsp .= ⇑rsp + (nat_to_bv 8 + uext off 64)
+       record_event (event.jmp addr)
+     action
+
+------------------------------------------------------------------------
+-- cbw definition
+-- Convert Byte to Word
+def cbw : instruction :=
+ definst "cbw" $ do
+   instr_pat $ 
+     let action : semantics Unit := do
+       ax .= sext (⇑ al) 16
+     action
+
+------------------------------------------------------------------------
+-- cdq definition
+-- Convert Doubleword to Quadword
+def cdq : instruction :=
+ definst "cdq" $ do
+   instr_pat $ 
+     let action : semantics Unit := do
+       let quadword := sext (⇑ eax) 64
+       edx .= quadword[[63~~32]]
+     action
+
+------------------------------------------------------------------------
+-- cdqe definition
+-- Convert Doubleword to Quadword
+def cdqe : instruction :=
+ definst "cdqe" $ do
+   instr_pat $
+     let action : semantics Unit := do
+       rax .= sext (⇑ eax) 64
+     action
+
+------------------------------------------------------------------------
+-- clc definition
+-- Clear Carry Flag
+def clc : instruction :=
+ definst "clc" $ do
+   instr_pat $
+     let action : semantics Unit := do
+       cf .= bit_zero
+     action
+
+------------------------------------------------------------------------
+-- cld definition
+-- Clear Direction Flag
+def cld : instruction :=
+ definst "cld" $ do
+   instr_pat $
+     let action : semantics Unit := do
+       df .= bit_zero
+     action
+
+------------------------------------------------------------------------
+-- cqo definition
+-- Convert Quadword to Octword
+def cqo : instruction :=
+ definst "cqo" $ do
+   instr_pat $
+     let action : semantics Unit := do
+       let octword := sext (⇑ rax) 128
+       rdx .= octword[[127~~64]]
+     action
+
+------------------------------------------------------------------------
+-- cwd definition
+-- Convert Word to Doubleword
+def cwd : instruction :=
+ definst "cwd" $ do
+   instr_pat $
+     let action : semantics Unit := do
+       let doubleword := sext (⇑ ax) 32
+       dx .= doubleword[[31~~16]]
+     action
+
+------------------------------------------------------------------------
+-- cwde definition
+-- Convert Word to Doubleword
+def cwde : instruction :=
+ definst "cwde" $ do
+   instr_pat $
+     let action : semantics Unit := do
+       eax .= sext (⇑ ax) 32
+     action
+
+
+
 -- sar/shr/sal/shl definitions
 
--- /- This is an enum for the shift op, so that our shift code can reflect the Intel description. -/
--- inductive shift_op
--- | shl : shift_op -- Also used for shl since it is same operation.
--- | sar : shift_op
--- | shr : shift_op
+/- This is an enum for the shift op, so that our shift code can reflect the Intel description. -/
+inductive shift_op
+| shl : shift_op -- Also used for shl since it is same operation.
+| sar : shift_op
+| shr : shift_op
 
 
--- -- Generic shift operation, takes functions for doing the shift and
--- -- setting the flags.
--- def do_sh {w:ℕ}
---           (op : shift_op)
---           (v: lhs (bv w))                -- value to be shifted
---           (count: bv 8)                  -- amount to shift by
---           (count_mask: bv 8)             -- mask for the counter
---           : semantics Unit := do
---   -- The intel manual says that the count is masked to give an upper
---   -- bound on the time the shift takes, with a mask of 63 in the case
---   -- of a 64 bit operand, and 31 in the other cases.
---   let low_count ← eval $ count .&. count_mask
---   -- compute the result
---   let res ← eval $
---     match op with
---     | shift_op.shl => prim.shl w v low_count
---     | shift_op.shr => prim.shr w v low_count
---     | shift_op.sar => prim.sar w v low_count
+-- Generic shift operation, takes functions for doing the shift and
+-- setting the flags.
+def do_sh {w:ℕ}
+          (op : shift_op)
+          (v: lhs (bv w))                -- value to be shifted
+          (count: bv 8)                  -- amount to shift by
+          (count_mask: bv 8)             -- mask for the counter
+          : semantics Unit := do
+  -- The intel manual says that the count is masked to give an upper
+  -- bound on the time the shift takes, with a mask of 63 in the case
+  -- of a 64 bit operand, and 31 in the other cases.
+  let low_count ← eval $ count .&. count_mask
+  -- compute the result
+  let res ← eval $
+    match op with
+    | shift_op.shl => prim.shl _ _ v low_count
+    | shift_op.shr => prim.shr _ _ v low_count
+    | shift_op.sar => prim.sar _ _ v low_count
 
---   -- When the count is zero, nothing happens, and no flags change
---   let is_nonzero : expression bit := low_count ≠ 0
---   -- Set the af flag
---   set_cond af is_nonzero undef
---   match op with
---   | shift_op.shl =>
---      cf .= prim.shl_carry w cf v low_count
---   | shift_op.shr => do
---      cf .= prim.shr_carry w v cf low_count
---   | shift_op.sar => do
---      cf .= prim.sar_carry w v cf low_count
+  -- When the count is zero, nothing happens, and no flags change
+  let is_nonzero : expression bit := low_count ≠ 0
+  -- Set the af flag
+  set_cond af is_nonzero undef
+  match op with
+  | shift_op.shl =>
+     cf .= prim.shl_carry w _ cf v low_count
+  | shift_op.shr => do
+     cf .= prim.shr_carry w _ v cf low_count
+  | shift_op.sar => do
+     cf .= prim.sar_carry w _ v cf low_count
 
---   -- Compute value of of_flag if low_count is 1.
---   let of_flag :=
---     match op with
---     | shift_op.shl => expression.bit_xor (@msb w res) (@msb w (⇑ v))
---     | shift_op.sar => bit_zero
---     | shift_op.shr => @msb w (⇑ v)
+  -- Compute value of of_flag if low_count is 1.
+  let of_flag :=
+    match op with
+    | shift_op.shl => expression.bit_xor (@msb w res) (@msb w (⇑ v))
+    | shift_op.sar => bit_zero
+    | shift_op.shr => @msb w (⇑ v)
 
---   set_cond of is_nonzero (mux (low_count = 1) of_flag undef)
---   set_cond sf is_nonzero (msb res)
---   set_cond zf is_nonzero (res = 0)
---   set_cond pf is_nonzero (even_parity (least_byte res))
---   set_cond v  is_nonzero res
+  set_cond of is_nonzero (mux (low_count = 1) of_flag undef)
+  set_cond sf is_nonzero (msb res)
+  set_cond zf is_nonzero (res = 0)
+  set_cond pf is_nonzero (even_parity (least_byte res))
+  set_cond v  is_nonzero res
 
--- def shift_def (nm:String) (o : shift_op) : instruction :=
---   definst nm $ do
---     instr_pat $ fun (w : one_of [8, 16, 32]) (value: lhs (bv w)) (count: expression (bv 8)) =>
---       let action : semantics Unit := do
---         do_sh o value count ((32 - 1) : expression (bv 8))
---       action
---     instr_pat $ fun (value: lhs (bv 64)) (count: expression (bv 8)) =>
---       let action : semantics Unit := do
---         do_sh o value count ((64 - 1) : expression (bv 8))
---       action
---     -- CL version
---     instr_pat $ fun (w : one_of [8, 16, 32]) (value: lhs (bv w)) =>
---       let action : semantics Unit := do
---         do_sh o value (⇑ cl) ((32 - 1) : expression (bv 8))
---       action
---     instr_pat $ fun (value: lhs (bv 64)) =>
---       let action : semantics Unit := do
---         do_sh o value (⇑ cl) ((64 - 1) : expression (bv 8))
---       action
+def shift_def (nm:String) (o : shift_op) : instruction :=
+  definst nm $ do
+    instr_pat $ fun (w : one_of [8, 16, 32]) (value: lhs (bv w)) (count: expression (bv 8)) =>
+      let action : semantics Unit := do
+        do_sh o value count ((32 - 1) : expression (bv 8))
+      action
+    instr_pat $ fun (value: lhs (bv 64)) (count: expression (bv 8)) =>
+      let action : semantics Unit := do
+        do_sh o value count ((64 - 1) : expression (bv 8))
+      action
+    -- CL version
+    instr_pat $ fun (w : one_of [8, 16, 32]) (value: lhs (bv w)) =>
+      let action : semantics Unit := do
+        do_sh o value (⇑ cl) ((32 - 1) : expression (bv 8))
+      action
+    instr_pat $ fun (value: lhs (bv 64)) =>
+      let action : semantics Unit := do
+        do_sh o value (⇑ cl) ((64 - 1) : expression (bv 8))
+      action
 
--- -- Shift logical right
--- def shr_def : instruction := shift_def "shr" shift_op.shr
+-- Shift logical right
+def shr_def : instruction := shift_def "shr" shift_op.shr
 
--- -- Shift arithmetic right
--- def sar_def : instruction := shift_def "sar" shift_op.sar
+-- Shift arithmetic right
+def sar_def : instruction := shift_def "sar" shift_op.sar
 
--- -- Shift logical left
--- def shl_def : instruction := shift_def "shl" shift_op.shl
+-- Shift logical left
+def shl_def : instruction := shift_def "shl" shift_op.shl
 
--- -- Shift arithmetic left (same as shl semantically)
--- def sal_def : instruction := shift_def "sal" shift_op.shl
+-- Shift arithmetic left (same as shl semantically)
+def sal_def : instruction := shift_def "sal" shift_op.shl
 
--- ------------------------------------------------------------------------
--- -- Instruction List
+------------------------------------------------------------------------
+-- Instruction List
 
--- def all_instructions :=
---   [ and_def
---   , adc
---   , add
---   , bsf_def
---   , bsr_def
---   , bswap
---   , bt
---   , btc
---   , btr
---   , bts
---   , call
---   , cbw
---   , cdq
---   , cdqe
---   , clc
---   , cld
---   , cmp
---   , cpuid
---   , cqo
---   , cwd
---   , cwde
---   , dec
---   , div
---   , fadd
---   , faddp
---   , fiadd
---   , hlt
---   , idiv
---   , imul
---   , inc
---   ] ++
---   jcc_instructions ++ setcc_instructions ++ cmovcc_instructions ++
---   [ jmp
---   , lea
---   , leave
---   , mov
---   , movaps
---   , movups
---   , movsx
---   -- , movsxd
---   , movzx
---   , mul
---   , neg
---   , nop
---   , noopl
---   , not
---   , or_def
---   , pause
---   , pop_def
---   , push_def
---   , ret
---   , sal_def
---   , sar_def
---   , shl_def
---   , shr_def
---   , sub_def
---   , syscall
---   , test
---   , xadd
---   , xchg
---   , xor_def
---   ]
+def all_instructions :=
+  [ and_def
+  , adc
+  , add
+  , bsf_def
+  , bsr_def
+  , bswap
+  , bt
+  , btc
+  , btr
+  , bts
+  , call
+  , cbw
+  , cdq
+  , cdqe
+  , clc
+  , cld
+  , cmp
+  , cpuid
+  , cqo
+  , cwd
+  , cwde
+  , dec
+  , div
+  , fadd
+  , faddp
+  , fiadd
+  , hlt
+  , idiv
+  , imul
+  , inc
+  ] ++
+  jcc_instructions ++ setcc_instructions ++ cmovcc_instructions ++
+  [ jmp
+  , lea
+  , leave
+  , mov
+  , movaps
+  , movups
+  , movsx
+  -- , movsxd
+  , movzx
+  , mul
+  , neg
+  , nop
+  , noopl
+  , not
+  , or_def
+  , pause
+  , pop_def
+  , push_def
+  , ret
+  , sal_def
+  , sar_def
+  , shl_def
+  , shr_def
+  , sub_def
+  , syscall
+  , test
+  , xadd
+  , xchg
+  , xor_def
+  ]
 
--- end x86
+end x86
 
--- /-
--- open x86
+/-
+open x86
 
--- def main : io Unit := do
---   monad.mapm' (io.put_str_ln ∘ repr) all_instructions
--- -/
+def main : io Unit := do
+  monad.mapm' (io.put_str_ln ∘ repr) all_instructions
+-/

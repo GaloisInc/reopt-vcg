@@ -794,8 +794,15 @@ def of_addr : ∀{tp:type}, addr tp → expression (bv 64)
 
 instance prim_is_expr (rtp:type) : Coe (prim rtp) (expression rtp) := ⟨expression.primitive⟩
 
-instance (a:type) (f:type) : CoeFun (expression (type.fn a f)) (fun _ => ∀(y:expression a), expression f) :=
+-- instance (a:type) (f:type) : CoeFun (expression (type.fn a f)) (fun _ => ∀(y:expression a), expression f) :=
+--   { coe := app }
+
+instance (a:type) (f:type) : CoeFun (expression (type.fn a f)) (fun _ => expression a -> expression f) :=
   { coe := app }
+
+
+instance (a:type) (f:type) : CoeFun (prim (type.fn a f)) (fun _ => expression a -> expression f) :=
+  { coe := λp e => app (expression.primitive p) e }
 
 
 def add : ∀{w:Nat}, expression (bv w) → expression (bv w) → expression (bv w)
@@ -811,9 +818,11 @@ def neg : ∀{w:Nat}, expression (bv w) → expression (bv w)
 
 instance type_is_sort : CoeSort type Type := {coe := expression}
 
-instance (w:Nat) : OfNat (coeSort (bv w)) := ⟨λ n => expression.primitive $ prim.bv_nat w n⟩
-instance (w:Nat) : OfNat (expression (bv w)) := ⟨λ n => prim.bv_nat w n⟩
+instance (w:Nat) (n : Nat) : OfNat (coeSort (bv w)) n := ⟨expression.primitive $ prim.bv_nat w n⟩
+instance (w:Nat) (n : Nat) : OfNat (expression (bv w)) n := ⟨prim.bv_nat w n⟩
 instance (w:Nat) : Add  (expression (bv w)) := ⟨add⟩
+instance (w:Nat) : HAdd (expression (bv w)) (expression (bv w)) (expression (bv w)) := ⟨add⟩
+
 instance (w:Nat) : Sub  (expression (bv w)) := ⟨sub⟩
 instance (w:Nat) : Neg  (expression (bv w)) := ⟨neg⟩
 
@@ -856,13 +865,13 @@ def bsf {w:Nat} (x: bv w) : bv w := prim.bsf w x
 
 def bsr {w:Nat} (x: bv w) : bv w := prim.bsr w x
 
-def sext {w:Nat} (x: bv w) (o:Nat) : bv o := prim.sext w o x
+def sext {w:Nat} (x: expression (bv w)) (o:Nat) : expression (bv o) := prim.sext w o x
 
-def uext {w:Nat} (x: bv w) (o:Nat) : bv o := prim.uext w o x
+def uext {w:Nat} (x: expression (bv w)) (o:Nat) : expression (bv o) := prim.uext w o x
 
-def neq {tp:type} (x y : tp) : bit := prim.neq tp x y
+def neq {tp:type} (x y : expression tp) : expression bit := prim.neq tp x y
 
-def eq {tp:type} (x y : tp) : bit := prim.eq tp x y
+def eq {tp:type} (x y : expression tp) : expression bit := prim.eq tp x y
 
 def bit_one  : bit := expression.primitive prim.bit_one
 def bit_zero : bit := expression.primitive prim.bit_zero

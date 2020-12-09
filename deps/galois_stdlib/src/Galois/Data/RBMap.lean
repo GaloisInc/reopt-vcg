@@ -7,7 +7,7 @@ universes u v w
 variables {α : Type u} {β : Type v}
 
 /- Builds an RBMap from a list with String keys. -/
-def ltMap [Less α] [∀ (a b : α), Decidable (a < b)] (entries: List (α × β))
+def ltMap [HasLess α] [∀ (a b : α), Decidable (a < b)] (entries: List (α × β))
  : RBMap α β (λ (x y:α)=> x<y) :=
  RBMap.fromList entries (λ (x y:α)=> x<y)
 

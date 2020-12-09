@@ -18,7 +18,7 @@ namespace prim
 
 -- Imported (FFI) functions
 @[extern "vadd_mcinst_decode"]
-def decode ( b : @& ByteArray ) (offset : @& Nat) (vaddr : @& Nat) : decode_result := arbitrary _
+def decode ( b : @& ByteArray ) (offset : @& Nat) (vaddr : @& Nat) : decode_result := arbitrary
 
 end prim
 

@@ -6,7 +6,7 @@ universes u v
 variables {α : Type u} {β : α → Type v}
 
 instance [Inhabited α] [forall (a : α), Inhabited (β a)] : Inhabited (Sigma β) :=
-{default := let a := arbitrary α; ⟨a, arbitrary (β a)⟩}
+{default := let a : α := arbitrary; ⟨a, (arbitrary : (β a)) ⟩}
 
 end Sigma
 
