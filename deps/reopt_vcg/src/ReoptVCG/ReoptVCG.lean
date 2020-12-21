@@ -430,7 +430,7 @@ def runVCG (cfg : VCGConfig) : IO UInt32 := do
   match cfg.mode with
   | VerificationMode.defaultMode =>
     let cmd := "cvc4 " ++ (String.intercalate " " defaultCVC4Args)
-    IO.println $ "Default solver mode: checking verification conditions using `"++cmd++"`..."
+    IO.println $ "Default solver mode: checking verification conditions using `"++ cmd ++"`..."
   | VerificationMode.runSolverMode solver solverArgs =>
     let cmd := solver ++ (String.intercalate " " solverArgs)
     IO.println $ "Default mode: checking verification conditions using `"++cmd++"`..."
