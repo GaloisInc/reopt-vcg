@@ -13,8 +13,7 @@ LOCAL_LEAN := src/Galois/Category/Coe1.lean\
   src/Galois/Init/Io.lean\
   src/Galois/Init/Nat.lean\
   src/Galois/Init/Order.lean\
-  src/Galois/Init/Json.lean\
-  src/Galois/Init/String.lean
+  src/Galois/Init/Json.lean
 LOCAL_CXX  := src/Galois/Init/io_runtime.cpp
 
 # $(info $(call add-package,src,${LOCAL_LEAN},${LOCAL_CXX}))

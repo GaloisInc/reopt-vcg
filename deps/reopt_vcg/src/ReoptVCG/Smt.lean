@@ -1,7 +1,6 @@
 
 import Galois.Data.SExp
 import Galois.Init.Io
-import Galois.Init.String
 import ReoptVCG.SmtParser
 import ReoptVCG.MCStdLib
 import ReoptVCG.Types
