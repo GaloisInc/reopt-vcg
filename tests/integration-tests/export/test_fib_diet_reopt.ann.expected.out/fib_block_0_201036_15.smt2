@@ -1,4 +1,4 @@
-; fib.block_0_201036.2 @ 0x201048: jump precondition: (= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))
+; fib.block_0_201036.2 @ 0x201048: precondition ((= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp)), for jump)
 (set-logic ALL)
 (set-option :produce-models true)
 (define-fun mem_readbv8 ((arg (Array (_ BitVec 64) (_ BitVec 8))) (arg0 (_ BitVec 64))) (_ BitVec 8) (select arg (bvadd arg0 #x0000000000000000)))

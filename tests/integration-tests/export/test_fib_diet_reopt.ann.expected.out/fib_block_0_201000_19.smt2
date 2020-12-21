@@ -1,4 +1,4 @@
-; fib.block_0_201000.4 @ 0x201011: false branch precondition: (= rsp (bvsub stack_high (_ bv40 64)))
+; fib.block_0_201000.4 @ 0x201011: precondition ((= rsp (bvsub stack_high (_ bv40 64))), for false branch)
 (set-logic ALL)
 (set-option :produce-models true)
 (define-fun mem_readbv8 ((arg (Array (_ BitVec 64) (_ BitVec 8))) (arg0 (_ BitVec 64))) (_ BitVec 8) (select arg (bvadd arg0 #x0000000000000000)))

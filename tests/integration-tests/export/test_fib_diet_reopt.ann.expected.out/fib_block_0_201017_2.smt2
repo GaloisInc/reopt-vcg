@@ -1,4 +1,4 @@
-; fib.block_0_201017.0 @ 0x20101f: jump register rip.
+; fib.block_0_201017.0 @ 0x20101f: instruction pointer is expected value (jump)
 (set-logic ALL)
 (set-option :produce-models true)
 (define-fun mem_readbv8 ((arg (Array (_ BitVec 64) (_ BitVec 8))) (arg0 (_ BitVec 64))) (_ BitVec 8) (select arg (bvadd arg0 #x0000000000000000)))

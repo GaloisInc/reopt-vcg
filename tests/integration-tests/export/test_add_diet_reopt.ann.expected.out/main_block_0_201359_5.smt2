@@ -1,4 +1,4 @@
-; main.block_0_201359.0 @ 0x201366: value of rbp at return is preserved.
+; main.block_0_201359.0 @ 0x201366: register value preserved (rbp, after return)
 (set-logic ALL)
 (set-option :produce-models true)
 (define-fun mem_readbv8 ((arg (Array (_ BitVec 64) (_ BitVec 8))) (arg0 (_ BitVec 64))) (_ BitVec 8) (select arg (bvadd arg0 #x0000000000000000)))

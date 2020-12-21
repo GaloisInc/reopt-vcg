@@ -1,4 +1,4 @@
-; main.block_0_20109d.0 @ 0x20109f: machine code write at 0x20109f is in unreserved stack space.
+; main.block_0_20109d.0 @ 0x20109f: machine code writes to unreserve stack space
 (set-logic ALL)
 (set-option :produce-models true)
 (define-fun mem_readbv8 ((arg (Array (_ BitVec 64) (_ BitVec 8))) (arg0 (_ BitVec 64))) (_ BitVec 8) (select arg (bvadd arg0 #x0000000000000000)))

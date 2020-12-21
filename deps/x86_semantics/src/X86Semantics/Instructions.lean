@@ -366,8 +366,8 @@ def neg : instruction := do
 -- nop definition
 -- No Operation
 
-def nop : instruction := do
- definst "nop" $ do
+def noop : instruction := do
+ definst "noop" $ do
    instr_pat $ 
      let action : semantics Unit := do
        (pure () : semantics Unit)
@@ -1225,7 +1225,7 @@ def all_instructions :=
   , movzx
   , mul
   , neg
-  , nop
+  , noop
   , noopl
   , not
   , or_def

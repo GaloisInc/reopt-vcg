@@ -77,10 +77,13 @@ def verifyBlock
          blockLbl := aBlock.label,
          blockVerificationEvents := vEvents}
     | Except.error (BlockVCGError.localErr e) => do
-      modify (λ s => {s with errorCount := s.errorCount + 1});
-      pure $ BlockVerificationEvent.error funAnn.llvmFunName aBlock.label e
+      modify (λ s => {s with blockErrors := e::s.blockErrors})
+      pure $ BlockVerificationEvent.error e
     | Except.error (BlockVCGError.globalErr msg) =>
-      throw $ ModuleError.fatal msg
+      moduleThrow {fnName := some funAnn.llvmFunName,
+                   blockLbl := aBlock.label} 
+                  ModuleErrorTag.fatal
+                  msg
 
 
 
@@ -111,20 +114,32 @@ def parseAnnotatedBlock
   : ModuleVCG AnnotatedBlock := do
   let lbl := b.label;
   let (phiVarList, llvmStmts) := extractPhiStmtVars [] b.stmts.toList;
-  let parseLLVMVar : (LLVM.Ident × LLVMType × BlockLabelValMap) → ModuleVCG (LLVM.Ident × SmtSort) :=
-    (λ (p : (LLVM.Ident × LLVMType × BlockLabelValMap)) =>
-      let (nm, tp, _) := p;
+  let parseLLVMVar : (LLVM.Ident × LLVMType × BlockLabelValMap) → 
+                     ModuleVCG (LLVM.Ident × SmtSort) :=
+      λ (p : (LLVM.Ident × LLVMType × BlockLabelValMap)) =>
+      let (nm, tp, _) := p
       match llvmTypeToSort tp with
       | Option.some s => pure (nm, s)
-      | Option.none   => blockError fnm lbl $ BlockError.unsupportedPhiVarType nm tp);
+      | Option.none   => 
+        moduleThrow {fnName := some fnm,
+                     blockLbl := some lbl}
+                    ModuleErrorTag.unsupportedPhiVarType
+                    (nm.asString ++ " : " ++ ppLLVM tp)
   let varTypes ← phiVarList.mapM parseLLVMVar;
   let llvmTyEnv := Std.RBMap.ltMap varTypes;
   let blockJson ← match blockMap.find? lbl.label with
     | Option.some json => pure json
-    | Option.none => blockError fnm lbl BlockError.missingAnnotations;
+    | Option.none => 
+      moduleThrow {fnName := some fnm,
+                     blockLbl := some lbl}
+                  ModuleErrorTag.blockMissingAnnotations
+                  ""
   match parseBlockAnn llvmTyEnv blockJson with
   | Except.error errMsg => 
-    blockError fnm lbl $ BlockError.annParseFailure errMsg
+    moduleThrow {fnName := some fnm,
+                 blockLbl := some lbl}
+                ModuleErrorTag.annParseFailure
+                errMsg
   | Except.ok ann => do
     let phiMap := Std.RBMap.ltMap phiVarList;
     pure $ {annotation := ann,
@@ -149,23 +164,29 @@ def parseLLVMArgs
 | revArgs, [], _ => pure revArgs.reverse
 | revBinds, (⟨LLVMType.prim (PrimType.integer 64), nm⟩::restArgs), regs =>
   match regs with
-  | [] => functionError fnm $ FnError.custom $ 
-          "Maximum of "++(x86ArgGPRegs.length.repr)++" i64 arguments supported"
+  | [] => 
+    let maxArgs : Nat := x86ArgGPRegs.length
+    let totalArgs : Nat := maxArgs + 1 + restArgs.length
+    moduleThrow {fnName := some fnm, blockLbl := none}
+                ModuleErrorTag.maxFnArgCntSurpassed 
+                ((repr maxArgs)++" supported, but got "++(repr totalArgs))
   | (reg::restRegs) =>
     let binding := LLVMMCArgBinding.mk nm (SmtSort.bv64) reg;
     parseLLVMArgs fnm (binding::revBinds) restArgs restRegs
 | _, (⟨tp, nm⟩::restArgs), _ =>
-  functionError fnm $ FnError.argTypeUnsupported nm tp
+  moduleThrow {fnName := some fnm, blockLbl := none}
+              ModuleErrorTag.argTypeUnsupported
+              (nm.asString++ " : "++ppLLVM tp)
 
 /- Builds a mapping from block labels to corresponding block annotation json objects. -/
 def buildBlockAnnMap (fAnn:FunctionAnn) : ModuleVCG (Std.RBMap LLVM.Ident Json (λ x y => x<y)) := do
 let mkEntry : List (LLVM.Ident × Json) → Json → ModuleVCG (List (LLVM.Ident × Json)) :=
   λ entries blockAnn => 
     match parseObjValAsString blockAnn "label" with
-    | Except.error errMsg => 
-      functionError fAnn.llvmFunName $ FnError.custom
-      ("Encountered an error while parsing the block annotation: "
-      ++ errMsg)
+    | Except.error errMsg =>
+      moduleThrow {fnName := some fAnn.llvmFunName, blockLbl := none}
+                  ModuleErrorTag.annParseFailure
+                  errMsg
     | Except.ok lbl => pure $ (LLVM.Ident.named lbl, blockAnn)::entries;
 llvmIdentRBMap <$> fAnn.blocks.foldlM mkEntry []
 
@@ -178,7 +199,10 @@ def verifyFunction' (lMod:LLVM.Module) (fAnn: FunctionAnn): ModuleVCG FnVerifica
   -- Get the LLVM `define` associated with the function name
   let lFun ← match getDefineByName lMod fnm with
     | Option.some f => pure f
-    | Option.none => functionError fnm FnError.notFound;
+    | Option.none => 
+      moduleThrow {fnName := fnm, blockLbl := none}
+                  ModuleErrorTag.fnNotFound
+                  ""
   -- Parse the LLVM args and assign them to registers
   let argBindings ← parseLLVMArgs fnm [] lFun.args.toList x86ArgGPRegs;
   -- Build a mapping from block labels to the JSON block annotations
@@ -190,12 +214,20 @@ def verifyFunction' (lMod:LLVM.Module) (fAnn: FunctionAnn): ModuleVCG FnVerifica
     Std.RBMap.fromList (blocks.toList.map (λ ab => (ab.label, ab))) (λ x y => x<y);
   -- Verify the first block is where the annotation indicated it should be, and return
   -- the label for the first block
-  let (entryBlockLbl, entryBlockAddr) ← (match lFun.body.toList with
-    | [] => functionError fnm FnError.missingEntryBlock
+  let (entryBlockLbl, entryBlockAddr) ← match lFun.body.toList with
+    | [] => moduleThrow {fnName := fnm, blockLbl := none}
+                        ModuleErrorTag.missingEntryBlock
+                        ""
     | (firstBlock :: _) => match blockMap.find? firstBlock.label with
-      | Option.none => blockError fnm firstBlock.label BlockError.missingAnnotations
+      | Option.none => 
+        moduleThrow {fnName := fnm, blockLbl := firstBlock.label}
+                    ModuleErrorTag.blockMissingAnnotations
+                    ""
       | Option.some ab => match ab.annotation with
-        | BlockAnn.unreachable => functionError fnm FnError.entryUnreachable
+        | BlockAnn.unreachable => 
+          moduleThrow {fnName := fnm, blockLbl := none}
+                      ModuleErrorTag.entryUnreachable
+                      ""
         | BlockAnn.reachable firstBlockAnn =>
           match getMCAddrOfLLVMFunction modCtx.symbolAddrMap fnm with
           | Except.error errMsg =>
@@ -207,19 +239,21 @@ def verifyFunction' (lMod:LLVM.Module) (fAnn: FunctionAnn): ModuleVCG FnVerifica
           | Except.ok addr =>
             if (addr == firstBlockAnn.startAddr)
             then pure (ab.label, addr)
-            else moduleThrow $ 
-                 fnm ++ " annotation address listed as " 
-                     ++ (firstBlockAnn.startAddr.addr.pp_hex
-                     ++ "; symbol table however lists address as " ++ addr.addr.pp_hex ++ "."));
+            else moduleThrow {fnName := fnm, blockLbl := ab.label}
+                             ModuleErrorTag.fnAnnAddrWrong
+                             ("annotation address "++ firstBlockAnn.startAddr.addr.pp_hex
+                              ++", symbol table address "++addr.addr.pp_hex)
   -- Verify each block.
   let bvEvents ← blocks.toList.mapM (verifyBlock fAnn argBindings blockMap entryBlockLbl entryBlockAddr);
   pure $ FnVerificationEvent.fn fnm bvEvents
 
 def verifyFunction (lMod:LLVM.Module) (fAnn: FunctionAnn) : ModuleVCG FnVerificationEvent :=
   let handler : ModuleError → ModuleVCG FnVerificationEvent :=
-    λ e => match e with
-           | ModuleError.function fnm e => pure $ FnVerificationEvent.error fnm e
-           | _ => throw e;
+    λ e => match e.tag with
+           | ModuleErrorTag.fatal => throw e
+           | _ => do
+             modify (λ s => {s with moduleErrors := e :: s.moduleErrors})
+             pure $ FnVerificationEvent.error e
   tryCatch (verifyFunction' lMod fAnn) handler
 
 
@@ -286,22 +320,76 @@ def mkLLVMTypeMap(m:LLVM.Module): LLVMTypeMap :=
 def get_text_segment {c} (e : elf.ehdr c) (phdrs : List (elf.phdr c)) : Option (elf.phdr c) :=
   phdrs.find? (fun p => p.flags.has_X)
 
-def runVerificationEvent (ps : ProverSession) : VerificationEvent → IO Unit
-| VerificationEvent.msg vMsg => IO.println vMsg.msg
-| VerificationEvent.goal vg => ps.verifyGoal vg
+def runVerificationEvent (cfg : VCGConfig) (ps : ProverSession) : VerificationEvent → IO Unit
+| VerificationEvent.msg vMsg => do
+  IO.println $ ""
+  IO.println $ vMsg.msg
+| VerificationEvent.goal vg =>
+  ps.verifyGoal cfg vg
 
-def runBlockVerificationEvent (ps : ProverSession) : BlockVerificationEvent → IO Unit
-| BlockVerificationEvent.block bv => bv.blockVerificationEvents.forM (runVerificationEvent ps)
-| BlockVerificationEvent.error fnm blockLbl bError =>
-  IO.println $ "Error while verifying block `" ++ (ppLLVM blockLbl) ++ "` of function `"++ fnm ++"`: " ++ (BlockError.pp bError)
+def runBlockVerificationEvent (cfg : VCGConfig) (ps : ProverSession) : BlockVerificationEvent → IO Bool
+| BlockVerificationEvent.block bv => do
+  bv.blockVerificationEvents.forM (runVerificationEvent cfg ps)
+  pure true
+| BlockVerificationEvent.error err => do
+  IO.println $ ""
+  IO.println $ "Error during block verification condition generation: " ++ err.pp
+  pure false
 
 
-def runFnVerificationEvent (ps : ProverSession) : FnVerificationEvent → IO Unit
+def runFnVerificationEvent (cfg : VCGConfig) (ps : ProverSession) (errCnt : IO.Ref Nat) : FnVerificationEvent → IO Unit
 | FnVerificationEvent.fn fnm bvEvents => do
-  IO.println $ "Analyzing `" ++ fnm ++ "`";
-  bvEvents.forM (runBlockVerificationEvent ps)
-| FnVerificationEvent.error fnm err =>
-  IO.println $ "Error while verifying funcion `" ++ fnm ++ "`: " ++ (FnError.pp err)
+  IO.println $ ""
+  IO.println $ "Analyzing `" ++ fnm ++ "`"
+  let failure : Bool := false
+  for e in bvEvents do
+    let success ← runBlockVerificationEvent cfg ps e
+    if !success then do
+      failure := true
+  if failure then do
+    errCnt.modify Nat.succ
+| FnVerificationEvent.error err => do
+  IO.println $ ""
+  IO.println $ "Error during function verification condition generation: " ++ err.pp
+
+def reportErrors (bErrors : List BlockError) (mErrors : List ModuleError) (success : Bool) : IO UInt32 := do
+  let indent : String := "  "
+  -- summarize block errors
+  let bErrCnt : Nat := 0
+  if !bErrors.isEmpty then do
+    IO.println ""
+    IO.println "======================= ERRORS ======================="
+    let bErrMap : Std.RBMap BlockErrorTag (Nat × (Std.RBMap String Nat (λ x y => x < y))) BlockErrorTag.lt := Std.RBMap.empty
+    for err in bErrors do
+      bErrCnt := bErrCnt + 1
+      bErrMap := let (tagCnt, tagMap) := bErrMap.findD err.tag (0, Std.RBMap.empty)
+                 let extraInfoCount := tagMap.findD err.extraInfo 0
+                 bErrMap.insert err.tag (tagCnt + 1, (tagMap.insert err.extraInfo (extraInfoCount + 1)))
+    if bErrCnt > 0 then do
+      IO.println $ ""
+      IO.println $ (repr bErrCnt)++" block errors encountered:"
+      for (tag, (tagCnt, tagMap)) in bErrMap.toList do -- FIXME remove toList next lean bump
+        IO.println $ indent++"* ("++(repr tagCnt)++") "++tag.description
+        for (extraInfo, n) in tagMap.toList do -- FIXME remove toList next lean bump
+          IO.println $ indent++indent++"- ("++(repr n)++") "++extraInfo
+  -- summarize module errors
+  let mErrCnt : Nat := 0
+  if !mErrors.isEmpty then do
+    let mErrMap : Std.RBMap ModuleErrorTag (Nat × (Std.RBMap String Nat (λ x y => x < y))) ModuleErrorTag.lt := Std.RBMap.empty
+    for err in mErrors do
+      mErrCnt := mErrCnt + 1
+      mErrMap := let (tagCnt, tagMap) := mErrMap.findD err.tag (0, Std.RBMap.empty)
+                 let extraInfoCount := tagMap.findD err.extraInfo 0
+                 mErrMap.insert err.tag (tagCnt + 1, (tagMap.insert err.extraInfo (extraInfoCount + 1)))
+    IO.println $ ""
+    IO.println $ (repr mErrCnt)++" module errors encountered:"
+    for (tag, (tagCnt, tagMap)) in mErrMap.toList do -- FIXME remove toList next lean bump
+      IO.println $ indent++"* ("++(repr tagCnt)++") "++tag.description
+      for (extraInfo, n) in tagMap.toList do -- FIXME remove toList next lean bump
+        IO.println $ indent++indent++"- ("++(repr n)++") "++extraInfo
+  if success
+  then pure 1
+  else pure $ if bErrCnt > 0 then 1 else 0
 
 /- Run a ReoptVCG instance w.r.t. the given configuration. -/
 def runVCG (cfg : VCGConfig) : IO UInt32 := do
@@ -332,21 +420,33 @@ def runVCG (cfg : VCGConfig) : IO UInt32 := do
     , moduleTypeMap := mkLLVMTypeMap lMod
     };
   -- Run verification.
-  when cfg.verbose $ IO.println $ "Compiling VCG data for the module...";
-  let verifyFns := ann.functions.mapM (verifyFunction lMod);
+  IO.println $ "Generating verification conditions for LLVM module..."
+  let verifyFns := ann.functions.mapM (verifyFunction lMod)
   let (fvEvents, mState) ←
     match runModuleVCG modCtx verifyFns with
     | Except.ok res => pure res
     | Except.error e =>
-      throw $ IO.userError $ "Fatal error encountered while constructing verification for functions: " ++ (ModuleError.pp e);
-  when cfg.verbose $ IO.println $ "Running VCG for the module...";
-  fvEvents.forM (runFnVerificationEvent proverSession);
+      throw $ IO.userError $ "Fatal error encountered while constructing verification for functions: " ++ (ModuleError.pp e)
+  match cfg.mode with
+  | VerificationMode.defaultMode =>
+    let cmd := "cvc4 " ++ (String.intercalate " " defaultCVC4Args)
+    IO.println $ "Default solver mode: checking verification conditions using `"++cmd++"`..."
+  | VerificationMode.runSolverMode solver solverArgs =>
+    let cmd := solver ++ (String.intercalate " " solverArgs)
+    IO.println $ "Default mode: checking verification conditions using `"++cmd++"`..."
+  | VerificationMode.exportMode path =>
+    IO.println $ "Writing out verification conditions as .smt2 files to directory `"++path++"`..."
+  let errCntRef ← IO.mkRef 0;
+  fvEvents.forM (runFnVerificationEvent cfg proverSession errCntRef)
+  let errCnt ← errCntRef.get
   -- print out results
-  if mState.errorCount > 0 then do
-    proverSession.sessionComplete;
-    IO.println (repr mState.errorCount ++ " errors were encountered.");
-    pure 1
-  else
-    proverSession.sessionComplete
+  let {success := success,
+       printSummary := printSummary,
+       printFailures := printFailures} ← proverSession.sessionComplete
+  printSummary
+  let okCnt := fvEvents.length - errCnt
+  IO.println $ (repr okCnt)++" out of "++(repr (okCnt + errCnt))++" functions successfully analyzed with no errors."
+  printFailures
+  reportErrors mState.blockErrors mState.moduleErrors success
 
 end ReoptVCG

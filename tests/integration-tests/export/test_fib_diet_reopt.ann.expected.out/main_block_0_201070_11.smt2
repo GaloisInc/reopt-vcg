@@ -1,4 +1,4 @@
-; main.block_0_201070.1 @ 0x201084: jump precondition: (= r13 (fnstart r13))
+; main.block_0_201070.1 @ 0x201084: precondition ((= r13 (fnstart r13)), for jump)
 (set-logic ALL)
 (set-option :produce-models true)
 (define-fun mem_readbv8 ((arg (Array (_ BitVec 64) (_ BitVec 8))) (arg0 (_ BitVec 64))) (_ BitVec 8) (select arg (bvadd arg0 #x0000000000000000)))
