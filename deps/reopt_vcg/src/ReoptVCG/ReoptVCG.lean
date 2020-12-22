@@ -429,11 +429,10 @@ def runVCG (cfg : VCGConfig) : IO UInt32 := do
       throw $ IO.userError $ "Fatal error encountered while constructing verification for functions: " ++ (ModuleError.pp e)
   match cfg.mode with
   | VerificationMode.defaultMode =>
-    let cmd := "cvc4 " ++ (String.intercalate " " defaultCVC4Args)
-    IO.println $ "Default solver mode: checking verification conditions using `"++ cmd ++"`..."
+    IO.println $ "Default solver mode: checking verification conditions using cvc4..."
   | VerificationMode.runSolverMode solver solverArgs =>
     let cmd := solver ++ (String.intercalate " " solverArgs)
-    IO.println $ "Default mode: checking verification conditions using `"++cmd++"`..."
+    IO.println $ "Solver mode: checking verification conditions with user-specified solver..."
   | VerificationMode.exportMode path =>
     IO.println $ "Writing out verification conditions as .smt2 files to directory `"++path++"`..."
   let errCntRef ← IO.mkRef 0;
