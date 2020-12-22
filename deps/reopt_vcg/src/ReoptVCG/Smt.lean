@@ -15,13 +15,16 @@ universe u
 
 abbrev GoalName := String
 
--- structure ProverInterface :=
--- (checkSatAssuming  : GoalName → SmtM (Term SmtSort.bool) → IO Unit)
--- (blockErrorCallback : Nat → Nat → String → IO Unit) -- what do we do there? Do nothing for now...?
+
+-- Did the prover session complete successfully or fail in some way?
+structure ProverSessionResult :=
+  (success : Bool)
+  (printSummary : IO Unit)
+  (printFailures : IO Unit)
 
 structure ProverSession :=
-(verifyGoal : VerificationGoal → IO Unit)
-(sessionComplete : IO UInt32)
+  (verifyGoal : VCGConfig → VerificationGoal → IO Unit)
+  (sessionComplete : IO ProverSessionResult)
 
 
 def defaultCVC4Args : List String :=
@@ -154,17 +157,8 @@ def evalPrecondition {tp : SmtSort} (evalVar : LLVM.Ident → Option (Sigma Term
   | Except.ok res => pure res
 
 
-def ppBlockLabel (lbl:LLVM.BlockLabel) : String :=
-match lbl.label with
-| LLVM.Ident.named str => str
-| LLVM.Ident.anon n => "anon" ++ n.repr
-
--- | Pretty print an error that occurs at the start of an instruction.
-def renderMCInstError (fnm : String) (blockLbl : LLVM.BlockLabel) (llvmInstrIdx : Nat) (addr : Nat) (msg : String) : String :=
-  fnm++"."++(ppBlockLabel blockLbl)++"."++llvmInstrIdx.repr++" @ "++addr.ppHex++": "++msg
-
 def standaloneGoalFilename (vg : VerificationGoal) : String :=
-  vg.fnName ++ "_" ++ (ppBlockLabel vg.blockLbl) ++ "_" ++ vg.goalIndex.repr ++ ".smt2"
+  vg.loc.fnName ++ "_" ++ (ppBlockLabel vg.loc.blockLbl) ++ "_" ++ vg.index.repr ++ ".smt2"
 
 /- Return the absolute path to the directory where we can stash
     temporary files during IO computations. -/
@@ -201,8 +195,8 @@ def proofScriptPrelude (goalName : String) : Script :=
   cmds
 
 /- Check satisfiability with `goal` negated.  -/
-def checkSatWithGoalNegated (goalName : String) (goal : SmtM (Term SmtSort.bool)) : SmtM Unit := do
-  let p ← goal -- FIXME commands that appear before this do not appear in the final script =\
+def checkSatWithGoalNegated (goal : SmtM (Term SmtSort.bool)) : SmtM Unit := do
+  let p ← goal
   checkSatAssuming [Smt.not p]
   exit
 
@@ -211,24 +205,33 @@ def checkSatWithGoalNegated (goalName : String) (goal : SmtM (Term SmtSort.bool)
     of commands to a file. -/
 def exportVerifyGoal
 (outputDir : String)
+(fileCnt : IO.Ref Nat)
+(cfg : VCGConfig)
 (vg : VerificationGoal)
 : IO Unit := do
-  let preludeCmds := proofScriptPrelude vg.propName
-  let (_, _, cmds) := runSmtM IdGen.empty (checkSatWithGoalNegated vg.propName vg.goal)
+  let preludeCmds := proofScriptPrelude vg.fullDescription
+  let (_, _, cmds) := runSmtM IdGen.empty (checkSatWithGoalNegated vg.goal)
   let filePath := System.mkFilePath [outputDir, standaloneGoalFilename vg]
   let file ← IO.FS.Handle.mk filePath IO.FS.Mode.write
   preludeCmds.forM (λ c => file.putStr c.toLine)
   cmds.forM (λ c => file.putStr c.toLine)
+  let stdout ← IO.getStdout
+  stdout.putStr "."
+  stdout.flush
+  fileCnt.modify Nat.succ
 
 
 def exportProverSession
 (outputDir : String)
 : IO ProverSession
 := do
-  let initSmtM : SmtM Unit := pure ()
-  let cmdRef <- IO.mkRef initSmtM
-  pure { verifyGoal := exportVerifyGoal outputDir,
-         sessionComplete := pure 0
+  let fileCnt <- IO.mkRef 0
+  pure { verifyGoal := exportVerifyGoal outputDir fileCnt,
+         sessionComplete := pure {success := true,
+                                  printSummary := do
+                                    let n ← fileCnt.get
+                                    IO.println $ (repr n)++ " verification condition files generated in `"++outputDir++"`.",
+                                  printFailures := pure ()}
        }
 
 
@@ -243,6 +246,12 @@ structure InteractiveContext :=
 -- ^ Counter for all goals (i.e., the total number)
 (verifiedGoalCounter : IO.Ref Nat)
 -- ^ Counter for all successfully verified goals.
+(fnCounter : IO.Ref (Std.RBMap String Nat (λ x y => x < y)))
+-- ^ Counter for each function name, i.e., how many failures/errors were encountered in that function
+(goalFailures : IO.Ref (Std.RBMap GoalTag (Std.RBMap String Nat (λ x y => x < y)) GoalTag.lt))
+-- ^ Counter for each failing goal by property.
+(goalErrors : IO.Ref Nat)
+-- ^ Counter for each erroring goal by property.
 (solverCommand : String)
 -- ^ Command line contents, which when followed up a file name, can be executed
 --   to see if the resulting script is satisfiable or not.
@@ -252,21 +261,24 @@ structure InteractiveContext :=
 -- | Function to verify an SMT proposition is provable in the given
 --   context and print the result to the user.
 def verifyGoal
-(goal : Smt.Term SmtSort.bool)
+(tag : GoalTag)
 -- ^ Goal to verify
-(propName : String)
+(extraInfo : String)
+(goal : Smt.Term SmtSort.bool)
 -- ^ Name of proposition for reporting purposes.
 : BlockVCG Unit := do
   let ctx ← read
-  let smtCtx ← BlockVCGState.smtContext <$> get
-  let goalIndex ← BlockVCGState.goalIndex <$> get
+  let st ← get
   let newGoal : VerificationEvent :=
     VerificationEvent.goal
-    { fnName := ctx.llvmFunName,
-      blockLbl := ctx.currentBlock,
-      goalIndex := goalIndex,
-      propName := propName,
-      goal := do smtCtx; pure goal}
+    { loc := {fnName := ctx.llvmFunName,
+              blockLbl := ctx.currentBlock,
+              llvmInstrIdx := st.llvmInstrIndex,
+              mcAddr := st.mcCurAddr},
+      index := st.goalIndex,
+      tag := tag,
+      extraInfo := extraInfo,
+      goal := do st.smtContext; pure goal}
   modify (λ s => {s with
                   verificationEvents := newGoal :: s.verificationEvents,
                   goalIndex := s.goalIndex + 1})
@@ -278,17 +290,25 @@ def verifyGoal
 -- | context and print the result to the user.
 def interactiveVerifyGoal
 (ictx : InteractiveContext)
+(cfg : VCGConfig)
 (vg : VerificationGoal)
 : IO Unit := do
   ictx.allGoalCounter.modify Nat.succ
   let smtFilePath ← temporaryStandaloneGoalFilepath vg
   let resultFilePath := smtFilePath ++ ".result"
   -- FIXME was stderr, fix with next Lean4 bump
-  IO.print $ "  Verifying " ++ vg.propName ++ "... "
+  if cfg.verbose then do
+    let stdout ← IO.getStdout
+    stdout.putStr $ "  Verifying " ++ vg.fullDescription ++ "... "
+    stdout.flush
+  else do
+    let stdout ← IO.getStdout
+    stdout.putStr "."
+    stdout.flush
   -- FIXME, uncomment this line after next lean4 bump
   -- IO.stdout.flush
-  let preludeCmds := proofScriptPrelude vg.propName
-  let (_, _, cmds) := runSmtM IdGen.empty (checkSatWithGoalNegated vg.propName vg.goal)
+  let preludeCmds := proofScriptPrelude vg.fullDescription
+  let (_, _, cmds) := runSmtM IdGen.empty (checkSatWithGoalNegated vg.goal)
   IO.FS.withFile smtFilePath IO.FS.Mode.write (λ file => do
     preludeCmds.forM (λ c => file.putStr c.toLine)
     cmds.forM (λ c => file.putStr c.toLine)
@@ -297,41 +317,61 @@ def interactiveVerifyGoal
   let smtResult ← IO.FS.lines resultFilePath
   -- FIXME, this assumes the file has a single word in it essentially... might want to
   -- make it slightly more complicated if
-  let printExportInstructions : IO Unit := (do
+  let printExportInstructions : IO Unit := do
     let filePath := "<dir>" ++ [System.FilePath.pathSeparator].asString++(standaloneGoalFilename vg)
     -- FIXME print to stderr after next lean4 bump
     IO.println $ "    To see the output, run `reopt-vcg "++ictx.annFile++" --export <dir>`"
     IO.println $ "    The SMT query will be stored in "++filePath
     IO.println $ "    The default invocation of CVC4 for these queries is as follows:"
-    IO.println $ "      `" ++ (String.intercalate " " ("cvc4"::defaultCVC4Args ++ [filePath]))++"`")
+    IO.println $ "      `" ++ (String.intercalate " " ("cvc4"::defaultCVC4Args ++ [filePath]))++"`"
+  let registerFailure : IO Unit := do
+    printExportInstructions
+    ictx.goalFailures.modify 
+      λ m => let tagMap := m.findD vg.tag Std.RBMap.empty
+             let count := tagMap.findD vg.extraInfo 0
+             m.insert vg.tag (tagMap.insert vg.extraInfo (count + 1))
+    ictx.fnCounter.modify
+      λ m => m.insert vg.loc.fnName ((m.findD vg.loc.fnName 0) + 1)
+  let registerError : IO Unit := do
+    printExportInstructions
+    ictx.goalErrors.modify Nat.succ
+    ictx.fnCounter.modify
+      λ m => m.insert vg.loc.fnName ((m.findD vg.loc.fnName 0) + 1)
   match smtResult.get? 0 with
   | none => do
     -- FIXME print to stderr on next lean4 bump (these and all below printlns in this function)
     IO.println "ERROR"
     IO.println ""
     IO.println "    Verification failed: no response from the SMT solver was detected."
-    printExportInstructions
+    registerError
   | some checkSatRes =>
     match parseCheckSatResult checkSatRes with
     | CheckSatResult.unsat => do
       ictx.verifiedGoalCounter.modify Nat.succ
-      IO.println $ "OK"
+      ictx.fnCounter.modify
+        λ m => m.insert vg.loc.fnName ((m.findD vg.loc.fnName 0))
+      if cfg.verbose then do
+        IO.println "OK"
     | CheckSatResult.sat => do
+      IO.println $ ""
       IO.println $ "FAIL"
       IO.println $ "    Verification failed: the SMT query returned `sat`"
       IO.println $ ""
-      printExportInstructions
+      registerFailure
     | CheckSatResult.unknown => do
+      IO.println $ ""
       IO.println $ "FAIL"
       IO.println $ "    Verification failed: the SMT query returned `unknown`"
       IO.println $ ""
-      printExportInstructions
+      registerFailure
     | CheckSatResult.unsupported => do
+      IO.println $ ""
       IO.println $ "ERROR"
       IO.println $ "    Verification failed: the SMT query returned `unsupported`"
       IO.println $ ""
-      printExportInstructions
+      registerError
     | CheckSatResult.unrecognized msg => do
+      IO.println $ ""
       IO.println $ "ERROR"
       IO.println $ "    Verification failed: the SMT solver did not return a recognized response to `check-sat-assuming`."
       IO.println $ ""
@@ -341,8 +381,39 @@ def interactiveVerifyGoal
       IO.println $ ""
       IO.println $ "    This failure likely reflects a bug in reopt-vcg."
       IO.println $ ""
-      printExportInstructions
+      registerError
 
+private def printFailures (failures : Std.RBMap GoalTag (Std.RBMap String Nat (λ x y => x < y)) GoalTag.lt) : IO Unit := do
+  let cnt := 0
+  for (_, entries) in failures.toList do -- FIXME remote toList next bump
+    for (extraInfo, n) in entries.toList do -- FIXME remote toList next bump
+      cnt := cnt + n
+  IO.println $ ""
+  IO.println "====================== FAILURES ======================="
+  IO.println $ ""
+  IO.println $ "Failed to verify "++(repr cnt)++" goal(s):"
+  let indent := "  "
+  for (tag, entries) in failures.toList do -- FIXME remote toList next bump
+    let pCnt : Nat := 0
+    let pDetails : List (Nat × String) := []
+    for (extraInfo, n) in entries.toList do -- FIXME remote toList next bump
+      pCnt := pCnt + n
+      pDetails :=  (n, extraInfo)::pDetails
+    let printInfo : Nat → String → IO Unit :=
+      λ n info => if info == ""
+                  then IO.println $ indent++indent++"- ("++(repr n)++") no additional information"
+                  else IO.println $ indent++indent++"- ("++(repr n)++") "++info
+    IO.println $ indent++"* ("++(repr pCnt)++") "++tag.description
+    match pDetails with
+    | (n, info) :: [] =>
+      if info == ""
+      -- if there was only a single, empty category, then do not print anything, there are no additional details
+      then pure ()
+      else printInfo n info
+    | ds =>
+      for (n, info) in ds do
+        printInfo n info
+ 
 
 def interactiveProverSession (annFile solverPath : String) (solverArgs : List String) : IO ProverSession := do
   -- Counter for all goals
@@ -350,29 +421,46 @@ def interactiveProverSession (annFile solverPath : String) (solverArgs : List St
   -- Counter for goals successfully verified.
   let verifiedGoalCounter ← IO.mkRef 0
   -- Counter for errors
-  let errorCounter ← IO.mkRef 0
-  let doGoal : VerificationGoal → IO Unit :=
-    (let solverCmd := String.intercalate " " (solverPath::solverArgs)
-     let ictx : InteractiveContext:=
-       { annFile := annFile,
-         allGoalCounter := allGoalCounter,
-         verifiedGoalCounter := verifiedGoalCounter,
-         solverCommand := solverCmd
-       }
-     interactiveVerifyGoal ictx)
-  let whenDone : IO UInt32 := (do
+  let fnCounterRef ← IO.mkRef Std.RBMap.empty
+  let failuresRef ← IO.mkRef Std.RBMap.empty
+  let errorsRef ← IO.mkRef 0
+  let doGoal : VCGConfig → VerificationGoal → IO Unit :=
+     interactiveVerifyGoal {
+        annFile := annFile,
+        allGoalCounter := allGoalCounter,
+        verifiedGoalCounter := verifiedGoalCounter,
+        fnCounter := fnCounterRef,
+        goalFailures := failuresRef,
+        goalErrors := errorsRef,
+        solverCommand := String.intercalate " " (solverPath::solverArgs)
+      }
+  let whenDone : IO ProverSessionResult := do
     let allCnt ← allGoalCounter.get
     let verCnt ← verifiedGoalCounter.get
-    let errorCnt ← errorCounter.get
-    let verSuccess := errorCnt == 0 && verCnt == allCnt
-    if verSuccess then
-      IO.println "Verification of all goals succeeded."
-    else
-      IO.println "Verification of all goals failed."
-    IO.println $ "Verified "++(repr verCnt)++" out of "++(repr allCnt)++" generated goal(s)."
-    when (errorCnt > 0) $
-      IO.println $ "Encountered"++(repr errorCnt)++"error(s)."
-    pure $ if verSuccess then 0 else 1)
+    let fnCounter ← fnCounterRef.get
+    let failures ← failuresRef.get
+    let errors ← errorsRef.get
+    let fnWithIssues := fnCounter.fold (init := 0) (λ acc _ fnCnt => acc + (if fnCnt > 0 then 1 else 0))
+    let verSuccess := failures.size == 0 && errors == 0 && verCnt == allCnt
+    let printSummary : IO Unit := do
+      IO.println ""
+      IO.println "=================== SOLVER  SUMMARY ==================="
+      IO.println ""
+      if verSuccess then
+        IO.println "Verification of all goals succeeded."
+      else
+        IO.println "Verification of all goals failed."
+      IO.println $ "Verified "++(repr verCnt)++" out of "++(repr allCnt)++" generated goals."
+      IO.println $ (repr (fnCounter.size - fnWithIssues))++" out of " ++ (repr fnCounter.size)
+                   ++ " functions with verification conditions passed all SMT checks."
+    let printFailures : IO Unit := do
+      if (failures.size > 0) then
+        printFailures failures
+      if (errors > 0) then
+        IO.println $ "Encountered "++(repr errors)++" error(s) while interacting with SMT solver."
+    pure $ {success := verSuccess,
+            printSummary := printSummary,
+            printFailures := printFailures}
   pure { verifyGoal := doGoal,
          sessionComplete := whenDone
        }

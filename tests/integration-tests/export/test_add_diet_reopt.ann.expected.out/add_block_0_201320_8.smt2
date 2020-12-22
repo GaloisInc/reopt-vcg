@@ -1,4 +1,4 @@
-; add.block_0_201320.1 @ 0x20133b: return address matches entry value.
+; add.block_0_201320.1 @ 0x20133b: return address preserved (after return)
 (set-logic ALL)
 (set-option :produce-models true)
 (define-fun mem_readbv8 ((arg (Array (_ BitVec 64) (_ BitVec 8))) (arg0 (_ BitVec 64))) (_ BitVec 8) (select arg (bvadd arg0 #x0000000000000000)))
