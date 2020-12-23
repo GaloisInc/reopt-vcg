@@ -510,6 +510,15 @@ protected def repr {tp:type} : addr tp → String
 end addr
 
 ------------------------------------------------------------------------
+-- FP support
+
+inductive RoundingMode := 
+  | ClosestEven   -- Round to the closest, then to even on a tie break
+  | Truncate    -- Towards 0
+  | RoundUp     -- Towards +infty
+  | RoundDown   -- Towards -infty
+
+------------------------------------------------------------------------
 -- Primitive functions
 
 section prim
@@ -662,6 +671,7 @@ inductive prim : type → Type
 
 -- Floating point operations
 
+| fp_literal (fc : float_class) (m : Nat) (esign : Bool) (e : Nat) : prim (float fc)
 -- this does a direct cast, not a conversion
 | bv_bitcast_to_fp (fc : float_class) : prim (bv fc.width .→ float fc)
 | fp_bitcast_to_bv (fc : float_class) : prim (float fc .→ bv fc.width)
@@ -669,6 +679,27 @@ inductive prim : type → Type
 | fp_sub (fc : float_class) : prim (float fc .→ float fc .→ float fc)
 | fp_mul (fc : float_class) : prim (float fc .→ float fc .→ float fc)
 | fp_div (fc : float_class) : prim (float fc .→ float fc .→ float fc)
+| fp_sqrt (fc : float_class) : prim (float fc .→ float fc)
+
+-- Maybe rounding mode should be a dynamic argument, but then we would
+-- need to have an expression representing them.  There are few enough
+-- that the instruction can case on the representation of the mode and
+-- instantiate rm as appropriate.
+| fp_convert_to_fp (sfc dfc : float_class) (rm : RoundingMode) : prim (float sfc .→ float dfc)
+
+-- FIXME: n is 32 or 64 here.
+| fp_convert_to_int (fc : float_class) (n : Nat) (rm : RoundingMode) : prim (float fc .→ bv n)
+| int_convert_to_fp (fc : float_class) (n : Nat) : prim (bv n .→ float fc)
+
+| fp_le (fc : float_class) : prim (float fc .→ float fc .→ bit)
+| fp_lt (fc : float_class) : prim (float fc .→ float fc .→ bit)
+
+-- more complex than lt due to NaN etc.  These return 1 if the first is max/min the second
+| fp_max (fc : float_class) : prim (float fc .→ float fc .→ bit)
+| fp_min (fc : float_class) : prim (float fc .→ float fc .→ bit)
+
+-- Should this just be not NaN?
+| fp_ordered (fc : float_class) : prim (float fc .→ float fc .→ bit)
 
 -- `bv_to_x86_80` converts a bitvector to an extended precision number (lossless)
 | bv_to_x86_80  (w : one_of [16,32]) : prim (bv w .→ x86_80)
@@ -873,8 +904,8 @@ def neq {tp:type} (x y : expression tp) : expression bit := prim.neq tp x y
 
 def eq {tp:type} (x y : expression tp) : expression bit := prim.eq tp x y
 
-def bit_one  : bit := expression.primitive prim.bit_one
-def bit_zero : bit := expression.primitive prim.bit_zero
+def bit_one  : expression bit := expression.primitive prim.bit_one
+def bit_zero : expression bit := expression.primitive prim.bit_zero
 
 instance bv_has_mul (w:Nat) : Mul (expression (bv w)) := ⟨fun x y => prim.mul w x y⟩
 
