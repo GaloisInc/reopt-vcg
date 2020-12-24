@@ -51,10 +51,10 @@ namespace vcg
 open ReoptVCG
 
 structure RegState : Type :=
-  (gpregs : Array machine_word) -- 16
-  (flags  : Array s_bool) -- 32
-  (avxregs : Array avx_word)  
-  (ip     : machine_word)
+  (gpregs : Array  (Term (SmtSort.bitvec 64))) -- 16
+  (flags  : Array  (Term (SmtSort.bool))) -- 32
+  (avxregs : Array (Term (SmtSort.bitvec 256)))
+  (ip     : (Term (SmtSort.bitvec 64)))
 
 -- This mirrors the Haskell prototype as far as possible, hence the slightly verbose names.
 inductive Event
@@ -91,6 +91,16 @@ inductive Event
   | FetchAndExecuteEvent : RegState -> Event
     -- ^ A fetch and execute
 
+def InstructionEventsFun := 
+  forall ( evtMap : Std.RBMap Nat MemoryAnn (fun x y => decide (x < y)) )
+    -- ^ Map from addresses to annotations of events on that address.
+    ( s : RegState )
+    -- ^ Initial values for registers
+    ( idGen : IdGen)
+    -- ^ Used to generate unique/fresh identifiers for SMT terms.
+    ( ip : Nat ), 
+    -- ^ Location to explore
+    Except String (List Event × IdGen × Nat)
 
 abbrev memory_t := SmtSort.array (SmtSort.bitvec 64) (SmtSort.bitvec 8)
 def memory := Term memory_t

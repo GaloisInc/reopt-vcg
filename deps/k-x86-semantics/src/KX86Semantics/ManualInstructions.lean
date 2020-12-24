@@ -12,14 +12,11 @@ open reg
 open semantics
 
 -- local
-infix ≠ := neq
+infix:20 " ≠ " => neq
 
--- local
-infix = := eq
+infix:20 " .= " => set
 
-infix `.=`:20 := set
-
-def nat_to_bv {w:Nat} (n:Nat) : bv w := prim.bv_nat w n
+def nat_to_bv {w:Nat} (n:Nat) : expression (bv w) := prim.bv_nat w n
 
 ------------------------------------------------------------------------
 -- syscall definition
@@ -33,13 +30,13 @@ def syscall : instruction :=
 
 def leaveq : instruction :=
  definst "leaveq" $ do
-   pattern do
+   instr_pat $
+    let action : semantics Unit := do
      rsp .= rbp;
-     v ← eval (expression.read (bv 64) rsp);
-     rsp .= rsp + nat_to_bv 8;
+     let v ← eval (expression.read (bv 64) rsp);
+     rsp .= coe rsp + nat_to_bv 8;
      rbp .= v
-   pat_end
-
+    action
 
 ------------------------------------------------------------------------
 -- push definition
@@ -47,17 +44,19 @@ def leaveq : instruction :=
  
 def pushq : instruction :=
  definst "pushq" $ do
-   pattern fun (value: bv 64) => do
-     rsp .= rsp - nat_to_bv 8;
+   instr_pat $ fun (value: expression (bv 64)) =>
+    let action : semantics Unit := do
+     rsp .= coe rsp - nat_to_bv 8;
      lhs.write_addr rsp _ .= value
-   pat_end
+    action
  
 def pushw : instruction :=
  definst "pushw" $ do
-   pattern fun (value: bv 32) => do
-     rsp .= rsp - nat_to_bv 4;
+   instr_pat $ fun (value: expression (bv 32)) =>
+    let action : semantics Unit := do
+     rsp .= coe rsp - nat_to_bv 4;
      lhs.write_addr rsp _ .= value
-   pat_end
+    action
 
 ------------------------------------------------------------------------
 -- pop definition
@@ -65,19 +64,22 @@ def pushw : instruction :=
 -- Pop a Value from the Stack
 def popq : instruction :=
  definst "popq" $ do
-   pattern fun (dest: lhs (bv 64)) => do
-     v ← eval (expression.read (bv 64) rsp);
-     rsp  .= rsp + nat_to_bv 8;
+   instr_pat $ fun (dest: lhs (bv 64)) =>
+    let action : semantics Unit := do
+     let v ← eval (expression.read (bv 64) rsp);
+     rsp  .= coe rsp + nat_to_bv 8;
      dest .= v
-   pat_end
+    action
 
 def popw : instruction :=
  definst "popw" $ do
-   pattern fun (dest: lhs (bv 32)) => do
-     v ← eval (expression.read (bv 32) rsp);
-     rsp  .= rsp + nat_to_bv 4;
+   instr_pat $ fun (dest: lhs (bv 32)) => 
+    let action : semantics Unit := do
+     let v ← eval (expression.read (bv 32) rsp);
+     rsp  .= coe rsp + nat_to_bv 4;
      dest .= v
-   pat_end
+    action
+   
 
 ------------------------------------------------------------------------
 -- call definition
@@ -85,29 +87,33 @@ def popw : instruction :=
 
 def callq : instruction :=
  definst "callq" $ do
-   pattern fun (off : imm int) => do
-     off_bv <- eval (handleImmediateWithSignExtend off 32 64);
-     v      <- eval expression.get_rip;
+   instr_pat $ fun (off : imm int) =>
+    let action : semantics Unit := do
+     let off_bv <- eval (handleImmediateWithSignExtend off 32 64);
+     let v      <- eval expression.get_rip;
      record_event (event.call (add v off_bv))
-   pat_end;
+    action
+   ;
    -- indirect via mem or reg
-   pattern fun (v : bv 64) => do
+   instr_pat $ fun (v : expression (bv 64)) =>
      record_event (event.call v)
-   pat_end
+   
 
 ------------------------------------------------------------------------
 -- jmp definition
 -- Jump
 def jmpq : instruction :=
  definst "jmpq" $ do
-   pattern fun (off : imm int) => do
-     off_bv <- eval (handleImmediateWithSignExtend off 32 64);
-     v      <- eval expression.get_rip;
+   instr_pat $ fun (off : imm int) =>
+    let action : semantics Unit := do
+     let off_bv <- eval (handleImmediateWithSignExtend off 32 64);
+     let v      <- eval expression.get_rip;
      record_event (event.jmp (add v off_bv))
-   pat_end;
-   pattern fun (v : bv 64) => do
+    action
+   ;
+   instr_pat $ fun (v : expression (bv 64)) =>
      record_event (event.jmp v)
-   pat_end
+   
 
 ------------------------------------------------------------------------
 -- Condition codes
@@ -120,45 +126,45 @@ def jmpq : instruction :=
 
 def condition_codes : List (List String × expression bit)  := 
  [ -- Jump if above (cf = 0 and zf = 0)
-   (["a", "nbe"], expression.bit_and ((cf : bit) = bit_zero) ((zf : bit) = bit_zero))
+   (["a", "nbe"], expression.bit_and (eq (cf : expression bit) bit_zero) (eq (zf : expression bit) bit_zero))
    -- Jump if above or equal (cf = 0)
- , (["ae", "nb", "nc"], (cf : bit) = bit_zero)
+ , (["ae", "nb", "nc"], eq (cf : expression bit) bit_zero)
    -- Jump if below (cf = 1)
- , (["b", "c", "nae"], (cf : bit))
+ , (["b", "c", "nae"], (cf : expression bit))
    -- Jump if below or equal (cf = 1 or zf = 1)
- , (["be"], expression.bit_or (cf : bit) (zf : bit))
+ , (["be"], expression.bit_or (cf : expression bit) (zf : expression bit))
    -- Jump if CX is 0
- , (["cxz"], (cx : bv 16) = 0)
+ , (["cxz"], eq (cx : expression (bv 16)) 0)
    -- Jump if ECX is 0
- , (["ecxz"], (ecx : bv 32) = 0)
+ , (["ecxz"], eq (ecx : expression (bv 32)) 0)
    -- Jump if RCX is 0
- , (["rcxz"], (rcx : bv 64) = 0)
+ , (["rcxz"], eq (rcx : expression (bv 64)) 0)
    -- Jump if equal (zf = 1)
- , (["e", "z"], (zf : bit))
+ , (["e", "z"], (zf : expression bit))
    -- Jump if greater (zf = 0 and sf = of)
- , (["g", "nle"], expression.bit_and ((zf : bit) = bit_zero) ((sf : bit) = (of : bit)))
+ , (["g", "nle"], expression.bit_and (eq (zf : expression bit) bit_zero) (eq (sf : expression bit) (of : expression bit)))
    -- Jump if greater or equal (sf = of)
- , (["ge", "nl"], (sf : bit) = (of : bit))
+ , (["ge", "nl"], eq (sf : expression bit) (of : expression bit))
    -- Jump if less (sf ≠ of)
- , (["l", "nge"], (sf : bit) ≠ (of : bit))
+ , (["l", "nge"], eq (sf : expression bit) (of : expression bit))
    -- Jump if less or equal (zf = 1 or sf ≠ of)
- , (["le", "ng"], expression.bit_or (expression.of_lhs zf = bit_one) (expression.of_lhs sf ≠ expression.of_lhs of))
+ , (["le", "ng"], expression.bit_or (eq (expression.of_lhs zf) bit_one) (expression.of_lhs sf ≠ expression.of_lhs of))
    -- Jump if not above (cf = 1 or zf = 1)
- , (["na"], expression.bit_or (expression.of_lhs cf = bit_one) (expression.of_lhs zf = bit_one))
+ , (["na"], expression.bit_or (eq (expression.of_lhs cf) bit_one) (eq (expression.of_lhs zf) bit_one))
    -- Jump if not equal (zf = 0)
- , (["ne", "nz"], expression.of_lhs zf = bit_zero)
+ , (["ne", "nz"], eq (expression.of_lhs zf) bit_zero)
    -- Jump if not overflow (of = 0)
- , (["no"], expression.of_lhs of = bit_zero)
+ , (["no"], eq (expression.of_lhs of) bit_zero)
    -- Jump if not parity (pf = 0)
- , (["np", "po"], expression.of_lhs pf = bit_zero)
+ , (["np", "po"], eq (expression.of_lhs pf) bit_zero)
    -- Jump if not sign (sf = 0)
- , (["ns"], expression.of_lhs sf = bit_zero)
+ , (["ns"], eq (expression.of_lhs sf) bit_zero)
    -- Jump if overflow (of = 1)
- , (["o"], expression.of_lhs of = bit_one)
+ , (["o"], eq (expression.of_lhs of) bit_one)
    -- Jump if parity (pf = 1)
- , (["p", "pe"], expression.of_lhs pf = bit_one)
+ , (["p", "pe"], eq (expression.of_lhs pf) bit_one)
    -- Jump if sign (sf = 1)
- , (["s"], expression.of_lhs sf = bit_one)
+ , (["s"], eq (expression.of_lhs sf) bit_one)
  ]
 
 ------------------------------------------------------------------------
@@ -167,11 +173,12 @@ def condition_codes : List (List String × expression bit)  :=
 
 def mk_jcc_instruction : String × expression bit → instruction
  | (name, cc) => definst ("j" ++ name) $ do
- pattern fun (off : imm int) => do
-   off_bv <- eval (handleImmediateWithSignExtend off 32 64);
-   v      <- eval expression.get_rip;
-   record_event (event.branch cc (add v off_bv))
- pat_end
+ instr_pat $ fun (off : imm int) =>
+   let action : semantics Unit := do
+    let off_bv <- eval (handleImmediateWithSignExtend off 32 64);
+    let v      <- eval expression.get_rip;
+    record_event (event.branch cc (add v off_bv))
+   action
 
 def mk_jcc_instruction_aliases : List String × expression bit → List instruction
  | (names, cc) => List.map (fun n => mk_jcc_instruction (n, cc)) names
@@ -189,16 +196,19 @@ def jcc_instructions : List instruction :=
 -- Return from Procedure
 def retq : instruction :=
  definst "retq" $ do
-   pattern do
-     addr ← eval $ expression.read (bv 64) rsp;
-     rsp .= rsp + 8;
+   instr_pat $
+    let action : semantics Unit := do
+     let addr ← eval $ expression.read (bv 64) rsp;
+     rsp .= coe rsp + 8;
      record_event (event.jmp addr)
-   pat_end;
-   pattern fun (off : bv 16) => do
-     addr ← eval $ expression.read (bv 64) rsp;
-     rsp .= rsp + (8 + uext off 64);
+    action
+   ;
+   instr_pat $ fun (off : expression (bv 16)) => 
+    let action : semantics Unit := do
+     let addr ← eval $ expression.read (bv 64) rsp;
+     rsp .= coe rsp + (8 + uext off 64);
      record_event (event.jmp addr)
-   pat_end
+    action   
 
 ------------------------------------------------------------------------
 -- Exported def.

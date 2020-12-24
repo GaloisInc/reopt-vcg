@@ -140,7 +140,7 @@ match js.getStr? with
 | _ => 
   match js.getNat? with
   | Option.some n => 
-    if h : n < uint64Sz
+    if h : n < UInt64.size 
     then pure $ LocalIdent.mk $ n.repr
     else Except.error $
          "Allocation name nonnegative integer must fit in a UInt64, but got" 

@@ -23,7 +23,7 @@ notation:1025 x "[[" h "~~" l "]]" => slice x h l
 infix:50 " ≠ " => neq
 
 -- local
-infix:50 " = " => eq
+infix:50 " === " => eq
 
 -- local
 prefix:1024 "⇑" => lhs.expr
@@ -66,7 +66,7 @@ def undef {tp:type} : expression tp := expression.undef tp
 
 def set_result_flags {w:ℕ} (res : expression (bv w)) : semantics Unit := do
   sf .= msb res
-  zf .= (res = 0)
+  zf .= (res === 0)
   pf .= even_parity (least_byte res)
 
 def set_bitwise_flags {w:ℕ} (res : expression (bv w)) : semantics Unit := do
@@ -357,7 +357,7 @@ def neg : instruction := do
  definst "neg" $ do
    instr_pat $ fun (w : one_of [8, 16,32,64]) (dest : lhs (bv w)) =>
      let action : semantics Unit := do
-       cf .= (⇑ dest) = 0
+       cf .= (⇑ dest) === 0
        of .= ssub_overflows 0 (⇑ dest)
        af .= usub4_overflows 0 (⇑ dest)
        let r ← eval $ - (⇑ dest)
@@ -635,7 +635,7 @@ def bsf_def : instruction := do
        sf .= undef
        af .= undef
        pf .= undef
-       zf .= y = 0
+       zf .= y === 0
        r .= bsf y
      action
 
@@ -652,7 +652,7 @@ def bsr_def : instruction := do
        sf .= undef
        af .= undef
        pf .= undef
-       zf .= y = 0
+       zf .= y === 0
        r .= bsr y
      action
 
@@ -851,45 +851,45 @@ def jmp : instruction :=
 
 def condition_codes : List (List String × expression bit)  := 
  [ -- Jump if above (cf = 0 and zf = 0)
-   (["a", "nbe"], expression.bit_and ((cf : expression bit) = bit_zero) ((zf : expression bit) = bit_zero))
-   -- Jump if above or equal (cf = 0)
- , (["ae", "nb", "nc"], (cf : expression bit) = bit_zero)
+   (["a", "nbe"], expression.bit_and ((cf : expression bit) === bit_zero) ((zf : expression bit) === bit_zero))
+   -- Jump if above or equal (cf === 0)
+ , (["ae", "nb", "nc"], (cf : expression bit) === bit_zero)
    -- Jump if below (cf = 1)
  , (["b", "c", "nae"], (cf : expression bit))
    -- Jump if below or equal (cf = 1 or zf = 1)
  , (["be"], expression.bit_or (cf : expression bit) (zf : expression bit))
    -- Jump if CX is 0
- , (["cxz"], (cx : expression (bv (gpreg_type.width gpreg_type.reg16))) = 0)
+ , (["cxz"], (cx : expression (bv (gpreg_type.width gpreg_type.reg16))) === 0)
    -- Jump if ECX is 0
- , (["ecxz"], (ecx : expression (bv (gpreg_type.width gpreg_type.reg32))) = 0)
+ , (["ecxz"], (ecx : expression (bv (gpreg_type.width gpreg_type.reg32))) === 0)
    -- Jump if RCX is 0
- , (["rcxz"], (rcx : expression (bv (gpreg_type.width gpreg_type.reg64))) = 0)
-   -- Jump if equal (zf = 1)
+ , (["rcxz"], (rcx : expression (bv (gpreg_type.width gpreg_type.reg64))) === 0)
+   -- Jump if equal (zf === 1)
  , (["e", "z"], (zf : expression bit))
    -- Jump if greater (zf = 0 and sf = of)
- , (["g", "nle"], expression.bit_and ((zf : expression bit) = bit_zero) ((sf : expression bit) = (of : expression bit)))
+ , (["g", "nle"], expression.bit_and ((zf : expression bit) === bit_zero) ((sf : expression bit) === (of : expression bit)))
    -- Jump if greater or equal (sf = of)
- , (["ge", "nl"], (sf : expression bit) = (of : expression bit))
+ , (["ge", "nl"], (sf : expression bit) === (of : expression bit))
    -- Jump if less (sf ≠ of)
  , (["l", "nge"], (sf : expression bit) ≠ (of : expression bit))
    -- Jump if less or equal (zf = 1 or sf ≠ of)
- , (["le", "ng"], expression.bit_or (expression.of_lhs zf = bit_one) (expression.of_lhs sf ≠ expression.of_lhs of))
+ , (["le", "ng"], expression.bit_or (expression.of_lhs zf === bit_one) (expression.of_lhs sf ≠ expression.of_lhs of))
    -- Jump if not above (cf = 1 or zf = 1)
- , (["na"], expression.bit_or (expression.of_lhs cf = bit_one) (expression.of_lhs zf = bit_one))
+ , (["na"], expression.bit_or (expression.of_lhs cf === bit_one) (expression.of_lhs zf === bit_one))
    -- Jump if not equal (zf = 0)
- , (["ne", "nz"], expression.of_lhs zf = bit_zero)
+ , (["ne", "nz"], expression.of_lhs zf === bit_zero)
    -- Jump if not overflow (of = 0)
- , (["no"], expression.of_lhs of = bit_zero)
+ , (["no"], expression.of_lhs of === bit_zero)
    -- Jump if not parity (pf = 0)
- , (["np", "po"], expression.of_lhs pf = bit_zero)
+ , (["np", "po"], expression.of_lhs pf === bit_zero)
    -- Jump if not sign (sf = 0)
- , (["ns"], expression.of_lhs sf = bit_zero)
+ , (["ns"], expression.of_lhs sf === bit_zero)
    -- Jump if overflow (of = 1)
- , (["o"], expression.of_lhs of = bit_one)
+ , (["o"], expression.of_lhs of === bit_one)
    -- Jump if parity (pf = 1)
- , (["p", "pe"], expression.of_lhs pf = bit_one)
+ , (["p", "pe"], expression.of_lhs pf === bit_one)
    -- Jump if sign (sf = 1)
- , (["s"], expression.of_lhs sf = bit_one)
+ , (["s"], expression.of_lhs sf === bit_one)
  ]
 
 ------------------------------------------------------------------------
@@ -1143,9 +1143,9 @@ def do_sh {w:ℕ}
     | shift_op.sar => bit_zero
     | shift_op.shr => @msb w (⇑ v)
 
-  set_cond of is_nonzero (mux (low_count = 1) of_flag undef)
+  set_cond of is_nonzero (mux (low_count === 1) of_flag undef)
   set_cond sf is_nonzero (msb res)
-  set_cond zf is_nonzero (res = 0)
+  set_cond zf is_nonzero (res === 0)
   set_cond pf is_nonzero (even_parity (least_byte res))
   set_cond v  is_nonzero res
 

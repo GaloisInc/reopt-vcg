@@ -688,6 +688,16 @@ def prim.eval : ∀{tp : type}, prim tp -> @evaluator backend (@value backend tp
   | _, prim.fp_sub fc           => throw "prim.eval.fp_sub unimplemented"
   | _, prim.fp_mul fc           => throw "prim.eval.fp_mul unimplemented"
   | _, prim.fp_div fc           => throw "prim.eval.fp_div unimplemented"
+  | _, prim.fp_ordered _        => throw "prim.eval.fp_ordered unimplemented"
+  | _, prim.fp_min _            => throw "prim.eval.fp_min unimplemented"
+  | _, prim.fp_max _            => throw "prim.eval.fp_max unimplemented"
+  | _, prim.fp_lt  _            => throw "prim.eval.fp_lt unimplemented"
+  | _, prim.fp_le  _            => throw "prim.eval.fp_le unimplemented"
+  | _, prim.int_convert_to_fp _ _ => throw "prim.eval.int_convert_to_fp unimplemented"
+  | _, prim.fp_convert_to_int _ _ _ => throw "prim.eval.fp_convert_to_int unimplemented"
+  | _, prim.fp_convert_to_fp _ _ _ => throw "prim.eval.fp_convert_to_fp unimplemented"
+  | _, prim.fp_sqrt _ => throw "prim.eval.fp_sqrt unimplemented"
+  | _, prim.fp_literal _ _ _ _ => throw "prim.eval.fp_literal unimplemented"
 
   -- `bv_to_x86_80` converts a bitvector to an extended precision number (lossless)
   | _, (prim.bv_to_x86_80 w)  => throw "prim.eval.bv_to_x86_80 unimplemented"

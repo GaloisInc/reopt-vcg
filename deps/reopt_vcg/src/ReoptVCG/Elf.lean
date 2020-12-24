@@ -250,7 +250,7 @@ end info
 
 -- A reader for elf files
 @[reducible]
-def file_reader := ReaderT info buffer.reader
+abbrev file_reader := ReaderT info buffer.reader
 
 namespace file_reader
 
@@ -262,7 +262,7 @@ def from_handle {α:Type} (i:info) (h:Galois.Fs.handle) (n:Nat) (r:file_reader �
   | (EStateM.Result.error e _) => throw (IO.userError e)
 
 def read_u8  : file_reader UInt8  :=
-  ReaderT.lift $ buffer.reader.read_UInt8
+  monadLift $ buffer.reader.read_UInt8
 
 protected
 def read_chars_lsb (w:Nat) : file_reader (List UInt8) := do
@@ -272,7 +272,7 @@ def read_chars_lsb (w:Nat) : file_reader (List UInt8) := do
         | ELFDATA2LSB => l
         | ELFDATA2MSB => l.reverse;
         do
-  ReaderT.lift $ f <$> buffer.reader.read_bytes w
+  monadLift $ f <$> buffer.reader.read_bytes w
 
 def read_u16 : file_reader UInt16 := do
   let l ← file_reader.read_chars_lsb 2
@@ -343,11 +343,11 @@ def toNat : ∀{c : elf_class}, word c -> Nat
 protected def fromNat (c : elf_class) (n : Nat) : Option (word c) :=
 match c with
 | ELF32 => 
-  (if h : n < uint32Sz 
+  (if h : n < UInt32.size
    then some $ UInt32.ofNat' n h
    else Option.none)
 | ELF64 => 
-  (if _h : n < uint64Sz
+  (if _h : n < UInt64.size
    then Option.some $ UInt64.ofNat n
    else Option.none)
 
@@ -417,7 +417,7 @@ end word
 def phdr_type := UInt32
 
 instance : DecidableEq phdr_type := inferInstanceAs (DecidableEq UInt32)
-instance : OfNat phdr_type := inferInstanceAs (OfNat UInt32)
+instance {n : Nat} : OfNat phdr_type n := inferInstanceAs (OfNat UInt32 n)
 
 namespace phdr_type
 
