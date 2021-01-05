@@ -130,9 +130,9 @@ def operand_to_arg_lval
     let sgpr ← guard_some "operand_to_arg_value_lhs register" (register_to_reg r) pure
     assert_types (bv sgpr.fst.width) tp
     pure (arg_lval.reg sgpr.snd)
-  | (operand_value.immediate nbytes val) => throw "operand_to_arg_lval: got an immdiate"
+  | (operand_value.immediate nbytes val) => throw "operand_to_arg_lval: got an immediate"
   -- FIXME: we use ip out of the state, we could use the value encoded in the decoded instruction 
-  | (operand_value.rel_immediate next_addr nbytes val) => throw "operand_to_arg_lval: got an immdeiate"
+  | (operand_value.rel_immediate next_addr nbytes val) => throw "operand_to_arg_lval: got an immediate"
   -- base + scale * idx + disp
   | (operand_value.memloc opt_seg opt_base scale opt_idx disp) => do
     let n ← match otp with | (operand_type.mem n) => pure n | other => throw "memloc not of mem type"
@@ -257,7 +257,7 @@ def instruction_map : Std.RBMap String instruction (fun x y => decide (x < y)) :
 
 def eval_instruction (i : decodex86.instruction) : M backend Unit :=
   match instruction_map.find? (instruction_family i) with               
-  | none        => throw ("Unknown instruction: " ++ i.mnemonic)
+  | none        => throw ("eval_instruction: unknown instruction " ++ i.mnemonic)
   | (some inst) => do 
     let (env, p) ← annotate' "pattern" (instantiate_pattern backend inst i)
     annotate' "pattern.eval" (pattern.eval p env)

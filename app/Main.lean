@@ -20,7 +20,7 @@ structure VCGArgs :=
 
 -- | State of argument parsing before any user arguments have actually
 -- been processed.
-def initVCGArgs := VCGArgs.mk Option.none VerificationMode.defaultMode true SemanticsBackend.ManualSemantics
+def initVCGArgs := VCGArgs.mk Option.none VerificationMode.defaultMode false SemanticsBackend.ManualSemantics
 
 -- Function for parsing command line arguments to reopt-vcg.
 partial def parseArgs : List String → VCGArgs → Except String VCGCmd
@@ -30,7 +30,7 @@ partial def parseArgs : List String → VCGArgs → Except String VCGCmd
 | (s::ss), args =>
   if s == "--help" then
     pure $ VCGCmd.showHelp
-  else if s == "--verbose" then
+  else if s == "--verbose" || s == "-v" then
     parseArgs ss $ {args with verbose := true}
   else if s == "--export" then do 
     unless args.mode.isDefault do throw "Export mode does not use a solver, but --solver was specified.";
@@ -56,7 +56,7 @@ partial def parseArgs : List String → VCGArgs → Except String VCGCmd
 
 
 def showUsage : IO Unit := do
-  IO.println "Usage: reopt-vcg [--verbose] <input.json> {--export <export-dir> | --solver <solver-path>}"
+  IO.println "Usage: reopt-vcg [-v|--verbose] <input.json> {--export <export-dir> | --solver <solver-path>}"
   
 def showHelp : IO Unit := do
   showUsage;

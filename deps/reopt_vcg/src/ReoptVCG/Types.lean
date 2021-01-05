@@ -162,8 +162,8 @@ def FnName := String
 
 inductive VerificationMode
 | defaultMode : VerificationMode
-| exportMode : String → VerificationMode
-| runSolverMode : String → List String → VerificationMode
+| exportMode : String /- path to write .smt2 files -/ → VerificationMode
+| runSolverMode : String /- solver -/ → List String /- solver args -/ → VerificationMode
 
 def VerificationMode.isDefault : VerificationMode → Bool
 | VerificationMode.defaultMode => true
@@ -202,88 +202,250 @@ structure ModuleVCGContext :=
 -- Error/Exception Data
 -------------------------------------------------------
 
-
-/- Errors that are tied to a specific function. -/
-inductive FnError
-| notFound : FnError
-| argTypeUnsupported : LLVM.Ident -> LLVM.LLVMType -> FnError
-| missingEntryBlock : FnError
-| entryUnreachable : FnError 
-| custom : String -> FnError
+def ppBlockLabel (lbl:LLVM.BlockLabel) : String :=
+match lbl.label with
+| LLVM.Ident.named str => str
+| LLVM.Ident.anon n => "anon" ++ n.repr
 
 
-namespace FnError
+-- Information describing where we were during block VCG when 
+-- something happened (e.g., an error occured, a goal was
+-- generated, etc).
+structure BlockLocation :=
+  (fnName : String)
+  -- ^ Function whose blocks are being verified
+  (blockLbl  : LLVM.BlockLabel)
+  -- ^ Block being verified
+  (llvmInstrIdx : Nat)
+  -- ^ Index of focused LLVM instruction
+  (mcAddr : Nat)
+  -- ^ Machine code address
 
---instance : HasCoe String FnError := ⟨FnError.custom⟩
+namespace BlockLocation
 
-def pp : FnError → String
-| notFound => "Could not find definition in LLVM."
-| argTypeUnsupported x t => 
-  "Function argument "++x.pp++"has unsupported type "++t.pp++"."
-| missingEntryBlock => "Function body is missing an entry block."
-| entryUnreachable => "Function entry marked unreachable."
-| custom msg  => msg
+def pp (l : BlockLocation) : String :=
+  l.fnName
+  ++"."++(ppBlockLabel l.blockLbl)
+  ++"."++l.llvmInstrIdx.repr
+  ++" @ "++l.mcAddr.ppHex
+  
 
-instance : ToString FnError := ⟨pp⟩
-
-end FnError
+end BlockLocation
 
 
-inductive BlockError
-| annParseFailure : String → BlockError
-| missingAnnotations : BlockError
-| unsupportedPhiVarType : LLVM.Ident → LLVM.LLVMType → BlockError
-| blockAddrInvalid : elf.word elf.elf_class.ELF64 → BlockError
-| otherBlockError : String -> BlockError
+inductive BlockErrorTag
+  | blockAddrInvalid : BlockErrorTag
+  | mcRanOutOfEvents : BlockErrorTag
+  | mcInstrEventError : BlockErrorTag
+  | unsupportedMemType : BlockErrorTag
+  | mcEventAfterFetchAndExe : BlockErrorTag
+  | mcEarlyEnvOfBlock : BlockErrorTag
+  | unimplementedFeature : BlockErrorTag
+  | unexpectedSort : BlockErrorTag
+  | outOfFuel : BlockErrorTag
+  | aliasCycleDetected : BlockErrorTag
+  | llvmTypeNotFound : BlockErrorTag
+  | llvmTypeNotBound : BlockErrorTag
+  | invalidAlignment : BlockErrorTag
+  | unknownAlloc : BlockErrorTag
+  | unexpectedEvent : BlockErrorTag
+  | llvmInvokeArgError : BlockErrorTag
+  | invalidLLVMInstr : BlockErrorTag
+  | llvmVarNoInitVal : BlockErrorTag
+  | unexpectedPhiVar : BlockErrorTag
+  | llvmInvalidLoad : BlockErrorTag
+  | allocNameCollision : BlockErrorTag
+  | llvmRanOutOfEvents : BlockErrorTag
+  | llvmMissingReturn : BlockErrorTag
+  | missingAnnotations : BlockErrorTag
+
+namespace BlockErrorTag
+
+def index : BlockErrorTag → Nat
+  | blockAddrInvalid => 0
+  | mcRanOutOfEvents => 1
+  | mcInstrEventError => 2
+  | unsupportedMemType => 3
+  | mcEventAfterFetchAndExe => 4
+  | mcEarlyEnvOfBlock => 5
+  | unimplementedFeature => 6
+  | unexpectedSort => 7
+  | outOfFuel => 8
+  | aliasCycleDetected => 9
+  | llvmTypeNotFound => 10
+  | llvmTypeNotBound => 11
+  | invalidAlignment => 12
+  | unknownAlloc => 13
+  | unexpectedEvent => 14
+  | llvmInvokeArgError => 15
+  | invalidLLVMInstr => 16
+  | llvmVarNoInitVal => 17
+  | unexpectedPhiVar => 18
+  | llvmInvalidLoad => 19
+  | allocNameCollision => 20
+  | llvmRanOutOfEvents => 21
+  | llvmMissingReturn => 22
+  | missingAnnotations => 23
+
+def lt (x y : BlockErrorTag) : Bool :=
+  x.index < y.index
+
+def description : BlockErrorTag → String
+| blockAddrInvalid =>
+  "annotated block address invalid"
+| mcRanOutOfEvents =>
+  "unexpected end of machine code events"
+| mcInstrEventError =>
+  "error while computing machine code instruction events"
+| unsupportedMemType =>
+  "unsupported memory type"
+| mcEventAfterFetchAndExe =>
+  "machine code event after fetch and execute"
+| mcEarlyEnvOfBlock =>
+  "unexpected end of block"
+| unimplementedFeature =>
+  "unimplemented feature"
+| unexpectedSort =>
+  "unexpected sort"
+| outOfFuel =>
+  "ran of out fuel while performing computation"
+| aliasCycleDetected =>
+  "detected a cycle while resolving LLVM type alias"
+| llvmTypeNotFound =>
+  "LLVM type was not in the environment"
+| llvmTypeNotBound =>
+  "LLVM type had no associated binding in the environment"
+| invalidAlignment =>
+  "alignment is not a power of 2"
+| unknownAlloc =>
+  "unknown allocation"
+| unexpectedEvent =>
+  "unexpected event"
+| llvmInvokeArgError =>
+  "error with arguments while invoking LLVM function"
+| invalidLLVMInstr =>
+  "invalid LLVM instruction"
+| llvmVarNoInitVal =>
+  "no initial value for LLVM variable"
+| unexpectedPhiVar =>
+  "unexpected phi variable"
+| llvmInvalidLoad =>
+  "invalid LLVM load"
+| allocNameCollision =>
+  "name already use in an allocation"
+| llvmRanOutOfEvents =>
+  "unexpected end of LLVM events"
+| llvmMissingReturn =>
+  "missing an LLVM return"
+| missingAnnotations =>
+  "block missing annotation"
+
+end BlockErrorTag
+
+structure BlockError :=
+(loc    : BlockLocation)
+-- ^ Location during VCG the error occurred.
+(tag  : BlockErrorTag)
+-- ^ Unique tag for the error.
+(extraInfo : String)
+-- ^ Extra parenthetical info to accompany the property's description if desired
+  
 
 namespace BlockError
 
-def pp : BlockError → String
-| annParseFailure msg => "Annotation parse failure: " ++ msg
-| missingAnnotations => "Could not find block annotations."
-| unsupportedPhiVarType x t => 
-  "Phi variable "++x.pp++" has unsupported type "++t.pp++"."
-| blockAddrInvalid addr => 
-  "Annotated block address "++addr.pp_hex++" is not not in code segment."
-| otherBlockError msg => msg
+def pp (e : BlockError) : String :=
+  let extra : String := if e.extraInfo == "" then "" else " ("++e.extraInfo++")"
+  e.loc.pp++": "++e.tag.description++extra
 
 end BlockError
 
+-- Information describing where we were during module VCG
+-- something happened (but not within a block where more
+-- precise location information is available.
+structure ModuleLocation :=
+  (fnName : Option String)
+  -- ^ Function being examined (if applicable)
+  (blockLbl  : Option LLVM.BlockLabel)
+  -- ^ Block being examined (if applicable)
 
-inductive ModuleError
-| custom   : String → ModuleError
-| function : FnName → FnError → ModuleError
-| block    : FnName → LLVM.BlockLabel → BlockError → ModuleError
-| fatal    : String → ModuleError
+namespace ModuleLocation
+
+def pp (loc : ModuleLocation) : String :=
+  match loc.fnName, loc.blockLbl with
+  | some nm, some lbl => "function " ++ nm ++ " block " ++ ppBlockLabel lbl
+  | some nm, none => "function " ++ nm
+  | none, some lbl => "block " ++ ppBlockLabel lbl
+  | none, none => "unknown location"
+
+end ModuleLocation
+
+
+inductive ModuleErrorTag
+  | fnNotFound : ModuleErrorTag
+  | annParseFailure : ModuleErrorTag
+  | argTypeUnsupported : ModuleErrorTag
+  | missingEntryBlock : ModuleErrorTag
+  | entryUnreachable : ModuleErrorTag
+  | unsupportedPhiVarType : ModuleErrorTag
+  | blockMissingAnnotations : ModuleErrorTag
+  | maxFnArgCntSurpassed : ModuleErrorTag
+  | fnAnnAddrWrong : ModuleErrorTag
+  | fatal : ModuleErrorTag
+
+namespace ModuleErrorTag
+
+def index : ModuleErrorTag → Nat
+  | fnNotFound => 0
+  | annParseFailure => 1
+  | argTypeUnsupported => 2
+  | missingEntryBlock => 3
+  | entryUnreachable => 4
+  | unsupportedPhiVarType => 5
+  | blockMissingAnnotations => 6
+  | maxFnArgCntSurpassed => 7
+  | fnAnnAddrWrong => 8
+  | fatal => 9
+
+def lt (x y : ModuleErrorTag) : Bool :=
+  x.index < y.index
+
+def description : ModuleErrorTag → String
+  | fnNotFound => 
+    "could not find function in LLVM module"
+  | annParseFailure =>
+    "annotation parse failure"
+  | argTypeUnsupported => 
+    "argument has unsupported type"
+  | missingEntryBlock => 
+    "function body missing an entry block"
+  | entryUnreachable =>
+    "function entry marked unreachable"
+  | unsupportedPhiVarType =>
+    "unsupported phi variable type"
+  | blockMissingAnnotations =>
+    "block missing annotations"
+  | maxFnArgCntSurpassed => 
+    "LLVM function given more arguments than are supported"
+  | fnAnnAddrWrong =>
+    "function address in annotation does not match address in symbol table"
+  | fatal =>
+    "fatal error encountered"
+
+end ModuleErrorTag
+
+structure ModuleError :=
+  (loc : ModuleLocation)
+  -- ^ Where were we when the error occured
+  (tag : ModuleErrorTag)
+  -- ^ What kind of error was it
+  (extraInfo : String)
+  -- ^ Is there some additional info worth reporting? `""` if no.
 
 namespace ModuleError
 
-def pp : ModuleError → String
-| custom msg => msg
-| function fnm ferr => fnm++". "++ferr.pp
-| block fnm lbl err => fnm++"."++lbl.pp++". "++err.pp
-| fatal msg => msg
-
-
--- instance HasExceptModuleError : MonadExcept ModuleError (EIO ModuleError) :=
--- inferInstanceAs (MonadExcept ModuleError (EIO ModuleError))
-
--- def liftIO {α} (m : EIO IO.Error α) : EIO ModuleError α := 
---   m.adaptExcept io
-
--- instance : HasMonadLiftT IO (EIO ModuleError) := {monadLift := @ModuleError.liftIO}
-
--- def throwIO {α} (err : IO.Error) : EIO ModuleError α := throw $ ModuleError.io err
--- def catchIO {α} (m : EIO ModuleError α) (h : IO.Error → EIO ModuleError α) : EIO ModuleError α := 
--- let handler : ModuleError → EIO ModuleError α := 
---   λ e => match e with
---          | ModuleError.io e => h e
---          | _ => throw e;
--- catch m handler
-
--- instance HasExceptIO : MonadExcept IO.Error (EIO ModuleError) :=
---   {throw := @ModuleError.throwIO,
---    catch := @ModuleError.catchIO }
+def pp (e : ModuleError) : String :=
+  let extra : String := if e.extraInfo == "" then "" else " ("++e.extraInfo++")"
+  e.loc.pp++": "++e.tag.description++extra
 
 end ModuleError
 
@@ -297,19 +459,112 @@ end ModuleError
 -- are good-to-go.
 -----------------------------------------------------------
 
+-- Correctness properties as a data type (makes categorizing/reporting/etc easier)
+-- See Property.lean for inductive Property
+inductive GoalTag
+  | mcOnlyReadFromUnallocStack : GoalTag
+  | mcOnlyWriteToUnreservedStack : GoalTag
+  | llvmWriteTargetsAlloc : GoalTag
+  | mcWriteTargetsAlloc : GoalTag
+  | nonStackReadAddrValid : GoalTag
+  | blockUnreachable : GoalTag
+  | expectedInstrPtrVal : GoalTag
+  | blockPrecondition : GoalTag
+  | llvmAndMCReadOffsetsMatch : GoalTag
+  | llvmAndMCLoadAddrsMatch : GoalTag
+  | llvmAndMCStoreAddrsMatch : GoalTag
+  | llvmAndMCStoreEq : GoalTag
+  | stackHeightPreserved : GoalTag
+  | returnAddressPreserved : GoalTag
+  | registerPreserved : GoalTag
+  | returnAddrNextInstr : GoalTag
+  | llvmAndMCReturnValuesEq : GoalTag
+  | argAndRegEq : GoalTag
+
+namespace GoalTag
+
+def index : GoalTag → UInt32
+  | mcOnlyReadFromUnallocStack => 0
+  | mcOnlyWriteToUnreservedStack => 1
+  | llvmWriteTargetsAlloc => 2
+  | mcWriteTargetsAlloc => 3
+  | nonStackReadAddrValid => 4
+  | blockUnreachable => 5
+  | expectedInstrPtrVal => 6
+  | blockPrecondition => 7
+  | llvmAndMCReadOffsetsMatch => 8
+  | llvmAndMCLoadAddrsMatch => 9
+  | llvmAndMCStoreAddrsMatch => 10
+  | llvmAndMCStoreEq => 11
+  | stackHeightPreserved => 12
+  | returnAddressPreserved => 13
+  | registerPreserved => 14
+  | returnAddrNextInstr => 15
+  | llvmAndMCReturnValuesEq => 16
+  | argAndRegEq => 17
+
+def lt (x y : GoalTag) : Bool := x.index < y.index
+
+def description : GoalTag → String
+  | mcOnlyReadFromUnallocStack =>
+    "machine code reads from unallocated stack space"
+  | mcOnlyWriteToUnreservedStack =>
+    "machine code writes to unreserve stack space"
+  | llvmWriteTargetsAlloc =>
+    "LLVM write targets intended allocation"
+  | mcWriteTargetsAlloc =>
+    "machine code write targets intended allocation"
+  | nonStackReadAddrValid =>
+    "read heap address not in stack space"
+  | blockUnreachable =>
+    "block is unreachable"
+  | expectedInstrPtrVal =>
+    "instruction pointer is expected value"
+  | blockPrecondition =>
+    "precondition"
+  | llvmAndMCReadOffsetsMatch =>
+    "LLVM and machine code read from same allocation offset"
+  | llvmAndMCLoadAddrsMatch =>
+    "LLVM and machine code load from same heap address"
+  | llvmAndMCStoreAddrsMatch =>
+    "LLVM and machine code store to same heap address"
+  | llvmAndMCStoreEq =>
+    "LLVM and machine code store the same value to the heap"
+  | stackHeightPreserved =>
+    "stack height preserved"
+  | returnAddressPreserved =>
+    "return address preserved"
+  | registerPreserved =>
+    "register value preserved"
+  | returnAddrNextInstr =>
+    "return address is next instruction"
+  | llvmAndMCReturnValuesEq =>
+    "LLVM and machine code return values match"
+  | argAndRegEq =>
+    "argument matches register"
+
+end GoalTag
 
 -- A verification goal for a block.
 structure VerificationGoal :=
-(fnName    : String)
--- ^ Function we are verifying the goal within.
-(blockLbl  : LLVM.BlockLabel)
--- ^ Block we are verifying the goal within.
-(goalIndex : Nat)
+(loc    : BlockLocation)
+-- ^ Location info at which we check this goal.
+(index : Nat)
 -- ^ Index of the goal for this block.
-(propName  : String)
--- ^ Name of the proposition for reporting purposes.
+(tag  : GoalTag)
+-- ^ Unique tag for the proposition.
+(extraInfo : String)
+-- ^ Extra parenthetical info to accompany the property's description if desired 
+--   ("" means no such info is relevant)
 (goal   : SmtM (Term SmtSort.bool))
 -- ^ SMT script which, if unsat, proves the goal
+
+
+def VerificationGoal.fullDescription (vg : VerificationGoal) : String :=
+  vg.loc.pp++": "++vg.tag.description
+  ++(if vg.extraInfo == ""
+     then ""
+     else " ("++vg.extraInfo++")")
 
 -- | Log messages interleaved with verification
 -- goal generation for humans.
@@ -336,15 +591,16 @@ structure BlockVerification :=
 -- | Describes the result of verifying a block.
 inductive BlockVerificationEvent
 | block  : BlockVerification → BlockVerificationEvent
-| error  : FnName → LLVM.BlockLabel → BlockError → BlockVerificationEvent
+| error  : BlockError → BlockVerificationEvent
 
 
 inductive FnVerificationEvent
 | fn : FnName → List BlockVerificationEvent → FnVerificationEvent
-| error : FnName → FnError → FnVerificationEvent
+| error : ModuleError → FnVerificationEvent
 
 structure ModuleVCGState :=
-(errorCount : Nat)
+  (blockErrors  : List BlockError)
+  (moduleErrors : List ModuleError)
 
 -- A monad for running verification of an entire module
 -- TODO / FIXME we'll want to move away from EIO at, see
@@ -394,23 +650,14 @@ end ModuleVCG
 
 
 def runModuleVCG {α} (ctx : ModuleVCGContext) (m : ModuleVCG α) : Except ModuleError (α × ModuleVCGState) :=
-let initState : ModuleVCGState := {errorCount := 0};
-match (m.run ctx).run initState with
-| EStateM.Result.ok v finalState => Except.ok (v, finalState)
-| EStateM.Result.error e _ => Except.error e
-
-
--- A warning that stops execution until catch.
-def functionError {α} (fnm : FnName) (e : FnError) : ModuleVCG α :=
-throw $ ModuleError.function fnm e
+  let initState : ModuleVCGState := {blockErrors := [], moduleErrors := []}
+  match (m.run ctx).run initState with
+  | EStateM.Result.ok v finalState => Except.ok (v, finalState)
+  | EStateM.Result.error e _ => Except.error e
 
 -- A warning that stops execution until catch.
-def blockError {α} (fnm : FnName) (lbl : LLVM.BlockLabel) (e : BlockError) : ModuleVCG α :=
-  throw $ ModuleError.block fnm lbl e
-
--- A warning that stops execution until catch.
-def moduleThrow {α} (errMsg : String) : ModuleVCG α :=
-  throw $ ModuleError.custom errMsg
+def moduleThrow {α} (loc : ModuleLocation) (tag : ModuleErrorTag) (extraInfo : String) : ModuleVCG α :=
+  throw $ {loc := loc, tag := tag, extraInfo := extraInfo}
 
 
 -------------------------------------------------------
@@ -484,7 +731,7 @@ structure BlockVCGState :=
   -- size and offset.
 (activeAllocaMap : Std.RBMap LocalIdent AllocaLlvm (fun x y => x < y))
  -- ^ Allocation names that are active in this block and their associated LLVM terms.
-(llvmInstIndex : Nat)
+(llvmInstrIndex : Nat)
   -- ^ Index of next LLVM instruction within block to execute
   -- Used for error reporting
 (llvmIdentMap : Std.RBMap LLVM.Ident (Sigma Smt.Term) (fun x y => x < y))

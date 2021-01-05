@@ -1,4 +1,4 @@
-; fib.block_0_201000.4 @ 0x20100c: machine code read at 0x20100c is not within stack space.
+; fib.block_0_201000.4 @ 0x20100c: machine code reads from unallocated stack space
 (set-logic ALL)
 (set-option :produce-models true)
 (define-fun mem_readbv8 ((arg (Array (_ BitVec 64) (_ BitVec 8))) (arg0 (_ BitVec 64))) (_ BitVec 8) (select arg (bvadd arg0 #x0000000000000000)))

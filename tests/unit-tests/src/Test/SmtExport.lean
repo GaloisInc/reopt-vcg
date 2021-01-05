@@ -38,16 +38,21 @@ def testExportCallbacks : IO Unit := do
   let outFnNm := "foo";
   let blockLbl := LLVM.BlockLabel.mk $ LLVM.Ident.named "bar";
   let vg : VerificationGoal :=
-    {fnName := outFnNm,
-     blockLbl := blockLbl,
-     goalIndex := 0,
-     propName := "false-is-false\n(true-is-true?)",
+    {loc := {fnName := outFnNm,
+             blockLbl := blockLbl,
+             llvmInstrIdx := 0,
+             mcAddr := 0},
+     index := 0,
+     tag := GoalTag.blockPrecondition,
+     extraInfo := "false-is-false\n(true-is-true?)",
      goal := smtGoal1};
   let ps ← exportProverSession outDir;
-  ps.verifyGoal vg;
+  ps.verifyGoal {annFile := "", mode := VerificationMode.defaultMode, verbose := false} vg;
   discard $ ps.sessionComplete;
   let outFile := outDir ++ [System.FilePath.pathSeparator].asString ++ (standaloneGoalFilename vg);
   let outFileContents ← IO.FS.readFile outFile;
+  IO.println ""
+  IO.println "Exported file contents:"
   IO.println outFileContents
 
 def test : IO UInt32 := do

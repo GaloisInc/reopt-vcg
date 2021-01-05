@@ -22,14 +22,21 @@ open x86.vcg (RegState)
 namespace BlockVCG
 
 
+def currentLoc : BlockVCG BlockLocation := do
+  let fnName ← BlockVCGContext.llvmFunName <$> read
+  let lbl ← BlockVCGContext.currentBlock <$> read
+  let instrIdx ← BlockVCGState.llvmInstrIndex <$> get
+  let curAddr ← BlockVCGState.mcCurAddr <$> get
+  pure {fnName := fnName,
+        blockLbl := lbl,
+        llvmInstrIdx := instrIdx,
+        mcAddr := curAddr}
+
 -- | This prepends the LLVM and machine code location information for
 -- display to user.
 def prependLocation (msg : String) : BlockVCG String := do
-  let fnName ← BlockVCGContext.llvmFunName <$> read;
-  let lbl ← BlockVCGContext.currentBlock <$> read;
-  let instIdx ← BlockVCGState.llvmInstIndex <$> get;
-  let curAddr ← BlockVCGState.mcCurAddr <$> get;
-  pure $ renderMCInstError fnName lbl instIdx curAddr msg
+  let loc ← currentLoc
+  pure $ loc.pp ++": "++msg
 
 def addGoal (g : VerificationGoal) : BlockVCG Unit := do
   modify (λ s => {s with
@@ -57,9 +64,9 @@ def fatalBlockError {α} (msg : String) : BlockVCG α := do
   let errMsg ← prependLocation msg;
   fatalThrow errMsg
 
-def localBlockError {α} (msg : String) : BlockVCG α := do
-  let errMsg ← prependLocation msg;
-  localThrow (BlockError.otherBlockError errMsg)
+def localBlockError {α} (err : BlockErrorTag) (extraInfo : String) : BlockVCG α := do
+  let loc ← currentLoc
+  localThrow {loc := loc, tag := err, extraInfo := extraInfo}
 
 def addCommand (cmd : Smt.Command) : BlockVCG Unit := do
   modify (λ s => {s with smtContext := s.smtContext *> Smt.liftCommand cmd})
@@ -78,17 +85,16 @@ def runSmtM {a : Type} (m : SmtM a) : BlockVCG a := do
 def addAssert (p : Smt.Term SmtSort.bool) : BlockVCG Unit := 
   addCommand $ Smt.Command.assert p
 
--- | @proveTrue p msg@ adds a proof obligation @p@ is true for all
--- interpretations of constants with the message @msg@.
-def proveTrue (prop : Smt.Term SmtSort.bool) (msg : String) : BlockVCG Unit := do
-  let annMsg <- prependLocation msg;
-  verifyGoal prop annMsg;
+-- | @proveTrue prop extraInfo expr@ adds a proof obligation @expr@ is true for all
+-- interpretations of constants for the property @prop@ and any @extraInfo@ annotated.
+def proveTrue (tag : GoalTag) (extraInfo : String) (expr : Smt.Term SmtSort.bool) : BlockVCG Unit := do
+  verifyGoal tag extraInfo expr;
   -- Add command for future proofs
-  addAssert prop
+  addAssert expr
 
 
-def proveEq {s : SmtSort} (x y : Smt.Term s) (msg : String) : BlockVCG Unit := do
-  proveTrue (Smt.eq x y) msg -- FIXME ? was proveFalseCallback/Smt.distinct
+def proveEq (tag : GoalTag) (extraInfo : String) {s : SmtSort} (x y : Smt.Term s) : BlockVCG Unit := do
+  proveTrue tag extraInfo (Smt.eq x y) -- FIXME ? was proveFalseCallback/Smt.distinct
 
 
 -- | Add assertion that the propositon is true without requiring it to be proven.
@@ -204,15 +210,16 @@ def getNextEvents : BlockVCG Unit := do
   let s <- get;
   let addr := mcNextAddr s;
   when (not (addr < ctx.mcBlockEndAddr)) $ 
-    localBlockError $ "Unexpected end of machine code events.";
+    localBlockError BlockErrorTag.mcRanOutOfEvents "";
   -- FIXMEL df, x87Top
   -- BlockVCG.liftIO $ IO.println ("Decoding at " ++ addr.ppHex);
 
   addComment ("MC: at " ++ addr.ppHex);
 
   let (events, idGen', sz) <-
+
     match ctx.mcModuleVCGContext.instructionEvents ctx.mcBlockMap s.mcCurRegs s.idGen addr with
-    | Except.error e => localBlockError e
+    | Except.error e => localBlockError BlockErrorTag.mcInstrEventError e
     | Except.ok    r => pure r;
 
   -- Update local index and next addr
@@ -241,7 +248,7 @@ def getSupportedType (s : SmtSort) : BlockVCG (x86.vcg.SupportedMemType s) := do
   let mops := mcstd.memOpsBySort;
   match mops s with
   | some ops => pure ops
-  | none => localBlockError $ "Unexpected type " ++ toString s
+  | none => localBlockError BlockErrorTag.unsupportedMemType (toString s)
 
 def declareMem : BlockVCG x86.vcg.memory :=
   BlockVCG.runSmtM $ Smt.declareFun "mem" [] x86.vcg.memory_t
@@ -291,12 +298,10 @@ def execMCOnlyEvents : MemAddr -> BlockVCG Unit
       -- Checking this is on the stack also ensures there are no side effects
       -- from mem-mapped IO reads since the stack should not be mem-mapped IO.
 
-      (do let thisIP <- BlockVCGState.mcCurAddr <$> get;
-          let stdLib <- BlockVCGContext.mcStdLib <$> read;
-          -- FIXME: assert 8 dvd n
-          -- FIMXE: make this take a Nat?
-          proveTrue (stdLib.onStack mcAddr (Smt.bvimm _ (n / 8)))
-            ("machine code read at " ++ thisIP.ppHex ++ " is not within stack space."));
+      do let stdLib <- BlockVCGContext.mcStdLib <$> read;
+         -- FIXME: assert 8 dvd n
+         -- FIMXE: make this take a Nat?
+         proveTrue GoalTag.mcOnlyReadFromUnallocStack "" (stdLib.onStack mcAddr (Smt.bvimm _ (n / 8)))
 
       -- Define value from reading Macaw heap
       mcAssignRead mcAddr (SmtSort.bitvec n) smtValVar;
@@ -312,11 +317,9 @@ def execMCOnlyEvents : MemAddr -> BlockVCG Unit
 
       -- We need to assert that this werite will not be visible to LLVM.
 
-      (do let thisIP <- BlockVCGState.mcCurAddr <$> get;
-          let stdLib <- BlockVCGContext.mcStdLib <$> read;
-          -- FIXME: assert 8 dvd n
-          proveTrue (stdLib.isInMCOnlyStackRange mcAddr (Smt.bvimm _ (n / 8)))
-            ("machine code write at " ++ thisIP.ppHex ++ " is in unreserved stack space."));
+      do let stdLib <- BlockVCGContext.mcStdLib <$> read;
+         -- FIXME: assert 8 dvd n
+         proveTrue GoalTag.mcOnlyWriteToUnreservedStack "" (stdLib.isInMCOnlyStackRange mcAddr (Smt.bvimm _ (n / 8)))
 
       -- Update stack with write.
       mcWrite mcAddr (SmtSort.bitvec n) smtVal;
@@ -327,7 +330,7 @@ def execMCOnlyEvents : MemAddr -> BlockVCG Unit
     -- and if so it runs it.
   | FetchAndExecuteEvent regs :: mevs => do
       -- BlockVCG.liftIO $ IO.println ("execMCOnlyEvents: fetch and exec case");
-      when (not mevs.isEmpty) $ localBlockError "MC event after fetch and execute";
+      when (not mevs.isEmpty) $ localBlockError BlockErrorTag.mcEventAfterFetchAndExe ""
       modify $ fun s => { s with mcEvents := [] };
       -- Update registers
       setMCRegs regs;
@@ -357,7 +360,7 @@ def popMCEvent : BlockVCG Event := do
   execMCOnlyEvents endAddr;
   let evts ← BlockVCGState.mcEvents <$> get;
   match evts with
-  | [] => localBlockError "Reached the end of block prematurely."
+  | [] => localBlockError BlockErrorTag.mcEarlyEnvOfBlock ""
   | fst::rst => do
     modify (λ s => {s with mcEvents := rst});
     pure fst
@@ -373,7 +376,7 @@ def mcExecuteToEnd : BlockVCG Unit := do
   let evts <- (fun (s : BlockVCGState) => s.mcEvents) <$> get;
   match evts with
   | [] => pure ()
-  | e :: _ => BlockVCG.localBlockError $ "Expecting end of block, got " ++ reprStr e
+  | e :: _ => BlockVCG.localBlockError BlockErrorTag.mcEarlyEnvOfBlock (reprStr e)
 
 --------------------------------------------------------------------------------
 -- Literal constructors
@@ -388,7 +391,7 @@ open LLVM.Value
 def primEval : forall (tp : LLVMType) (H :HasSMTSort tp), Value -> BlockVCG (Smt.Term (asSMTSort tp H))
 | tp, H, ident i => lookupIdent i (asSMTSort tp H)
 | LLVM.LLVMType.prim (LLVM.PrimType.integer w), H, integer i => pure (mkInt i H)
-| _, _, _ => BlockVCG.localBlockError "unimplemented"
+| tp, _, _ => BlockVCG.localBlockError BlockErrorTag.unimplementedFeature ("primEval for " ++ ppLLVM tp)
 
 
 def primEvalTypedValueAsBV64 (tyVal:Typed Value) : BlockVCG (Smt.Term SmtSort.bv64) :=
@@ -397,9 +400,9 @@ def primEvalTypedValueAsBV64 (tyVal:Typed Value) : BlockVCG (Smt.Term SmtSort.bv
     let v <- primEval tyVal.type H tyVal.value;
     match asSMTSort tyVal.type H, v with
     | SmtSort.bitvec 64, v' => pure v'
-    | _, _ => BlockVCG.localBlockError $ "Non 64-bit bitvector sort: " ++ (ppLLVM tyVal.type)
+    | _, _ => BlockVCG.localBlockError BlockErrorTag.unexpectedSort ("expected 64-bit bitvector, got " ++ (ppLLVM tyVal.type))
   else
-    BlockVCG.localBlockError $ "Non 64-bit bitvector sort: " ++ (ppLLVM tyVal.type)
+    BlockVCG.localBlockError BlockErrorTag.unexpectedSort ("expected 64-bit bitvector, got " ++ (ppLLVM tyVal.type))
 
 
 end
@@ -457,15 +460,15 @@ def wordAsType (w : x86.vcg.bitvec 64) (ty : LLVMType)
              let smcv0 := Smt.extract (i - 1) 0 w;
              let r := @Eq.recOn _ _ (fun a _ => Smt.Term (SmtSort.bitvec a)) _ pf' smcv0;
              pure (PSigma.mk pf r)
-     else BlockVCG.localBlockError "Unexpected sort in wordAsType"
-  | _ => BlockVCG.localBlockError "Unexpected sort in wordAsType"
+     else BlockVCG.localBlockError BlockErrorTag.unexpectedSort ("Unexpected sort in wordAsType: " ++ (ppLLVM ty))
+  | _ => BlockVCG.localBlockError BlockErrorTag.unexpectedSort ("Unexpected sort in wordAsType: " ++ (ppLLVM ty))
   
-def proveRegRel (msg : String) (w : x86.vcg.bitvec 64)
+def proveRegRel (p : GoalTag) (extraInfo : String) (w : x86.vcg.bitvec 64)
   : LLVM.Typed LLVM.Value ->  BlockVCG Unit
 | { type := ty, value := v } => do  
   let ⟨pf, mcv⟩ <- wordAsType w ty;
   let lv <- primEval ty pf v;
-  proveEq lv mcv msg
+  proveEq p extraInfo lv mcv
 
 
 section
@@ -478,26 +481,29 @@ open BlockVCG (fatalBlockError localBlockError localThrow fatalThrow)
 -- | Returns ABI byte alignment constraint in bytes.
 def memTypeAlignAux (tyMap : LLVMTypeMap) (orig : LLVMType) : Nat → LLVMType → Std.HashSet String → BlockVCG Nat
 | Nat.zero, _, _ =>
-  localBlockError $ "Ran out of fuel chasing down the definition of type " ++ (ppLLVM orig)
+  localBlockError BlockErrorTag.outOfFuel ("resolving LLVM type " ++ (ppLLVM orig))
 | _, (LLVM.LLVMType.prim pt), _ =>
-  (match pt with
-   | LLVM.PrimType.integer 16 => pure 2
-   | LLVM.PrimType.integer 32 => pure 4
-   | LLVM.PrimType.integer 64 => pure 8
-   | _ => localBlockError $ "Alignment of primitive LLVM type " ++ (ppLLVM pt) ++ " is not yet set.")
+  match pt with
+  | LLVM.PrimType.integer 1 => pure 1 -- FIXME should we pull these from a `DataLayout.integerInfo` somewhere?
+  | LLVM.PrimType.integer 8  => pure 1
+  | LLVM.PrimType.integer 16 => pure 2
+  | LLVM.PrimType.integer 32 => pure 4
+  | LLVM.PrimType.integer 64 => pure 8
+  | _ => localBlockError BlockErrorTag.unimplementedFeature 
+                         ("Alignment of primitive LLVM type " ++ (ppLLVM pt) ++ " is not set.")
 | fuel+1, LLVM.LLVMType.alias nm, seen =>
   if seen.contains nm
-  then localBlockError $ "Loop in aliases, starting with " ++ (ppLLVM orig) ++ "." 
+  then localBlockError BlockErrorTag.aliasCycleDetected ("original type " ++ (ppLLVM orig)) 
   else 
     (match tyMap.find? nm with
      | none => 
-       localBlockError $ "Could not find type " ++ nm ++ " in the environment."
+       localBlockError BlockErrorTag.llvmTypeNotFound nm
      | some none => 
-       localBlockError $ "The environment contained " ++ nm ++ " but no associated type."
+       localBlockError BlockErrorTag.llvmTypeNotBound nm
      | some (some t) => 
        memTypeAlignAux tyMap orig fuel t (seen.insert nm))
 | _, t, _ =>
-  localBlockError $ "Alignment of " ++ (ppLLVM t) ++ " is not yet set."
+  localBlockError BlockErrorTag.unimplementedFeature ("alignment of " ++ (ppLLVM t) ++ "not set")
 
 -- | Returns ABI byte alignment constraint in bytes.
 def memTypeAlign (tyMap : LLVMTypeMap) (t : LLVMType) : BlockVCG Nat :=
@@ -508,7 +514,7 @@ def memTypeAlign (tyMap : LLVMTypeMap) (t : LLVMType) : BlockVCG Nat :=
 -- type points to (or an error if the type is not a pointer type).
 def memPtrTypeAlign (tyMap : LLVMTypeMap) : LLVMType → BlockVCG Nat
 | LLVM.LLVMType.ptr t => memTypeAlign tyMap t
-| t => localBlockError $ "Expected an LLVM pointer type, but got " ++ (ppLLVM t)
+| t => localBlockError BlockErrorTag.unexpectedSort ("expected an LLVM pointer type, but got " ++ (ppLLVM t))
 
 def llvmLoad (ident : LLVM.Ident) (addr:Typed Value) (mAlign:Option Nat) : BlockVCG Unit := do
   -- Calculate the address
@@ -520,7 +526,7 @@ def llvmLoad (ident : LLVM.Ident) (addr:Typed Value) (mAlign:Option Nat) : Block
       let typeMap ← (ModuleVCGContext.moduleTypeMap ∘ BlockVCGContext.mcModuleVCGContext) <$> read;
       memPtrTypeAlign typeMap addr.type
     else if ((Nat.land (a0 - 1) a0) ≠ 0)
-    then localBlockError $ "Alignment `" ++ (reprStr a0) ++ "` is not a power of 2."
+    then localBlockError BlockErrorTag.invalidAlignment (reprStr a0)
     else pure a0);
   when (llvmAlign > 1) $
     BlockVCG.log $ "Warning: LLVM alignment of " ++ (reprStr llvmAlign) ++ "  is unchecked.";
@@ -540,25 +546,22 @@ def llvmLoad (ident : LLVM.Ident) (addr:Typed Value) (mAlign:Option Nat) : Block
     let mcAllocaMap ← (x86.vcg.MCStdLib.allocaMap ∘ BlockVCGContext.mcStdLib) <$> read;
     match llvmAllocaMap.find? allocName, mcAllocaMap.find? allocName with
     | none, none =>
-      localBlockError $ "Unknown allocation: " ++ allocName.name
+      localBlockError BlockErrorTag.unknownAlloc allocName.name
     | none, _ =>
-      localBlockError $ "Unknown allocation (missing LLVM entry): " ++ allocName.name
+      localBlockError BlockErrorTag.unknownAlloc (allocName.name ++ ", missing LLVM entry") 
     | _, none =>
-      localBlockError $ "Unknown allocation (missing MC entry): " ++ allocName.name
+      localBlockError BlockErrorTag.unknownAlloc (allocName.name ++ ", missing MC entry")
     | some llvm, some mc => do
       -- Prove: LLVM address is in allocation
-      proveTrue (llvm.isInAlloca llvmAddr sz) $
-        "Check LLVM write address targets " ++ allocName.name ++ " allocation.";
+      proveTrue GoalTag.llvmWriteTargetsAlloc allocName.name (llvm.isInAlloca llvmAddr sz)
       -- Prove: machine code addres is in allocation.
-      proveTrue (mc.isInAlloca mcAddr sz) $
-        "Check machine code write address targets " ++ allocName.name ++ " allocation.";
+      proveTrue GoalTag.mcWriteTargetsAlloc allocName.name (mc.isInAlloca mcAddr sz)
       -- Assert machine code address is same offset of machine code region as LLVM address.
       let llvmOffset : Smt.Term SmtSort.bv64 :=
         Smt.bvsub llvmAddr llvm.baseAddress;
       let mcOffset : Smt.Term SmtSort.bv64 :=
         Smt.bvsub mcAddr mc.baseAddress;
-      proveEq llvmOffset mcOffset
-        "LLVM and machine code read from same allocation offset.";
+      proveEq GoalTag.llvmAndMCReadOffsetsMatch "" llvmOffset mcOffset
       -- Define value from reading Macaw heap
       -- supType ← getSupportedType mcType;
       let mcVal ← mcRead mcAddr (SmtSort.bitvec readWidth);
@@ -580,14 +583,12 @@ def llvmLoad (ident : LLVM.Ident) (addr:Typed Value) (mAlign:Option Nat) : Block
       --   unless (typeCompat llvmType mcType) $ do
       --     fatalBlockError "Incompatible LLVM and machine code types."
       -- Assert addresses are the same
-      proveEq mcAddr llvmAddr
-        "Machine code heap load address matches expected from LLVM";
+      proveEq GoalTag.llvmAndMCLoadAddrsMatch "" mcAddr llvmAddr
       -- Add that macaw points to the heap
       let mcCurAddr ← BlockVCGState.mcCurAddr <$> get;
       let notInStack ← (x86.vcg.MCStdLib.notInStack ∘ BlockVCGContext.mcStdLib) <$> read;
       let sz : Smt.Term SmtSort.bv64 := Smt.bvimm 64 readWidth;
-      proveTrue (notInStack mcAddr sz) $
-        "Read from heap at " ++ (toString $ toSExpr mcAddr) ++ " is valid.";
+      proveTrue GoalTag.nonStackReadAddrValid "" (notInStack mcAddr sz)
       --   -- Define value from reading Macaw heap
       --   supType <- getSupportedType mcType
       --   defineVarFromReadMCMem macawValVar mcAddr supType
@@ -597,7 +598,7 @@ def llvmLoad (ident : LLVM.Ident) (addr:Typed Value) (mAlign:Option Nat) : Block
       --   addCommand $ SMT.defineFun (identVar ident) [] (supportedSort supType) (varTerm macawValVar)
       let _ <- defineTerm ident mcVal;
       pure ()
-  | _ => localBlockError "Expected a machine code load event."
+  | _ => localBlockError BlockErrorTag.unexpectedEvent "expected a machine code load"
   
 
 def llvmStore (llvmAddr : Smt.Term SmtSort.bv64) {s : SmtSort} (llvmVal : Smt.Term s) : BlockVCG Unit := do
@@ -627,45 +628,43 @@ def llvmStore (llvmAddr : Smt.Term SmtSort.bv64) {s : SmtSort} (llvmVal : Smt.Te
   --   thisIP <- gets mcCurAddr
   --   proveEq llvmVal mcVal $
   --     (printf "Value written at addr %s equals LLVM value." (show thisIP))
-    localBlockError "TODO: implement llvmStore JointStackWriteEvent"
+    localBlockError BlockErrorTag.unimplementedFeature "llvmStore JointStackWriteEvent"
   | NonStackWriteEvent mcAddr mcValWidth mcVal => do
-    proveEq llvmAddr mcAddr "Machine code and LLVM heap write addresses are equal";
+    proveEq GoalTag.llvmAndMCStoreAddrsMatch "" llvmAddr mcAddr
     let s' : SmtSort := SmtSort.bitvec mcValWidth;
     if hEq : s' = s
     then do
       -- Assert values are equal
-      proveEq llvmVal (cast (congrArg Smt.Term hEq) mcVal)
-        "Machine code heap store matches expected from LLVM"
+      proveEq GoalTag.llvmAndMCStoreEq "" llvmVal (cast (congrArg Smt.Term hEq) mcVal)
     else do
-      localBlockError $ "Machine code write has type " ++ (toString $ toSExpr s') ++
-                        " while LLVM write has types " ++ (toString $ toSExpr s) ++ "."
-  | _ => localBlockError "llvmStore: Expected a heap or joint stack write event."
+      localBlockError BlockErrorTag.unexpectedSort 
+                      ("Machine code writes "++(toString $ toSExpr s')
+                       ++" while LLVM writes "++(toString $ toSExpr s))
+  | _ => localBlockError BlockErrorTag.unexpectedEvent "llvmStore: expected a heap or joint stack write"
 
 end
 
 def llvmReturn (mlret : Option (Typed Value)) : BlockVCG Unit := do
   mcExecuteToEnd;
   let regs <- BlockVCGState.mcCurRegs <$> get;
-  (do let sht  <- stackHighTerm;
-      proveEq (regs.get_reg64 x86.reg64.rsp) (Smt.bvadd sht (Smt.bvimm _ 8))
-        "stack height at return matches init.");
-  (do let ra <- returnAddrTerm;
-      proveEq regs.ip ra "return address matches entry value.");
+  do let sht  <- stackHighTerm;
+     proveEq GoalTag.stackHeightPreserved "after return" (regs.get_reg64 x86.reg64.rsp) (Smt.bvadd sht (Smt.bvimm _ 8))
+  do let ra <- returnAddrTerm;
+     proveEq GoalTag.returnAddressPreserved "after return" regs.ip ra
   
   -- FIXME checkDirectionFlagClear
   let stdLib ← BlockVCGContext.mcStdLib <$> read;
-  let rEq := λ r => proveEq (regs.get_reg64 r) (stdLib.funStartRegs.get_reg64 r)
-                            ("value of " ++ r.name ++ " at return is preserved.");
+  let rEq := λ r => proveEq GoalTag.registerPreserved (r.name ++ ", after return") (regs.get_reg64 r) (stdLib.funStartRegs.get_reg64 r)
   x86CalleeSavedGPRegs.forM rEq;
   match mlret with
   | none => pure ()
   | some v =>
-    proveRegRel "return values match" (regs.get_reg64 x86.reg64.rax) v
+    proveRegRel GoalTag.llvmAndMCReturnValuesEq "" (regs.get_reg64 x86.reg64.rax) v
 
   
 def llvmInvoke (isTailCall : Bool) (fsym : LLVM.Symbol) (args : Array (Typed Value))
     (lRet : Option (LLVM.Ident × LLVMType)) : BlockVCG Unit := do
-  when isTailCall $ localBlockError "Tail calls are unimplemented";
+  when isTailCall $ localBlockError BlockErrorTag.unimplementedFeature "tail call"
 
   BlockVCGContext.mcBlockEndAddr <$> read >>= execMCOnlyEvents;
 
@@ -676,20 +675,18 @@ def llvmInvoke (isTailCall : Bool) (fsym : LLVM.Symbol) (args : Array (Typed Val
 
   -- FIXME assertFnNameEq fsym regs.ip
   when (args.size > x86ArgGPRegs.length) $ 
-    localBlockError "Too many arguments";
+    localBlockError BlockErrorTag.llvmInvokeArgError "too many arguments"
 
-  let proveOne := λ v (r : x86.reg64) =>
-                  proveRegRel ("argument matches register " ++ r.repr) (regs.get_reg64 r) v;
-  for (a, x) in args.toList.zip x86ArgGPRegs do
-    proveOne a x
+  for (v, r) in args.toList.zip x86ArgGPRegs do
+    proveRegRel GoalTag.argAndRegEq r.repr (regs.get_reg64 r) v
 
   -- FIXME checkDirectionFlagClear;
   let postCallRIP  <- mcNextAddr <$> get;
 
   -- FIXME: generalise returnAddrTerm?
   -- Check stored return value matches next instruction
-  (do let addrOnStack <- mcRead (regs.get_reg64 x86.reg64.rsp) _;
-      proveEq addrOnStack (Smt.bvimm 64 postCallRIP) "return address matches next instruction.");
+  do let addrOnStack <- mcRead (regs.get_reg64 x86.reg64.rsp) _
+     proveEq GoalTag.returnAddrNextInstr "" addrOnStack (Smt.bvimm 64 postCallRIP)
         
   --------------------
   -- Post call
@@ -773,7 +770,7 @@ def tryPrimEval (tp : LLVMType) (v:Value) : BlockVCG (Sigma Smt.Term) :=
     let t ← primEval tp h v;
     pure $ ⟨asSMTSort tp h, t⟩
   else
-    BlockVCG.localBlockError $ "unable to evaluate llvm term "++(ppLLVM v)++" at type "++(ppLLVM tp)
+    BlockVCG.localBlockError BlockErrorTag.unexpectedSort ((ppLLVM v)++" is not of type "++(ppLLVM tp))
 
 
 --------------------------------------------------------------------------------
@@ -816,18 +813,17 @@ def verifyPreconditions
   let blkMap ← BlockVCGContext.funBlkAnnotations <$> read;
   match findBlock blkMap lbl with
   | none =>
-    localBlockError $ "Target block "++(ppBlockLabel lbl)++" lacks annotations."
+    localBlockError BlockErrorTag.missingAnnotations ""
   | some (BlockAnn.unreachable, _) =>
-    proveTrue (goalFn Smt.false) $ "target block "++(ppBlockLabel lbl)++"is unreachable."
+    proveTrue GoalTag.blockUnreachable "" (goalFn Smt.false)
   | some (BlockAnn.reachable tgtBlockAnn, varMap) => do
     let firstLabel ← BlockVCGContext.firstBlockLabel <$> read;
     -- Ensure we're not in the first block
-    when (lbl == firstLabel) $ localBlockError "LLVM should not jump to first label in function.";
+    when (lbl == firstLabel) $ localBlockError BlockErrorTag.invalidLLVMInstr "cannot jump to first label in function"
     -- Check initialized register values (just rip for now)
-    (do let regs ← BlockVCGState.mcCurRegs <$> get;
-        let expected := Smt.bvimm 64 tgtBlockAnn.startAddr.toNat;
-        proveTrue (goalFn (Smt.eq expected regs.ip))
-          (prefixDescr ++ " register rip."));
+    do let regs ← BlockVCGState.mcCurRegs <$> get
+       let expected := Smt.bvimm 64 tgtBlockAnn.startAddr.toNat
+       proveTrue GoalTag.expectedInstrPtrVal prefixDescr (goalFn (Smt.eq expected regs.ip))
   
     -- checkInitRegVals tgtBlockAnn goalFn;
   
@@ -837,12 +833,13 @@ def verifyPreconditions
       λ nm val => let (tp, valMap) := val;
                   match valMap.find? srcLbl with
                   | some v => tryPrimEval tp v
-                  | none => localBlockError $ "Could not find initial value of llvm variable `"++nm.asString++"`.";
+                  | none => localBlockError BlockErrorTag.llvmVarNoInitVal nm.asString
     let phiTermMap ← varMap.mapM resolvePhiVarVal;
     -- Verify each precondition
-    tgtBlockAnn.preconds.forM (λ precondExpr => do
-                                 let p ← evalPrecondition phiTermMap.find? precondExpr;
-                                 proveTrue (goalFn p) $ prefixDescr++" precondition: "++precondExpr.toString)
+    for precondExpr in tgtBlockAnn.preconds do
+      let p ← evalPrecondition phiTermMap.find? precondExpr
+      proveTrue GoalTag.blockPrecondition (precondExpr.toString++", for "++prefixDescr) (goalFn p)
+
     -- Check allocations are preserved. -- FIXME actually do this when we get to reasoning about allocas.
     -- curAllocas <- gets mcPendingAllocaOffsetMap
     -- when (Ann.blockAllocas tgtBlockAnn /= curAllocas) $ do
@@ -862,7 +859,7 @@ open BlockVCG (verifyPreconditions)
 
 def stepNextStmt (stmt : LLVM.Stmt) : BlockVCG Bool := do
   let unimplemented {t : Type} : BlockVCG t :=
-    BlockVCG.localBlockError ("(stepNextStmt) Unsupported term" ++ ppLLVM stmt);
+    BlockVCG.localBlockError BlockErrorTag.unimplementedFeature ("stepNextStmt, " ++ ppLLVM stmt)
   let assignTerm {s : SmtSort} (tm : Smt.Term s) : BlockVCG Unit :=
     (match stmt.assign with
      | none => pure ()
@@ -872,7 +869,7 @@ def stepNextStmt (stmt : LLVM.Stmt) : BlockVCG Bool := do
     | none     => unimplemented
     | some tm' => assignTerm tm';
   match stmt.instr with
-  | phi _ _ => localBlockError "Unexpected phi in stepNextStmt"
+  | phi _ _ => localBlockError BlockErrorTag.unexpectedPhiVar "stepNextStmt"
 --   | alloca : LLVMType -> Option (typed value) -> Option Nat -> instruction
   | arith aop { type := lty, value := lhs } rhs => do
     if H : HasSMTSort lty then do
@@ -880,25 +877,25 @@ def stepNextStmt (stmt : LLVM.Stmt) : BlockVCG Bool := do
       let rhsv <- primEval lty H rhs; 
       match asSMTSort lty H, lhsv, rhsv with
       | SmtSort.bitvec n, l, r => assignOptionTerm (arithOpFunc aop l r) -- option as some are unimplemented
-      | _, _, _ => BlockVCG.localBlockError "Unexpected sort";
+      | _, _, _ => BlockVCG.localBlockError BlockErrorTag.unexpectedSort "arithmetic op in stepNextStmt"
       pure true
-    else BlockVCG.localBlockError "Unexpected type"
+    else BlockVCG.localBlockError BlockErrorTag.unexpectedSort "arithmetic op in stepNextStmt"
   | bit bop { type := lty, value := lhs } rhs => do
     if H : HasSMTSort lty then do
       let lhsv <- primEval lty H lhs;
       let rhsv <- primEval lty H rhs; 
       match asSMTSort lty H, lhsv, rhsv with
       | SmtSort.bitvec n, l, r => assignOptionTerm (bitOpFunc bop l r)
-      | _, _, _ => BlockVCG.localBlockError "Unexpected sort";
+      | _, _, _ => BlockVCG.localBlockError BlockErrorTag.unexpectedSort "bit in stepNextStmt"
       pure true
-    else BlockVCG.localBlockError "Unexpected type"
+    else BlockVCG.localBlockError BlockErrorTag.unexpectedSort "call in stepNextStmt"
   | call tailcall o_ty f args => do
     match f with 
     | LLVM.Value.symbol s =>
       llvmInvoke tailcall s args (match o_ty, stmt.assign with 
                                   | some ty, some i => some (i, ty)
                                   | _, _ => none)
-    | _ => localBlockError "VCG currently only supports direct calls.";
+    | _ => localBlockError BlockErrorTag.unimplementedFeature "indirect function call"
     pure true
 
 --   | conv : conv_op -> typed value -> LLVMType -> instruction
@@ -911,9 +908,9 @@ def stepNextStmt (stmt : LLVM.Stmt) : BlockVCG Bool := do
       | SmtSort.bitvec n, some i, l, r => do 
         discard $ defineTerm i (Smt.smtIte (icmpOpFunc bop l r) (Smt.bvimm 1 1) (Smt.bvimm 1 0)); 
         pure ()
-      | _, _, _, _ => BlockVCG.localBlockError "Unexpected sort";
+      | _, _, _, _ => BlockVCG.localBlockError BlockErrorTag.unexpectedSort "icmp in stepNextStmt"
       pure true
-    else BlockVCG.localBlockError "Unexpected type"
+    else BlockVCG.localBlockError  BlockErrorTag.unexpectedSort "icmp in stepNextStmt"
 
   | br { type := _lty, value := cnd } tlbl flbl => do
     mcExecuteToEnd;
@@ -948,11 +945,11 @@ def stepNextStmt (stmt : LLVM.Stmt) : BlockVCG Bool := do
       | SmtSort.bitvec n, SmtSort.bitvec m, LLVM.ConvOp.ptr_to_int, l => assignTerm l
       | _, _, _, _ => unimplemented;
       pure true
-    else BlockVCG.localBlockError "Unexpected type"
+    else BlockVCG.localBlockError BlockErrorTag.unexpectedSort "conv in stepNextStatement"
   | load addr mOrd mAlign =>
-    if mOrd.isSome then BlockVCG.localBlockError "Atomic ordering not yet supported."
+    if mOrd.isSome then BlockVCG.localBlockError BlockErrorTag.unimplementedFeature "atomic ordering"
     else match stmt.assign with
-         | none => BlockVCG.localBlockError "LLVM Load without an assigned identifier."
+         | none => BlockVCG.localBlockError BlockErrorTag.llvmInvalidLoad "no assigned identifier"
          | some x => do
            llvmLoad x addr mAlign;
            pure true
@@ -1006,7 +1003,7 @@ def allocaDeclarations (a : AllocaAnn) : BlockVCG Unit := do
   -- Get used allocas
   let used ← BlockVCGState.activeAllocaMap <$> get;
   -- Check that alloca name is not in use.
-  when (used.contains nm) $ localBlockError $ nm.name ++ " is already used as an allocation.";
+  when (used.contains nm) $ localBlockError BlockErrorTag.allocNameCollision nm.name
   -- Identifies the LLVM base address of an allocation.
   let baseNm : LLVM.Ident := LLVM.Ident.named $ "alloca_" ++ nm.name ++ "_llvm_base";
   -- Identifies the LLVM end address of an allocation.
@@ -1085,7 +1082,7 @@ def run (mctx : ModuleVCGContext)
     , mcCurMem  := stdLib.blockStartMem
     , mcEvents  := []
     , idGen := idGen' -- passing idGen' twice here probably isn't ideal (i.e., could introduce name collisions via a bug)
-    , llvmInstIndex := 0
+    , llvmInstrIndex := 0
     , mcPendingAllocaOffsetMap := blockAnn.allocas
     , activeAllocaMap := Std.RBMap.empty
     , llvmIdentMap  := Std.RBMap.empty
@@ -1104,14 +1101,14 @@ end BlockVCG
 -- Note. This is written to take a function rather than directly call
 -- @stepNextStmtg@ so that the call stack is cleaner.
 def checkEachStmt : List LLVM.Stmt → BlockVCG Unit
-| [] => BlockVCG.localBlockError "We have reached end of LLVM events without a block terminator."
+| [] => BlockVCG.localBlockError BlockErrorTag.llvmRanOutOfEvents "no block terminator"
 | (stmt::stmts) => do
   BlockVCG.addComment $ "LLVM: " ++ (ppLLVM stmt);
   let keepGoing ← stepNextStmt stmt;
-  modify (λ s => {s with llvmInstIndex := s.llvmInstIndex + 1 });
+  modify (λ s => {s with llvmInstrIndex := s.llvmInstrIndex + 1 });
   if keepGoing then checkEachStmt stmts
   else if stmts.isEmpty then pure ()
-  else BlockVCG.localBlockError "Expected return to be last LLVM statement."
+  else BlockVCG.localBlockError BlockErrorTag.llvmMissingReturn ""
 
 def defineArgBinding (b : LLVMMCArgBinding) : BlockVCG Unit := do
 let funStartRegs ← (x86.vcg.MCStdLib.funStartRegs ∘ BlockVCGContext.mcStdLib) <$> read;
