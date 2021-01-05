@@ -35,7 +35,7 @@ BUILDDIR    ?= build
 
 # Names of the Lean executables if they're not explicitly
 # set already defined already in the environment
-LEAN ?= lean -DmaxRecDepth=50000
+LEAN ?= lean
 LEANC ?= leanc
 
 # FIXME: move to llvm-tablegen-support submake
