@@ -45,7 +45,7 @@ def testExportCallbacks : IO Unit := do
      goal := smtGoal1};
   let ps ← exportProverSession outDir;
   ps.verifyGoal vg;
-  ps.sessionComplete;
+  discard $ ps.sessionComplete;
   let outFile := outDir ++ [System.FilePath.pathSeparator].asString ++ (standaloneGoalFilename vg);
   let outFileContents ← IO.FS.readFile outFile;
   IO.println outFileContents

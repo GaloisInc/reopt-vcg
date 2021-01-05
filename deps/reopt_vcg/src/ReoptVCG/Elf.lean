@@ -133,9 +133,9 @@ namespace osabi
 protected def repr (o:osabi) : String :=
   if o.val = 0 
   then "UNIX - System V"
-  else repr o.val.toNat
+  else reprStr o.val.toNat
 
-protected def toString (o:osabi) : String := repr o.val.toNat
+protected def toString (o:osabi) : String := reprStr o.val.toNat
 
 instance : ToString osabi := ⟨osabi.toString⟩
 
@@ -217,7 +217,7 @@ protected def pp (e:info) : String
   := "Class:                             " ++ e.elf_class.repr ++ "\n"
   ++ "Data:                              " ++ e.elf_data.repr ++ "\n"
   ++ "OS/ABI:                            " ++ e.osabi.repr ++ "\n"
-  ++ "ABI Version:                       " ++ repr e.abi_version.toNat ++ "\n"
+  ++ "ABI Version:                       " ++ reprStr e.abi_version.toNat ++ "\n"
 
 open buffer
 
@@ -354,7 +354,7 @@ match c with
 
 
 -- Print word as decinal
-protected def pp_dec {c:elf_class} (w : word c) : String := repr w.toNat
+protected def pp_dec {c:elf_class} (w : word c) : String := reprStr w.toNat
   
 --- Print word as hex
 protected def pp_hex : ∀{c:elf_class}, word c → String
@@ -435,7 +435,8 @@ def repr (pht : phdr_type) : String :=
   | 6 => "PT_PHDR"                 
   | _ => "PT_PROC " ++ (pht.toNat.repr)
 
-instance : Repr phdr_type := ⟨repr⟩
+-- FIXME: behave wrt prec
+instance : Repr phdr_type := ⟨fun pt _n => repr pt⟩
 
 def PT_LOAD : phdr_type := 1
 
@@ -453,7 +454,8 @@ instance : elf_file_data phdr_flags :=
 
 def repr (phfs : phdr_flags) : String := phfs.toNat.repr
 
-instance : Repr phdr_flags := ⟨repr⟩
+-- FIXME: behave wrt prec
+instance : Repr phdr_flags := ⟨fun pf _n => repr pf⟩
 
 def has_X (f : phdr_flags) : Bool := f.toNat.test_bit 0
 def has_W (f : phdr_flags) : Bool := f.toNat.test_bit 1
@@ -911,16 +913,16 @@ protected def pp {c : elf_class} (e:ehdr c) : String
   := "Class:                             " ++ c.repr ++ "\n"
   ++ "Data:                              " ++ e.elf_data.repr ++ "\n"
   ++ "OS/ABI:                            " ++ e.osabi.repr ++ "\n"
-  ++ "ABI Version:                       " ++ repr e.abi_version.toNat ++ "\n"
-  ++ "Type:                              " ++ repr e.elf_type.val.toNat ++ "\n"
-  ++ "Machine:                           " ++ repr e.machine.name ++ "\n"
+  ++ "ABI Version:                       " ++ reprStr e.abi_version.toNat ++ "\n"
+  ++ "Type:                              " ++ reprStr e.elf_type.val.toNat ++ "\n"
+  ++ "Machine:                           " ++ reprStr e.machine.name ++ "\n"
   ++ "Entry point address:               " ++ e.entry.pp_hex ++ "\n"
   ++ "Start of program headers:          " ++ e.phoff.pp_hex ++ " (bytes into file)\n"
   ++ "Start of section headers:          " ++ e.shoff.pp_hex ++ " (bytes into file)\n"
-  ++ "Flags:                             " ++ repr e.flags.toNat ++ "\n"
-  ++ "Number of program headers:         " ++ repr e.phnum.toNat ++ "\n"
-  ++ "Number of section headers:         " ++ repr e.shnum.toNat ++ "\n"
-  ++ "Section header String table index: " ++ repr e.shstrndx.toNat ++ "\n"
+  ++ "Flags:                             " ++ reprStr e.flags.toNat ++ "\n"
+  ++ "Number of program headers:         " ++ reprStr e.phnum.toNat ++ "\n"
+  ++ "Number of section headers:         " ++ reprStr e.shnum.toNat ++ "\n"
+  ++ "Section header String table index: " ++ reprStr e.shstrndx.toNat ++ "\n"
 
 end ehdr
 
@@ -929,7 +931,7 @@ def read_ehdr_remainder (i : info) : file_reader (ehdr i.elf_class) := do
   let tp ← elf_file_data.read _
   let mach ← elf_file_data.read _
   let ver ← file_reader.read_u32
-  when (ver ≠ 1) $ throw $ "Unexpected version: " ++ repr ver.toNat
+  when (ver ≠ 1) $ throw $ "Unexpected version: " ++ reprStr ver.toNat
   let entry ← elf_file_data.read _
   let phoff ← elf_file_data.read _
   let shoff ← elf_file_data.read _
@@ -992,7 +994,7 @@ def elfmem : Type := init_memory
 def read_one_elfmem (h : Galois.Fs.handle) {c : elf_class} (m : elfmem) (ph : phdr c) : IO elfmem :=
   if ph.phdr_type = phdr_type.PT_LOAD 
   then do
-    Galois.IO.Prim.handle.lseek h  (Int.ofNat ph.offset.toNat) Galois.Fs.Whence.set
+    let _ <- Galois.IO.Prim.handle.lseek h  (Int.ofNat ph.offset.toNat) Galois.Fs.Whence.set
     let fbs ← Galois.IO.Prim.handle.read h (if ph.filesz.toNat < ph.memsz.toNat 
                                             then ph.filesz.toNat
                                             else ph.memsz.toNat)

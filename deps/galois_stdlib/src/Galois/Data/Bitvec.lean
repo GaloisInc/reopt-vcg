@@ -38,7 +38,7 @@ def to_nat {w : Nat} (b : bitvec w) : Nat := b.val
 --   { decEq := (λx y, @decEq _ (@Subtype.DecidableEq Nat (λn, n < 2 ^ w) _) x y) }
 
 -- By default just show a bitvector as a nat.
-instance (w:Nat) : Repr (bitvec w) := ⟨fun v => repr (v.to_nat)⟩
+instance (w:Nat) : Repr (bitvec w) := ⟨fun v n => reprPrec (v.to_nat) n⟩
 
 section to_hex
 

@@ -400,8 +400,8 @@ def name : ∀{tp:type}, concrete_reg tp → String
 
 | _, (avxreg idx tp) =>
   (match tp with
-  | avxreg_type.xmm => "xmm" ++ Repr.repr idx
-  | avxreg_type.ymm => "ymm" ++ Repr.repr idx
+  | avxreg_type.xmm => "xmm" ++ reprStr idx
+  | avxreg_type.ymm => "ymm" ++ reprStr idx
   )
 
 protected def repr {tp:type} (r:concrete_reg tp) : String :=

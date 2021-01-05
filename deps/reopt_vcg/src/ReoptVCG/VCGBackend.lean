@@ -138,7 +138,7 @@ def declare_const_aux {s : SmtSort} (pfx : String) (ns : List String) (sz : Nat)
 def declare_const (pfx : String) (ip : Nat) : SmtM RegState := do
   let gprs  <- RegState.declare_const_aux pfx reg.r64_names 16;
   let flags <- RegState.declare_const_aux pfx reg.flag_names 32;
-  let avxregs <- RegState.declare_const_aux pfx (List.map (fun i => "xmm" ++ repr i) (Nat.upto0_lt 16)) 16;
+  let avxregs <- RegState.declare_const_aux pfx (List.map (fun i => "xmm" ++ reprStr i) (Nat.upto0_lt 16)) 16;
   pure { gpregs := gprs, flags := flags, avxregs := avxregs, ip := Smt.bvimm _ ip }
 
 end RegState
@@ -158,7 +158,8 @@ def repr : Event -> String
 | NonStackWriteEvent _ _ _ => "NonStackWriteEvent"
 | FetchAndExecuteEvent _   => "FetchAndExecuteEvent"
 
-instance : Repr Event := ⟨Event.repr⟩
+-- FIXME: behave wrt prec
+instance : Repr Event := ⟨fun e _n => Event.repr e⟩
 
 end Event
 
@@ -368,7 +369,7 @@ def backend : Backend :=
   , set_flag := fun i v => modify (RegState.update_flag i (fun _ => v))
 
   , get_avxreg  := fun i => (fun s => RegState.get_avxreg s i) <$> get
-  , set_avxreg := fun i v => do let s <- system_m.name_term (some ("xmm" ++ repr i)) v;
+  , set_avxreg := fun i v => do let s <- system_m.name_term (some ("xmm" ++ reprStr i)) v;
                                 modify (RegState.update_avxreg i (fun _ => s))
   
   , s_mux_bool := fun (b : s_bool) (x y : s_bool) => Smt.smtIte b x y

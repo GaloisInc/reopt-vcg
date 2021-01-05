@@ -205,7 +205,7 @@ def declare_const : SmtM machine_state := do
   let mem   ← Smt.declareFun "memory" [] memory_t
   let gprs  ← machine_state.declare_const_aux reg.r64_names 16
   let flags ← machine_state.declare_const_aux reg.flag_names 32
-  let avxregs ← machine_state.declare_const_aux (List.map (fun i => "xmm" ++ repr i) (Nat.upto0_lt 16)) 16
+  let avxregs ← machine_state.declare_const_aux (List.map (fun i => "xmm" ++ reprStr i) (Nat.upto0_lt 16)) 16
   let ip    ← Smt.declareFun "ip" [] (SmtSort.bitvec 64)
   pure { mem := mem, gpregs := gprs, flags := flags, avxregs := avxregs, ip := ip }
 
@@ -226,7 +226,8 @@ def repr : Event -> String
   | Read _ _    => "Read"
   | Write _ _ _ => "Write"
 
-instance : Repr Event := ⟨Event.repr⟩
+-- FIXME: behave wrt prec
+instance : Repr Event := ⟨fun e _n => Event.repr e⟩
 
 end Event
 
@@ -359,7 +360,7 @@ def symbolicBackend (stdlib : StdLib) : Backend :=
   , set_flag := fun i v => modify (machine_state.update_flag i (fun _ => v))
 
   , get_avxreg  := fun i => (fun s => machine_state.get_avxreg s i) <$> get
-  , set_avxreg := fun i v => do let s <- system_m.name_term (some ("xmm" ++ Repr.repr i)) v;
+  , set_avxreg := fun i v => do let s <- system_m.name_term (some ("xmm" ++ reprStr i)) v;
                                 modify (machine_state.update_avxreg i (fun _ => s))
   
   , s_mux_bool := fun (b : s_bool) (x y : s_bool) => Smt.smtIte b x y

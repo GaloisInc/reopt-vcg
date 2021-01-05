@@ -165,12 +165,13 @@ inductive trace_event
 protected
 def trace_event.repr : trace_event -> String 
   | trace_event.syscall n args => 
-    let pfx := "syscall " ++ repr n ++ " " ++ repr args.length;
+    let pfx := "syscall " ++ reprStr n ++ " " ++ reprStr args.length;
     List.foldl (fun (s : String) (w : machine_word) => s ++ " " ++ w.pp_hex) pfx args
-  | trace_event.read addr n b  => "read " ++ addr.pp_hex ++ " " ++ repr n ++ " " ++ b.pp_hex
-  | trace_event.write addr n b => "write " ++ addr.pp_hex ++ " " ++ repr n ++ " " ++ b.pp_hex
+  | trace_event.read addr n b  => "read " ++ addr.pp_hex ++ " " ++ reprStr n ++ " " ++ b.pp_hex
+  | trace_event.write addr n b => "write " ++ addr.pp_hex ++ " " ++ reprStr n ++ " " ++ b.pp_hex
 
-instance trace_event_repr : Repr trace_event := ⟨trace_event.repr⟩
+-- FIXME: behave wrt prec
+instance trace_event_repr : Repr trace_event := ⟨fun te _n => trace_event.repr te⟩
 
 structure os_state :=
   (current_ip : machine_word)
@@ -333,7 +334,7 @@ def syscall_handler : system_m Unit := do
   let s ← get
   let syscall_no := (s.get_gpreg rax_idx).to_nat
   match syscalls.find? syscall_no with
-  | none     => throw ("Unknown syscall: " ++ repr syscall_no)
+  | none     => throw ("Unknown syscall: " ++ reprStr syscall_no)
   | (some m) => m syscall_no
 
 

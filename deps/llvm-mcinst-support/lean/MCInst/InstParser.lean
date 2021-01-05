@@ -84,7 +84,8 @@ namespace mcinst
 
 
 def register := String
-instance register_has_repr: Repr register := ⟨fun s => s⟩
+-- FIXME: behave wrt prec
+instance register_has_repr: Repr register := ⟨fun s _n => Std.Format.text s⟩
 
 inductive operand 
   | register  : register -> operand
@@ -94,17 +95,17 @@ inductive operand
 def parens (b : String) : String := "(" ++ b ++ ")"
 
 def operand_to_String : operand -> String
-  | (operand.register r) => "%" ++ repr r
+  | (operand.register r) => "%" ++ reprStr r
   -- | (operand.segment s r)    => "(" ++ repr s ++ ":" ++ repr r ++ ")"
-  | (operand.immediate v)  => repr v -- ++ "[" ++ repr n ++ "]"
+  | (operand.immediate v)  => reprStr v -- ++ "[" ++ reprStr n ++ "]"
   -- | (operand.rel_immediate off n v) => "(" ++ repr v ++ " + " ++ repr off ++ ")[" ++ repr n ++ "]"
   | (operand.memloc d seg b s i) => 
   let oneR (r : Option register) : String :=
     (match r with 
      | none => "" -- maybe assert everything else is none?
-     | some rr => "%" ++ repr rr);
-   (if d = 0 then "" else repr d)
-   ++ "(" ++ oneR b ++ "," ++ oneR i ++ "," ++ repr s ++ ")"
+     | some rr => "%" ++ reprStr rr);
+   (if d = 0 then "" else reprStr d)
+   ++ "(" ++ oneR b ++ "," ++ oneR i ++ "," ++ reprStr s ++ ")"
      -- | none => "" -- maybe assert everything else is none?
      -- | some r => 
      --   parens ("%" ++ repr r ++
@@ -112,14 +113,16 @@ def operand_to_String : operand -> String
      --    | none => "" 
      --    | some r' => ",%" ++ repr r' ++ (if s = 1 then "" else "," ++ repr s))))
 
-instance operand_has_repr : Repr operand := ⟨operand_to_String⟩
+-- FIXME: behave wrt prec
+instance operand_has_repr : Repr operand := ⟨fun op _n => operand_to_String op⟩
 
 structure instruction :=
   (mnemonic : String)
   (args     : List operand)
 
+-- FIXME: behave wrt prec
 instance instruction_has_repr : Repr instruction := 
-  ⟨fun (i : instruction) => i.mnemonic ++ " " ++ repr i.args⟩
+  ⟨fun (i : instruction) _n => Std.Format.text (i.mnemonic ++ " " ++ reprStr i.args)⟩
 
 namespace instparser
 

@@ -111,17 +111,17 @@ def option_register_to_bv64 (opt_r : Option mcinst.register) : M backend (backen
 def operand_to_arg_lval (tp : type) : mcinst.operand -> M backend (@arg_lval backend)
   -- FIXME: check width?
   | (operand.register r) => do 
-    sgpr <- guard_some "operand_to_arg_lval register" (register_to_reg r) pure;
+    let sgpr <- guard_some "operand_to_arg_lval register" (register_to_reg r) pure;
     assert_types (bv sgpr.fst.width) tp;
     pure (arg_lval.reg sgpr.snd)
   -- FIXME: check width?
   | (operand.immediate val) => throw "operand_to_arg_lval: got an immdiate"
   -- base + scale * idx + disp
   | (operand.memloc disp opt_seg opt_base scale opt_idx) => do
-    n <- assert_bv tp;
+    let n <- assert_bv tp;
     throw_if (Option.isSome opt_seg) "got a segment reg";
-    b_v   <- option_register_to_bv64 backend opt_base;
-    idx_v <- option_register_to_bv64 backend opt_idx;
+    let b_v   <- option_register_to_bv64 backend opt_base;
+    let idx_v <- option_register_to_bv64 backend opt_idx;
     pure (arg_lval.memloc n (backend.s_bvadd _ b_v
                               (backend.s_bvadd _ (backend.s_bvmul _ (backend.s_bv_imm _ scale) idx_v)
                               (backend.s_bv_imm_int _ disp))))
@@ -137,7 +137,7 @@ def operand_to_value (tp : type) (op : mcinst.operand) : M backend (@value backe
        (match tp with
         | int    => pure val
         | _      => throw "Immediate should be an int")
-     | _ => do lval <- operand_to_arg_lval backend tp op;
+     | _ => do let lval <- operand_to_arg_lval backend tp op;
                arg_lval.to_value' lval tp
 
 def operand_to_arg_value_expr 
@@ -148,7 +148,7 @@ def first_comb.{u,v,w} {ε : Type u} {m : Type v → Type w}
   [MonadExcept ε m] {α : Type v} (e : ε) (f : ε -> ε -> ε) : List (m α) -> m α
   | []        => throw e
   | [x]       => x
-  | (x :: xs) => catch x $ fun e1 => catch (first_comb xs) $ fun e2 => throw (f e1 e2)
+  | (x :: xs) => tryCatch x (fun e1 => tryCatch (first_comb e f xs) (fun e2 => throw (f e1 e2)))
 
 /-
 def test_pattern := match mov.patterns with | [x] := x | _ => sorry end
@@ -160,37 +160,37 @@ def make_environment_helper : List binding -> List mcinst.operand -> M backend (
   | [], []              => pure []
   | (binding.reg tp   :: rest), (op :: ops) =>
     annotate' "reg" $ do
-      av  <- operand_to_arg_value_lhs backend tp op;
+      let av  <- operand_to_arg_value_lhs backend tp op;
       -- Mainly to check things are of the right form
       match av with | (arg_value.lval (arg_lval.reg r)) => pure () | _ => throw "Not a register";
-      e   <- make_environment_helper rest ops;
+      let e   <- make_environment_helper rest ops;
       pure (av :: e)
 
   | (binding.addr tp   :: rest), (op :: ops) =>
     annotate' "addr" $ do
-      av  <- operand_to_arg_value_lhs backend tp op;
+      let av  <- operand_to_arg_value_lhs backend tp op;
       -- Mainly to check things are of the right form
       match av with | (arg_value.lval (arg_lval.memloc _ _)) => pure () | _ => throw "Not a memloc";
-      e   <- make_environment_helper rest ops;
+      let e   <- make_environment_helper rest ops;
       pure (av :: e)
 
   | (binding.imm tp   :: rest), (op :: ops) =>
     annotate' "imm" $ do
       -- FIXME: check that it is, in fact, an immediate
-      av  <- operand_to_arg_value_expr backend tp op;
-      e   <- make_environment_helper rest ops;
+      let av  <- operand_to_arg_value_expr backend tp op;
+      let e   <- make_environment_helper rest ops;
       pure (av :: e)
 
   | (binding.lhs tp   :: rest), (op :: ops) =>
     annotate' "lhs" $ do
-      av  <- operand_to_arg_value_lhs backend tp op;
-      e   <- make_environment_helper rest ops;
+      let av  <- operand_to_arg_value_lhs backend tp op;
+      let e   <- make_environment_helper rest ops;
       pure (av :: e)
       
   | (binding.expression tp :: rest), (op :: ops) => 
     annotate' "expression" $ do 
-      av  <- operand_to_arg_value_expr backend tp op;
-      e   <- make_environment_helper rest ops;
+      let av  <- operand_to_arg_value_expr backend tp op;
+      let e   <- make_environment_helper rest ops;
       pure (av :: e)
 
   | (binding.exact_reg tp r :: rest), (operand.register r' :: ops) =>
@@ -198,7 +198,7 @@ def make_environment_helper : List binding -> List mcinst.operand -> M backend (
     | none => throw "Unknown register"
     | some (Sigma.mk tp' rr) => 
       if concrete_reg.nondepEq tp (bv tp'.width) r rr
-      then do e   <- make_environment_helper rest ops;
+      then do let e   <- make_environment_helper rest ops;
               -- value here can be anything
               pure (arg_value.lval (arg_lval.reg r) :: e)
       else throw "Register mismatch"    
@@ -208,8 +208,8 @@ def instantiate_pattern (inst : x86.instruction) (i : mcinst.instruction)
   : M backend (@environment backend × x86.pattern) :=
   first_comb "instantiate_pattern: no patterns" (fun l r => r) -- l ++ ", " ++ r)
               (List.map (fun (p : x86.pattern) => 
-               do e <- make_environment_helper backend p.context.bindings.reverse i.args;
-                 pure (e, p)) 
+               do let e <- make_environment_helper backend p.context.bindings.reverse i.args;
+                  pure (e, p)) 
               inst.patterns)
 
 def instruction_map : RBMap String x86.instruction (fun x y => decide (x < y)) :=
@@ -219,7 +219,7 @@ def instruction_map : RBMap String x86.instruction (fun x y => decide (x < y)) :
 def eval_instruction (i : mcinst.instruction) : M backend Unit :=
   match instruction_map.find? i.mnemonic with               
   | none        => throw ("Unknown instruction: " ++ i.mnemonic)
-  | (some inst) => do (env, p) <- annotate' "pattern" (instantiate_pattern backend inst i);
+  | (some inst) => do let (env, p) <- annotate' "pattern" (instantiate_pattern backend inst i);
                       annotate' "pattern.eval" (pattern.eval p env)
 
 end Backend

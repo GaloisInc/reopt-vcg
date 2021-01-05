@@ -34,13 +34,13 @@ namespace vadd {
     
 // Basically a singleton class which holds regs to the various LLVM
 // datastructures
-class LLVMMeta {
+class LLVMMCInstMeta {
 public:
     llvm::MCInstrInfo *mii;
     llvm::MCDisassembler *mcdis;
     llvm::MCInstPrinter *mcp;
     
-    LLVMMeta() {
+    LLVMMCInstMeta() {
         /* Lots of boilerplate to create the disassembler */
         llvm::Triple triple(llvm::Twine(llvm::Triple::normalize("x86_64-generic-linux-elf")));
         const std::string triple_name = triple.getTriple();
@@ -95,10 +95,10 @@ public:
 
 // We want to delay initializing the object until after lean has
 // started (not sure what leans initialisation looks like)
-static LLVMMeta &
+static LLVMMCInstMeta &
 llvmMeta() {
-    static LLVMMeta theLLVMMeta;
-    return theLLVMMeta;
+    static LLVMMCInstMeta theLLVMMCInstMeta;
+    return theLLVMMCInstMeta;
 }
 
 // -----------------------------------------------------------------------------

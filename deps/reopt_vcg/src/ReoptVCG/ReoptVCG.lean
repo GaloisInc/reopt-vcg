@@ -10,6 +10,44 @@ import SmtLib.Smt
 import X86Semantics.Common
 import DecodeX86.DecodeX86
 
+import ReoptVCG.Translate
+
+import MCInst.Basic
+import ReoptVCG.KTranslate
+
+-- FIXME: move
+namespace x86
+namespace manual_semantics
+
+def mkSemantics (text_bytes : ByteArray) (vaddr : Nat) : x86.vcg.Semantics :=
+  let d := decodex86.mk_decoder text_bytes vaddr;  
+  { instruction := decodex86.instruction, 
+    instruction_size := fun i => i.nbytes,
+    decode           := fun n => match decodex86.decode d n with 
+                                 | Sum.inl _ => Sum.inl "Unknown"
+                                 | Sum.inr r => Sum.inr r,
+    eval             := eval_instruction     
+  }
+end manual_semantics
+end x86
+
+namespace x86
+namespace mcinst
+
+def mkSemantics (text_bytes : ByteArray) (vaddr : Nat) : x86.vcg.Semantics :=
+  let d := mk_decoder text_bytes vaddr;  
+  { instruction := instruction × Nat, 
+    instruction_size := fun i => i.snd,
+    decode           := fun n => match decode d n with 
+                                 | Sum.inl _ => Sum.inl "Unknown"
+                                 | Sum.inr r => Sum.inr r,
+    eval             := fun backend i => eval_instruction backend i.fst
+  }
+
+end mcinst
+end x86
+
+
 namespace ReoptVCG
 
 open Lean (Json strLt)
@@ -318,7 +356,9 @@ def runVCG (cfg : VCGConfig) : IO UInt32 := do
                 | none        => throw $ IO.userError $ "No text region"
                 | some (_, b) => pure b);
   let entry := elfHdr.entry.toNat;
-  let d := decodex86.mk_decoder text_bytes text_phdr.vaddr.toNat;
+  let sem := match cfg.semanticsBackend with
+             | SemanticsBackend.KSemantics      => x86.mcinst.mkSemantics text_bytes text_phdr.vaddr.toNat
+             | SemanticsBackend.ManualSemantics => x86.manual_semantics.mkSemantics text_bytes text_phdr.vaddr.toNat;
   when cfg.verbose $ IO.println $ "x86 decoder built...";
   -- Get LLVM module
   when cfg.verbose $ IO.println $ "Loading LLVM module at `"++ann.llvmFilePath++"`";
@@ -327,7 +367,7 @@ def runVCG (cfg : VCGConfig) : IO UInt32 := do
   -- Create verification coontext for module.
   let modCtx : ModuleVCGContext :=
     { annotations := ann
-    , decoder := d
+    , instructionEvents := x86.vcg.instructionEvents sem
     , symbolAddrMap := fnSymAddrMap
     , moduleTypeMap := mkLLVMTypeMap lMod
     };
@@ -343,7 +383,7 @@ def runVCG (cfg : VCGConfig) : IO UInt32 := do
   fvEvents.forM (runFnVerificationEvent proverSession);
   -- print out results
   if mState.errorCount > 0 then do
-    proverSession.sessionComplete;
+    discard $ proverSession.sessionComplete;
     IO.println (repr mState.errorCount ++ " errors were encountered.");
     pure 1
   else

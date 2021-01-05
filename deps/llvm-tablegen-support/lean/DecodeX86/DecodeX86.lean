@@ -14,9 +14,10 @@ structure register :=
   (offset : Nat)
 
 def register_to_String : register -> String := fun r =>
-  String.intercalate " " ["(", "R", r.top, r.reg, repr r.width, repr r.offset, ")"]
+  String.intercalate " " ["(", "R", r.top, r.reg, reprStr r.width, reprStr r.offset, ")"]
 
-instance register_has_repr : Repr register := ⟨register_to_String⟩
+-- FIXME: behave wrt prec
+instance register_has_repr : Repr register := ⟨fun r _n => register_to_String r⟩
 
 -- We don't care about most of these.
 -- static const char * oNArr[] = {
@@ -192,10 +193,11 @@ inductive operand_type
   | other : operand_type
 
 def operand_type_to_String : operand_type -> String
-  | (operand_type.mem n) => "(mem " ++ repr n ++ ")"
+  | (operand_type.mem n) => "(mem " ++ reprStr n ++ ")"
   | (operand_type.other) => "other"
 
-instance operand_type_has_repr : Repr operand_type := ⟨operand_type_to_String⟩
+-- FIXME: behave wrt prec
+instance operand_type_has_repr : Repr operand_type := ⟨fun op _n => operand_type_to_String op⟩
 
 inductive operand_value
   | register : register -> operand_value
@@ -205,36 +207,40 @@ inductive operand_value
   | memloc : Option register -> Option register -> Nat -> Option register -> Nat -> operand_value
 
 def operand_value_to_String : operand_value -> String
-  | (operand_value.register r) => repr r
-  | (operand_value.segment s r)    => "(" ++ repr s ++ ":" ++ repr r ++ ")"
-  | (operand_value.immediate n v)  => repr v ++ "[" ++ repr n ++ "]"
-  | (operand_value.rel_immediate off n v) => "(" ++ repr v ++ " + " ++ repr off ++ ")[" ++ repr n ++ "]"
-  | (operand_value.memloc seg b s i d)  => "(" ++ repr seg ++ ":" ++ repr b ++ " + " ++ repr s ++ "*" ++ repr i ++ " + " ++ repr d ++ ")"
+  | (operand_value.register r) => reprStr r
+  | (operand_value.segment s r)    => "(" ++ reprStr s ++ ":" ++ reprStr r ++ ")"
+  | (operand_value.immediate n v)  => reprStr v ++ "[" ++ reprStr n ++ "]"
+  | (operand_value.rel_immediate off n v) => "(" ++ reprStr v ++ " + " ++ reprStr off ++ ")[" ++ reprStr n ++ "]"
+  | (operand_value.memloc seg b s i d)  => "(" ++ reprStr seg ++ ":" ++ reprStr b ++ " + " ++ reprStr s ++ "*" ++ reprStr i ++ " + " ++ reprStr d ++ ")"
 
-instance operand_value_has_repr : Repr operand_value := ⟨operand_value_to_String⟩
+-- FIXME: behave wrt prec
+instance operand_value_has_repr : Repr operand_value := ⟨fun ov _n => operand_value_to_String ov⟩
 
 structure operand := 
   (type  : operand_type)
   (value : operand_value)
 
 def operand_to_String : operand -> String := fun op =>
-  "(" ++ repr op.value ++ " :: " ++ repr op.type ++ ")"
+  "(" ++ reprStr op.value ++ " :: " ++ reprStr op.type ++ ")"
 
-instance operand_has_repr : Repr operand := ⟨operand_to_String⟩
+-- FIXME: behave wrt prec
+instance operand_has_repr : Repr operand := ⟨fun op _n => operand_to_String op⟩
 
 structure instruction :=
   (nbytes   : Nat)
   (mnemonic : String)
   (operands : List operand)
 
+-- FIXME: behave wrt prec
 instance instruction_has_repr : Repr instruction := 
-  ⟨fun i => i.mnemonic ++ " " ++ repr i.operands⟩
+  ⟨fun i _n => i.mnemonic ++ " " ++ repr i.operands⟩
 
 structure unknown_byte :=
   (byte : Nat)
   (bytes_tried : Nat)
 
-instance unknown_bytes_has_repr : Repr unknown_byte := ⟨fun i => "???" ++ repr i.byte ++ "(" ++ repr i.bytes_tried ++ ")"⟩
+-- FIXME: behave wrt prec
+instance unknown_bytes_has_repr : Repr unknown_byte := ⟨fun i _n => coe ("???" ++ reprStr i.byte ++ "(" ++ reprStr i.bytes_tried ++ ")")⟩
 
 def operand_memtyp_map : RBMap String Nat (fun s1 s2 => decide (s1 < s2)) :=
   List.foldl (fun m (v : String × Nat) => m.insert v.fst v.snd) 
