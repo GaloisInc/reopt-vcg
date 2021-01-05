@@ -22,7 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          submodules: true
+          submodules: recursive
           
       - id: version
         run: .github/ci.sh lean4-sha
