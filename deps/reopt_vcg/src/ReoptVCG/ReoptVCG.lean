@@ -207,7 +207,7 @@ def parseLLVMArgs
     let totalArgs : Nat := maxArgs + 1 + restArgs.length
     moduleThrow {fnName := some fnm, blockLbl := none}
                 ModuleErrorTag.maxFnArgCntSurpassed 
-                ((repr maxArgs)++" supported, but got "++(repr totalArgs))
+                ((reprStr maxArgs)++" supported, but got "++(reprStr totalArgs))
   | (reg::restRegs) =>
     let binding := LLVMMCArgBinding.mk nm (SmtSort.bv64) reg;
     parseLLVMArgs fnm (binding::revBinds) restArgs restRegs
@@ -379,7 +379,7 @@ def runFnVerificationEvent (cfg : VCGConfig) (ps : ProverSession) (errCnt : IO.R
 | FnVerificationEvent.fn fnm bvEvents => do
   IO.println $ ""
   IO.println $ "Analyzing `" ++ fnm ++ "`"
-  let failure : Bool := false
+  let mut failure : Bool := false
   for e in bvEvents do
     let success ← runBlockVerificationEvent cfg ps e
     if !success then do
@@ -393,11 +393,11 @@ def runFnVerificationEvent (cfg : VCGConfig) (ps : ProverSession) (errCnt : IO.R
 def reportErrors (bErrors : List BlockError) (mErrors : List ModuleError) (success : Bool) : IO UInt32 := do
   let indent : String := "  "
   -- summarize block errors
-  let bErrCnt : Nat := 0
+  let mut bErrCnt : Nat := 0
   if !bErrors.isEmpty then do
     IO.println ""
     IO.println "======================= ERRORS ======================="
-    let bErrMap : Std.RBMap BlockErrorTag (Nat × (Std.RBMap String Nat (λ x y => x < y))) BlockErrorTag.lt := Std.RBMap.empty
+    let mut bErrMap : Std.RBMap BlockErrorTag (Nat × (Std.RBMap String Nat (λ x y => x < y))) BlockErrorTag.lt := Std.RBMap.empty
     for err in bErrors do
       bErrCnt := bErrCnt + 1
       bErrMap := let (tagCnt, tagMap) := bErrMap.findD err.tag (0, Std.RBMap.empty)
@@ -411,9 +411,9 @@ def reportErrors (bErrors : List BlockError) (mErrors : List ModuleError) (succe
         for (extraInfo, n) in tagMap.toList do -- FIXME remove toList next lean bump
           IO.println $ indent++indent++"- ("++(repr n)++") "++extraInfo
   -- summarize module errors
-  let mErrCnt : Nat := 0
+  let mut mErrCnt : Nat := 0
   if !mErrors.isEmpty then do
-    let mErrMap : Std.RBMap ModuleErrorTag (Nat × (Std.RBMap String Nat (λ x y => x < y))) ModuleErrorTag.lt := Std.RBMap.empty
+    let mut mErrMap : Std.RBMap ModuleErrorTag (Nat × (Std.RBMap String Nat (λ x y => x < y))) ModuleErrorTag.lt := Std.RBMap.empty
     for err in mErrors do
       mErrCnt := mErrCnt + 1
       mErrMap := let (tagCnt, tagMap) := mErrMap.findD err.tag (0, Std.RBMap.empty)

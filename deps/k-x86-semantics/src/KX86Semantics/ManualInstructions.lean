@@ -102,8 +102,8 @@ def callq : instruction :=
 ------------------------------------------------------------------------
 -- jmp definition
 -- Jump
-def jmpq : instruction :=
- definst "jmpq" $ do
+def jmp : instruction :=
+ definst "jmp" $ do
    instr_pat $ fun (off : imm int) =>
     let action : semantics Unit := do
      let off_bv <- eval (handleImmediateWithSignExtend off 32 64);
@@ -216,7 +216,7 @@ def retq : instruction :=
 
 def manual_instructions : List instruction :=
     [ callq
-    , jmpq
+    , jmp
     , leaveq
     , popq
     , popw

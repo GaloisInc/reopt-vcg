@@ -47,7 +47,7 @@ def testExportCallbacks : IO Unit := do
      extraInfo := "false-is-false\n(true-is-true?)",
      goal := smtGoal1};
   let ps ← exportProverSession outDir;
-  ps.verifyGoal {annFile := "", mode := VerificationMode.defaultMode, verbose := false} vg;
+  ps.verifyGoal {annFile := "", semanticsBackend := SemanticsBackend.ManualSemantics, mode := VerificationMode.defaultMode, verbose := false} vg;
   discard $ ps.sessionComplete;
   let outFile := outDir ++ [System.FilePath.pathSeparator].asString ++ (standaloneGoalFilename vg);
   let outFileContents ← IO.FS.readFile outFile;

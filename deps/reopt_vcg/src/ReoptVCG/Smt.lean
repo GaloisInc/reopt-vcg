@@ -384,7 +384,7 @@ def interactiveVerifyGoal
       registerError
 
 private def printFailures (failures : Std.RBMap GoalTag (Std.RBMap String Nat (λ x y => x < y)) GoalTag.lt) : IO Unit := do
-  let cnt := 0
+  let mut cnt := 0
   for (_, entries) in failures.toList do -- FIXME remote toList next bump
     for (extraInfo, n) in entries.toList do -- FIXME remote toList next bump
       cnt := cnt + n
@@ -394,8 +394,8 @@ private def printFailures (failures : Std.RBMap GoalTag (Std.RBMap String Nat (�
   IO.println $ "Failed to verify "++(repr cnt)++" goal(s):"
   let indent := "  "
   for (tag, entries) in failures.toList do -- FIXME remote toList next bump
-    let pCnt : Nat := 0
-    let pDetails : List (Nat × String) := []
+    let mut pCnt : Nat := 0
+    let mut pDetails : List (Nat × String) := []
     for (extraInfo, n) in entries.toList do -- FIXME remote toList next bump
       pCnt := pCnt + n
       pDetails :=  (n, extraInfo)::pDetails
