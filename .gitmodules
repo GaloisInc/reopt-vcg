@@ -6,7 +6,7 @@
 	url = git@github.com:GaloisInc/k.git
 [submodule "submodules/X86-64-semantics"]
 	path = submodules/X86-64-semantics
-	qrl = git@github.com:GaloisInc/X86-64-semantics.git
+	url = git@github.com:GaloisInc/X86-64-semantics.git
 	branch = lean-semantics
 [submodule "lean4/deps/lean-llvm"]
 	path = deps/lean-llvm

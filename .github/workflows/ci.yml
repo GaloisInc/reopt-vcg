@@ -22,7 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          submodules: recursive
+          submodules: true
           
       - id: version
         run: .github/ci.sh lean4-sha
@@ -49,7 +49,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with: 
-          submodules: true
+          submodules: recursive
 
       - uses: actions/cache@v2
         id: lean4-cache
