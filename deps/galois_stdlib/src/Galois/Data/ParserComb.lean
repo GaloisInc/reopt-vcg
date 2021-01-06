@@ -48,8 +48,8 @@ def optional {a : Type} (f : tok -> Option a) : Parser tok a :=
 def token (f : tok -> Bool) : Parser tok tok :=
   optional (fun t => if f t then some t else none)
 
-def exact [DecidableEq tok] (t : tok) : Parser tok tok :=
-  token (fun x => x = t)
+def exact [DecidableEq tok] (t : tok) : Parser tok Unit :=
+  do _ <- token (fun x => x = t); pure ()
 
 def many (p : Parser tok a) : Parser tok (List a) := Parser.many0 p ()
 
@@ -101,7 +101,7 @@ def whitespaceP : CharParser Unit :=
 do _ <-token Char.isWhitespace;
    pure ()
 
-def parseFile {a : Type} {m : Type → Type} [Monad m] [MonadIO m] (p : CharParser a) (fname : String)
+def parseFile {a : Type} {m : Type → Type} [Monad m] [MonadLiftT IO m] (p : CharParser a) (fname : String)
   : m (Option a) := 
   do let s ← IO.FS.readFile fname;
      pure (runParser p s.toList)

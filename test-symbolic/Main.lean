@@ -10,7 +10,7 @@ import SmtLib.Smt
 namespace x86
 namespace symbolic
 
-def throwS {a : Type} {m : Type -> Type} [MonadIO m] (e : String) : m a := 
+def throwS {a : Type} {m : Type -> Type} [MonadLiftT IO m] (e : String) : m a := 
   monadLift (throw (IO.userError e) : IO a)
  
 -- def evaluate_one (s : machine_state) : (Nat × sum unknown_byte instruction) -> except String machine_state

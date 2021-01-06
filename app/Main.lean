@@ -16,16 +16,17 @@ structure VCGArgs :=
   (annFile : Option String)
   (mode : VerificationMode)
   (verbose : Bool)
+  (semanticsBackend : SemanticsBackend)
 
 -- | State of argument parsing before any user arguments have actually
 -- been processed.
-def initVCGArgs := VCGArgs.mk Option.none VerificationMode.defaultMode false
+def initVCGArgs := VCGArgs.mk Option.none VerificationMode.defaultMode false SemanticsBackend.ManualSemantics
 
 -- Function for parsing command line arguments to reopt-vcg.
-partial def parseArgs : List String →  VCGArgs → Except String VCGCmd
+partial def parseArgs : List String → VCGArgs → Except String VCGCmd
 | [], args => do 
   let annPath <- (args.annFile.map Except.ok).getD (throw "Missing VCG file to run.");
-  pure $ VCGCmd.runVCG $ VCGConfig.mk annPath args.mode args.verbose
+  pure $ VCGCmd.runVCG $ VCGConfig.mk annPath args.mode args.verbose args.semanticsBackend
 | (s::ss), args =>
   if s == "--help" then
     pure $ VCGCmd.showHelp
@@ -46,6 +47,8 @@ partial def parseArgs : List String →  VCGArgs → Except String VCGCmd
     | [] => throw "Expected a solver name and command line argument(s)."
     | (solver::solverArgs) =>
       parseArgs ss' $ {args with mode := VerificationMode.runSolverMode solver solverArgs}
+  else if s == "--kbackend" then
+    parseArgs ss $ {args with semanticsBackend := SemanticsBackend.KSemantics}
   else do 
     when (String.isPrefixOf "--" s) $ throw $ "Unexpected flag " ++ s;
     when (Option.isSome args.annFile) $ throw "Multiple VCG files specified.";

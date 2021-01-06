@@ -186,9 +186,10 @@ namespace Ident
 
 def semantics {e : Env} (m : Model e) : forall { cs : ConstSort } (i : Ident cs), 
               Ident.WS e i -> cs.denote
-| _, symbol cs sym, ws =>
+| cs, Ident.symbol _ sym, ws =>
     let H : denoteDefault (e sym) = cs.denote := 
-      match ws with | (Ident.WS.symbol pf) => (congrArg denoteDefault pf);
+      match ws with 
+      | Ident.WS.symbol pf => (congrArg denoteDefault pf);
     let v : denoteDefault (e sym) := m.values sym;
     cast H v
 

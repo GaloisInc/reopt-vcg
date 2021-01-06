@@ -19,28 +19,28 @@ namespace Prim
 open Fs
 
 @[extern 4 "galois_io_prim_handle_mk"]
-constant handle.mk (s : @& String) (m : Mode) (bin : Bool := false) : IO handle := arbitrary _
+constant handle.mk (s : @& String) (m : Mode) (bin : Bool := false) : IO handle := arbitrary
 -- @[extern 2 cpp "galois_io_prim_handle_do_is_eof"]
--- constant handle.isEof (h : @& handle) : IO Bool := arbitrary _
+-- constant handle.isEof (h : @& handle) : IO Bool := arbitrary
 -- @[extern 2 cpp "galois_io_prim_handle_do_flush"]
--- constant handle.flush (h : @& handle) : IO Unit := arbitrary _
+-- constant handle.flush (h : @& handle) : IO Unit := arbitrary
 @[extern 2 "galois_io_prim_handle_do_close"]
-constant handle.close (h : @& handle) : IO Unit := arbitrary _
+constant handle.close (h : @& handle) : IO Unit := arbitrary
 @[extern 3 "galois_io_prim_handle_do_read"]
-constant handle.read (h : @& handle) (len : Nat) : IO ByteArray := arbitrary _
+constant handle.read (h : @& handle) (len : Nat) : IO ByteArray := arbitrary
 @[extern 3 "galois_io_prim_handle_do_write"]
-constant handle.write (h : @& handle) (data : @& ByteArray) : IO Unit := arbitrary _
+constant handle.write (h : @& handle) (data : @& ByteArray) : IO Unit := arbitrary
 @[extern 4 "galois_io_prim_handle_do_lseek"]
-constant handle.lseek (h : @& handle) (off : Int) (whence : Whence): IO Nat := arbitrary _
+constant handle.lseek (h : @& handle) (off : Int) (whence : Whence): IO Nat := arbitrary
 
 @[extern 2 "galois_io_prim_system"]
-constant system (command : @& String) : IO Unit := arbitrary _
+constant system (command : @& String) : IO Unit := arbitrary
 
 end Prim
 
 section
-variables {m : Type → Type} [Monad m] [MonadIO m]
-@[inline] def system (command : String) : m Unit :=  liftIO (IO.Prim.system command)
+variables {m : Type → Type} [Monad m] [MonadLiftT IO m]
+@[inline] def system (command : String) : m Unit := IO.Prim.system command
 end
 end IO
 end Galois

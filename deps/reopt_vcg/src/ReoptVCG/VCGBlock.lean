@@ -78,7 +78,7 @@ def runSmtM {a : Type} (m : SmtM a) : BlockVCG a := do
                        ((r.fst, r.snd.snd.reverse)
                        , {s with idGen := r.snd.fst}));
   let (r, cmds) <- modifyGet run';
-  List.mapM addCommand cmds;
+  List.forM addCommand cmds;
   pure r
 
 -- | Add assertion that the propositon is true without requiring it to be proven.
@@ -217,8 +217,8 @@ def getNextEvents : BlockVCG Unit := do
   addComment ("MC: at " ++ addr.ppHex);
 
   let (events, idGen', sz) <-
-    match x86.vcg.instructionEvents ctx.mcBlockMap s.mcCurRegs s.idGen addr
-            ctx.mcModuleVCGContext.decoder with
+
+    match ctx.mcModuleVCGContext.instructionEvents ctx.mcBlockMap s.mcCurRegs s.idGen addr with
     | Except.error e => localBlockError BlockErrorTag.mcInstrEventError e
     | Except.ok    r => pure r;
 
@@ -376,7 +376,7 @@ def mcExecuteToEnd : BlockVCG Unit := do
   let evts <- (fun (s : BlockVCGState) => s.mcEvents) <$> get;
   match evts with
   | [] => pure ()
-  | e :: _ => BlockVCG.localBlockError BlockErrorTag.mcEarlyEnvOfBlock (repr e)
+  | e :: _ => BlockVCG.localBlockError BlockErrorTag.mcEarlyEnvOfBlock (reprStr e)
 
 --------------------------------------------------------------------------------
 -- Literal constructors
@@ -440,9 +440,12 @@ def returnAddrTerm : BlockVCG x86.vcg.memaddr := do
 
 axiom VCGBlock_sorry: forall P, P
 
+-- FIXME: inlining this causes a type error, with PSigma expecting a Type instead of a Prop
+abbrev WorkAround (ty : LLVMType) := PSigma (fun H => Smt.Term (asSMTSort ty H))
+
 -- Converts a machine word to be the same width as a given LLVM type.  In the monad to allow failure
 def wordAsType (w : x86.vcg.bitvec 64) (ty : LLVMType)
-  : BlockVCG (PSigma (fun (H : HasSMTSort ty) => Smt.Term (asSMTSort ty H))) := 
+  : BlockVCG (WorkAround ty) :=
   match ty with 
   | ty@(LLVM.LLVMType.ptr _) => do
     let pf : HasSMTSort (LLVM.LLVMType.ptr _) := True.intro;
@@ -523,10 +526,10 @@ def llvmLoad (ident : LLVM.Ident) (addr:Typed Value) (mAlign:Option Nat) : Block
       let typeMap ← (ModuleVCGContext.moduleTypeMap ∘ BlockVCGContext.mcModuleVCGContext) <$> read;
       memPtrTypeAlign typeMap addr.type
     else if ((Nat.land (a0 - 1) a0) ≠ 0)
-    then localBlockError BlockErrorTag.invalidAlignment (repr a0)
+    then localBlockError BlockErrorTag.invalidAlignment (reprStr a0)
     else pure a0);
   when (llvmAlign > 1) $
-    BlockVCG.log $ "Warning: LLVM alignment of " ++ (repr llvmAlign) ++ "  is unchecked.";
+    BlockVCG.log $ "Warning: LLVM alignment of " ++ (reprStr llvmAlign) ++ "  is unchecked.";
   -- Get the next machine code event.
   let mevt ← popMCEvent;
   -- Inspect the event
@@ -572,7 +575,7 @@ def llvmLoad (ident : LLVM.Ident) (addr:Typed Value) (mAlign:Option Nat) : Block
       --   defineVarFromReadMCMem macawValVar mcAddr supType
   
       --   -- Define LLVM value in terms of Macaw value.
-      defineTerm ident mcVal;
+      let _ <- defineTerm ident mcVal;
       --   addCommand $ SMT.defineFun (identVar ident) [] (supportedSort supType) (varTerm macawValVar)
       pure ()
   | NonStackReadEvent mcAddr readWidth readValVar => do
@@ -593,7 +596,7 @@ def llvmLoad (ident : LLVM.Ident) (addr:Typed Value) (mAlign:Option Nat) : Block
       addAssert (Smt.eq readValVar mcVal);
       -- Define LLVM value returned in terms of macaw value
       --   addCommand $ SMT.defineFun (identVar ident) [] (supportedSort supType) (varTerm macawValVar)
-      defineTerm ident mcVal;
+      let _ <- defineTerm ident mcVal;
       pure ()
   | _ => localBlockError BlockErrorTag.unexpectedEvent "expected a machine code load"
   
@@ -711,7 +714,7 @@ def llvmInvoke (isTailCall : Bool) (fsym : LLVM.Symbol) (args : Array (Typed Val
   | none => pure ()
   | some (i, ty) => do
     let ⟨pf, mcv⟩ <- wordAsType (newRegs.get_reg64 x86.reg64.rax) ty;
-    defineTerm i mcv;
+    let _ <- defineTerm i mcv;
     pure ()
 
 --------------------------------------------------------------------------------
@@ -860,7 +863,7 @@ def stepNextStmt (stmt : LLVM.Stmt) : BlockVCG Bool := do
   let assignTerm {s : SmtSort} (tm : Smt.Term s) : BlockVCG Unit :=
     (match stmt.assign with
      | none => pure ()
-     | some i => do defineTerm i tm; pure ());
+     | some i => do discard $ defineTerm i tm; pure ());
   let assignOptionTerm {s : SmtSort} (tm : Option (Smt.Term s)) : BlockVCG Unit :=
     match tm with
     | none     => unimplemented
@@ -903,7 +906,7 @@ def stepNextStmt (stmt : LLVM.Stmt) : BlockVCG Bool := do
       match asSMTSort lty H, stmt.assign, lhsv, rhsv with
       | _, none, _, _ => pure ()
       | SmtSort.bitvec n, some i, l, r => do 
-        defineTerm i (Smt.smtIte (icmpOpFunc bop l r) (Smt.bvimm 1 1) (Smt.bvimm 1 0)); 
+        discard $ defineTerm i (Smt.smtIte (icmpOpFunc bop l r) (Smt.bvimm 1 1) (Smt.bvimm 1 0)); 
         pure ()
       | _, _, _, _ => BlockVCG.localBlockError BlockErrorTag.unexpectedSort "icmp in stepNextStmt"
       pure true
@@ -1110,13 +1113,13 @@ def checkEachStmt : List LLVM.Stmt → BlockVCG Unit
 def defineArgBinding (b : LLVMMCArgBinding) : BlockVCG Unit := do
 let funStartRegs ← (x86.vcg.MCStdLib.funStartRegs ∘ BlockVCGContext.mcStdLib) <$> read;
 let val : Smt.Term SmtSort.bv64 := funStartRegs.get_reg64 b.register;
-defineTerm b.llvmArgName val;
+discard $ defineTerm b.llvmArgName val;
 pure ()
 
 def definePhiVar (nm : LLVM.Ident) (entry : LLVM.LLVMType × BlockLabelValMap) : BlockVCG Unit := do
 let (tp, _) := entry;
 let s ← coerceToSMTSort tp;
-declareTerm nm s;
+discard $ declareTerm nm s;
 pure ()
 
 /- Verify a reachable block satisfies its specification. cf `verifyBlock` -/

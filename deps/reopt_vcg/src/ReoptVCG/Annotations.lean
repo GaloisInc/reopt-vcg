@@ -123,7 +123,7 @@ namespace LocalIdent
 def lt : forall (x y : LocalIdent), Prop
   | { name := x }, {name := y } => x < y
 
-instance : Less LocalIdent := ⟨lt⟩
+instance : HasLess LocalIdent := ⟨lt⟩
 
 instance decLt : ∀(x y:LocalIdent), Decidable (x < y)
 | { name := x }, { name := y } =>
@@ -140,7 +140,7 @@ match js.getStr? with
 | _ => 
   match js.getNat? with
   | Option.some n => 
-    if h : n < uint64Sz
+    if h : n < UInt64.size 
     then pure $ LocalIdent.mk $ n.repr
     else Except.error $
          "Allocation name nonnegative integer must fit in a UInt64, but got" 

@@ -205,8 +205,8 @@ private def normalizeSuggestedName (s:String) : String :=
 
 private def addSuffix (origStr : String) (n : Nat) : String :=
   match (origStr.takeRight 1).data with
-  | [c] => if c.isDigit then origStr ++ "_" ++ (repr n) else origStr ++ (repr n)
-  | _ => origStr ++ (repr n)
+  | [c] => if c.isDigit then origStr ++ "_" ++ (reprStr n) else origStr ++ (reprStr n)
+  | _ => origStr ++ (reprStr n)
 
 private partial def genIdAux (idGen : IdGen) : String → Option Nat → (String × Nat)
   | name, none => if idGen.usedIds.contains name || isReservedId name

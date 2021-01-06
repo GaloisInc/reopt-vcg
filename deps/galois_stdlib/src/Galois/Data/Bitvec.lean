@@ -16,6 +16,7 @@ This is a work-in-progress, and contains additions to other theories.
 -- (to_nat : ℕ)
 -- (property : to_nat < (2 ^ sz))
 
+import Init.Data.Nat
 import Galois.Init.Nat
 import Galois.Init.Int
 
@@ -37,7 +38,7 @@ def to_nat {w : Nat} (b : bitvec w) : Nat := b.val
 --   { decEq := (λx y, @decEq _ (@Subtype.DecidableEq Nat (λn, n < 2 ^ w) _) x y) }
 
 -- By default just show a bitvector as a nat.
-instance (w:Nat) : Repr (bitvec w) := ⟨fun v => repr (v.to_nat)⟩
+instance (w:Nat) : Repr (bitvec w) := ⟨fun v n => reprPrec (v.to_nat) n⟩
 
 section to_hex
 
@@ -108,7 +109,7 @@ protected def cong {a b : Nat} (h : a = b) : bitvec a → bitvec b
 protected def of_nat (width : Nat) (x:Nat) : bitvec width :=
   ⟨ x % 2^width, Nat.modLt _ (Nat.posPowOfPos width (zero_lt_pow 1))⟩
 
-instance {w : Nat} : OfNat (bitvec w) := ⟨bitvec.of_nat w⟩
+instance {w : Nat} (n : Nat) : OfNat (bitvec w) n := ⟨bitvec.of_nat w n⟩
 
 instance Nat_to_bitvec_coe {w : Nat} : Coe Nat (bitvec w) := ⟨bitvec.of_nat w⟩
 
@@ -211,7 +212,7 @@ section arith
 
   def bitvec_pow (x: bitvec n) (k:Nat) : bitvec n := bitvec.of_nat n (x.to_nat^k)
 
-  instance bitvec_has_pow : Pow (bitvec n) Nat := ⟨bitvec_pow⟩
+  instance bitvec_has_pow : HPow (bitvec n) Nat (bitvec n) := ⟨bitvec_pow⟩
 
   protected def udiv (x y : bitvec n) : bitvec n := bitvec.of_nat n (x.to_nat / y.to_nat)
   protected def sdiv (x y : bitvec n) : bitvec n := bitvec.of_int n (x.to_int / y.to_int)
@@ -259,9 +260,7 @@ section listlike
 
   -- Change number of bits result while preserving signed value modulo output width.
   def sresize {m:Nat} (x: bitvec m) (n:Nat) : bitvec n := bitvec.of_int _ x.to_int
-
-  open Nat
-
+ 
   -- bitvec specific version of vector.append
   def append {m n} (x: bitvec m) (y: bitvec n) : bitvec (m + n)
     := ⟨ x.to_nat * 2^n + y.to_nat, power_hack _ _  /- Nat.mul_pow_add_lt_pow x.property y.property -/ ⟩
@@ -271,14 +270,14 @@ section listlike
   | Nat.succ m => 
     let rst : bitvec (m * n) := repeat x m;
     let res : bitvec (m * n + n) := @append (m * n) n rst x;
-    have hEq : (m * n + n) = (succ m * n) from Eq.symm $ Nat.succMul m n;
-    have tEq : bitvec (m * n + n) = bitvec (succ m * n) from congrArg bitvec hEq;
+    have hEq : (m * n + n) = (Nat.succ m * n) from Eq.symm $ Nat.succMul m n;
+    have tEq : bitvec (m * n + n) = bitvec (Nat.succ m * n) from congrArg bitvec hEq;
     cast tEq res 
 
   protected
   def bsf' : ∀(n:Nat), Nat → Nat → Option Nat
     | 0,        idx, _ => none
-    | (succ m), idx, x =>
+    | (Nat.succ m), idx, x =>
       if Nat.test_bit x idx then
         some idx
       else
@@ -290,8 +289,8 @@ section listlike
 
   protected
   def bsr' : Nat → Nat → Option Nat
-    | x, zero => none
-    | x, (succ idx) =>
+    | x, Nat.zero => none
+    | x, (Nat.succ idx) =>
       if Nat.test_bit x idx then
         some idx
       else
@@ -325,8 +324,8 @@ section listlike
 
   protected
   def foldl' {α : Sort _} (f : α -> Bool → α) (x : Nat) (init : α) : Nat → α
-    | zero       => init
-    | (succ idx) => f (bitvec.foldl' f x init idx) (x.test_bit idx)
+    | Nat.zero       => init
+    | (Nat.succ idx) => f (bitvec.foldl' f x init idx) (x.test_bit idx)
     
   -- foldl follows nth's behaviour, so 
   -- foldl f i b = f (f (f i b!0) b!1) b!2 etc.
@@ -335,8 +334,8 @@ section listlike
 
   protected
   def foldr' {α : Sort _} (f : Bool → α → α) (x : Nat) (init : α) (n : Nat) : Nat → α
-    | zero       => init
-    | (succ idx) => f  (x.test_bit (n - succ idx)) (bitvec.foldr' f x init n idx)
+    | Nat.zero       => init
+    | (Nat.succ idx) => f  (x.test_bit (n - Nat.succ idx)) (bitvec.foldr' f x init n idx)
     
   -- foldr follows nth's behaviour, so 
   -- foldr f i b = f b!0 (f b!1 ... (f b!(n-1) i))

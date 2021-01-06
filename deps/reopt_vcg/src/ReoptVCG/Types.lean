@@ -51,11 +51,10 @@ namespace vcg
 open ReoptVCG
 
 structure RegState : Type :=
-  (gpregs : Array (Term (SmtSort.bitvec 64))) -- 16
-  (flags  : Array (Term SmtSort.bool)) -- 32
+  (gpregs : Array  (Term (SmtSort.bitvec 64))) -- 16
+  (flags  : Array  (Term (SmtSort.bool))) -- 32
+  (avxregs : Array (Term (SmtSort.bitvec 256)))
   (ip     : (Term (SmtSort.bitvec 64)))
-
-
 
 -- This mirrors the Haskell prototype as far as possible, hence the slightly verbose names.
 inductive Event
@@ -92,6 +91,16 @@ inductive Event
   | FetchAndExecuteEvent : RegState -> Event
     -- ^ A fetch and execute
 
+def InstructionEventsFun := 
+  forall ( evtMap : Std.RBMap Nat MemoryAnn (fun x y => decide (x < y)) )
+    -- ^ Map from addresses to annotations of events on that address.
+    ( s : RegState )
+    -- ^ Initial values for registers
+    ( idGen : IdGen)
+    -- ^ Used to generate unique/fresh identifiers for SMT terms.
+    ( ip : Nat ), 
+    -- ^ Location to explore
+    Except String (List Event × IdGen × Nat)
 
 abbrev memory_t := SmtSort.array (SmtSort.bitvec 64) (SmtSort.bitvec 8)
 def memory := Term memory_t
@@ -125,7 +134,7 @@ namespace BlockLabel
 def lt : forall (x y : BlockLabel), Prop
   | { label := x }, {label := y } => x < y
 
-instance : Less BlockLabel := ⟨lt⟩
+instance : HasLess BlockLabel := ⟨lt⟩
  
 instance decideableBlockLabelLt : ∀(x y:BlockLabel), Decidable (x < y)
 | { label := x }, { label := y } =>
@@ -161,12 +170,17 @@ def VerificationMode.isDefault : VerificationMode → Bool
 | _ => false
 
 
+inductive SemanticsBackend 
+| KSemantics : SemanticsBackend
+| ManualSemantics : SemanticsBackend
+
+
 -- Like VCGArgs in Main but with all mandatory fields no longer as Options.
 structure VCGConfig :=
 (annFile : String)
 (mode : VerificationMode)
 (verbose : Bool)
-
+(semanticsBackend : SemanticsBackend)
 
 abbrev MemAddr := Nat
 abbrev MCBlockAnnMap := Std.RBMap MemAddr MemoryAnn (λ x y => x < y)
@@ -174,17 +188,15 @@ abbrev MCBlockAnnMap := Std.RBMap MemAddr MemoryAnn (λ x y => x < y)
 @[reducible]
 def LLVMTypeMap := Std.RBMap String (Option LLVM.LLVMType) Lean.strLt
 
-
 structure ModuleVCGContext :=
 (annotations : ModuleAnnotations)
 -- ^ Annotations for module.
-(decoder : decodex86.decoder)
+(instructionEvents : x86.vcg.InstructionEventsFun)
 -- ^ Machine code memory / decoder state
 (symbolAddrMap : Std.RBMap String (elf.word elf.elf_class.ELF64) Lean.strLt)
 -- ^ Maps bytes to the symbol name
 (moduleTypeMap : LLVMTypeMap)
 -- ^ type map for module.
-
 
 -------------------------------------------------------
 -- Error/Exception Data

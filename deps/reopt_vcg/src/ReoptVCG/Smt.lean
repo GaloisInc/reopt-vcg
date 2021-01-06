@@ -83,7 +83,7 @@ open WellFormedSExp
 
 def ppLLVMIdent : LLVM.Ident → String
 | LLVM.Ident.named nm => nm
-| LLVM.Ident.anon n => "%"++(repr n)
+| LLVM.Ident.anon n => "%"++(reprStr n)
 
 def toSExp : ∀ {tp : SmtSort}, BlockExpr tp → SExp String
 | _, stackHigh => SExp.atom "stack_high"
@@ -93,13 +93,13 @@ def toSExp : ∀ {tp : SmtSort}, BlockExpr tp → SExp String
 | _, mcStack a w =>
   SExp.list [SExp.atom "mcstack",
              toSExp a,
-             SExp.list [SExp.atom "_", SExp.atom "BitVec", SExp.atom (repr w.bits)]
+             SExp.list [SExp.atom "_", SExp.atom "BitVec", SExp.atom (reprStr w.bits)]
             ]
 | _, llvmVar nm tp => SExp.list [SExp.atom "llvm", SExp.atom (ppLLVMIdent nm)]
 | _, eq e1 e2 => SExp.list [SExp.atom "=", toSExp e1, toSExp e2]
 | _, bvAdd e1 e2 => SExp.list [SExp.atom "bvadd", toSExp e1, toSExp e2]
 | _, bvSub e1 e2 => SExp.list [SExp.atom "bvsub", toSExp e1, toSExp e2]
-| _, bvDecimal n width => SExp.list [SExp.atom "_", SExp.atom ("bv"++(repr n)), SExp.atom (repr width)]
+| _, bvDecimal n width => SExp.list [SExp.atom "_", SExp.atom ("bv"++(reprStr n)), SExp.atom (reprStr width)]
 
 def toString : ∀ {tp : SmtSort}, BlockExpr tp → String
 | _, e => (BlockExpr.toSExp e).toString
@@ -384,7 +384,7 @@ def interactiveVerifyGoal
       registerError
 
 private def printFailures (failures : Std.RBMap GoalTag (Std.RBMap String Nat (λ x y => x < y)) GoalTag.lt) : IO Unit := do
-  let cnt := 0
+  let mut cnt := 0
   for (_, entries) in failures.toList do -- FIXME remote toList next bump
     for (extraInfo, n) in entries.toList do -- FIXME remote toList next bump
       cnt := cnt + n
@@ -394,8 +394,8 @@ private def printFailures (failures : Std.RBMap GoalTag (Std.RBMap String Nat (�
   IO.println $ "Failed to verify "++(repr cnt)++" goal(s):"
   let indent := "  "
   for (tag, entries) in failures.toList do -- FIXME remote toList next bump
-    let pCnt : Nat := 0
-    let pDetails : List (Nat × String) := []
+    let mut pCnt : Nat := 0
+    let mut pDetails : List (Nat × String) := []
     for (extraInfo, n) in entries.toList do -- FIXME remote toList next bump
       pCnt := pCnt + n
       pDetails :=  (n, extraInfo)::pDetails

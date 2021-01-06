@@ -1,0 +1,5 @@
+
+LOCAL_LEAN := lean/MCInst/Basic.lean lean/MCInst/InstParser.lean
+LOCAL_CXX  := src/lean_support.cpp
+              
+$(eval $(call add-package,lean,${LOCAL_LEAN},${LOCAL_CXX}))

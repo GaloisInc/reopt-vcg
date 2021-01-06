@@ -8,14 +8,19 @@ type Type = [ (String, [Bool]) ]
 -- (ctore_name, args (True == is recursive))
 ctors_type =
   [ ("bv", [False])
+  , ("int", [])
   , ("bit", [])
-  , ("float", [])
-  , ("double", [])
-  , ("x86_80", [])
+  , ("float", [False])
+  , ("x87_80", [])
   , ("vec", [False, True])
   , ("pair", [True, True])
   , ("fn"  , [True, True]) ]
 
+ctors_float_class =
+  [ ("fp16", [])
+  , ("fp32", [])
+  , ("fp64", [])
+  ]
 
 --  | lit : Nat → nat_expr
 --  | var : arg_index → nat_expr
@@ -32,6 +37,25 @@ ctors_nat_expr =
   , ("sub", [True, True])
   , ("mul", [True, True])
   , ("div", [True, True])
+  ]
+
+ctors_concrete_reg =
+  [ ("gpreg", [False, False])
+  , ("flagreg", [False])
+  , ("avxreg", [False, False])
+  ]
+
+ctors_gpreg_type =
+  [ ("reg8l", [])
+  , ("reg8h", [])
+  , ("reg16", [])
+  , ("reg32", [])
+  , ("reg64", [])
+  ]
+
+ctors_avxreg_type =
+  [ ("xmm", [])
+  , ("ymm", [])
   ]
 
 -- We need to produce two types of equation --- recursive and mismatch.  The mismatch cases are simple,
@@ -76,5 +100,10 @@ mkDecEq :: String -> Type -> String -> String
 mkDecEq tname cons recName =
   "protected def " ++ recName ++ " : ∀(e e' : " ++ tname ++ "), Decidable (e = e')\n"
   ++ intercalate "\n" (recursive tname cons recName ++ mismatch tname cons)
+
+mkDecEqs :: [(String, Type, String)] -> String
+mkDecEqs ts =
+  concatMap (\(tname, cons, recName) -> (mkDecEq tname cons recName) ++ "\n") ts
+
 
   

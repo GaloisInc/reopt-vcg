@@ -121,11 +121,13 @@ def read_word (m : memory) (stdlib : StdLib) (addr : memaddr) (n : Nat) : bitvec
 end memory
 
 def machine_word := bitvec 64
+def avx_word := bitvec 256
 
 structure machine_state : Type :=
   (mem    : memory)
   (gpregs : Array machine_word) -- 16
   (flags  : Array s_bool) -- 32
+  (avxregs : Array avx_word)
   (ip     : machine_word)
 
 namespace machine_state
@@ -162,6 +164,17 @@ def update_flag (idx : Fin 32) (f : s_bool -> s_bool) (s : machine_state) : mach
   then { s with flags := Array.set s.flags (cast (congrArg Fin h) idx) (f (get_flag s idx)) }
   else s 
 
+def get_avxreg  (s : machine_state) (idx : Fin 16) : avx_word := 
+  -- FIXME
+  if h : 16 = s.avxregs.size
+  then s.avxregs.get (cast (congrArg _ h) idx) else  Smt.bvimm _ 0
+
+def update_avxreg (idx : Fin 16) (f : avx_word -> avx_word) (s : machine_state) : machine_state :=
+  -- FIXME
+  if h : 16 = s.avxregs.size 
+  then { s with avxregs := s.avxregs.set (cast (congrArg _ h) idx) (f (get_avxreg s idx)) }
+  else s 
+
 def store_word {n : Nat} (s : machine_state) (stdlib : StdLib) (addr : machine_word) (b : bitvec (8 * n)) : machine_state :=
   {s with mem := s.mem.store_word stdlib addr b }
 
@@ -181,7 +194,7 @@ def print_regs (s : machine_state) : String :=
 -- FIXME: could use sz = ns.length
 protected 
 def declare_const_aux {s : SmtSort} (ns : List String) (sz : Nat) : SmtM (Array (Term s)) := do
-  let a : (Array (Term s)) := Array.mkEmpty sz
+  let mut a : (Array (Term s)) := Array.mkEmpty sz
   for n in [:sz] do
     let fn ← Smt.declareFun (List.getD n ns "el") [] s
     a := a.push fn
@@ -192,8 +205,9 @@ def declare_const : SmtM machine_state := do
   let mem   ← Smt.declareFun "memory" [] memory_t
   let gprs  ← machine_state.declare_const_aux reg.r64_names 16
   let flags ← machine_state.declare_const_aux reg.flag_names 32
+  let avxregs ← machine_state.declare_const_aux (List.map (fun i => "xmm" ++ reprStr i) (Nat.upto0_lt 16)) 16
   let ip    ← Smt.declareFun "ip" [] (SmtSort.bitvec 64)
-  pure { mem := mem, gpregs := gprs, flags := flags, ip := ip }
+  pure { mem := mem, gpregs := gprs, flags := flags, avxregs := avxregs, ip := ip }
 
 end machine_state
 
@@ -212,7 +226,8 @@ def repr : Event -> String
   | Read _ _    => "Read"
   | Write _ _ _ => "Write"
 
-instance : Repr Event := ⟨Event.repr⟩
+-- FIXME: behave wrt prec
+instance : Repr Event := ⟨fun e _n => Event.repr e⟩
 
 end Event
 
@@ -300,7 +315,7 @@ def runSmtM {a : Type} (m : SmtM a) : system_m a := do
   let run' := fun (s : os_state) => 
                   (let r := Smt.runSmtM s.idGen m;
                   (r.fst, {s with trace := (List.map Event.Command r.snd.snd.reverse) ++ s.trace
-                          , idGen   := r.snd.fst}));
+                                , idGen   := r.snd.fst}));
   monadLift (modifyGet run' : base_system_m a)
 
 def name_term {s : SmtSort} (name : Option String) (tm : Term s) : system_m (Term s) :=
@@ -343,6 +358,10 @@ def symbolicBackend (stdlib : StdLib) : Backend :=
                                modify (machine_state.update_gpreg i (fun _ => s))
   , get_flag  :=  fun i => (fun s => machine_state.get_flag s i) <$> get
   , set_flag := fun i v => modify (machine_state.update_flag i (fun _ => v))
+
+  , get_avxreg  := fun i => (fun s => machine_state.get_avxreg s i) <$> get
+  , set_avxreg := fun i v => do let s <- system_m.name_term (some ("xmm" ++ reprStr i)) v;
+                                modify (machine_state.update_avxreg i (fun _ => s))
   
   , s_mux_bool := fun (b : s_bool) (x y : s_bool) => Smt.smtIte b x y
   , s_mux_bv   := fun {n : Nat} (b : s_bool) (x y : bitvec n) => Smt.smtIte b x y

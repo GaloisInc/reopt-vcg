@@ -42,17 +42,17 @@ private def boolDecidableLt (x y : Bool) : Decidable (Bool.Less x y) :=
     (isFalse (λ (h : Bool.Less true true) => Bool.noConfusion (lessRightFalse h))))
 
 
-instance : Less Bool := ⟨Bool.Less⟩
+instance : HasLess Bool := ⟨Bool.Less⟩
 instance : DecidableLess Bool := boolDecidableLt
 
-axiom Less.transitivity :∀ (x y z : Bool), x < y → y < z → x < z
-axiom Less.asymmetry : ∀ (x y : Bool), x < y → ¬(y < x)
-axiom Less.totality : ∀ (x y : Bool), x < y ∨ x = y ∨ y < x
+axiom HasLess.transitivity :∀ (x y z : Bool), x < y → y < z → x < z
+axiom HasLess.asymmetry : ∀ (x y : Bool), x < y → ¬(y < x)
+axiom HasLess.totality : ∀ (x y : Bool), x < y ∨ x = y ∨ y < x
 
 instance : LessOrder Bool :=
-{transitive := Less.transitivity,
- asymmetric := Less.asymmetry,
- total := Less.totality}
+{transitive := HasLess.transitivity,
+ asymmetric := HasLess.asymmetry,
+ total := HasLess.totality}
 
 
 instance : DecidableLessOrder Bool :=
@@ -71,17 +71,17 @@ namespace bitvec
 protected
 def Less {n : Nat} : bitvec n → bitvec n → Prop := bitvec.ult
 
-instance less (n:Nat) : Less (bitvec n) := ⟨bitvec.Less⟩
+instance less (n:Nat) : HasLess (bitvec n) := ⟨bitvec.Less⟩
 instance decidableLess (n:Nat) : DecidableLess (bitvec n) := @bitvec.decidable_ult n 
 
-axiom Less.transitivity {n} : ∀ (x y z : bitvec n), x < y → y < z → x < z
-axiom Less.asymmetry {n} : ∀ (x y : bitvec n), x < y → ¬(y < x)
-axiom Less.totality {n} : ∀ (x y : bitvec n), x < y ∨ x = y ∨ y < x
+axiom HasLess.transitivity {n} : ∀ (x y z : bitvec n), x < y → y < z → x < z
+axiom HasLess.asymmetry {n} : ∀ (x y : bitvec n), x < y → ¬(y < x)
+axiom HasLess.totality {n} : ∀ (x y : bitvec n), x < y ∨ x = y ∨ y < x
 
 instance {n} : LessOrder (bitvec n) :=
-{transitive := Less.transitivity,
- asymmetric := Less.asymmetry,
- total := Less.totality}
+{transitive := HasLess.transitivity,
+ asymmetric := HasLess.asymmetry,
+ total := HasLess.totality}
 
 
 instance {n} : DecidableLessOrder (bitvec n) :=
@@ -118,7 +118,7 @@ def denoteSmtSort : SmtSort → OrderedType
 @[reducible]
 def SmtSort.denote (s : SmtSort) : OrderedType := denoteSmtSort s
 
-instance SmtSort.denote.HasLess : ∀ (s:SmtSort), Less s.denote.type
+instance SmtSort.denote.HasLess : ∀ (s:SmtSort), HasLess s.denote.type
 | s => ⟨s.denote.order.Less⟩
 
 

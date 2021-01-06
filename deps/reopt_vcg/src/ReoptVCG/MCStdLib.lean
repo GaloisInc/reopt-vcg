@@ -48,9 +48,9 @@ namespace SupportedMemType
 
 def make (nBytes : Nat) : SmtM (SupportedMemType (SmtSort.bitvec (8 * nBytes))) := do
   let n := 8 * nBytes
-  let rm ← Smt.defineFun ("mem_readbv" ++ repr n) [memory_t, SmtSort.bitvec 64] (SmtSort.bitvec n) 
+  let rm ← Smt.defineFun ("mem_readbv" ++ reprStr n) [memory_t, SmtSort.bitvec 64] (SmtSort.bitvec n) 
                           (memory.read_word nBytes)
-  let wm ← Smt.defineFun ("mem_writebv" ++ repr n) [memory_t, SmtSort.bitvec 64, SmtSort.bitvec n] memory_t
+  let wm ← Smt.defineFun ("mem_writebv" ++ reprStr n) [memory_t, SmtSort.bitvec 64, SmtSort.bitvec n] memory_t
                           memory.store_word
   pure { readMem := rm, writeMem := wm }
 

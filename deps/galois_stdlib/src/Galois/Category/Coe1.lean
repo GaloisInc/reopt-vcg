@@ -14,5 +14,4 @@ instance refl (α:Sort w) (f : α → Sort u) : has_coe1 f f :=
 
 end has_coe1
 
-#check has_coe1.coe 
 def coe1 {α:Type u} {f g : α → Type u} [h:has_coe1 f g] {a:α} (x : f a) : g a := has_coe1.coe _ x

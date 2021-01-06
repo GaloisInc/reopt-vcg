@@ -18,6 +18,9 @@ axiom I_am_really_sorry2 : ∀(P : Prop),  P
 @[reducible]
 def machine_word := bitvec 64
 
+@[reducible]
+def avx_word := bitvec 256
+
 def bitvec.uext {n} (m : Nat) (p: n ≤ m) (x:bitvec n) : bitvec m :=
   bitvec.set_bits 0 0 x (I_am_really_sorry2 _) -- (begin simp, exact p end)
   
@@ -26,7 +29,7 @@ def bitvec.sext {n} (m : Nat) (p: n ≤ m) (x:bitvec n) : bitvec m :=
 
 -- Returns the number of bits that are tt mod 2
 def bitvec.parity {n : Nat} (b : bitvec n) : Bool :=
-  bitvec.foldl xor false b
+  bitvec.foldl (λx y => not (x == y)) false b
 
 -- example : bitvec.parity (3 : bitvec 4) = false := by refl
 -- example : bitvec.parity (7 : bitvec 4) = true := by refl
@@ -42,6 +45,7 @@ structure machine_state : Type :=
   (mem    : memory)
   (gpregs : Array machine_word) -- 16
   (flags  : Array Bool) -- 32
+  (avxregs : Array avx_word)
   (ip     : machine_word)
 
 
@@ -52,6 +56,7 @@ def empty : machine_state :=
   { mem    := memory.empty
   , gpregs := mkArray 16 0
   , flags  := mkArray 32 false
+  , avxregs := mkArray 16 0
   , ip     := 0
   }
 
@@ -60,8 +65,6 @@ def get_gpreg  (s : machine_state) (idx : Fin 16) : machine_word :=
   if h : 16 = s.gpregs.size
   then s.gpregs.get (cast (congrArg Fin h) idx)
   else 0
-
-
 
 def update_gpreg (idx : Fin 16) (f : machine_word -> machine_word) (s : machine_state) : machine_state :=
   -- FIXME
@@ -77,6 +80,17 @@ def get_flag  (s : machine_state) (idx : Fin 32) : Bool :=
 def update_flag (idx : Fin 32) (f : Bool -> Bool) (s : machine_state) : machine_state :=
   if h : 32 = s.flags.size
   then { s with flags := s.flags.set (cast (congrArg Fin h) idx) (f (get_flag s idx)) }
+  else s 
+
+def get_avxreg  (s : machine_state) (idx : Fin 16) : avx_word := 
+  -- FIXME
+  if h : 16 = s.avxregs.size
+  then s.avxregs.get (cast (congrArg _ h) idx) else 0
+
+def update_avxreg (idx : Fin 16) (f : avx_word -> avx_word) (s : machine_state) : machine_state :=
+  -- FIXME
+  if h : 16 = s.avxregs.size 
+  then { s with avxregs := s.avxregs.set (cast (congrArg _ h) idx) (f (get_avxreg s idx)) }
   else s 
 
 -- def store_bytes (addr : machine_word) (bs : List (bitvec 8)) (s : machine_state) : machine_state := 
@@ -151,12 +165,13 @@ inductive trace_event
 protected
 def trace_event.repr : trace_event -> String 
   | trace_event.syscall n args => 
-    let pfx := "syscall " ++ repr n ++ " " ++ repr args.length;
+    let pfx := "syscall " ++ reprStr n ++ " " ++ reprStr args.length;
     List.foldl (fun (s : String) (w : machine_word) => s ++ " " ++ w.pp_hex) pfx args
-  | trace_event.read addr n b  => "read " ++ addr.pp_hex ++ " " ++ repr n ++ " " ++ b.pp_hex
-  | trace_event.write addr n b => "write " ++ addr.pp_hex ++ " " ++ repr n ++ " " ++ b.pp_hex
+  | trace_event.read addr n b  => "read " ++ addr.pp_hex ++ " " ++ reprStr n ++ " " ++ b.pp_hex
+  | trace_event.write addr n b => "write " ++ addr.pp_hex ++ " " ++ reprStr n ++ " " ++ b.pp_hex
 
-instance trace_event_repr : Repr trace_event := ⟨trace_event.repr⟩
+-- FIXME: behave wrt prec
+instance trace_event_repr : Repr trace_event := ⟨fun te _n => trace_event.repr te⟩
 
 structure os_state :=
   (current_ip : machine_word)
@@ -171,15 +186,15 @@ abbrev system_m := StateT machine_state base_system_m
 
 namespace base_system_m
 
-instance : MonadIO base_system_m :=
-  inferInstanceAs (MonadIO (StateT os_state IO))
+instance : MonadLiftT IO base_system_m :=
+  inferInstanceAs (MonadLiftT IO (StateT os_state IO))
 
 end base_system_m
 
 namespace system_m
 
-instance : MonadIO system_m :=
-  inferInstanceAs (MonadIO (StateT machine_state base_system_m))
+instance : MonadLiftT IO system_m :=
+  inferInstanceAs (MonadLiftT IO (StateT machine_state base_system_m))
 
 def throwString {α} (err : String) : system_m α := throw $ IO.userError err
 def catchString {α} (m : system_m α) (h : String → system_m α) : system_m α := 
@@ -319,7 +334,7 @@ def syscall_handler : system_m Unit := do
   let s ← get
   let syscall_no := (s.get_gpreg rax_idx).to_nat
   match syscalls.find? syscall_no with
-  | none     => throw ("Unknown syscall: " ++ repr syscall_no)
+  | none     => throw ("Unknown syscall: " ++ reprStr syscall_no)
   | (some m) => m syscall_no
 
 
@@ -399,7 +414,9 @@ def concreteBackend : Backend :=
   , set_gpreg := fun i v => modify (machine_state.update_gpreg i (fun _ => v))
   , get_flag  :=  fun i => (fun s => machine_state.get_flag s i) <$> get
   , set_flag := fun i v => modify (machine_state.update_flag i (fun _ => v))
-  
+  , get_avxreg := fun i => (fun s => machine_state.get_avxreg s i) <$> get
+  , set_avxreg := fun i v => modify (machine_state.update_avxreg i (fun _ => v))
+
   , s_mux_bool := fun (b : Bool) (x y : Bool) => if b then x else y
   , s_mux_bv   := fun {n : Nat} (b : Bool) (x y : bitvec n) => if b then x else y
   , s_mux_m    := fun (b : Bool) x y => if b then x else y
@@ -407,7 +424,7 @@ def concreteBackend : Backend :=
   , s_not      := not
   , s_or       := or
   , s_and      := and
-  , s_xor      := xor
+  , s_xor      := (λx y => not (x == y))
  
   -- - Comparison
   , s_bveq     := fun {n : Nat} x y => decide (x = y)

@@ -10,6 +10,44 @@ import SmtLib.Smt
 import X86Semantics.Common
 import DecodeX86.DecodeX86
 
+import ReoptVCG.Translate
+
+import MCInst.Basic
+import ReoptVCG.KTranslate
+
+-- FIXME: move
+namespace x86
+namespace manual_semantics
+
+def mkSemantics (text_bytes : ByteArray) (vaddr : Nat) : x86.vcg.Semantics :=
+  let d := decodex86.mk_decoder text_bytes vaddr;  
+  { instruction := decodex86.instruction, 
+    instruction_size := fun i => i.nbytes,
+    decode           := fun n => match decodex86.decode d n with 
+                                 | Sum.inl _ => Sum.inl "Unknown"
+                                 | Sum.inr r => Sum.inr r,
+    eval             := eval_instruction     
+  }
+end manual_semantics
+end x86
+
+namespace x86
+namespace mcinst
+
+def mkSemantics (text_bytes : ByteArray) (vaddr : Nat) : x86.vcg.Semantics :=
+  let d := mk_decoder text_bytes vaddr;  
+  { instruction := instruction × Nat, 
+    instruction_size := fun i => i.snd,
+    decode           := fun n => match decode d n with 
+                                 | Sum.inl _ => Sum.inl "Unknown"
+                                 | Sum.inr r => Sum.inr r,
+    eval             := fun backend i => eval_instruction backend i.fst
+  }
+
+end mcinst
+end x86
+
+
 namespace ReoptVCG
 
 open Lean (Json strLt)
@@ -169,7 +207,7 @@ def parseLLVMArgs
     let totalArgs : Nat := maxArgs + 1 + restArgs.length
     moduleThrow {fnName := some fnm, blockLbl := none}
                 ModuleErrorTag.maxFnArgCntSurpassed 
-                ((repr maxArgs)++" supported, but got "++(repr totalArgs))
+                ((reprStr maxArgs)++" supported, but got "++(reprStr totalArgs))
   | (reg::restRegs) =>
     let binding := LLVMMCArgBinding.mk nm (SmtSort.bv64) reg;
     parseLLVMArgs fnm (binding::revBinds) restArgs restRegs
@@ -341,7 +379,7 @@ def runFnVerificationEvent (cfg : VCGConfig) (ps : ProverSession) (errCnt : IO.R
 | FnVerificationEvent.fn fnm bvEvents => do
   IO.println $ ""
   IO.println $ "Analyzing `" ++ fnm ++ "`"
-  let failure : Bool := false
+  let mut failure : Bool := false
   for e in bvEvents do
     let success ← runBlockVerificationEvent cfg ps e
     if !success then do
@@ -355,11 +393,11 @@ def runFnVerificationEvent (cfg : VCGConfig) (ps : ProverSession) (errCnt : IO.R
 def reportErrors (bErrors : List BlockError) (mErrors : List ModuleError) (success : Bool) : IO UInt32 := do
   let indent : String := "  "
   -- summarize block errors
-  let bErrCnt : Nat := 0
+  let mut bErrCnt : Nat := 0
   if !bErrors.isEmpty then do
     IO.println ""
     IO.println "======================= ERRORS ======================="
-    let bErrMap : Std.RBMap BlockErrorTag (Nat × (Std.RBMap String Nat (λ x y => x < y))) BlockErrorTag.lt := Std.RBMap.empty
+    let mut bErrMap : Std.RBMap BlockErrorTag (Nat × (Std.RBMap String Nat (λ x y => x < y))) BlockErrorTag.lt := Std.RBMap.empty
     for err in bErrors do
       bErrCnt := bErrCnt + 1
       bErrMap := let (tagCnt, tagMap) := bErrMap.findD err.tag (0, Std.RBMap.empty)
@@ -373,9 +411,9 @@ def reportErrors (bErrors : List BlockError) (mErrors : List ModuleError) (succe
         for (extraInfo, n) in tagMap.toList do -- FIXME remove toList next lean bump
           IO.println $ indent++indent++"- ("++(repr n)++") "++extraInfo
   -- summarize module errors
-  let mErrCnt : Nat := 0
+  let mut mErrCnt : Nat := 0
   if !mErrors.isEmpty then do
-    let mErrMap : Std.RBMap ModuleErrorTag (Nat × (Std.RBMap String Nat (λ x y => x < y))) ModuleErrorTag.lt := Std.RBMap.empty
+    let mut mErrMap : Std.RBMap ModuleErrorTag (Nat × (Std.RBMap String Nat (λ x y => x < y))) ModuleErrorTag.lt := Std.RBMap.empty
     for err in mErrors do
       mErrCnt := mErrCnt + 1
       mErrMap := let (tagCnt, tagMap) := mErrMap.findD err.tag (0, Std.RBMap.empty)
@@ -406,7 +444,9 @@ def runVCG (cfg : VCGConfig) : IO UInt32 := do
                 | none        => throw $ IO.userError $ "No text region"
                 | some (_, b) => pure b);
   let entry := elfHdr.entry.toNat;
-  let d := decodex86.mk_decoder text_bytes text_phdr.vaddr.toNat;
+  let sem := match cfg.semanticsBackend with
+             | SemanticsBackend.KSemantics      => x86.mcinst.mkSemantics text_bytes text_phdr.vaddr.toNat
+             | SemanticsBackend.ManualSemantics => x86.manual_semantics.mkSemantics text_bytes text_phdr.vaddr.toNat;
   when cfg.verbose $ IO.println $ "x86 decoder built...";
   -- Get LLVM module
   when cfg.verbose $ IO.println $ "Loading LLVM module at `"++ann.llvmFilePath++"`";
@@ -415,7 +455,7 @@ def runVCG (cfg : VCGConfig) : IO UInt32 := do
   -- Create verification coontext for module.
   let modCtx : ModuleVCGContext :=
     { annotations := ann
-    , decoder := d
+    , instructionEvents := x86.vcg.instructionEvents sem
     , symbolAddrMap := fnSymAddrMap
     , moduleTypeMap := mkLLVMTypeMap lMod
     };

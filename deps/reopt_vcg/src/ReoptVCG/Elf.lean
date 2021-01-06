@@ -133,9 +133,9 @@ namespace osabi
 protected def repr (o:osabi) : String :=
   if o.val = 0 
   then "UNIX - System V"
-  else repr o.val.toNat
+  else reprStr o.val.toNat
 
-protected def toString (o:osabi) : String := repr o.val.toNat
+protected def toString (o:osabi) : String := reprStr o.val.toNat
 
 instance : ToString osabi := ⟨osabi.toString⟩
 
@@ -217,7 +217,7 @@ protected def pp (e:info) : String
   := "Class:                             " ++ e.elf_class.repr ++ "\n"
   ++ "Data:                              " ++ e.elf_data.repr ++ "\n"
   ++ "OS/ABI:                            " ++ e.osabi.repr ++ "\n"
-  ++ "ABI Version:                       " ++ repr e.abi_version.toNat ++ "\n"
+  ++ "ABI Version:                       " ++ reprStr e.abi_version.toNat ++ "\n"
 
 open buffer
 
@@ -250,7 +250,7 @@ end info
 
 -- A reader for elf files
 @[reducible]
-def file_reader := ReaderT info buffer.reader
+abbrev file_reader := ReaderT info buffer.reader
 
 namespace file_reader
 
@@ -262,7 +262,7 @@ def from_handle {α:Type} (i:info) (h:Galois.Fs.handle) (n:Nat) (r:file_reader �
   | (EStateM.Result.error e _) => throw (IO.userError e)
 
 def read_u8  : file_reader UInt8  :=
-  ReaderT.lift $ buffer.reader.read_UInt8
+  monadLift $ buffer.reader.read_UInt8
 
 protected
 def read_chars_lsb (w:Nat) : file_reader (List UInt8) := do
@@ -272,7 +272,7 @@ def read_chars_lsb (w:Nat) : file_reader (List UInt8) := do
         | ELFDATA2LSB => l
         | ELFDATA2MSB => l.reverse;
         do
-  ReaderT.lift $ f <$> buffer.reader.read_bytes w
+  monadLift $ f <$> buffer.reader.read_bytes w
 
 def read_u16 : file_reader UInt16 := do
   let l ← file_reader.read_chars_lsb 2
@@ -343,18 +343,18 @@ def toNat : ∀{c : elf_class}, word c -> Nat
 protected def fromNat (c : elf_class) (n : Nat) : Option (word c) :=
 match c with
 | ELF32 => 
-  (if h : n < uint32Sz 
+  (if h : n < UInt32.size
    then some $ UInt32.ofNat' n h
    else Option.none)
 | ELF64 => 
-  (if _h : n < uint64Sz
+  (if _h : n < UInt64.size
    then Option.some $ UInt64.ofNat n
    else Option.none)
 
 
 
 -- Print word as decinal
-protected def pp_dec {c:elf_class} (w : word c) : String := repr w.toNat
+protected def pp_dec {c:elf_class} (w : word c) : String := reprStr w.toNat
   
 --- Print word as hex
 protected def pp_hex : ∀{c:elf_class}, word c → String
@@ -417,7 +417,7 @@ end word
 def phdr_type := UInt32
 
 instance : DecidableEq phdr_type := inferInstanceAs (DecidableEq UInt32)
-instance : OfNat phdr_type := inferInstanceAs (OfNat UInt32)
+instance {n : Nat} : OfNat phdr_type n := inferInstanceAs (OfNat UInt32 n)
 
 namespace phdr_type
 
@@ -435,7 +435,8 @@ def repr (pht : phdr_type) : String :=
   | 6 => "PT_PHDR"                 
   | _ => "PT_PROC " ++ (pht.toNat.repr)
 
-instance : Repr phdr_type := ⟨repr⟩
+-- FIXME: behave wrt prec
+instance : Repr phdr_type := ⟨fun pt _n => repr pt⟩
 
 def PT_LOAD : phdr_type := 1
 
@@ -453,7 +454,8 @@ instance : elf_file_data phdr_flags :=
 
 def repr (phfs : phdr_flags) : String := phfs.toNat.repr
 
-instance : Repr phdr_flags := ⟨repr⟩
+-- FIXME: behave wrt prec
+instance : Repr phdr_flags := ⟨fun pf _n => repr pf⟩
 
 def has_X (f : phdr_flags) : Bool := f.toNat.test_bit 0
 def has_W (f : phdr_flags) : Bool := f.toNat.test_bit 1
@@ -911,16 +913,16 @@ protected def pp {c : elf_class} (e:ehdr c) : String
   := "Class:                             " ++ c.repr ++ "\n"
   ++ "Data:                              " ++ e.elf_data.repr ++ "\n"
   ++ "OS/ABI:                            " ++ e.osabi.repr ++ "\n"
-  ++ "ABI Version:                       " ++ repr e.abi_version.toNat ++ "\n"
-  ++ "Type:                              " ++ repr e.elf_type.val.toNat ++ "\n"
-  ++ "Machine:                           " ++ repr e.machine.name ++ "\n"
+  ++ "ABI Version:                       " ++ reprStr e.abi_version.toNat ++ "\n"
+  ++ "Type:                              " ++ reprStr e.elf_type.val.toNat ++ "\n"
+  ++ "Machine:                           " ++ reprStr e.machine.name ++ "\n"
   ++ "Entry point address:               " ++ e.entry.pp_hex ++ "\n"
   ++ "Start of program headers:          " ++ e.phoff.pp_hex ++ " (bytes into file)\n"
   ++ "Start of section headers:          " ++ e.shoff.pp_hex ++ " (bytes into file)\n"
-  ++ "Flags:                             " ++ repr e.flags.toNat ++ "\n"
-  ++ "Number of program headers:         " ++ repr e.phnum.toNat ++ "\n"
-  ++ "Number of section headers:         " ++ repr e.shnum.toNat ++ "\n"
-  ++ "Section header String table index: " ++ repr e.shstrndx.toNat ++ "\n"
+  ++ "Flags:                             " ++ reprStr e.flags.toNat ++ "\n"
+  ++ "Number of program headers:         " ++ reprStr e.phnum.toNat ++ "\n"
+  ++ "Number of section headers:         " ++ reprStr e.shnum.toNat ++ "\n"
+  ++ "Section header String table index: " ++ reprStr e.shstrndx.toNat ++ "\n"
 
 end ehdr
 
@@ -929,7 +931,7 @@ def read_ehdr_remainder (i : info) : file_reader (ehdr i.elf_class) := do
   let tp ← elf_file_data.read _
   let mach ← elf_file_data.read _
   let ver ← file_reader.read_u32
-  when (ver ≠ 1) $ throw $ "Unexpected version: " ++ repr ver.toNat
+  when (ver ≠ 1) $ throw $ "Unexpected version: " ++ reprStr ver.toNat
   let entry ← elf_file_data.read _
   let phoff ← elf_file_data.read _
   let shoff ← elf_file_data.read _
@@ -992,7 +994,7 @@ def elfmem : Type := init_memory
 def read_one_elfmem (h : Galois.Fs.handle) {c : elf_class} (m : elfmem) (ph : phdr c) : IO elfmem :=
   if ph.phdr_type = phdr_type.PT_LOAD 
   then do
-    Galois.IO.Prim.handle.lseek h  (Int.ofNat ph.offset.toNat) Galois.Fs.Whence.set
+    let _ <- Galois.IO.Prim.handle.lseek h  (Int.ofNat ph.offset.toNat) Galois.Fs.Whence.set
     let fbs ← Galois.IO.Prim.handle.read h (if ph.filesz.toNat < ph.memsz.toNat 
                                             then ph.filesz.toNat
                                             else ph.memsz.toNat)

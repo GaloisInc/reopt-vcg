@@ -61,9 +61,11 @@ section
 universes u
 variables {k : Type u} {distance : k -> k -> Int} [Repr k]
 
+-- FIXME: behave wrt prec
 instance : Repr (buffer_map.entry k) :=
-  ⟨fun e => "( [" ++ repr e.start ++ " ..+ " ++ repr e.value.size ++ "]" /-" -> " ++ has_repr.repr e.value -/ ++ ")"⟩                  
+  ⟨fun e _n => Std.Format.text ("( [" ++ reprStr e.start ++ " ..+ " ++ reprStr e.value.size ++ "]") /-" -> " ++ has_repr.repr e.value -/ ++ ")"⟩                  
 
-instance : Repr (buffer_map k distance) := ⟨fun m => repr m.entries ⟩
+-- FIXME: behave wrt prec
+instance : Repr (buffer_map k distance) := ⟨fun m _n => repr m.entries ⟩
 
 end

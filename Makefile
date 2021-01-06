@@ -67,10 +67,12 @@ include deps/galois_stdlib/Makefile.include
 include deps/smtlib/Makefile.include
 include deps/lean-llvm/Makefile.include
 include deps/llvm-tablegen-support/Makefile.include
+include deps/llvm-mcinst-support/Makefile.include
 include deps/x86_semantics/Makefile.include
+include deps/k-x86-semantics/Makefile.include
+
 include deps/reopt_vcg/Makefile.include
 include tests/unit-tests/Makefile.include
-
 
 # all the output directories we need
 build-dirs = $(sort $(foreach ld,$(1),$(dir $(ld))))
@@ -81,7 +83,7 @@ build-dirs = $(sort $(foreach ld,$(1),$(dir $(ld))))
 DEPFILES = $(addprefix $(DEPDIR)/,$(LEANFILES:.lean=.d) $(APPLEANFILES:.lean=.d))
 DEPDIRS  = $(call build-dirs,$(DEPFILES)) 
 
-OLEANFILES = $(addprefix $(OLEANDIR)/,$(LEANFILES:.lean=.olean) $(APPLEANFILES:.lean=.d))
+OLEANFILES = $(addprefix $(OLEANDIR)/,$(LEANFILES:.lean=.olean) $(APPLEANFILES:.lean=.olean))
 OLEANDIRS  = $(call build-dirs,$(OLEANFILES))
 
 CXXFLAGS += -fPIC -ggdb3
@@ -105,7 +107,7 @@ export LEAN_PATH
 $(shell echo "#!/bin/bash" > set_LEAN_PATH.sh)
 $(shell echo "export LEAN_PATH=${LEAN_PATH}" >> set_LEAN_PATH.sh)
 
-realall: $(TARGETS)
+realall: $(TARGETS) $(CLEANFILES)
 
 depend: ${DEPFILES}
 
@@ -134,7 +136,6 @@ ${OLEANDIRS} ${CLEANDIRS} ${DEPDIRS} ${EXTRAOBJDIRS} ${BINDIR}:
 $(DEPDIR)/%.d: %.lean | ${OLEANDIRS} $(DEPDIRS)
 	$(call cmd,MAKEDEPEND)
 
-
 # could do this when making the olean
 $(OBJDIR)/%.c $(OLEANDIR)/%.olean: %.lean | ${OLEANDIRS} $(CLEANDIRS)
 	$(call cmd,LEAN)
@@ -149,9 +150,14 @@ $(EXTRAOBJDIR)/deps/galois_stdlib/src/Galois/Init/%: CXXFLAGS += -I${LEANDIR}/in
 
 $(EXTRAOBJDIR)/deps/llvm-tablegen-support/src/%: CXXFLAGS += -g -O3 -I deps/llvm-tablegen-support/src/ -I deps/llvm-tablegen-support/llvm-files/ `${LLVM_CONFIG} --cflags` -I${LEANDIR}/include/ -I${LEANDIR}/include/runtime -std=c++14 -fexceptions
 
+$(EXTRAOBJDIR)/deps/llvm-mcinst-support/src/%: CXXFLAGS += -g -O3 `${LLVM_CONFIG} --cflags` -I${LEANDIR}/include/ -I${LEANDIR}/include/runtime -std=c++14 -fexceptions
+
 $(EXTRAOBJDIR)/deps/lean-llvm/src/%: CXXFLAGS += -g -O3 `${LLVM_CONFIG} --cxxflags` -I ${LEANDIR}/include/ -std=c++14 -fexceptions
 
 clean:
 	rm -f ${DEPFILES} ${OLEANFILES}
+
+# Will make depend due to being run, no other targets needed
+depend:
 
 include ${DEPFILES}

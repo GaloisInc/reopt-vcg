@@ -8,21 +8,22 @@ namespace x86
 
 open mc_semantics
 open mc_semantics.type
+open mc_semantics.float_class
 open reg
 open semantics
 
 -- set_option class.instance_max_depth 1000
 
--- Introduces notation x[h..l] to slice the h..l bits out of x.
+-- Introduces notation x[h~~l] to slice the h~~l bits out of x.
 -- local
-notation:1025 x "[[" h ".." l "]]" => slice x h l
+notation:1025 x "[[" h "~~" l "]]" => slice x h l
 
 
 
 infix:50 " ≠ " => neq
 
 -- local
-infix:50 " = " => eq
+infix:50 " === " => eq
 
 -- local
 prefix:1024 "⇑" => lhs.expr
@@ -41,7 +42,9 @@ def xor {w:ℕ} (x : bv w) (y : bv w) : bv w := prim.bv_xor w x y
 def complement {w:ℕ} (b : bv w) : bv w := prim.bv_complement w b
 def and {w:ℕ} (x : bv w) (y : bv w) : bv w := prim.bv_and w x y
 def or {w:ℕ} (x : bv w) (y : bv w) : bv w := prim.bv_or w x y
-def cat {w:ℕ} (x : bv w) (y : bv w) : bv (2*w) := prim.cat w x y
+def cat {w:ℕ} (x : expression (bv w)) (y : expression (bv w)) : expression (bv (2 * w))
+  := let pf : w + w = 2 * w := sorryAx _;
+     cast (congrArg _ (congrArg _ pf)) (prim.cat w w x y)
 def least_nibble {w:ℕ} (x : bv w) : bv 4 := trunc x 4
 def ule {w:ℕ} (x y : bv w) : bit := prim.ule w x y
 def ult {w:ℕ} (x y : bv w) : bit := prim.ult w x y
@@ -57,13 +60,13 @@ infixl:70 " .&. " => and
 ------------------------------------------------------------------------
 -- utility functions
 
-def nat_to_bv {w:ℕ} (n:ℕ) : bv w := expression.primitive $ prim.bv_nat w n
+def nat_to_bv {w:ℕ} (n:ℕ) : expression (bv w) := expression.primitive $ prim.bv_nat w n
 
 def undef {tp:type} : expression tp := expression.undef tp
 
 def set_result_flags {w:ℕ} (res : expression (bv w)) : semantics Unit := do
   sf .= msb res
-  zf .= (res = 0)
+  zf .= (res === 0)
   pf .= even_parity (least_byte res)
 
 def set_bitwise_flags {w:ℕ} (res : expression (bv w)) : semantics Unit := do
@@ -121,21 +124,21 @@ def imul : instruction :=
      let action : semantics Unit := do
        let tmp ← eval $ sext al.expr 16 * sext src _
        ax .= tmp
-       set_overflow $ sext (tmp[[7..0]]) _ ≠ tmp
+       set_overflow $ sext (tmp[[7~~0]]) _ ≠ tmp
      action
    instr_pat $ fun (src : expression (bv 16)) => 
      let action : semantics Unit := do
        let tmp ← eval $ sext ax.expr 32 * sext src _
-       dx .= tmp[[31..16]]
-       ax .= tmp[[15.. 0]]
-       set_overflow $ sext (tmp[[15..0]]) _ ≠ tmp
+       dx .= tmp[[31~~16]]
+       ax .= tmp[[15~~ 0]]
+       set_overflow $ sext (tmp[[15~~0]]) _ ≠ tmp
      action
    instr_pat $ fun (src : expression (bv 32)) => 
      let action : semantics Unit := do
        let tmp ← eval $ sext eax.expr 64 * sext src _
-       edx .= tmp[[63..32]]
-       eax .= tmp[[31.. 0]]
-       set_overflow $ sext tmp[[31..0]] _ ≠ tmp
+       edx .= tmp[[63~~32]]
+       eax .= tmp[[31~~ 0]]
+       set_overflow $ sext tmp[[31~~0]] _ ≠ tmp
      action
    instr_pat $ fun (w : one_of [8,16,32,64]) (dest : lhs (bv w)) (src : expression (bv w)) =>
      let action : semantics Unit := do
@@ -159,32 +162,32 @@ def mul : instruction := do
      let action : semantics Unit := do
        let tmp ← eval $ uext al.expr 16 * uext src 16
        ax .= tmp
-       set_overflow $ tmp[[16..8]] ≠ 0
+       set_overflow $ tmp[[16~~8]] ≠ 0
      action
    instr_pat $ fun (src : expression (bv 16)) =>
      let action : semantics Unit := do
        let tmp ← eval $ uext ax.expr 32 * uext src _
-       dx .= tmp[[31..16]]
-       ax .= tmp[[15.. 0]]
-       set_overflow $ tmp[[31..16]] ≠ 0
+       dx .= tmp[[31~~16]]
+       ax .= tmp[[15~~ 0]]
+       set_overflow $ tmp[[31~~16]] ≠ 0
      action
    instr_pat $ fun (src : expression (bv 32)) =>
      let action : semantics Unit := do
        let tmp ← eval $ uext eax.expr 64 * uext src _
-       edx .= tmp[[63..32]]
-       eax .= tmp[[31.. 0]]
-       set_overflow $ tmp[[63..32]] ≠ 0
+       edx .= tmp[[63~~32]]
+       eax .= tmp[[31~~ 0]]
+       set_overflow $ tmp[[63~~32]] ≠ 0
      action
    instr_pat $ fun (src : expression (bv 64)) =>
      let action : semantics Unit := do
        let tmp ← eval $ uext rax.expr 128 * uext src _
-       rdx .= tmp[[127..64]]
-       rax .= tmp[[63..0]]
-       set_overflow $ tmp[[127..64]] ≠ 0
+       rdx .= tmp[[127~~64]]
+       rax .= tmp[[63~~0]]
+       set_overflow $ tmp[[127~~64]] ≠ 0
      action
 
-------------------------------------------------------------------------
--- mov definition
+-- ------------------------------------------------------------------------
+-- -- mov definition
 
 def mov : instruction := do
  definst "mov" $ do
@@ -193,9 +196,9 @@ def mov : instruction := do
        dest .= src
      action
 
-------------------------------------------------------------------------
--- mov definition
--- Move Data from String to String
+-- ------------------------------------------------------------------------
+-- -- mov definition
+-- -- Move Data from String to String
 
 -- def movs : instruction := do
 --  definst "movs" $ do sorry
@@ -354,7 +357,7 @@ def neg : instruction := do
  definst "neg" $ do
    instr_pat $ fun (w : one_of [8, 16,32,64]) (dest : lhs (bv w)) =>
      let action : semantics Unit := do
-       cf .= (⇑ dest) = 0
+       cf .= (⇑ dest) === 0
        of .= ssub_overflows 0 (⇑ dest)
        af .= usub4_overflows 0 (⇑ dest)
        let r ← eval $ - (⇑ dest)
@@ -632,7 +635,7 @@ def bsf_def : instruction := do
        sf .= undef
        af .= undef
        pf .= undef
-       zf .= y = 0
+       zf .= y === 0
        r .= bsf y
      action
 
@@ -649,7 +652,7 @@ def bsr_def : instruction := do
        sf .= undef
        af .= undef
        pf .= undef
-       zf .= y = 0
+       zf .= y === 0
        r .= bsr y
      action
 
@@ -731,11 +734,11 @@ def fadd : instruction := do
      let action : semantics Unit := do
        dest .= x87_fadd dest src
      action
-   instr_pat $ fun (src : lhs float) =>
+   instr_pat $ fun (src : lhs (float fp32)) =>
      let action : semantics Unit := do
        st0  .= x87_fadd st0 src
      action
-   instr_pat $ fun (src : lhs double) =>
+   instr_pat $ fun (src : lhs (float fp64)) =>
      let action : semantics Unit := do
        st0  .= x87_fadd st0 src
      action
@@ -848,45 +851,45 @@ def jmp : instruction :=
 
 def condition_codes : List (List String × expression bit)  := 
  [ -- Jump if above (cf = 0 and zf = 0)
-   (["a", "nbe"], expression.bit_and ((cf : expression bit) = bit_zero) ((zf : expression bit) = bit_zero))
-   -- Jump if above or equal (cf = 0)
- , (["ae", "nb", "nc"], (cf : expression bit) = bit_zero)
+   (["a", "nbe"], expression.bit_and ((cf : expression bit) === bit_zero) ((zf : expression bit) === bit_zero))
+   -- Jump if above or equal (cf === 0)
+ , (["ae", "nb", "nc"], (cf : expression bit) === bit_zero)
    -- Jump if below (cf = 1)
  , (["b", "c", "nae"], (cf : expression bit))
    -- Jump if below or equal (cf = 1 or zf = 1)
  , (["be"], expression.bit_or (cf : expression bit) (zf : expression bit))
    -- Jump if CX is 0
- , (["cxz"], (cx : expression (bv (gpreg_type.width gpreg_type.reg16))) = 0)
+ , (["cxz"], (cx : expression (bv (gpreg_type.width gpreg_type.reg16))) === 0)
    -- Jump if ECX is 0
- , (["ecxz"], (ecx : expression (bv (gpreg_type.width gpreg_type.reg32))) = 0)
+ , (["ecxz"], (ecx : expression (bv (gpreg_type.width gpreg_type.reg32))) === 0)
    -- Jump if RCX is 0
- , (["rcxz"], (rcx : expression (bv (gpreg_type.width gpreg_type.reg64))) = 0)
-   -- Jump if equal (zf = 1)
+ , (["rcxz"], (rcx : expression (bv (gpreg_type.width gpreg_type.reg64))) === 0)
+   -- Jump if equal (zf === 1)
  , (["e", "z"], (zf : expression bit))
    -- Jump if greater (zf = 0 and sf = of)
- , (["g", "nle"], expression.bit_and ((zf : expression bit) = bit_zero) ((sf : expression bit) = (of : expression bit)))
+ , (["g", "nle"], expression.bit_and ((zf : expression bit) === bit_zero) ((sf : expression bit) === (of : expression bit)))
    -- Jump if greater or equal (sf = of)
- , (["ge", "nl"], (sf : expression bit) = (of : expression bit))
+ , (["ge", "nl"], (sf : expression bit) === (of : expression bit))
    -- Jump if less (sf ≠ of)
  , (["l", "nge"], (sf : expression bit) ≠ (of : expression bit))
    -- Jump if less or equal (zf = 1 or sf ≠ of)
- , (["le", "ng"], expression.bit_or (expression.of_lhs zf = bit_one) (expression.of_lhs sf ≠ expression.of_lhs of))
+ , (["le", "ng"], expression.bit_or (expression.of_lhs zf === bit_one) (expression.of_lhs sf ≠ expression.of_lhs of))
    -- Jump if not above (cf = 1 or zf = 1)
- , (["na"], expression.bit_or (expression.of_lhs cf = bit_one) (expression.of_lhs zf = bit_one))
+ , (["na"], expression.bit_or (expression.of_lhs cf === bit_one) (expression.of_lhs zf === bit_one))
    -- Jump if not equal (zf = 0)
- , (["ne", "nz"], expression.of_lhs zf = bit_zero)
+ , (["ne", "nz"], expression.of_lhs zf === bit_zero)
    -- Jump if not overflow (of = 0)
- , (["no"], expression.of_lhs of = bit_zero)
+ , (["no"], expression.of_lhs of === bit_zero)
    -- Jump if not parity (pf = 0)
- , (["np", "po"], expression.of_lhs pf = bit_zero)
+ , (["np", "po"], expression.of_lhs pf === bit_zero)
    -- Jump if not sign (sf = 0)
- , (["ns"], expression.of_lhs sf = bit_zero)
+ , (["ns"], expression.of_lhs sf === bit_zero)
    -- Jump if overflow (of = 1)
- , (["o"], expression.of_lhs of = bit_one)
+ , (["o"], expression.of_lhs of === bit_one)
    -- Jump if parity (pf = 1)
- , (["p", "pe"], expression.of_lhs pf = bit_one)
+ , (["p", "pe"], expression.of_lhs pf === bit_one)
    -- Jump if sign (sf = 1)
- , (["s"], expression.of_lhs sf = bit_one)
+ , (["s"], expression.of_lhs sf === bit_one)
  ]
 
 ------------------------------------------------------------------------
@@ -960,7 +963,7 @@ def leave : instruction :=
      let action : semantics Unit := do
        rsp .= rbp
        let v ← eval (expression.read (bv 64) (⇑ rsp))
-       rsp .= rsp + nat_to_bv 8
+       rsp .= ⇑rsp + nat_to_bv 8
        rbp .= v
      action
 
@@ -973,7 +976,7 @@ def pop_def : instruction :=
    instr_pat $ fun (w : one_of [16, 32, 64]) (dest: lhs (bv w)) =>
      let action : semantics Unit := do
        let v ← eval (expression.read (bv w) (⇑ rsp))
-       rsp  .= rsp + nat_to_bv (w/8)
+       rsp  .= ⇑rsp + nat_to_bv (w/8)
        dest .= v
      action
 
@@ -985,7 +988,7 @@ def push_def : instruction :=
  definst "push" $ do
    instr_pat $ fun (w : one_of [8, 16, 32, 64]) (value: expression (bv w)) =>
      let action : semantics Unit := do
-       rsp .= rsp - nat_to_bv (w/8)
+       rsp .= ⇑rsp - nat_to_bv (w/8)
        lhs.write_addr (⇑ rsp) _ .= value
      action
 
@@ -998,13 +1001,13 @@ def ret : instruction :=
    instr_pat $ 
      let action : semantics Unit := do
        let addr ← eval $ expression.read (bv 64) (⇑ rsp)
-       rsp .= rsp + nat_to_bv 8
+       rsp .= ⇑rsp + nat_to_bv 8
        record_event (event.jmp addr)
      action
    instr_pat $ fun (off : expression (bv 16)) =>
      let action : semantics Unit := do
        let addr ← eval $ expression.read (bv 64) (⇑ rsp)
-       rsp .= rsp + (nat_to_bv 8 + uext off 64)
+       rsp .= ⇑rsp + (nat_to_bv 8 + uext off 64)
        record_event (event.jmp addr)
      action
 
@@ -1026,7 +1029,7 @@ def cdq : instruction :=
    instr_pat $ 
      let action : semantics Unit := do
        let quadword := sext (⇑ eax) 64
-       edx .= quadword[[63..32]]
+       edx .= quadword[[63~~32]]
      action
 
 ------------------------------------------------------------------------
@@ -1067,7 +1070,7 @@ def cqo : instruction :=
    instr_pat $
      let action : semantics Unit := do
        let octword := sext (⇑ rax) 128
-       rdx .= octword[[127..64]]
+       rdx .= octword[[127~~64]]
      action
 
 ------------------------------------------------------------------------
@@ -1078,7 +1081,7 @@ def cwd : instruction :=
    instr_pat $
      let action : semantics Unit := do
        let doubleword := sext (⇑ ax) 32
-       dx .= doubleword[[31..16]]
+       dx .= doubleword[[31~~16]]
      action
 
 ------------------------------------------------------------------------
@@ -1092,7 +1095,7 @@ def cwde : instruction :=
      action
 
 
-------------------------------------------------------------------------
+
 -- sar/shr/sal/shl definitions
 
 /- This is an enum for the shift op, so that our shift code can reflect the Intel description. -/
@@ -1117,9 +1120,9 @@ def do_sh {w:ℕ}
   -- compute the result
   let res ← eval $
     match op with
-    | shift_op.shl => prim.shl w v low_count
-    | shift_op.shr => prim.shr w v low_count
-    | shift_op.sar => prim.sar w v low_count
+    | shift_op.shl => prim.shl _ _ v low_count
+    | shift_op.shr => prim.shr _ _ v low_count
+    | shift_op.sar => prim.sar _ _ v low_count
 
   -- When the count is zero, nothing happens, and no flags change
   let is_nonzero : expression bit := low_count ≠ 0
@@ -1127,11 +1130,11 @@ def do_sh {w:ℕ}
   set_cond af is_nonzero undef
   match op with
   | shift_op.shl =>
-     cf .= prim.shl_carry w cf v low_count
+     cf .= prim.shl_carry w _ cf v low_count
   | shift_op.shr => do
-     cf .= prim.shr_carry w v cf low_count
+     cf .= prim.shr_carry w _ v cf low_count
   | shift_op.sar => do
-     cf .= prim.sar_carry w v cf low_count
+     cf .= prim.sar_carry w _ v cf low_count
 
   -- Compute value of of_flag if low_count is 1.
   let of_flag :=
@@ -1140,9 +1143,9 @@ def do_sh {w:ℕ}
     | shift_op.sar => bit_zero
     | shift_op.shr => @msb w (⇑ v)
 
-  set_cond of is_nonzero (mux (low_count = 1) of_flag undef)
+  set_cond of is_nonzero (mux (low_count === 1) of_flag undef)
   set_cond sf is_nonzero (msb res)
-  set_cond zf is_nonzero (res = 0)
+  set_cond zf is_nonzero (res === 0)
   set_cond pf is_nonzero (even_parity (least_byte res))
   set_cond v  is_nonzero res
 

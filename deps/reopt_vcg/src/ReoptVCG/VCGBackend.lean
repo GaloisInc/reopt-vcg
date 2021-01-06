@@ -1,5 +1,10 @@
 
+
+-- import SMTLIB.Syntax
+-- import SMTLIB.IdGen
+
 import SmtLib.Smt
+
 
 import X86Semantics.Common
 import X86Semantics.BackendAPI
@@ -29,6 +34,7 @@ abbrev memaddr := bitvec 64
 def byte    := bitvec 8
 
 def machine_word := bitvec 64
+def avx_word := bitvec 256
 
 
 /- The statement that either [low1,high1) preceeds and does not overlap
@@ -61,6 +67,31 @@ def update_flag (idx : Fin 32) (f : s_bool -> s_bool) (s : RegState) : RegState 
   then { s with flags := s.flags.set (cast (congrArg Fin h) idx) (f (get_flag s idx)) }
   else s 
 
+-- def get_reg64' : forall (n : Nat) (s : RegState) (r : concrete_reg (bv n)), n = 64 ->machine_word
+--   | _, s, concrete_reg.gpreg idx tp => λ_ => s.get_gpreg idx
+--   | _, _, _ => λ_ => Smt.bvimm _ 0
+
+--   -- | _, pf, s, concrete_reg.avxreg _ avxreg_type.ymm =>
+--   --   let pf' : ¬ (Eq 256 64) := Nat.neOfBeqEqFalse rfl; absurd pf pf'
+--   -- | _, pf, s, concrete_reg.avxreg _ avxreg_type.xmm =>
+--   --   let pf' : ¬ (Eq 128 64) := Nat.neOfBeqEqFalse rfl; absurd pf pf'
+
+def get_reg64' (n : Nat) (pf : n = 64) (s : RegState) (r : concrete_reg (bv n)) : machine_word :=
+  match n, r, pf with
+  | _, concrete_reg.gpreg idx tp, _ => s.get_gpreg idx
+  | _, concrete_reg.avxreg _ avxreg_type.ymm, pf => 
+    let pf' : ¬ (Eq 256 64) := Nat.neOfBeqEqFalse rfl; absurd pf pf'
+  | _, concrete_reg.avxreg _ avxreg_type.xmm, pf => 
+    let pf' : ¬ (Eq 128 64) := Nat.neOfBeqEqFalse rfl; absurd pf pf'
+
+def update_reg64' (n : Nat) (pf : n = 64) (r : concrete_reg (bv n)) 
+                  (f : machine_word -> machine_word) (s : RegState) : RegState :=
+  match n, r, pf with
+  | _, concrete_reg.gpreg idx tp, _ => update_gpreg idx f s
+  | _, concrete_reg.avxreg _ avxreg_type.ymm, pf => 
+    let pf' : ¬ (Eq 256 64) := Nat.neOfBeqEqFalse rfl; absurd pf pf'
+  | _, concrete_reg.avxreg _ avxreg_type.xmm, pf => 
+    let pf' : ¬ (Eq 128 64) := Nat.neOfBeqEqFalse rfl; absurd pf pf'
 
 def get_flag'  (s : RegState) (r : concrete_reg bit) : s_bool :=
   match r with
@@ -71,14 +102,23 @@ def update_flag'  (r : concrete_reg bit)
   match r with
   | concrete_reg.flagreg idx => update_flag idx f s
 
-def get_reg64  (s : RegState) (r : concrete_reg (bv gpreg_type.reg64.width)) : machine_word :=
-  match gpreg_type.reg64.width, r with
-  | _, concrete_reg.gpreg idx tp => s.get_gpreg idx
+def get_reg64 (s : RegState) (r : concrete_reg (bv gpreg_type.reg64.width)) : machine_word :=
+  get_reg64' _ rfl s r
 
 def update_reg64  (r : concrete_reg (bv gpreg_type.reg64.width)) 
                   (f : machine_word -> machine_word) (s : RegState) : RegState :=
-  match gpreg_type.reg64.width, r with
-  | _, concrete_reg.gpreg idx tp => update_gpreg idx f s
+    update_reg64' _ rfl r f s
+
+def get_avxreg  (s : RegState) (idx : Fin 16) : avx_word := 
+  -- FIXME
+  if h : 16 = s.avxregs.size
+  then Array.get s.avxregs (cast (congrArg _ h) idx) else  Smt.bvimm _ 0
+
+def update_avxreg (idx : Fin 16) (f : avx_word -> avx_word) (s : RegState) : RegState :=
+  -- FIXME
+  if h : 16 = s.avxregs.size 
+  then { s with avxregs := Array.set s.avxregs (cast (congrArg _ h) idx) (f (get_avxreg s idx)) }
+  else s 
 
 def print_regs (s : RegState) : String :=
   let lines := List.zipWith (fun n (r : bitvec 64) => (n ++ ": " ++ toString (toSExpr r) ++ ", ")) reg.r64_names s.gpregs.toList;
@@ -88,7 +128,7 @@ def print_regs (s : RegState) : String :=
 -- FIXME: could use sz = ns.length
 protected 
 def declare_const_aux {s : SmtSort} (pfx : String) (ns : List String) (sz : Nat) : SmtM (Array (Term s)) := do
-  let terms : Array (Term s) := Array.mkEmpty sz
+  let mut terms : Array (Term s) := Array.mkEmpty sz
   for n in [:sz] do
     let fn ← Smt.declareFun (pfx ++ List.getD n ns "el") [] s
     terms := terms.push fn
@@ -96,9 +136,10 @@ def declare_const_aux {s : SmtSort} (pfx : String) (ns : List String) (sz : Nat)
 
 -- We normally havea concrete rip
 def declare_const (pfx : String) (ip : Nat) : SmtM RegState := do
-  let gprs  <- RegState.declare_const_aux pfx reg.r64_names 16
-  let flags <- RegState.declare_const_aux pfx reg.flag_names 32
-  pure { gpregs := gprs, flags := flags, ip := Smt.bvimm _ ip }
+  let gprs  <- RegState.declare_const_aux pfx reg.r64_names 16;
+  let flags <- RegState.declare_const_aux pfx reg.flag_names 32;
+  let avxregs <- RegState.declare_const_aux pfx (List.map (fun i => "xmm" ++ reprStr i) (Nat.upto0_lt 16)) 16;
+  pure { gpregs := gprs, flags := flags, avxregs := avxregs, ip := Smt.bvimm _ ip }
 
 end RegState
 
@@ -117,7 +158,8 @@ def repr : Event -> String
 | NonStackWriteEvent _ _ _ => "NonStackWriteEvent"
 | FetchAndExecuteEvent _   => "FetchAndExecuteEvent"
 
-instance : Repr Event := ⟨Event.repr⟩
+-- FIXME: behave wrt prec
+instance : Repr Event := ⟨fun e _n => Event.repr e⟩
 
 end Event
 
@@ -227,7 +269,7 @@ structure vcg_state :=
   (idGen  : IdGen)
   (revEvents : List Event)
 
--- def vcg_state.empty : vcg_state := vcg_state.mk 0 []
+def vcg_state.empty : vcg_state := vcg_state.mk none Smt.IdGen.empty []
 
 -- Stacking like this makes it easier to derive MonadState
 def base_system_m := (StateT vcg_state (ExceptT String Id))
@@ -262,10 +304,10 @@ def run {a : Type} (m : system_m a) (os : vcg_state) (s : RegState)
   ((m.run s).run os).run
 
 def runSmtM {a : Type} (m : SmtM a) : system_m a := do
-  let run' := fun (s : vcg_state) => 
-                  (let r := Smt.runSmtM s.idGen m;
-                  (r.fst, {s with revEvents := (List.map Event.Command r.snd.snd.reverse) ++ s.revEvents
-                          , idGen := r.snd.fst}));
+  let run' :=
+    fun (s : vcg_state) => 
+        (let r := Smt.runSmtM s.idGen m;
+         (r.fst, {s with revEvents := (List.map Event.Command r.snd.snd.reverse) ++ s.revEvents, idGen := r.snd.fst}));
   monadLift (modifyGet run' : base_system_m a)
 
 def name_term {s : SmtSort} (name : Option String) (tm : Term s) : system_m (Term s) :=
@@ -325,6 +367,10 @@ def backend : Backend :=
                      modify (RegState.update_gpreg i (fun _ => s))
   , get_flag  :=  fun i => (fun s => RegState.get_flag s i) <$> get
   , set_flag := fun i v => modify (RegState.update_flag i (fun _ => v))
+
+  , get_avxreg  := fun i => (fun s => RegState.get_avxreg s i) <$> get
+  , set_avxreg := fun i v => do let s <- system_m.name_term (some ("xmm" ++ reprStr i)) v;
+                                modify (RegState.update_avxreg i (fun _ => s))
   
   , s_mux_bool := fun (b : s_bool) (x y : s_bool) => Smt.smtIte b x y
   , s_mux_bv   := fun {n : Nat} (b : s_bool) (x y : bitvec n) => Smt.smtIte b x y
@@ -400,32 +446,41 @@ end Internal
 
 open Internal
 
-def instructionEvents ( evtMap : Std.RBMap Nat MemoryAnn (fun x y => decide (x < y)) )
-                      -- ^ Map from addresses to annotations of events on that address.
-                      ( s : RegState )
-                      -- ^ Initial values for registers
-                      ( idGen : IdGen)
-                      -- ^ Used to generate unique/fresh identifiers for SMT terms.
-                      ( ip : Nat )
-                      ( d : decodex86.decoder )  
-                      -- ^ Location to explore
-                      : Except String (List Event × IdGen × Nat) :=
-  let inst := decodex86.decode d ip;
+structure Semantics :=
+  (instruction : Type)
+  (instruction_size : instruction -> Nat)
+  (decode      : Nat -> Sum String instruction)
+  (eval        : forall (backend : Backend), instruction -> backend.monad Unit)
+
+-- We can't stick the above in Context as it is in Type 1
+
+def instructionEvents 
+  ( sem    : Semantics )
+  ( evtMap : Std.RBMap Nat MemoryAnn (fun x y => decide (x < y)) )
+  -- ^ Map from addresses to annotations of events on that address.
+  ( s : RegState )
+  -- ^ Initial values for registers
+  ( idGen : IdGen)
+  -- ^ Used to generate unique/fresh identifiers for SMT terms.
+  ( ip : Nat )
+  -- ^ Location to explore
+  : Except String (List Event × IdGen × Nat) :=
+  let inst := sem.decode ip;
   match inst with 
-  | (Sum.inl b) => throw "Unknown byte"
+  | (Sum.inl _) => throw "Unknown byte"
   | (Sum.inr i) => do
        -- set ip of next instruction, used for getting ip-relative addrs.
-       let nextIP := ip + i.nbytes;
+       let nextIP := ip + sem.instruction_size i;
        let s'  := { s with ip := Smt.bvimm _ nextIP };
        let evt := evtMap.find? ip;
-       let r := (eval_instruction backend i).run            
+       let r := (sem.eval backend i).run
                 { idGen := idGen, eventInfo := evt, revEvents := [] }
                 s';
        match r with
        | Except.ok ((_, s''), os'') =>
              let fAndE := Event.FetchAndExecuteEvent s'';
-             Except.ok (List.reverse (fAndE :: os''.revEvents), os''.idGen, i.nbytes)
-       | Except.error err => Except.error (err ++ " " ++ repr i)
+             Except.ok (List.reverse (fAndE :: os''.revEvents), os''.idGen, sem.instruction_size i)
+       | Except.error err => Except.error err -- (err ++ " " ++ repr i)
 
 end vcg
 end x86

@@ -6,7 +6,7 @@ universes u v
 variables {α : Type u} {β : α → Type v}
 
 instance [Inhabited α] [forall (a : α), Inhabited (β a)] : Inhabited (Sigma β) :=
-{default := let a := arbitrary α; ⟨a, arbitrary (β a)⟩}
+{default := let a : α := arbitrary; ⟨a, (arbitrary : (β a)) ⟩}
 
 end Sigma
 
@@ -81,8 +81,9 @@ t.foldM (fun _ k v => f k v) ⟨⟩
   | some ⟨k, v⟩ => some ⟨k, v⟩
   | none        => none
 
+-- FIXME: behave wrt prec
 instance [Repr α] [forall (a : α), Repr (β a)] : Repr (DRBMap α β lt) :=
-⟨fun t => "rbmapOf " ++ repr t.toList⟩
+⟨fun t n => "rbmapOf " ++ reprPrec t.toList n⟩
 
 @[inline] def insert : DRBMap α β lt → forall (a : α), (β a) → DRBMap α β lt
 | ⟨t, w⟩, k, v => ⟨t.insert lt k v, WellFormed.insertWff w rfl⟩

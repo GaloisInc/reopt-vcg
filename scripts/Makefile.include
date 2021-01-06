@@ -117,7 +117,7 @@ quiet_cmd_AR = AR $@
       cmd_AR =rm -f $@; $(AR) rc $@ $^; $(RANLIB) $@
 
 quiet_cmd_LEAN = LEAN $<
-      cmd_LEAN = $(LEAN) --root $(PKGROOT) --o=$(OLEANDIR)/$*.olean --c="$(OBJDIR)/$*.c" $<
+      cmd_LEAN = $(LEAN)  -DmaxRecDepth=50000 --root $(PKGROOT) --o=$(OLEANDIR)/$*.olean --c="$(OBJDIR)/$*.c" $<
 
 quiet_cmd_CXX = CXX $<
       cmd_CXX = $(CXX) $(CXXFLAGS) -o $@ -c $^

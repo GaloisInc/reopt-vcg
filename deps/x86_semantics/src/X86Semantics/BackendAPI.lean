@@ -12,7 +12,7 @@ structure Backend : Type 1 :=
   (s_bool : Type)
 
   -- injections
-  (s_bv_imm   (n : Nat) : Nat  -> s_bv n)
+  (s_bv_imm     (n : Nat) : Nat  -> s_bv n)
   (s_bool_imm           : Bool -> s_bool)
 
   -- Underlying monad.
@@ -30,6 +30,8 @@ structure Backend : Type 1 :=
   (set_gpreg : Fin 16 -> s_bv 64 -> monad Unit)
   (get_flag  : Fin 32            -> monad s_bool)
   (set_flag  : Fin 32 -> s_bool  -> monad Unit)
+  (get_avxreg : Fin 16            -> monad (s_bv 256))
+  (set_avxreg : Fin 16 -> s_bv 256 -> monad Unit)
 
   -- Value operations
   -- FIXME: should these reside inside a monad?
@@ -105,6 +107,12 @@ protected def true (be : Backend) : be.s_bool := be.s_bool_imm true
 
 def bit_to_bitvec (be : Backend) (n : Nat) (b : be.s_bool) : be.s_bv n := 
   be.s_mux_bv b (be.s_bv_imm n 1) (be.s_bv_imm n 0)
+
+-- number is - (m + 1).  Note (not x = neg x - 1)
+def s_bv_imm_int (backend : Backend) (w : Nat) (i : Int) : backend.s_bv w :=
+  match i with
+  | Int.ofNat n   => backend.s_bv_imm w n
+  | Int.negSucc m => backend.s_bvnot w (backend.s_bv_imm w m)
  
 end Backend
 end x86
