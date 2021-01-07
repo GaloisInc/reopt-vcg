@@ -265,25 +265,6 @@ def run_M {a : Type} (m : M backend a) : @evaluator backend a :=
     --          (fun s s' => { s' with system_state := s })
     --          m
 
--- This throws away any evaluator state updates, and turns exceptions into backend exceptions
-def mux_m (b : backend.s_bool)
-          (m1 : @evaluator backend Unit) 
-          (m2 : @evaluator backend Unit)
-          : @evaluator backend Unit := do
-  let s <- get;
-  let tunnel (m : @evaluator backend Unit) : M backend Unit := do
-    let r ← (m.run s : M backend (Except String (Unit × @evaluator_state backend)))
-    match r with
-    | Except.ok v    => pure ()
-    | Except.error e => throw e
-  run_M (backend.s_mux_m b (tunnel m1) (tunnel m2))
-
--- def evaluator.map_machine_state (f : machine_state → machine_state) : evaluator system_m Unit :=
---     monadLift (modify f : system_m Unit)
-
--- def evaluator.with_machine_state {a : Type} (f : machine_state → a) : evaluator system_m a :=
---     monadLift (f <$> (get : system_m machine_state))
-
 def read_memory_at (addr : backend.machine_word) (n : Nat) 
   : @evaluator backend (backend.s_bv n) := evaluator.run_M (M.read_memory_at addr n)
 
@@ -320,6 +301,19 @@ def set' : ∀{tp : type}, concrete_reg tp -> @value backend tp -> M backend Uni
 
 def set {tp : type} (r : concrete_reg tp) (v : @value backend tp) : @evaluator backend Unit
   := evaluator.run_M (set' r v)
+
+def cond_set' : ∀{tp : type}, backend.s_bool -> concrete_reg tp -> @value backend tp -> M backend Unit
+  | _, c, (concrete_reg.gpreg idx rtp), b => do
+          let w <- backend.get_gpreg idx;
+          backend.s_cond_set_gpreg c idx (reg.inject rtp b w) 
+  | _, c, (concrete_reg.flagreg idx),   b => 
+          backend.s_cond_set_flag c idx b
+  | _, c, (concrete_reg.avxreg idx rtp), b => do
+          let w <- backend.get_avxreg idx;
+          backend.s_cond_set_avxreg c idx (reg.avx_inject rtp b w)
+
+def cond_set {tp : type} (c : backend.s_bool) (r : concrete_reg tp) (v : @value backend tp) : @evaluator backend Unit
+  := evaluator.run_M (cond_set' c r v)
   
 def from_state : ∀{tp : type}, concrete_reg tp -> M backend (@value backend tp)
   | _, (concrete_reg.gpreg idx rtp)  => reg.project rtp <$> backend.get_gpreg idx
@@ -475,12 +469,12 @@ namespace value
 def partial_eq : ∀{tp : type}, type.has_eq tp -> @value backend tp -> @value backend tp -> backend.s_bool
   | (bv _), _, v1, v2      => backend.s_bveq v1 v2
   | bit,    _, v1, v2      => backend.s_bool_eq v1 v2
-  | float _,  _, v1, v2    => backend.s_bool_imm true
-  | x86_80,  _, v1, v2     => backend.s_bool_imm true
+  | float _,  _, v1, v2    => backend.true
+  | x86_80,  _, v1, v2     => backend.true
   | (vec _ tp), pf, v1, v2 => 
      let pf' : type.has_eq tp := pf;
      let bs  := List.zipWith (partial_eq pf') (Array.toList v1) (Array.toList v2); -- ).all (fun (v : (value tp × value tp)) => value.partial_eq pf' v.fst v.snd)
-     List.foldr backend.s_and (backend.s_bool_imm true) bs
+     List.foldr backend.s_and (backend.true) bs
   | (pair tp tp'), pf, v1, v2 => 
      backend.s_and (partial_eq pf.left v1.fst v2.fst) (partial_eq pf.right v1.snd v2.snd)
 
@@ -716,7 +710,7 @@ def prim.eval : ∀{tp : type}, prim tp -> @evaluator backend (@value backend tp
 -- FIXME: move into the backend?
 def value.make_undef : ∀(tp : type), @value backend tp 
   | (bv e) => backend.s_bv_imm e 0
-  | bit    => backend.s_bool_imm false
+  | bit    => backend.false
   | int    => Int.ofNat 0
   | float _ => ()
   | x86_80  => ()
@@ -862,10 +856,21 @@ def action.eval : action -> @evaluator backend Unit
   | (action.set l e) => do
     let v ← expression.eval e
     lhs.set l v
-  | (action.set_cond l c e) => do
+  | (@action.set_cond tp r c e) => do
     let b ← expression.eval c
     let v ← expression.eval e
-    evaluator.mux_m b (lhs.set l v) (pure ())
+    match r with
+    | reg.concrete r' => concrete_reg.cond_set b r' v
+    | reg.arg idx => do
+      let av ← evaluator.arg_at_idx idx
+      match av with 
+      | arg_value.lval (@arg_lval.reg _ tp' r') => 
+        if H : tp = tp'
+        then concrete_reg.cond_set b r' (cast (congrArg _ H) v)
+        else throw "BUG: type mismatch in set_cond"
+      | _ => throw "BUG: non-reg destination in set_cond"
+    
+
   | (@action.set_aligned (bv _) l e align) => throw "set_aligned: buggy case" -- FIXME: compiler bug
     -- v <- expression.eval os_state e,
     -- if v.to_nat % eval_nat_expr align = 0

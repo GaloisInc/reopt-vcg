@@ -27,11 +27,18 @@ structure Backend : Type 1 :=
 
   -- Register operations
   (get_gpreg : Fin 16            -> monad (s_bv 64))
-  (set_gpreg : Fin 16 -> s_bv 64 -> monad Unit)
+  -- (set_gpreg : Fin 16 -> s_bv 64 -> monad Unit)
+  (s_cond_set_gpreg  : s_bool -> Fin 16 -> s_bv 64 -> monad Unit)
+
   (get_flag  : Fin 32            -> monad s_bool)
-  (set_flag  : Fin 32 -> s_bool  -> monad Unit)
+  -- (set_flag  : Fin 32 -> s_bool  -> monad Unit)
+  (s_cond_set_flag   : s_bool -> Fin 32 -> s_bool -> monad Unit)
+
   (get_avxreg : Fin 16            -> monad (s_bv 256))
-  (set_avxreg : Fin 16 -> s_bv 256 -> monad Unit)
+  -- (set_avxreg : Fin 16 -> s_bv 256 -> monad Unit)
+  (s_cond_set_avxreg : s_bool -> Fin 16 -> s_bv 256 -> monad Unit)
+
+  
 
   -- Value operations
   -- FIXME: should these reside inside a monad?
@@ -40,9 +47,6 @@ structure Backend : Type 1 :=
   -- monomorphic to avoid s_ite b (21 : Nat) (32 : Nat)
   (s_mux_bool         : s_bool -> s_bool -> s_bool -> s_bool) 
   (s_mux_bv {n : Nat} : s_bool -> s_bv n -> s_bv n -> s_bv n)
-  -- Mainly for cond_set, useful for cond jump as well
-  -- FIXME: replace by mux_set_reg etc.
-  (s_mux_m            : s_bool -> monad Unit -> monad Unit -> monad Unit)
   
   (s_not              : s_bool -> s_bool) 
   (s_or               : s_bool -> s_bool -> s_bool)
@@ -113,6 +117,16 @@ def s_bv_imm_int (backend : Backend) (w : Nat) (i : Int) : backend.s_bv w :=
   match i with
   | Int.ofNat n   => backend.s_bv_imm w n
   | Int.negSucc m => backend.s_bvnot w (backend.s_bv_imm w m)
+
+def set_gpreg (backend : Backend) (r : Fin 16) (v : backend.s_bv 64) : backend.monad Unit :=
+  backend.s_cond_set_gpreg backend.true r v
+
+def set_flag (backend : Backend) (r : Fin 32) (v : backend.s_bool) : backend.monad Unit :=
+  backend.s_cond_set_flag backend.true r v
+
+def set_avxreg (backend : Backend) (r : Fin 16) (v : backend.s_bv 256) : backend.monad Unit :=
+  backend.s_cond_set_avxreg backend.true r v
+
  
 end Backend
 end x86

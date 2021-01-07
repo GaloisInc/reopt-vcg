@@ -942,7 +942,7 @@ def setcc_instructions : List instruction :=
 
 def mk_cmovcc_instruction : String × expression bit → instruction
  | (name, cc) => definst ("cmov" ++ name) $ do
-   instr_pat $ fun (w : one_of [8,16,32,64]) (dest : lhs (bv w)) (src : expression (bv w)) =>
+   instr_pat $ fun (w : one_of [8,16,32,64]) (dest : reg (bv w)) (src : expression (bv w)) =>
      let action : semantics Unit := do
        set_cond dest cc src
      action
@@ -1127,7 +1127,7 @@ def do_sh {w:ℕ}
   -- When the count is zero, nothing happens, and no flags change
   let is_nonzero : expression bit := low_count ≠ 0
   -- Set the af flag
-  set_cond af is_nonzero undef
+  @set_cond bit flag.af is_nonzero undef
   match op with
   | shift_op.shl =>
      cf .= prim.shl_carry w _ cf v low_count
@@ -1143,11 +1143,12 @@ def do_sh {w:ℕ}
     | shift_op.sar => bit_zero
     | shift_op.shr => @msb w (⇑ v)
 
-  set_cond of is_nonzero (mux (low_count === 1) of_flag undef)
-  set_cond sf is_nonzero (msb res)
-  set_cond zf is_nonzero (res === 0)
-  set_cond pf is_nonzero (even_parity (least_byte res))
-  set_cond v  is_nonzero res
+  set_cond flag.of is_nonzero (mux (low_count === 1) of_flag undef)
+  set_cond flag.sf is_nonzero (msb res)
+  set_cond flag.zf is_nonzero (res === 0)
+  set_cond flag.pf is_nonzero (even_parity (least_byte res))
+  -- set_cond v  is_nonzero res
+  v .= mux is_nonzero res (coe v : expression (bv w))
 
 def shift_def (nm:String) (o : shift_op) : instruction :=
   definst nm $ do

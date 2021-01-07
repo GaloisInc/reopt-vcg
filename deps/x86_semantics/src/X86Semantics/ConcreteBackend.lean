@@ -411,15 +411,17 @@ def concreteBackend : Backend :=
                   pure v
                
   , get_gpreg  := fun i => (fun s => machine_state.get_gpreg s i) <$> get
-  , set_gpreg := fun i v => modify (machine_state.update_gpreg i (fun _ => v))
+  , s_cond_set_gpreg := fun c i v =>
+    when c $ modify (machine_state.update_gpreg i (fun _ => v))
   , get_flag  :=  fun i => (fun s => machine_state.get_flag s i) <$> get
-  , set_flag := fun i v => modify (machine_state.update_flag i (fun _ => v))
+  , s_cond_set_flag := fun c i v => 
+    when c $ modify (machine_state.update_flag i (fun _ => v))
   , get_avxreg := fun i => (fun s => machine_state.get_avxreg s i) <$> get
-  , set_avxreg := fun i v => modify (machine_state.update_avxreg i (fun _ => v))
+  , s_cond_set_avxreg := fun c i v => 
+    when c $ modify (machine_state.update_avxreg i (fun _ => v))
 
   , s_mux_bool := fun (b : Bool) (x y : Bool) => if b then x else y
   , s_mux_bv   := fun {n : Nat} (b : Bool) (x y : bitvec n) => if b then x else y
-  , s_mux_m    := fun (b : Bool) x y => if b then x else y
   
   , s_not      := not
   , s_or       := or

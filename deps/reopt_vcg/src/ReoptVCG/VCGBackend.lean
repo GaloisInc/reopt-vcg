@@ -362,19 +362,20 @@ def backend : Backend :=
   , read_word  := fun addr n => system_m.read_word (8 * n) addr 
                
   , get_gpreg  := fun i => (fun s => RegState.get_gpreg s i) <$> get
-  , set_gpreg := fun i v => do 
-                     let s ← system_m.name_term (reg.r64_names.get? i.val) v
-                     modify (RegState.update_gpreg i (fun _ => s))
+  , s_cond_set_gpreg := fun c i v => do 
+    let s ← system_m.name_term (reg.r64_names.get? i.val) v
+    modify (RegState.update_gpreg i (fun old => Smt.smtIte c s old))
   , get_flag  :=  fun i => (fun s => RegState.get_flag s i) <$> get
-  , set_flag := fun i v => modify (RegState.update_flag i (fun _ => v))
+  , s_cond_set_flag := fun c i v =>
+    modify (RegState.update_flag i (fun old => Smt.smtIte c v old))
 
   , get_avxreg  := fun i => (fun s => RegState.get_avxreg s i) <$> get
-  , set_avxreg := fun i v => do let s <- system_m.name_term (some ("xmm" ++ reprStr i)) v;
-                                modify (RegState.update_avxreg i (fun _ => s))
+  , s_cond_set_avxreg := fun c i v => do
+    let s <- system_m.name_term (some ("xmm" ++ reprStr i)) v;
+    modify (RegState.update_avxreg i (fun old => Smt.smtIte c s old))
   
   , s_mux_bool := fun (b : s_bool) (x y : s_bool) => Smt.smtIte b x y
   , s_mux_bv   := fun {n : Nat} (b : s_bool) (x y : bitvec n) => Smt.smtIte b x y
-  , s_mux_m    := fun (b : s_bool) x y => throw "backend.s_mux_m"
   
   , s_not      := Smt.not
   , s_or       := Smt.or

@@ -328,7 +328,11 @@ end concrete_reg
 -- Type for x86 registers
 inductive reg (tp:type) : Type
 | concrete  (c:concrete_reg tp) : reg tp
-| arg {} (idx:arg_index) : reg tp
+| arg       (idx:arg_index) : reg tp
+
+instance concrete_reg_is_reg (rtp:type) : Coe (concrete_reg rtp) (reg rtp) := ⟨reg.concrete⟩
+
+
 
 namespace reg
 
@@ -491,7 +495,7 @@ namespace reg
 protected
 def repr : ∀{tp:type}, reg tp -> String
 | _, (concrete r) => r.repr
-| _, (arg _ idx)    => "arg" ++ idx.repr
+| _, (arg idx)    => "arg" ++ idx.repr
 
 end reg
 
@@ -869,7 +873,7 @@ def read_addr {tp:type} : addr tp → expression tp
 
 def of_reg {tp:type} : reg tp → expression tp
 | (reg.concrete r) => expression.get_reg r
-| (reg.arg _ a) => expression.read_arg a tp
+| (reg.arg a) => expression.read_arg a tp
 
 instance addr_is_expression (tp:type) : Coe (addr tp) (expression tp) :=
 ⟨ expression.read_addr ⟩
@@ -944,7 +948,7 @@ def of_addr {tp:type} : addr tp → lhs tp
 
 def of_reg {tp:type} : reg tp → lhs tp
 | (reg.concrete r) => lhs.set_reg r
-| (reg.arg _ idx) => lhs.write_arg idx tp
+| (reg.arg idx) => lhs.write_arg idx tp
 
 end lhs
 
@@ -1094,8 +1098,8 @@ inductive event
 inductive action
 --- Set a left-hand side to an undefined value.
 | set            {tp:type} (l:lhs tp) (v:expression tp) : action
--- Conditionally set the lhs
-| set_cond       {tp:type} (l:lhs tp) (c: expression bit) (v:expression tp) : action
+-- Conditionally set the lhs, restricted to updating registers
+| set_cond       {tp:type} (l:reg tp) (c: expression bit) (v:expression tp) : action
 -- Set the lhs but raise an exception when the lhs does not have proper alignment
 -- TODO: Document what precisely is meant by "exception" when alignment is not
 -- respected.
@@ -1108,7 +1112,7 @@ inductive action
 def action.set_undef {tp:type} (l:lhs tp) : action := action.set l (expression.undef tp)
 
 --- Conditionally mark an lhs as undefined
-def action.set_undef_cond {tp:type} (l:lhs tp) (c: expression bit) : action :=
+def action.set_undef_cond {tp:type} (l:reg tp) (c: expression bit) : action :=
   action.set_cond l c (expression.undef tp)
 
 ------------------------------------------------------------------------
@@ -1173,7 +1177,7 @@ class is_bound_var (tp:Type) :=
 
 instance reg_is_bound_var (tp:type) : is_bound_var (reg tp) :=
 { to_binding := binding.reg tp
-, mk_arg := fun i => reg.arg _ i
+, mk_arg := fun i => reg.arg i
 }
 
 instance addr_is_bound_var (tp:type) : is_bound_var (addr tp) :=
@@ -1270,7 +1274,7 @@ def set {tp:type} (l:lhs tp) (v:expression tp) : semantics Unit :=
 def set_aligned {tp:type} (l:lhs tp) (v:expression tp) (a:Nat): semantics Unit :=
   semantics.add_action (action.set_aligned l v a)
 
-def set_cond {tp:type} (l:lhs tp) (c: expression bit) (v:expression tp) : semantics Unit :=
+def set_cond {tp:type} (l:reg tp) (c: expression bit) (v:expression tp) : semantics Unit :=
   semantics.add_action (action.set_cond l c v)
 
 --- Evaluate the given expression and return a local expression that will not mutate.
