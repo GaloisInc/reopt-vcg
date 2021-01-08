@@ -170,6 +170,7 @@
 (assert (on_stack addr #x0000000000000008))
 (assert (= readv (mem_readbv64 init_mem addr)))
 (define-fun rsp () (_ BitVec 64) (bvadd a0x201058_rsp ((_ sign_extend 56) #x20)))
+(define-fun addr0 () (_ BitVec 64) (ite true rsp a0x201058_rsp))
 (declare-fun readv0 () (_ BitVec 64))
-(check-sat-assuming ((not (on_stack rsp #x0000000000000008))))
+(check-sat-assuming ((not (on_stack addr0 #x0000000000000008))))
 (exit)
