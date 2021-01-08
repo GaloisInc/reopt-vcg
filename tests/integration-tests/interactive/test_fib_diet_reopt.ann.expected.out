@@ -5,9 +5,6 @@ x86 decoder built...
 Loading LLVM module at `test_fib_diet_reopt.ll`
 LLVM module loaded!
 Generating verification conditions for LLVM module...
-Solver mode: checking verification conditions with user-specified solver...
-
-Analyzing `fib`
   Verifying fib.block_0_201000.4 @ 0x201000: machine code writes to unreserve stack space... OK
   Verifying fib.block_0_201000.4 @ 0x201008: machine code writes to unreserve stack space... OK
   Verifying fib.block_0_201000.4 @ 0x20100c: machine code reads from unallocated stack space... OK
@@ -102,8 +99,6 @@ Analyzing `fib`
   Verifying fib.block_0_201058.0 @ 0x201061: register value preserved (r14, after return)... OK
   Verifying fib.block_0_201058.0 @ 0x201061: register value preserved (r15, after return)... OK
   Verifying fib.block_0_201058.0 @ 0x201061: LLVM and machine code return values match... OK
-
-Analyzing `main`
   Verifying main.block_0_201070.0 @ 0x201070: machine code writes to unreserve stack space... OK
   Verifying main.block_0_201070.0 @ 0x201078: machine code writes to unreserve stack space... OK
   Verifying main.block_0_201070.0 @ 0x201084: machine code writes to unreserve stack space... OK
@@ -145,9 +140,7 @@ Analyzing `main`
   Verifying main.block_0_20109d.0 @ 0x2010a9: register value preserved (r15, after return)... OK
   Verifying main.block_0_20109d.0 @ 0x2010a9: LLVM and machine code return values match... OK
 
-=================== SOLVER  SUMMARY ===================
+All 2 functions were assigned verification conditions without error.
 
-Verification of all goals succeeded.
-Verified 134 out of 134 generated goals.
-2 out of 2 functions with verification conditions passed all SMT checks.
-2 out of 2 functions successfully analyzed with no errors.
+====================== GOAL VERIFICATION SUMMARY =======================
+All 134 generated verification goals successfully proven.

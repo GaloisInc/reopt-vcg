@@ -400,12 +400,25 @@ inductive CheckSatResult
 | unrecognized : String → CheckSatResult
 
 def parseCheckSatResult (rawStr : String) : CheckSatResult :=
-match rawStr.trim with
-| "sat" => CheckSatResult.sat
-| "unsat" => CheckSatResult.unsat
-| "unknown" => CheckSatResult.unknown
-| "unsupported" => CheckSatResult.unsupported
-| other => CheckSatResult.unrecognized other
+  match rawStr.trim with
+  | "sat" => CheckSatResult.sat
+  | "unsat" => CheckSatResult.unsat
+  | "unknown" => CheckSatResult.unknown
+  | "unsupported" => CheckSatResult.unsupported
+  | other => CheckSatResult.unrecognized other
+
+namespace CheckSatResult
+
+def toString : CheckSatResult → String
+  | sat => "sat"
+  | unsat => "unsat"
+  | unknown => "unknown"
+  | unsupported => "unsupported"
+  | unrecognized other => "unrecognized: " ++ other
+
+instance : ToString CheckSatResult := ⟨toString⟩
+
+end CheckSatResult
 
 -- #check true
 -- #check false

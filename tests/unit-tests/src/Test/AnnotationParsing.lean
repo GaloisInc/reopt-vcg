@@ -36,10 +36,10 @@ def parseAnnotationsFibTest : IO FunctionAnn := do
         throw $ IO.userError $ "Expected stackGuardPageCount `1` but got: " ++ modAnn.stackGuardPageCount.repr;
       match modAnn.functions with
       | [fibFn, mainFn] => do
-        unless (fibFn.llvmFunName == "fib") do
-          throw $ IO.userError $ "Expected first function annotation to be for `fib` but got: " ++ fibFn.llvmFunName;
-        unless (mainFn.llvmFunName == "main") do
-          throw $ IO.userError $ "Expected second function annotation to be for `main` but got: " ++ mainFn.llvmFunName;
+        unless (fibFn.llvmFnName == "fib") do
+          throw $ IO.userError $ "Expected first function annotation to be for `fib` but got: " ++ fibFn.llvmFnName;
+        unless (mainFn.llvmFnName == "main") do
+          throw $ IO.userError $ "Expected second function annotation to be for `main` but got: " ++ mainFn.llvmFnName;
         IO.println "parseAnnotationsFibTest done";
         pure fibFn
       | _ => throw $ IO.userError $ "Expected two function annotations but found " ++ modAnn.functions.length.repr
@@ -54,8 +54,8 @@ def fibLLVMTyEnv : Std.RBMap LLVM.Ident SmtSort (λ x y => x<y) :=
 -- Parse and check a few very basic structural properties about the return block annotations
 -- just to sanity check how things are working at the moment.
 def parseBlockAnnFibTest (fibAnn : FunctionAnn) : IO Unit := do
-  unless (fibAnn.llvmFunName == "fib") do
-    throw $ IO.userError $ "Expected function annotation to be for `fib` but got: " ++ fibAnn.llvmFunName;
+  unless (fibAnn.llvmFnName == "fib") do
+    throw $ IO.userError $ "Expected function annotation to be for `fib` but got: " ++ fibAnn.llvmFnName;
   match fibAnn.blocks.toList with
   | [bAnnJson, _block2, _block3, _block4, _block5, _block6] => do
     match parseBlockAnn fibLLVMTyEnv bAnnJson with

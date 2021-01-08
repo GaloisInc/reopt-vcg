@@ -10,21 +10,177 @@ import SmtLib.Smt
 import X86Semantics.Common
 
 namespace ReoptVCG
+open Std (RBMap)
 open Smt
 universe u
 
 abbrev GoalName := String
 
+structure VerificationSession :=
+  (verifyModule : VCGConfig → ModuleVerification → IO UInt32)
 
--- Did the prover session complete successfully or fail in some way?
-structure ProverSessionResult :=
-  (success : Bool)
-  (printSummary : IO Unit)
-  (printFailures : IO Unit)
 
-structure ProverSession :=
-  (verifyGoal : VCGConfig → VerificationGoal → IO Unit)
-  (sessionComplete : IO ProverSessionResult)
+-- Data structure for registering verification goal info
+-- (for interactive only, since export doesn't really do anything
+--  with goals during execution except emit files).
+structure GoalStats :=
+  -- How many of each kind of goal failed
+  (okGoalCnt : RBMap GoalTag Nat (·<·))
+  -- How many of each kind of goal failed to verify
+  (failGoalCnt : RBMap GoalTag Nat (·<·))
+  -- For each kind of goal, what were the counts for each extra info seen for failures?
+  (failExtraInfoCnt : RBMap GoalTag (RBMap String Nat (·<·)) (·<·))
+  -- How many goals errored/failed for a given LLVM function name?
+  (fnBadGoalCnt : RBMap String Nat (·<·))
+  -- How many of each kind of goal had an error during verification
+  (errorGoalCnt : RBMap GoalTag Nat (·<·))
+  -- For each kind of goal, what were the counts for each extra info seen for errors?
+  (errorExtraInfoCnt : RBMap GoalTag (RBMap String Nat (·<·)) (·<·))
+  -- A terse description of what happened for mass data dumps of all activity
+  (results : Array VerificationResult)
+
+namespace GoalStats
+
+def init : GoalStats :=
+  {okGoalCnt := Std.RBMap.empty,
+   failGoalCnt := Std.RBMap.empty,
+   failExtraInfoCnt := Std.RBMap.empty,
+   errorGoalCnt := Std.RBMap.empty,
+   errorExtraInfoCnt := Std.RBMap.empty,
+   fnBadGoalCnt := Std.RBMap.empty,
+   results := #[]}
+
+def addResult (gs : GoalStats) (vr : VerificationResult) : GoalStats :=
+  let vg : VerificationGoal := vr.goal
+  let logOk : GoalStats :=
+      {gs with
+       okGoalCnt :=
+         let oks := gs.okGoalCnt
+         oks.insert vg.tag (1 + (oks.findD vg.tag 0)),
+       results := gs.results.push vr
+      }
+  let logFail : GoalStats :=
+    {gs with
+     failGoalCnt :=
+       let fails := gs.failGoalCnt
+       fails.insert vg.tag (1 + (fails.findD vg.tag 0)),
+     failExtraInfoCnt := do
+       let fails := gs.failExtraInfoCnt
+       let mut tagFails := fails.findD vg.tag Std.RBMap.empty
+       tagFails := tagFails.insert vg.extraInfo (1 + (tagFails.findD vg.extraInfo 0))
+       fails.insert vg.tag tagFails,
+     fnBadGoalCnt :=
+      let fnFails := gs.fnBadGoalCnt
+      fnFails.insert vg.loc.fnName (1 + (fnFails.findD vg.loc.fnName 0)),
+     results := gs.results.push vr
+    }
+  let logError : GoalStats :=
+    {gs with
+     errorGoalCnt :=
+       let errors := gs.errorGoalCnt
+       errors.insert vg.tag (1 + (errors.findD vg.tag 0)),
+     errorExtraInfoCnt := do
+       let errors := gs.errorExtraInfoCnt
+       let mut tagErrors := errors.findD vg.tag Std.RBMap.empty
+       tagErrors := tagErrors.insert vg.extraInfo (1 + (tagErrors.findD vg.extraInfo 0))
+       errors.insert vg.tag tagErrors,
+     fnBadGoalCnt :=
+      let fnFails := gs.fnBadGoalCnt
+      fnFails.insert vg.loc.fnName (1 + (fnFails.findD vg.loc.fnName 0)),
+     results := gs.results.push vr
+    }
+  match vr.result with
+  | none => logError
+  | some csr =>
+    match csr with
+    | CheckSatResult.unsat => logOk
+    | CheckSatResult.sat => logFail
+    | CheckSatResult.unknown => logFail
+    | CheckSatResult.unsupported => logError
+    | CheckSatResult.unrecognized msg => logError
+
+
+end GoalStats
+
+-- Data for counting function/block level errors that occur during VC generation
+structure VCStats :=
+   -- How many functions did we analyze for VC gen?
+  (fnCnt : Nat)
+  -- How many errors were encoutered during VC gen?
+  (errCnt : Nat)
+   -- How many (module or block) errors did each function have during VC gen?
+  (fnErrCnt : RBMap String Nat (·<·))
+  -- What warnings were raised during VC gen?
+  (warnings : Array VerificationWarning)
+  -- How many errors of each kind of ModuleError did we encounter?
+  (moduleErrCnt : RBMap ModuleErrorTag Nat (·<·))
+  -- For each ModuleError kind and additional info, how many times did we see that combination?
+  (moduleErrExtraInfoCnt : RBMap ModuleErrorTag (RBMap String Nat (·<·)) (·<·))
+  -- How many errors of each kind of BlockError did we encounter?
+  (blockErrCnt : RBMap BlockErrorTag Nat (·<·))
+  -- For each BlockError kind and additional info, how many times did we see that combination?
+  (blockErrExtraInfoCnt : RBMap BlockErrorTag (RBMap String Nat (·<·)) (·<·))
+  -- Function names, blocks, and warnings
+  (blockWarnings : Array (String × LLVM.BlockLabel × VerificationWarning))
+
+
+namespace VCStats
+
+def init : VCStats :=
+  {fnCnt := 0,
+   errCnt := 0,
+   fnErrCnt := Std.RBMap.empty,
+   warnings := #[],
+   moduleErrCnt := Std.RBMap.empty,
+   moduleErrExtraInfoCnt := Std.RBMap.empty,
+   blockErrCnt := Std.RBMap.empty,
+   blockErrExtraInfoCnt := Std.RBMap.empty,
+   blockWarnings := #[]}
+
+def addModuleError (stats : VCStats) (err : ModuleError) : VCStats := do
+  let mut stats := stats
+  -- If there was an associated function name for this module error,
+  -- increaser the count for that function.
+  match err.loc.fnName with
+  | none => pure ()
+  | some fnName => do
+    stats := {stats with
+              fnErrCnt :=
+                let errCnt := stats.fnErrCnt
+                errCnt.insert fnName (1 + (errCnt.findD fnName 0))}
+  pure {stats with
+   errCnt := 1 + stats.errCnt,
+   moduleErrCnt :=
+     let errors := stats.moduleErrCnt
+     errors.insert err.tag (1 + (errors.findD err.tag 0)),
+   moduleErrExtraInfoCnt := do
+     let errors := stats.moduleErrExtraInfoCnt
+     let mut tagErrors := errors.findD err.tag Std.RBMap.empty
+     tagErrors := tagErrors.insert err.extraInfo (1 + (tagErrors.findD err.extraInfo 0))
+     errors.insert err.tag tagErrors
+  }
+
+def addBlockError (stats : VCStats) (err : BlockError) : VCStats := do
+  pure {stats with
+   errCnt := 1 + stats.errCnt,
+   fnErrCnt :=
+     let errCnt := stats.fnErrCnt
+     errCnt.insert err.loc.fnName (1 + (errCnt.findD err.loc.fnName 0)),
+   blockErrCnt :=
+     let errors := stats.blockErrCnt
+     errors.insert err.tag (1 + (errors.findD err.tag 0)),
+   blockErrExtraInfoCnt := do
+     let errors := stats.blockErrExtraInfoCnt
+     let mut tagErrors := errors.findD err.tag Std.RBMap.empty
+     tagErrors := tagErrors.insert err.extraInfo (1 + (tagErrors.findD err.extraInfo 0))
+     errors.insert err.tag tagErrors
+  }
+
+def addWarning (stats : VCStats) (w : VerificationWarning) : VCStats := do
+  pure {stats with warnings := stats.warnings.push w}
+
+end VCStats
+
 
 
 def defaultCVC4Args : List String :=
@@ -34,6 +190,9 @@ def defaultCVC4Args : List String :=
 -- `unsat` instead produce `unknown`) so we manually pass the `--no-fmf-bound` flag to
 -- avoid the `unknown`s.
 ["--lang=smt2", "--arrays-exp", "--no-fmf-bound", "--incremental"]
+
+def defaultCVC4Cmd : String :=
+  String.intercalate " " ("cvc4"::defaultCVC4Args)
 
 /- Abstracts out the _specifics_ of how certain BlockExpr terms
     should be emitted as SMT terms, so that the underlying SMT
@@ -203,7 +362,7 @@ def checkSatWithGoalNegated (goal : SmtM (Term SmtSort.bool)) : SmtM Unit := do
 
 /- Write assert the negated goal and write out the resulting script
     of commands to a file. -/
-def exportVerifyGoal
+def exportDoGoal
 (outputDir : String)
 (fileCnt : IO.Ref Nat)
 (cfg : VCGConfig)
@@ -221,18 +380,19 @@ def exportVerifyGoal
   fileCnt.modify Nat.succ
 
 
-def exportProverSession
-(outputDir : String)
-: IO ProverSession
-:= do
-  let fileCnt <- IO.mkRef 0
-  pure { verifyGoal := exportVerifyGoal outputDir fileCnt,
-         sessionComplete := pure {success := true,
-                                  printSummary := do
-                                    let n ← fileCnt.get
-                                    IO.println $ (repr n)++ " verification condition files generated in `"++outputDir++"`.",
-                                  printFailures := pure ()}
-       }
+def outputGoalsAsJson (outputFile : String) (vrs : Array VerificationResult) : IO Unit := do
+  let file ← IO.FS.Handle.mk outputFile IO.FS.Mode.write
+  file.putStr "[\n"
+  match vrs.get? 0 with
+  | none => pure ()
+  | some fst =>
+    file.putStr $ toString $ Lean.toJson fst
+    for vr in vrs[1:vrs.size] do
+      file.putStr ",\n"
+      file.putStr $ toString $ Lean.toJson vr
+  file.putStr "\n]\n"
+  IO.println $ ""
+  IO.println $ "Verification results stored as JSON in `" ++outputFile++"`."
 
 
 ------------------------------------------------------------------------
@@ -242,16 +402,8 @@ def exportProverSession
 structure InteractiveContext :=
 (annFile : String)
 -- ^ Annotation file (for error-reporting purposes)
-(allGoalCounter : IO.Ref Nat)
--- ^ Counter for all goals (i.e., the total number)
-(verifiedGoalCounter : IO.Ref Nat)
--- ^ Counter for all successfully verified goals.
-(fnCounter : IO.Ref (Std.RBMap String Nat (λ x y => x < y)))
--- ^ Counter for each function name, i.e., how many failures/errors were encountered in that function
-(goalFailures : IO.Ref (Std.RBMap GoalTag (Std.RBMap String Nat (λ x y => x < y)) GoalTag.lt))
--- ^ Counter for each failing goal by property.
-(goalErrors : IO.Ref Nat)
--- ^ Counter for each erroring goal by property.
+(results : IO.Ref (Array VerificationResult))
+-- ^ Results from trying to verify goals.
 (solverCommand : String)
 -- ^ Command line contents, which when followed up a file name, can be executed
 --   to see if the resulting script is satisfiable or not.
@@ -269,31 +421,28 @@ def verifyGoal
 : BlockVCG Unit := do
   let ctx ← read
   let st ← get
-  let newGoal : VerificationEvent :=
-    VerificationEvent.goal
-    { loc := {fnName := ctx.llvmFunName,
+  let newGoal : VerificationGoal :=
+    { loc := {fnName := ctx.llvmFnName,
               blockLbl := ctx.currentBlock,
               llvmInstrIdx := st.llvmInstrIndex,
               mcAddr := st.mcCurAddr},
-      index := st.goalIndex,
+      index := st.goals.size,
       tag := tag,
       extraInfo := extraInfo,
       goal := do st.smtContext; pure goal}
   modify (λ s => {s with
-                  verificationEvents := newGoal :: s.verificationEvents,
-                  goalIndex := s.goalIndex + 1})
+                  goals := s.goals.push newGoal})
   pure ()
 
 
 
 -- | Function to verify an SMT proposition is provable in the given
 -- | context and print the result to the user.
-def interactiveVerifyGoal
+def interactiveDoGoal
 (ictx : InteractiveContext)
 (cfg : VCGConfig)
 (vg : VerificationGoal)
 : IO Unit := do
-  ictx.allGoalCounter.modify Nat.succ
   let smtFilePath ← temporaryStandaloneGoalFilepath vg
   let resultFilePath := smtFilePath ++ ".result"
   -- FIXME was stderr, fix with next Lean4 bump
@@ -323,55 +472,49 @@ def interactiveVerifyGoal
     IO.println $ "    To see the output, run `reopt-vcg "++ictx.annFile++" --export <dir>`"
     IO.println $ "    The SMT query will be stored in "++filePath
     IO.println $ "    The default invocation of CVC4 for these queries is as follows:"
-    IO.println $ "      `" ++ (String.intercalate " " ("cvc4"::defaultCVC4Args ++ [filePath]))++"`"
-  let registerFailure : IO Unit := do
-    printExportInstructions
-    ictx.goalFailures.modify 
-      λ m => let tagMap := m.findD vg.tag Std.RBMap.empty
-             let count := tagMap.findD vg.extraInfo 0
-             m.insert vg.tag (tagMap.insert vg.extraInfo (count + 1))
-    ictx.fnCounter.modify
-      λ m => m.insert vg.loc.fnName ((m.findD vg.loc.fnName 0) + 1)
-  let registerError : IO Unit := do
-    printExportInstructions
-    ictx.goalErrors.modify Nat.succ
-    ictx.fnCounter.modify
-      λ m => m.insert vg.loc.fnName ((m.findD vg.loc.fnName 0) + 1)
+    IO.println $ "      `" ++(defaultCVC4Cmd++" "++filePath)++"`"
   match smtResult.get? 0 with
   | none => do
     -- FIXME print to stderr on next lean4 bump (these and all below printlns in this function)
+    if !cfg.verbose then do
+      -- In verbose mode we want `FAIL` or `ERROR` on the same line as the preceding text, but
+      -- in non-verbose mode the newline makes a nice break from the stream of periods.
+      IO.println $ ""
     IO.println "ERROR"
     IO.println ""
     IO.println "    Verification failed: no response from the SMT solver was detected."
-    registerError
+    ictx.results.modify (λ rs => rs.push ⟨vg, none⟩)
   | some checkSatRes =>
-    match parseCheckSatResult checkSatRes with
+    let res ← parseCheckSatResult checkSatRes
+    ictx.results.modify (λ rs => rs.push ⟨vg, some res⟩)
+    match res with
     | CheckSatResult.unsat => do
-      ictx.verifiedGoalCounter.modify Nat.succ
-      ictx.fnCounter.modify
-        λ m => m.insert vg.loc.fnName ((m.findD vg.loc.fnName 0))
       if cfg.verbose then do
         IO.println "OK"
     | CheckSatResult.sat => do
-      IO.println $ ""
+      if !cfg.verbose then do
+        IO.println $ ""
       IO.println $ "FAIL"
       IO.println $ "    Verification failed: the SMT query returned `sat`"
       IO.println $ ""
-      registerFailure
+      printExportInstructions
     | CheckSatResult.unknown => do
-      IO.println $ ""
+      if !cfg.verbose then do
+        IO.println $ ""
       IO.println $ "FAIL"
       IO.println $ "    Verification failed: the SMT query returned `unknown`"
       IO.println $ ""
-      registerFailure
+      printExportInstructions
     | CheckSatResult.unsupported => do
-      IO.println $ ""
+      if !cfg.verbose then do
+        IO.println $ ""
       IO.println $ "ERROR"
       IO.println $ "    Verification failed: the SMT query returned `unsupported`"
       IO.println $ ""
-      registerError
+      printExportInstructions
     | CheckSatResult.unrecognized msg => do
-      IO.println $ ""
+      if !cfg.verbose then do
+        IO.println $ ""
       IO.println $ "ERROR"
       IO.println $ "    Verification failed: the SMT solver did not return a recognized response to `check-sat-assuming`."
       IO.println $ ""
@@ -381,88 +524,157 @@ def interactiveVerifyGoal
       IO.println $ ""
       IO.println $ "    This failure likely reflects a bug in reopt-vcg."
       IO.println $ ""
-      registerError
+      printExportInstructions
 
-private def printFailures (failures : Std.RBMap GoalTag (Std.RBMap String Nat (λ x y => x < y)) GoalTag.lt) : IO Unit := do
-  let mut cnt := 0
-  for (_, entries) in failures.toList do -- FIXME remote toList next bump
-    for (extraInfo, n) in entries.toList do -- FIXME remote toList next bump
-      cnt := cnt + n
+
+-- Generic module verification code, parameterized by how to handle a VerificationGoal
+-- and how to report a summary and return
+def verifyModule'
+  (doGoal : VerificationGoal → IO Unit)
+  (reportSummary : VCStats → IO UInt32)
+  (mv : ModuleVerification)
+  : IO UInt32 := do
+  let mut vcStats := VCStats.init
+  -- Register module errors
+  for mErr in mv.errors do
+    vcStats := vcStats.addModuleError mErr
+  -- Function VC loop -- iterate through each function being verified
+  for fv in mv.fnVCs do
+    vcStats := {vcStats with fnCnt := vcStats.fnCnt + 1}
+    -- Register block errors
+    for bErr in fv.blockErrors do
+      vcStats := vcStats.addBlockError bErr
+    -- Handle any (block) verification content for this function
+    for bv in fv.blockVCs do
+      -- Log the warnings for this block
+      for w in bv.warnings do
+        vcStats := vcStats.addWarning w
+      -- Handle each goal from the block
+      for g in bv.goals do
+        doGoal g
+  -- Now that we're done, report to the user what happened and return
+  reportSummary vcStats
+
+private def printVCStats (stats : VCStats) : IO Unit := do
+  let indent := "    "
+  -- Summarize warnings seen
+  if stats.warnings.size > 0 then do
+    IO.println $ ""
+    IO.println $ "======================= "++(repr stats.warnings.size)++" VC WARNINGS ======================="
+    for w in stats.warnings do
+      IO.println $ w.loc.pp ++ ": " ++ w.msg
+  let printExtraInfo : Bool → Nat → String → IO Unit :=
+    λ oneCategory n info => 
+      if oneCategory && info == ""
+      then pure () -- if there's one empty category, don't print it as a subcategory... that looks silly
+      else if info == ""
+      then IO.println $ indent++"- ("++(repr n)++") no additional information"
+      else IO.println $ indent++"- ("++(repr n)++") "++info
+  -- Summarize module errors
+  if stats.moduleErrCnt.size > 0 then do
+    let mCnt : Nat := stats.moduleErrCnt.fold (init := 0) (λ acc _fnName cnt => acc + cnt)
+    IO.println $ ""
+    IO.println $ "======================= "++(repr mCnt)++" MODULE VC GENERATION ERRORS ======================="
+    for (tag, tagCnt) in stats.moduleErrCnt.toList do -- FIXME remote .toList after Lean4 bump
+      IO.println $ "* ("++(repr tagCnt)++") "++tag.description
+      let tagMap := stats.moduleErrExtraInfoCnt.findD tag Std.RBMap.empty
+      for (extraInfo, n) in tagMap.toList do -- FIXME remove toList next lean bump
+        printExtraInfo (tagMap.size > 1) n extraInfo
+  -- Summarize block errors
+  if stats.blockErrCnt.size > 0 then do
+    let bCnt : Nat := stats.blockErrCnt.fold (init := 0) (λ acc _fnName cnt => acc + cnt)
+    IO.println $ ""
+    IO.println $ "======================= "++(repr bCnt)++" BLOCK VC GENERATION ERRORS ======================="
+    for (tag, tagCnt) in stats.blockErrCnt.toList do -- FIXME remote .toList after Lean4 bump
+      IO.println $ "* ("++(repr tagCnt)++") "++tag.description
+      let tagMap := stats.blockErrExtraInfoCnt.findD tag Std.RBMap.empty
+      for (extraInfo, n) in tagMap.toList do -- FIXME remove toList next lean bump
+        printExtraInfo (tagMap.size > 1) n extraInfo
   IO.println $ ""
-  IO.println "====================== FAILURES ======================="
+  -- Report how many functions had no errors
+  if stats.fnErrCnt.size == 0 then do
+    IO.println $ "All " ++ (repr stats.fnCnt) ++ " functions were assigned verification conditions without error."
+  else do
+    IO.println $ (repr (stats.fnCnt - stats.fnErrCnt.size)) ++ " out of "
+                 ++ (repr stats.fnCnt) ++ " functions were assigned verification conditions without error."
+
+
+private def printGoalStats (stats : GoalStats) : IO Unit := do
+  let indent := "    "
   IO.println $ ""
-  IO.println $ "Failed to verify "++(repr cnt)++" goal(s):"
-  let indent := "  "
-  for (tag, entries) in failures.toList do -- FIXME remote toList next bump
-    let mut pCnt : Nat := 0
-    let mut pDetails : List (Nat × String) := []
-    for (extraInfo, n) in entries.toList do -- FIXME remote toList next bump
-      pCnt := pCnt + n
-      pDetails :=  (n, extraInfo)::pDetails
-    let printInfo : Nat → String → IO Unit :=
-      λ n info => if info == ""
-                  then IO.println $ indent++indent++"- ("++(repr n)++") no additional information"
-                  else IO.println $ indent++indent++"- ("++(repr n)++") "++info
-    IO.println $ indent++"* ("++(repr pCnt)++") "++tag.description
-    match pDetails with
-    | (n, info) :: [] =>
-      if info == ""
-      -- if there was only a single, empty category, then do not print anything, there are no additional details
-      then pure ()
-      else printInfo n info
-    | ds =>
-      for (n, info) in ds do
-        printInfo n info
+  IO.println $ "====================== GOAL VERIFICATION SUMMARY ======================="
+  let successes : Nat := stats.okGoalCnt.fold    (init := 0) (λ acc _ cnt => acc + cnt)
+  let fails     : Nat := stats.failGoalCnt.fold  (init := 0) (λ acc _ cnt => acc + cnt)
+  let errs      : Nat := stats.errorGoalCnt.fold (init := 0) (λ acc _ cnt => acc + cnt)
+  let failsAndErrs : Nat := fails + errs
+  if failsAndErrs == 0 then do
+    IO.println $ "All "++(repr successes)++" generated verification goals successfully proven."
+  else do
+    IO.println $ (repr successes)++" out of "++(repr (successes + failsAndErrs))
+                 ++" generated verification goals successfully proven."
+  let printExtraInfo : Bool → Nat → String → IO Unit :=
+    λ oneCategory n info => 
+      if oneCategory && info == ""
+      then pure () -- if there's one empty category, don't print it as a subcategory... that looks silly
+      else if info == ""
+      then IO.println $ indent++"- ("++(repr n)++") no additional information"
+      else IO.println $ indent++"- ("++(repr n)++") "++info
+  let printGoalMaps : RBMap GoalTag Nat (·<·) → RBMap GoalTag (RBMap String Nat (·<·)) (·<·) → IO Unit :=
+    λ cntMap extraInfoMap => do
+      for (tag, tagCnt) in cntMap.toList do -- FIXME remote .toList after Lean4 bump
+      IO.println $ "* ("++(repr tagCnt)++") "++tag.description
+      let tagMap := extraInfoMap.findD tag Std.RBMap.empty
+      for (extraInfo, n) in tagMap.toList do -- FIXME remove toList next lean bump
+        printExtraInfo (tagMap.size > 1) n extraInfo
+  if fails > 0 then do
+    IO.println $ ""
+    IO.println $ (repr fails)++" goals failed to be verified:"
+    printGoalMaps stats.failGoalCnt stats.failExtraInfoCnt
+  if errs > 0 then do
+    IO.println $ ""
+    IO.println $ (repr fails)++" goals resulted in errors during verification:"
+    printGoalMaps stats.errorGoalCnt stats.errorExtraInfoCnt
  
+def mkGoalStats (results : Array VerificationResult) : IO GoalStats := do
+  let mut stats : GoalStats := GoalStats.init
+  for r in results do
+    stats := stats.addResult r
+  pure stats
 
-def interactiveProverSession (annFile solverPath : String) (solverArgs : List String) : IO ProverSession := do
-  -- Counter for all goals
-  let allGoalCounter ← IO.mkRef 0
-  -- Counter for goals successfully verified.
-  let verifiedGoalCounter ← IO.mkRef 0
-  -- Counter for errors
-  let fnCounterRef ← IO.mkRef Std.RBMap.empty
-  let failuresRef ← IO.mkRef Std.RBMap.empty
-  let errorsRef ← IO.mkRef 0
-  let doGoal : VCGConfig → VerificationGoal → IO Unit :=
-     interactiveVerifyGoal {
+def interactiveVerificationSession (annFile solverPath : String) (solverArgs : List String) : IO VerificationSession := do
+  let results : IO.Ref (Array VerificationResult) ← IO.mkRef #[]
+  -- -- Counter for errors
+  let ictx : InteractiveContext := {
         annFile := annFile,
-        allGoalCounter := allGoalCounter,
-        verifiedGoalCounter := verifiedGoalCounter,
-        fnCounter := fnCounterRef,
-        goalFailures := failuresRef,
-        goalErrors := errorsRef,
+        results := results,
         solverCommand := String.intercalate " " (solverPath::solverArgs)
       }
-  let whenDone : IO ProverSessionResult := do
-    let allCnt ← allGoalCounter.get
-    let verCnt ← verifiedGoalCounter.get
-    let fnCounter ← fnCounterRef.get
-    let failures ← failuresRef.get
-    let errors ← errorsRef.get
-    let fnWithIssues := fnCounter.fold (init := 0) (λ acc _ fnCnt => acc + (if fnCnt > 0 then 1 else 0))
-    let verSuccess := failures.size == 0 && errors == 0 && verCnt == allCnt
-    let printSummary : IO Unit := do
-      IO.println ""
-      IO.println "=================== SOLVER  SUMMARY ==================="
-      IO.println ""
-      if verSuccess then
-        IO.println "Verification of all goals succeeded."
-      else
-        IO.println "Verification of all goals failed."
-      IO.println $ "Verified "++(repr verCnt)++" out of "++(repr allCnt)++" generated goals."
-      IO.println $ (repr (fnCounter.size - fnWithIssues))++" out of " ++ (repr fnCounter.size)
-                   ++ " functions with verification conditions passed all SMT checks."
-    let printFailures : IO Unit := do
-      if (failures.size > 0) then
-        printFailures failures
-      if (errors > 0) then
-        IO.println $ "Encountered "++(repr errors)++" error(s) while interacting with SMT solver."
-    pure $ {success := verSuccess,
-            printSummary := printSummary,
-            printFailures := printFailures}
-  pure { verifyGoal := doGoal,
-         sessionComplete := whenDone
-       }
+  let interactiveReportSummary : VCGConfig → VCStats → IO UInt32 :=
+    λ cfg vcStats => do
+      printVCStats vcStats
+      let vrs ← results.get
+      let gStats ← mkGoalStats vrs
+      printGoalStats gStats
+      match cfg.getJsonOut? with
+      | none => pure ()
+      | some jsonOutFile =>
+        outputGoalsAsJson jsonOutFile vrs
+      pure (if vcStats.errCnt > 0 || gStats.failGoalCnt.size > 0 || gStats.errorGoalCnt.size > 0
+            then 1
+            else 0)
+  pure { verifyModule := λ cfg => verifyModule' (interactiveDoGoal ictx cfg) (interactiveReportSummary cfg) }
+
+def exportVerificationSession (outDir : String) : IO VerificationSession := do
+  let fileCntRef ← IO.mkRef 0
+  let interactiveReportSummary : VCGConfig → VCStats → IO UInt32 :=
+    λ cfg vcStats => do
+      printVCStats vcStats
+      let fileCnt ← fileCntRef.get
+      IO.println $ (repr fileCnt)++" verification condition .smt2 files generated in directory `" ++ outDir ++ "`."
+      pure (if vcStats.errCnt > 0
+            then 1
+            else 0)
+  pure { verifyModule := λ cfg => verifyModule' (exportDoGoal outDir fileCntRef cfg) (interactiveReportSummary cfg)}
+
 
 end ReoptVCG

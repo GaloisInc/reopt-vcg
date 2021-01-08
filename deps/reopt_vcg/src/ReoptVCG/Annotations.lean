@@ -35,7 +35,7 @@ open WellFormedSExp
 
 
 structure FunctionAnn :=
-(llvmFunName : String)
+(llvmFnName : String)
 -- ^ LLVM function name
 (blocks : Array Json)
 -- ^ Maps LLVM labels to an JSON object describing information associated with
@@ -52,7 +52,7 @@ def FunctionAnn.fromJson? (js : Json) : Option FunctionAnn := (parseFunctionAnn 
 
 protected
 def FunctionAnn.toJson (fnAnn : FunctionAnn) : Json :=
-  toJson $ Std.RBMap.fromList [ ("llvm_name", toJson fnAnn.llvmFunName)
+  toJson $ Std.RBMap.fromList [ ("llvm_name", toJson fnAnn.llvmFnName)
                               , ("blocks", toJson fnAnn.blocks)]
                               Lean.strLt
 

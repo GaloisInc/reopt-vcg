@@ -5,9 +5,6 @@ x86 decoder built...
 Loading LLVM module at `test_add_diet_reopt.ll`
 LLVM module loaded!
 Generating verification conditions for LLVM module...
-Solver mode: checking verification conditions with user-specified solver...
-
-Analyzing `add`
   Verifying add.block_0_201320.1 @ 0x201320: machine code writes to unreserve stack space... OK
   Verifying add.block_0_201320.1 @ 0x201324: machine code writes to unreserve stack space... OK
   Verifying add.block_0_201320.1 @ 0x201328: machine code reads from unallocated stack space... OK
@@ -24,8 +21,6 @@ Analyzing `add`
   Verifying add.block_0_201320.1 @ 0x20133b: register value preserved (r14, after return)... OK
   Verifying add.block_0_201320.1 @ 0x20133b: register value preserved (r15, after return)... OK
   Verifying add.block_0_201320.1 @ 0x20133b: LLVM and machine code return values match... OK
-
-Analyzing `main`
   Verifying main.block_0_201340.0 @ 0x201340: machine code writes to unreserve stack space... OK
   Verifying main.block_0_201340.0 @ 0x201348: machine code writes to unreserve stack space... OK
   Verifying main.block_0_201340.0 @ 0x201354: machine code writes to unreserve stack space... OK
@@ -53,9 +48,7 @@ Analyzing `main`
   Verifying main.block_0_201359.0 @ 0x201366: register value preserved (r15, after return)... OK
   Verifying main.block_0_201359.0 @ 0x201366: LLVM and machine code return values match... OK
 
-=================== SOLVER  SUMMARY ===================
+All 2 functions were assigned verification conditions without error.
 
-Verification of all goals succeeded.
-Verified 42 out of 42 generated goals.
-2 out of 2 functions with verification conditions passed all SMT checks.
-2 out of 2 functions successfully analyzed with no errors.
+====================== GOAL VERIFICATION SUMMARY =======================
+All 42 generated verification goals successfully proven.
