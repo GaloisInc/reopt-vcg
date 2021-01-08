@@ -107,5 +107,6 @@
 (define-fun %t3 () (_ BitVec 1) (bvand %t1 %t2))
 ; LLVM:     br i1 %t3, label %block_0_201024, label %block_0_201017
 (define-fun rsp () (_ BitVec 64) (bvsub fnstart_rsp #x0000000000000008))
-(check-sat-assuming ((not (is_in_mc_only_stack_range rsp #x0000000000000008))))
+(define-fun addr () (_ BitVec 64) (ite true rsp fnstart_rsp))
+(check-sat-assuming ((not (is_in_mc_only_stack_range addr #x0000000000000008))))
 (exit)

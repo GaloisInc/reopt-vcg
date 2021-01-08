@@ -170,6 +170,6 @@
 (define-fun addr () (_ BitVec 64) (bvsub a0x201089_rsp #x0000000000000008))
 (assert (is_in_mc_only_stack_range addr #x0000000000000008))
 (define-fun mem () (Array (_ BitVec 64) (_ BitVec 8)) (mem_writebv64 init_mem addr #x000000000020109d))
-(assert (= #x00000000002001d2 rdi))
-(check-sat-assuming ((not (= %t1 a0x201089_rax))))
+(assert (= #x00000000002001d2 (ite true rdi a0x201089_rdi)))
+(check-sat-assuming ((not (= %t1 (ite true a0x201089_rax a0x201089_rsi)))))
 (exit)

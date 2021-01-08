@@ -173,6 +173,6 @@
 (assert (= readv (mem_readbv64 init_mem addr)))
 (define-fun addr0 () (_ BitVec 64) (bvadd a0x201017_rbp (bvadd (bvmul #x0000000000000001 #x0000000000000000) #xfffffffffffffff8)))
 (assert (is_in_mc_only_stack_range addr0 #x0000000000000008))
-(define-fun mem () (Array (_ BitVec 64) (_ BitVec 8)) (mem_writebv64 init_mem addr0 readv))
+(define-fun mem () (Array (_ BitVec 64) (_ BitVec 8)) (mem_writebv64 init_mem addr0 (ite true readv a0x201017_rax)))
 (check-sat-assuming ((not (= #x0000000000201058 (bvadd #x0000000000201024 ((_ sign_extend 32) #x00000034))))))
 (exit)
