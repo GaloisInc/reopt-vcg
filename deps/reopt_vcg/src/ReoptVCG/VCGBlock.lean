@@ -23,7 +23,7 @@ namespace BlockVCG
 
 
 def currentLoc : BlockVCG BlockLocation := do
-  let fnName ← BlockVCGContext.llvmFunName <$> read
+  let fnName ← BlockVCGContext.llvmFnName <$> read
   let lbl ← BlockVCGContext.currentBlock <$> read
   let instrIdx ← BlockVCGState.llvmInstrIndex <$> get
   let curAddr ← BlockVCGState.mcCurAddr <$> get
@@ -40,19 +40,17 @@ def prependLocation (msg : String) : BlockVCG String := do
 
 def addGoal (g : VerificationGoal) : BlockVCG Unit := do
   modify (λ s => {s with
-                    verificationEvents := (VerificationEvent.goal g) :: s.verificationEvents,
-                    goalIndex := s.goalIndex + 1})
+                    goals := s.goals.push g})
 
 
 -- | Log a message in the timeline of verification events.
-def log (msg : String) : BlockVCG Unit := do
-  let locMsg ← prependLocation msg;
-  let msgEvent := VerificationEvent.msg ⟨locMsg⟩;
-  modify (λ s => {s with verificationEvents := msgEvent :: s.verificationEvents})
+def logWarning (msg : String) : BlockVCG Unit := do
+  let loc ← currentLoc
+  modify (λ s => {s with warnings := s.warnings.push ⟨loc, msg⟩})
 
 
 def missingFeature (msg : String) : BlockVCG Unit := do
-  log $ "TODO: " ++ msg
+  logWarning $ "TODO: " ++ msg
 
 
 -- | Report an error at the given location and stop verification of
@@ -280,7 +278,7 @@ def execMCOnlyEvents : MemAddr -> BlockVCG Unit
       modify (fun s => { s with mcEvents := mevs });
       execMCOnlyEvents endAddr
   | Warning msg :: mevs => do
-      BlockVCG.log msg;
+      BlockVCG.logWarning msg;
       modify (fun s => { s with mcEvents := mevs });
       execMCOnlyEvents endAddr
   | MCOnlyStackReadEvent mcAddr n smtValVar :: mevs => do
@@ -529,7 +527,7 @@ def llvmLoad (ident : LLVM.Ident) (addr:Typed Value) (mAlign:Option Nat) : Block
     then localBlockError BlockErrorTag.invalidAlignment (reprStr a0)
     else pure a0);
   when (llvmAlign > 1) $
-    BlockVCG.log $ "Warning: LLVM alignment of " ++ (reprStr llvmAlign) ++ "  is unchecked.";
+    BlockVCG.logWarning $ "LLVM alignment of " ++ (toString llvmAlign) ++ "  is unchecked.";
   -- Get the next machine code event.
   let mevt ← popMCEvent;
   -- Inspect the event
@@ -1047,7 +1045,7 @@ def run (mctx : ModuleVCGContext)
         (firstAddr  : MCAddr) -- FIXME: maybe not strictly required
         (thisBlock  : LLVM.BlockLabel)
         (blockAnn   : ReachableBlockAnn)
-        (m : BlockVCG Unit) : Except BlockVCGError (List VerificationEvent) := do
+        (m : BlockVCG Unit) : Except BlockVCGError ((Array VerificationGoal) × (Array VerificationWarning)) := do
   let blockStart := blockAnn.startAddr.toNat;
   let sz := blockAnn.codeSize;
   let blockMap : MCBlockAnnMap :=
@@ -1064,7 +1062,7 @@ def run (mctx : ModuleVCGContext)
     pure (stdLib, blockRegs));
   let ctx : BlockVCGContext :=
     { mcModuleVCGContext := mctx
-    , llvmFunName := funAnn.llvmFunName
+    , llvmFnName := funAnn.llvmFnName
     , funBlkAnnotations := bmap
     , firstBlockLabel := firstBlock
     , currentBlock    := thisBlock
@@ -1074,7 +1072,7 @@ def run (mctx : ModuleVCGContext)
     , mcBlockEndAddr  := blockStart + sz
     , mcBlockMap      := blockMap
     , mcStdLib        := stdLib
-    };
+    }
   let s : BlockVCGState :=
     { mcCurAddr := blockStart
     , mcCurSize := 0
@@ -1087,11 +1085,11 @@ def run (mctx : ModuleVCGContext)
     , activeAllocaMap := Std.RBMap.empty
     , llvmIdentMap  := Std.RBMap.empty
     , smtContext := do set ({revScript := script.reverse, idGen := idGen'} : Smt.SmtState)
-    , goalIndex := 0
-    , verificationEvents := []
-    };
+    , goals := #[]
+    , warnings := #[]
+    }
   match (m.run ctx).run s with
-  | EStateM.Result.ok _ s' => Except.ok s'.verificationEvents.reverse
+  | EStateM.Result.ok _ s' => Except.ok (s'.goals, s'.warnings)
   | EStateM.Result.error e s' => Except.error e
 
 end BlockVCG

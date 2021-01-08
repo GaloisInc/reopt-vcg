@@ -160,14 +160,38 @@ open Smt
 def FnName := String
 
 
-inductive VerificationMode
-| defaultMode : VerificationMode
-| exportMode : String /- path to write .smt2 files -/ → VerificationMode
-| runSolverMode : String /- solver -/ → List String /- solver args -/ → VerificationMode
+structure SolverConfig :=
+  (solverPathAndArgs : Option (String × List String))
+  -- ^ Solver name and arguments, or none for default.
+  (jsonOut : Option String)
+  -- ^ File to export verification JSON info to (if any).
 
-def VerificationMode.isDefault : VerificationMode → Bool
-| VerificationMode.defaultMode => true
-| _ => false
+namespace SolverConfig
+
+def default : SolverConfig :=
+  {solverPathAndArgs := none,
+   jsonOut := none}
+
+end SolverConfig
+
+inductive VerificationMode
+| solverMode : SolverConfig → VerificationMode
+| exportMode : String /- path to write .smt2 files -/ → VerificationMode
+
+namespace VerificationMode
+
+def default : VerificationMode :=
+  VerificationMode.solverMode SolverConfig.default
+
+def VerificationMode.isSolverMode : VerificationMode → Bool
+  | VerificationMode.solverMode _ => true
+  | _ => false
+
+def VerificationMode.isExportMode : VerificationMode → Bool
+  | VerificationMode.solverMode _ => true
+  | _ => false
+
+end VerificationMode
 
 
 inductive SemanticsBackend 
@@ -181,6 +205,16 @@ structure VCGConfig :=
 (mode : VerificationMode)
 (verbose : Bool)
 (semanticsBackend : SemanticsBackend)
+
+namespace VCGConfig
+
+def getJsonOut? (vc : VCGConfig) : Option String :=
+  match vc.mode with
+  | VerificationMode.solverMode cfg => cfg.jsonOut
+  | _ => none
+
+
+end VCGConfig
 
 abbrev MemAddr := Nat
 abbrev MCBlockAnnMap := Std.RBMap MemAddr MemoryAnn (λ x y => x < y)
@@ -287,8 +321,11 @@ def index : BlockErrorTag → Nat
   | llvmMissingReturn => 22
   | missingAnnotations => 23
 
-def lt (x y : BlockErrorTag) : Bool :=
-  x.index < y.index
+instance hasLess : HasLess BlockErrorTag :=
+  ⟨λ x y => x.index < y.index⟩
+
+instance decLessBlockErrorTag : (x y : BlockErrorTag) → Decidable (x < y) :=
+  fun x y => inferInstanceAs (Decidable (x.index < y.index))
 
 def description : BlockErrorTag → String
 | blockAddrInvalid =>
@@ -406,8 +443,12 @@ def index : ModuleErrorTag → Nat
   | fnAnnAddrWrong => 8
   | fatal => 9
 
-def lt (x y : ModuleErrorTag) : Bool :=
-  x.index < y.index
+instance hasLess : HasLess ModuleErrorTag :=
+  ⟨λ x y => x.index < y.index⟩
+
+instance decLessModuleErrorTag : (x y : ModuleErrorTag) → Decidable (x < y) :=
+  fun x y => inferInstanceAs (Decidable (x.index < y.index))
+
 
 def description : ModuleErrorTag → String
   | fnNotFound => 
@@ -503,7 +544,12 @@ def index : GoalTag → UInt32
   | llvmAndMCReturnValuesEq => 16
   | argAndRegEq => 17
 
-def lt (x y : GoalTag) : Bool := x.index < y.index
+instance hasLess : HasLess GoalTag :=
+  ⟨λ x y => x.index < y.index⟩
+
+instance decLessGoalTag : (x y : GoalTag) → Decidable (x < y) :=
+  fun x y => inferInstanceAs (Decidable (x.index < y.index))
+
 
 def description : GoalTag → String
   | mcOnlyReadFromUnallocStack =>
@@ -559,63 +605,83 @@ structure VerificationGoal :=
 (goal   : SmtM (Term SmtSort.bool))
 -- ^ SMT script which, if unsat, proves the goal
 
+namespace VerificationGoal
 
-def VerificationGoal.fullDescription (vg : VerificationGoal) : String :=
+def fullDescription (vg : VerificationGoal) : String :=
   vg.loc.pp++": "++vg.tag.description
   ++(if vg.extraInfo == ""
      then ""
      else " ("++vg.extraInfo++")")
 
+end VerificationGoal
+
+structure VerificationResult :=
+  (goal : VerificationGoal)
+  (result : Option CheckSatResult)
+
+namespace VerificationResult
+
+protected def toJson (vr : VerificationResult) : Lean.Json :=
+  Lean.Json.mkObj 
+    [("LLVM Function Name", vr.goal.loc.fnName),
+     ("LLVM Block Label", ppLLVM vr.goal.loc.blockLbl),
+     ("LLVM Instruction Index", toString vr.goal.loc.llvmInstrIdx),
+     ("Machine Code Address", vr.goal.loc.mcAddr.ppHex),
+     ("Goal Tag", vr.goal.tag.description),
+     ("Goal Extra Info", vr.goal.extraInfo),
+     ("SMT check-sat result",
+       match vr.result with
+       | none => "no response"
+       | some r => toString r)]
+
+instance : Lean.ToJson VerificationResult := ⟨VerificationResult.toJson⟩
+
+end VerificationResult
+
+
+
 -- | Log messages interleaved with verification
 -- goal generation for humans.
-structure VerificationMsg :=
-(msg : String)
-
--- | The sequential events that are generated during
--- | verification (e.g., SMT queries, logging info, etc)
-inductive VerificationEvent
-| goal : VerificationGoal → VerificationEvent
-| msg  : VerificationMsg → VerificationEvent
+structure VerificationWarning :=
+  (loc : BlockLocation)
+  (msg : String)
 
 -- | Describes the conditions which would verify this block.
 structure BlockVerification :=
-(llvmFunName : String)
-(blockLbl : LLVM.BlockLabel)
-(blockVerificationEvents : List VerificationEvent)
+  (llvmFnName : String)
+  (blockLbl : LLVM.BlockLabel)
+  (goals : Array VerificationGoal)
+  (warnings : Array VerificationWarning)
 
 
 -------------------------------------------------------
 -- ModuleVCG (monad and some basic helpers)
 -------------------------------------------------------
 
--- | Describes the result of verifying a block.
-inductive BlockVerificationEvent
-| block  : BlockVerification → BlockVerificationEvent
-| error  : BlockError → BlockVerificationEvent
 
+structure FnVerification :=
+  (llvmFnName : String)
+  (blockVCs : Array BlockVerification)
+  (blockErrors : Array BlockError)
 
-inductive FnVerificationEvent
-| fn : FnName → List BlockVerificationEvent → FnVerificationEvent
-| error : ModuleError → FnVerificationEvent
-
-structure ModuleVCGState :=
-  (blockErrors  : List BlockError)
-  (moduleErrors : List ModuleError)
+structure ModuleVerification :=
+  (fnVCs : Array FnVerification)
+  (errors : Array ModuleError)
 
 -- A monad for running verification of an entire module
 -- TODO / FIXME we'll want to move away from EIO at, see
 -- https://github.com/GaloisInc/reopt-vcg/pull/53#discussion_r408440682 
 @[reducible]
-def ModuleVCG := ReaderT ModuleVCGContext (EStateM ModuleError ModuleVCGState)
+def ModuleVCG := ReaderT ModuleVCGContext (Except ModuleError)
 
 namespace ModuleVCG
 
 instance : Functor ModuleVCG := 
-  inferInstanceAs (Functor (ReaderT ModuleVCGContext (EStateM ModuleError ModuleVCGState)))
+  inferInstanceAs (Functor (ReaderT ModuleVCGContext (Except ModuleError)))
 instance : Applicative ModuleVCG :=
-  inferInstanceAs (Applicative (ReaderT ModuleVCGContext (EStateM ModuleError ModuleVCGState)))
+  inferInstanceAs (Applicative (ReaderT ModuleVCGContext (Except ModuleError)))
 instance : Monad ModuleVCG :=
-  inferInstanceAs (Monad (ReaderT ModuleVCGContext (EStateM ModuleError ModuleVCGState)))
+  inferInstanceAs (Monad (ReaderT ModuleVCGContext (Except ModuleError)))
 
 -- Run "standard" IO by wrapping any exceptions thrown in our Module.Error.IO wrapper.
 -- def liftIO {α} (m : IO α) : ModuleVCG α := 
@@ -623,7 +689,7 @@ instance : Monad ModuleVCG :=
 
 -- instance : HasMonadLiftT IO ModuleVCG := {monadLift := @ModuleVCG.liftIO}
 instance : MonadReader ModuleVCGContext ModuleVCG :=
-  inferInstanceAs (MonadReader ModuleVCGContext (ReaderT ModuleVCGContext (EStateM ModuleError ModuleVCGState)))
+  inferInstanceAs (MonadReader ModuleVCGContext (ReaderT ModuleVCGContext (Except ModuleError)))
 
 -- def throwIO {α} (err : IO.Error) : ModuleVCG α := throw $ ModuleError.io err
 -- def catchIO {α} (m : ModuleVCG α) (h : IO.Error → ModuleVCG α) : ModuleVCG α := 
@@ -649,11 +715,8 @@ instance : MonadReader ModuleVCGContext ModuleVCG :=
 end ModuleVCG
 
 
-def runModuleVCG {α} (ctx : ModuleVCGContext) (m : ModuleVCG α) : Except ModuleError (α × ModuleVCGState) :=
-  let initState : ModuleVCGState := {blockErrors := [], moduleErrors := []}
-  match (m.run ctx).run initState with
-  | EStateM.Result.ok v finalState => Except.ok (v, finalState)
-  | EStateM.Result.error e _ => Except.error e
+def runModuleVCG {α} (ctx : ModuleVCGContext) (m : ModuleVCG α) : Except ModuleError α :=
+  m.run ctx
 
 -- A warning that stops execution until catch.
 def moduleThrow {α} (loc : ModuleLocation) (tag : ModuleErrorTag) (extraInfo : String) : ModuleVCG α :=
@@ -693,7 +756,7 @@ def findBlock (m : ReachableBlockAnnMap) (lbl: LLVM.BlockLabel) : Option (BlockA
 structure BlockVCGContext :=
 (mcModuleVCGContext : ModuleVCGContext)
   -- ^ Information at module level about CFG.
-(llvmFunName : String)
+(llvmFnName : String)
   -- ^ Annotations for the current function.
 (funBlkAnnotations : ReachableBlockAnnMap)
   -- ^ Annotations for blocks in the CFG.
@@ -738,9 +801,7 @@ structure BlockVCGState :=
  -- ^ Mapping from llvm ident to their SMT equivalent.
 (smtContext : SmtM Unit)
 -- ^ Logical context defining the block.
-(goalIndex : Nat)
--- ^ Counter for goals in a block.
-(verificationEvents : List VerificationEvent)
+(goals : Array VerificationGoal)
 -- ^ SMT scripts that end in a check-sat-assuming for the
 --   goals necessary for verifying a block as well as log
 --   messages and the like for human benefit. TODO: each of
@@ -750,6 +811,7 @@ structure BlockVCGState :=
 --   is desirable to share that "prelude" explicitly?
 --   Although that might make reasoning about each goal more
 --   complicated... ¯\_(ツ)_/¯
+(warnings : Array VerificationWarning)
 
 
 inductive BlockVCGError
