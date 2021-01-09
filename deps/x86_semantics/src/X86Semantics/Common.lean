@@ -620,35 +620,14 @@ inductive prim : type → Type
 --- `y` bits where `y` is treated as an unsigned integer.
 --- The new bits shifted in from the left are all zero.
 | shl (i j:Nat) : prim (bv i .→ bv j .→ bv i)
---- `(shl_carry w) c b i` returns the `i`th bit
---- in the bitvector [c]++b where `i` is treated as an unsigned
---- number with `0` as the most-significant bit.
--- e.g., If `i` is `0`, then this returns `c`.  If `i`
--- exceeds the number of bits in `[c] ++ b` (i.e., i >= w+1),
--- the the result is false.
-| shl_carry (w j:Nat) : prim (bit .→ bv w .→ bv j .→ bit)
 --- `(shr i) x y` shifts the bits in `x` to the right by
 --- `y` bits where `y` is treated as an unsigned integer.
 --- The new bits shifted in from the right are all zero.
 | shr (i j:Nat) : prim (bv i .→ bv j .→ bv i)
---- `(shr_carry w) b c i` returns the `i`th bit
---- in the bitvector b++[c] where `i` is treated as an unsigned
---- number with `0` as the least-significant bit.
--- e.g., If `i` is `0`, then this returns `c`.  If `i`
--- exceeds the number of bits in `b++[c]` (i.e., i >= w+1),
--- the the result is false.
-| shr_carry (w j:Nat) : prim (bv w .→ bit .→ bv j .→ bit)
 --- `(sar i) x y` arithmetically shifts the bits in `x` to
 --- the left by `y` bits where `y` is treated as an unsigned integer.
 --- The new bits shifted in all match the most-significant bit in y.
 | sar (i j:Nat) : prim (bv i .→ bv j .→ bv i)
---- `(sar_carry w) b c i` returns the `i`th bit
---- in the bitvector b++[c] where `i` is treated as an unsigned
---- number with `0` as the least-significant bit.
--- e.g., If `i` is `0`, then this returns `c`.  If `i`
--- exceeds the number of bits in `b++[c]` (i.e., i >= w+1),
--- the the result is equal to the most-signfiicant bit.
-| sar_carry (w j:Nat) : prim (bv w .→ bit .→ bv j .→ bit)
 
 | even_parity (i:Nat) : prim (bv i .→ bit)
 -- `(bsf i)` returns the index of least-significant bit that is 1.

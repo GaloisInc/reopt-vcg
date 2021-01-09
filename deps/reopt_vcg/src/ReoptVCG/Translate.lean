@@ -130,9 +130,12 @@ def operand_to_arg_lval
     let sgpr ← guard_some "operand_to_arg_value_lhs register" (register_to_reg r) pure
     assert_types (bv sgpr.fst.width) tp
     pure (arg_lval.reg sgpr.snd)
-  | (operand_value.immediate nbytes val) => throw "operand_to_arg_lval: got an immediate"
+  | (operand_value.immediate nbytes val) => 
+    throw ("operand_to_arg_lval: got an immediate: " ++ reprStr val)
+    
   -- FIXME: we use ip out of the state, we could use the value encoded in the decoded instruction 
-  | (operand_value.rel_immediate next_addr nbytes val) => throw "operand_to_arg_lval: got an immediate"
+  | (operand_value.rel_immediate next_addr nbytes val) => 
+    throw ("operand_to_arg_lval: got a rel immediate: " ++ reprStr val)
   -- base + scale * idx + disp
   | (operand_value.memloc opt_seg opt_base scale opt_idx disp) => do
     let n ← match otp with | (operand_type.mem n) => pure n | other => throw "memloc not of mem type"
@@ -244,7 +247,8 @@ def instantiate_pattern  (inst : instruction) (i : decodex86.instruction)
   : M backend (@environment backend × x86.pattern) :=
   first_comb "instantiate_pattern: no patterns" (fun l r => r) -- l ++ ", " ++ r)
               (List.map (fun (p : x86.pattern) => do
-                let e ← make_environment_helper backend p.context.bindings.reverse i.operands
+                let e ← -- annotate' ("instr " ++ reprStr i) $ 
+                        make_environment_helper backend p.context.bindings.reverse i.operands
                 pure (e, p))
               inst.patterns)
 

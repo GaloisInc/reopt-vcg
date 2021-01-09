@@ -597,61 +597,16 @@ def prim.eval : ∀{tp : type}, prim tp -> @evaluator backend (@value backend tp
   | _, (prim.bv_complement i) => pure (backend.s_bvnot i)
   | _, (prim.shl i j)    => pure (fun x (y : backend.s_bv j) => 
         backend.s_bvshl _ x (backend.s_uext _ _ y))
-  --- `(shl_carry w) c b i` returns the `i`th bit
-  --- in the bitvector [c]++b where `i` is treated as an unsigned
-  --- number with `0` as the most-significant bit.
-  -- e.g., If `i` is `0`, then this returns `c`.  If `i`
-  -- exceeds the number of bits in `[c] ++ b` (i.e., i >= w+1),
-  -- the the result is false.
-  | _, (prim.shl_carry w j) => throw "prim.eval.shl_carry unimplemented"
--- pure (fun c x (y : backend.s_bv 8) => 
- --        backend.s_bvshl _ x (backend.s_uext _ _ y))
-
- -- pure (fun c b (i :  8) => 
- --       match i.to_nat with
- --       | Nat.zero        => c
- --       -- FIXME: is this the intended behaviour?
- --       | (Nat.succ n) => if n < w
- --                         then bitvec.nth b (w - n - 1) else false 
- --       )
    --- `(shr i) x y` shifts the bits in `x` to the right by
    --- `y` bits where `y` is treated as an unsigned integer.
    --- The new bits shifted in from the right are all zero.
    | _, (prim.shr i j) => pure (fun x (y : backend.s_bv j) => 
         backend.s_bvlshr x (backend.s_uext _ _ y))
-   --- `(shr_carry w) b c i` returns the `i`th bit
-   --- in the bitvector b++[c] where `i` is treated as an unsigned
-   --- number with `0` as the least-significant bit.
-   -- e.g., If `i` is `0`, then this returns `c`.  If `i`
-   -- exceeds the number of bits in `b++[c]` (i.e., i >= w+1),
-   -- the the result is false.
-  | _, (prim.shr_carry w j) => throw "prim.eval.shr_carry unimplemented"
- -- pure (fun b c (i : bitvec 8) => 
-       -- match i.to_nat with
-       -- | Nat.zero     => c
-       -- | (Nat.succ n) => -- @ite _ (n < eval_nat_expr w) (Nat.decLt _ _) _ (bitvec.nth b n) false
-       --   if n <  w then bitvec.nth b n else false
-       -- )
    --- `(sar i) x y` arithmetically shifts the bits in `x` to
    --- the left by `y` bits where `y` is treated as an unsigned integer.
    --- The new bits shifted in all match the most-significant bit in y.
    | _, (prim.sar i j) => pure (fun x (y : backend.s_bv j) => 
         backend.s_bvsshr x (backend.s_uext _ _ y))
-   --- `(sar_carry w) b c i` returns the `i`th bit
-   --- in the bitvector b++[c] where `i` is treated as an unsigned
-   --- number with `0` as the least-significant bit.
-   -- e.g., If `i` is `0`, then this returns `c`.  If `i`
-   -- exceeds the number of bits in `b++[c]` (i.e., i >= w+1),
-   -- the the result is equal to the most-signfiicant bit.
-   | _, (prim.sar_carry w j) => throw "prim.eval.sar_carry unimplemented"
-       --  pure (fun b c (i : bitvec 8) => 
-       -- match i.to_nat with
-       -- | Nat.zero     => c
-       -- | (Nat.succ n) =>
-       --   -- @ite _ (n < eval_nat_expr w) (Nat.decLt _ _) _ 
-       --   --      (bitvec.nth b n)
-       --   --      (bitvec.msb b)
-       -- (if n < w then bitvec.nth b n else bitvec.msb b))
    
   | _, (prim.even_parity i) => pure (fun b => backend.s_not (backend.s_parity b))
   -- `(bsf i)` returns the index of least-significant bit that is 1.

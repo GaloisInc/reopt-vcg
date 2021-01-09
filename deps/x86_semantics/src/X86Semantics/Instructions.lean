@@ -478,18 +478,38 @@ def idiv : instruction := do
        set_undef [cf, of, sf, zf, af, pf]
      action
 
+
+------------------------------------------------------------------------
+-- Implicit (rax) register helpers 
+def bitwise_implicit_reg_op (name : String) 
+  (op : forall {w : one_of [8, 16, 32, 64]}, expression (bv w) -> expression (bv w) -> expression (bv w))
+  : instruction :=
+  let sem :=
+      fun (w : one_of [8, 16, 32, 64]) (dest : lhs (bv w)) (src : expression (bv w)) =>
+        let action : semantics Unit := do
+        let tmp ← eval $ @op w (⇑ dest) src
+        set_bitwise_flags tmp
+        dest .= tmp
+      action
+  definst name $ do
+    instr_pat sem
+    instr_pat (sem (one_of.elem _ 8) al)
+    instr_pat (sem (one_of.elem _ 16) ax)
+    instr_pat (sem (one_of.elem _ 32) eax)
+
 ------------------------------------------------------------------------
 -- and definition
 -- Logical AND
 
-def and_def : instruction := do
- definst "and" $ do
-   instr_pat $ fun (w : one_of [8, 16, 32, 64]) (dest : lhs (bv w)) (src : expression (bv w)) =>
-     let action : semantics Unit := do
-       let tmp ← eval $ (⇑ dest) .&. src
-       set_bitwise_flags tmp
-       dest .= tmp
-     action
+def and_def : instruction := bitwise_implicit_reg_op "and" and
+ -- definst "and" $ do
+ --   instr_pat $ fun (w : one_of [8, 16, 32, 64]) (dest : lhs (bv w)) (src : expression (bv w)) =>
+ --     let action : semantics Unit := do
+ --       let tmp ← eval $ (⇑ dest) .&. src
+ --       set_bitwise_flags tmp
+ --       dest .= tmp
+ --     action
+
 
 ------------------------------------------------------------------------
 -- not definition
@@ -1125,16 +1145,26 @@ def do_sh {w:ℕ}
     | shift_op.sar => prim.sar _ _ v low_count
 
   -- When the count is zero, nothing happens, and no flags change
-  let is_nonzero : expression bit := low_count ≠ 0
+  let is_nonzero : expression bit := low_count ≠ 0         
   -- Set the af flag
   @set_cond bit flag.af is_nonzero undef
+  let shr_carry : expression bit := 
+    mux (low_count === 0) 
+        (cf : expression bit)
+        (mux (ult (nat_to_bv w) low_count)
+             bit_zero
+             (expression.bit_test (v : expression (bv w)) (low_count - 1)));
   match op with
   | shift_op.shl =>
-     cf .= prim.shl_carry w _ cf v low_count
-  | shift_op.shr => do
-     cf .= prim.shr_carry w _ v cf low_count
-  | shift_op.sar => do
-     cf .= prim.sar_carry w _ v cf low_count
+    let shl_carry : expression bit := 
+      mux (low_count === 0) 
+          (cf : expression bit)
+          (mux (ult (nat_to_bv w) low_count)
+               bit_zero
+               (expression.bit_test (v : expression (bv w)) (nat_to_bv w - (low_count - 1))));
+     cf .= shl_carry
+  | shift_op.shr => cf .= shr_carry
+  | shift_op.sar => cf .= shr_carry -- same as for shr
 
   -- Compute value of of_flag if low_count is 1.
   let of_flag :=

@@ -153,7 +153,9 @@ protected def xor   : Term bool -> Term bool -> Term bool := binop xor
 protected def eq {a : SmtSort} : Term a -> Term a -> Term bool       := binop (eq a)
 -- FIXME
 -- def distinct {a : SmtSort} : List (Term a) -> Term bool := Raw.Term.distinct
-protected def smtIte  {a : SmtSort} : Term bool -> Term a -> Term a -> Term a := ternop (smtIte a)
+
+protected def smtIte  {a : SmtSort} : Term bool -> Term a -> Term a -> Term a := 
+  ternop (smtIte a)
 
 -- Derived helpers
 private def allAux : Term bool → List (Term bool) → Term bool
