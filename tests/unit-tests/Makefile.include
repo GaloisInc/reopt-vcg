@@ -3,7 +3,6 @@ LOCAL_LEAN :=\
  src/Test/Hex.lean\
  src/Test/JsonRoundtrip.lean\
  src/Test/LoadElf.lean\
- src/Test/SExp.lean\
- src/Test/SmtExport.lean
+ src/Test/SExp.lean
 
 $(eval $(call add-package,src,${LOCAL_LEAN},))

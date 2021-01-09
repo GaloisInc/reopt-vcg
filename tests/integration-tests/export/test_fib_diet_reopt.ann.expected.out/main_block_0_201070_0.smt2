@@ -98,5 +98,6 @@
 (assert (= fnstart_r15 fnstart_r15))
 ; LLVM:     %t0 = call i64 @fib (i64 5)
 (define-fun rsp () (_ BitVec 64) (bvsub fnstart_rsp #x0000000000000008))
-(check-sat-assuming ((not (is_in_mc_only_stack_range rsp #x0000000000000008))))
+(define-fun addr () (_ BitVec 64) (ite true rsp fnstart_rsp))
+(check-sat-assuming ((not (is_in_mc_only_stack_range addr #x0000000000000008))))
 (exit)
