@@ -14,7 +14,7 @@ import ReoptVCG.Smt
 namespace ReoptVCG
 
 open LLVM (LLVMType Typed PrimType Value)
-open Smt (SmtM SmtSort SmtSort.bool SmtSort.bitvec SmtSort.bv64 IdGen.empty RangeSort.bitvec)
+open Smt (SmtM SmtSort SmtSort.bool SmtSort.bitvec SmtSort.array SmtSort.bv64 IdGen.empty RangeSort.bitvec)
 open x86 (reg64)
 open BlockVCG (fatalThrow localThrow)
 open x86.vcg (RegState)
@@ -956,6 +956,20 @@ def stepNextStmt (stmt : LLVM.Stmt) : BlockVCG Bool := do
       let ⟨_, valTerm⟩ ← tryPrimEval val.type val.value;
       llvmStore addrTerm valTerm;
       pure true
+  | select { type := t1, value := e1 } { type := t2, value := e2 } e3 => do
+    if h : HasSMTSort t1 ∧ HasSMTSort t2 then do
+      let v2 ← primEval t2 h.right e2
+      let v3 ← primEval t2 h.right e3
+      match asSMTSort t1 h.left, (← primEval t1 h.left e1) with
+      | SmtSort.bitvec 1, v1 => do
+        assignTerm (Smt.smtIte (Smt.eq v1 (Smt.bvimm _ 0)) v3 v2)
+        pure true
+      | SmtSort.array _ _, _ =>
+        BlockVCG.localBlockError BlockErrorTag.unimplementedFeature ("select with array selty ("++(ppLLVM t1)++")")
+      | _, _ =>
+        BlockVCG.localBlockError BlockErrorTag.unexpectedSort ("select with selty "++(ppLLVM t1))
+    else
+      BlockVCG.localBlockError BlockErrorTag.unexpectedSort ("select with selty "++(ppLLVM t1)++" and value type "++(ppLLVM t2))
   | _ => unimplemented
   
 
