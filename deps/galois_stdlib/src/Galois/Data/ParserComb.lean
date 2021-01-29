@@ -11,7 +11,7 @@ structure Parser (tok : Type) (a : Type) :=
 
 namespace Parser
 
-variables {tok a b : Type}
+variable {tok a b : Type}
 
 instance : OrElse (Parser tok a) := 
   { orElse := fun x y => Parser.mk (x.run <|> y.run) }

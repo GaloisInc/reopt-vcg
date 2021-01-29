@@ -39,7 +39,7 @@ constant system (command : @& String) : IO Unit := arbitrary
 end Prim
 
 section
-variables {m : Type → Type} [Monad m] [MonadLiftT IO m]
+variable {m : Type → Type} [Monad m] [MonadLiftT IO m]
 @[inline] def system (command : String) : m Unit := IO.Prim.system command
 end
 end IO

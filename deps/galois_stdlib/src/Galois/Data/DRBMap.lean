@@ -3,7 +3,7 @@ import Std.Data.RBMap
 
 namespace Sigma
 universes u v
-variables {α : Type u} {β : α → Type v}
+variable {α : Type u} {β : α → Type v}
 
 instance [Inhabited α] [forall (a : α), Inhabited (β a)] : Inhabited (Sigma β) :=
 {default := let a : α := arbitrary; ⟨a, (arbitrary : (β a)) ⟩}
@@ -16,7 +16,7 @@ namespace Std
 universes u v w w'
 
 namespace RBNode
-variables {α : Type u} {β : α → Type v} (lt : α → α → Bool)
+variable {α : Type u} {β : α → Type v} (lt : α → α → Bool)
 
 @[specialize] def findEq [DecidableEq α] : RBNode α β → ∀ (k : α), Option (β k)
 | RBNode.leaf,             x => none
@@ -44,7 +44,7 @@ mkDRBMap _ _ _
 -- ⟨DRBMap.empty⟩
 
 namespace DRBMap
-variables {α : Type u} {β : α → Type v} {σ : Type w} {lt : α → α → Bool}
+variable {α : Type u} {β : α → Type v} {σ : Type w} {lt : α → α → Bool}
 
 
 def depth (f : Nat → Nat → Nat) (t : DRBMap α β lt) : Nat :=

@@ -93,7 +93,7 @@ def guard_some {m} [Monad m] [MonadExcept String m] {α β : Type} (reason : Str
   
 section Backend
 
-variables (backend : Backend)
+variable (backend : Backend)
 
 def option_register_to_bv64 (opt_r : Option mcinst.register) : M backend (backend.s_bv 64) := 
   match opt_r with 

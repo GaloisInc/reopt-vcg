@@ -22,7 +22,7 @@ instance rbmapToJson : ToJson (RBMap String Json Lean.strLt) :=
   ⟨λ rbm => Lean.Json.obj $ rbm.val⟩
 
 section
-variables  (α : Type u) [FromJson α]
+variable  (α : Type u) [FromJson α]
 
 
 -- Extract the value for the specified key of a Json object while expecting it to be of a certain

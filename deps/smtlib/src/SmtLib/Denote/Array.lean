@@ -24,7 +24,7 @@ def empty (α : Type u) {β : Type v} (default : β) : FiniteMap α β :=
   ⟨[], default⟩
 
 section
-variables {α : Type u} {β : Type v}
+variable {α : Type u} {β : Type v}
 
 protected
 def FiniteMap.decEq
@@ -144,7 +144,7 @@ def Array (α : Type u) (β : Type v)
 -- #check Subtype.Inhabited
 
 namespace Array
-variables {α : Type u} {β : Type v}
+variable {α : Type u} {β : Type v}
 
 open Subtype
 
@@ -167,7 +167,7 @@ instance [hA : DecidableLessOrder α] [hB : DecidableLessOrder β] : DecidableLe
 
 
 section Operations
-variables [DecidableLessOrder α] [DecidableLessOrder β]
+variable [DecidableLessOrder α] [DecidableLessOrder β]
 
 def select (a : Array α β) (k : α) : β :=
 match a.val.entries.lookup k with

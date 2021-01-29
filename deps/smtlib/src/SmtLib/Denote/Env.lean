@@ -16,7 +16,7 @@ namespace upd
 
 
 universes u v
-variables {α : Type u} [DecidableEq α] {β: α -> Type v}
+variable {α : Type u} [DecidableEq α] {β: α -> Type v}
 
 theorem atKey (f : forall v, β v) (k : α)  (v : β k) : (upd f k v) k = v :=
   difPos rfl

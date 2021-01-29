@@ -4,7 +4,7 @@ import Std.Data.RBMap
 namespace Std
 namespace RBMap
 universes u v w
-variables {α : Type u} {β : Type v}
+variable {α : Type u} {β : Type v}
 
 /- Builds an RBMap from a list with String keys. -/
 def ltMap [HasLess α] [∀ (a b : α), Decidable (a < b)] (entries: List (α × β))

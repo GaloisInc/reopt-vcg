@@ -180,7 +180,7 @@ def mul : instruction := do
      action
    instr_pat $ fun (src : expression (bv 64)) =>
      let action : semantics Unit := do
-       let tmp ← eval $ uext rax.expr 128 * uext src _
+       let tmp ← eval $ uext rax.expr 128 * uext src 128
        rdx .= tmp[[127~~64]]
        rax .= tmp[[63~~0]]
        set_overflow $ tmp[[127~~64]] ≠ 0

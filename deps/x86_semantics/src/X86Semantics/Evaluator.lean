@@ -42,7 +42,7 @@ open mc_semantics.type
 
 section with_backend
 
-variables {backend : Backend}
+variable {backend : Backend}
 
 def M (be : Backend) := be.monad
 

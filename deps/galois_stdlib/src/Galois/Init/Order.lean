@@ -17,7 +17,7 @@ class DecidableLessOrder (α : Type u) extends LessOrder α :=
 
 
 namespace Subtype
-variables {α : Type u} {p : α → Prop}
+variable {α : Type u} {p : α → Prop}
 
 protected
 instance HasLess [h : HasLess α] : HasLess {x : α // p x} :=

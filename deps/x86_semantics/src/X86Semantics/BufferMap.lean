@@ -12,7 +12,7 @@ section
 
 universe u
 
-variables {k : Type u} {distance : k -> k -> Int}
+variable {k : Type u} {distance : k -> k -> Int}
 
 /- construction -/
 def empty : buffer_map k distance := buffer_map.mk []
@@ -59,7 +59,7 @@ end buffer_map
 section 
 
 universes u
-variables {k : Type u} {distance : k -> k -> Int} [Repr k]
+variable {k : Type u} {distance : k -> k -> Int} [Repr k]
 
 -- FIXME: behave wrt prec
 instance : Repr (buffer_map.entry k) :=

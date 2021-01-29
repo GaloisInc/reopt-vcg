@@ -61,7 +61,7 @@ inductive SortedMap {α : Type u} {β : Type v} [LessOrder α] : List (α × β)
 
 
 namespace SortedMap
-variables {α : Type u} {β : Type v}
+variable {α : Type u} {β : Type v}
 
 protected def insert [DecidableLessOrder α] (k : α) (v : β) : List (α × β) →  List (α × β)
 | [] => [(k,v)]
