@@ -539,7 +539,7 @@ static void translateImmediate(vadd::instruction_t &Inst, uint64_t immediate,
     default:
       break;
     case ENCODING_Iv:
-      nbytes = insn.displacementSize;
+      nbytes = insn.immediateSize;
       break;
     case ENCODING_IB:
       nbytes = 1;
