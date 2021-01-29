@@ -54,7 +54,7 @@ def value : type -> Type
   | (bv n) => backend.s_bv n
   | int    => Int -- We support int constants only
   | bit    => backend.s_bool 
-  | float _ => Unit -- FIXME
+  | float fc => backend.s_float fc
   | x86_80  => Unit
   | (vec w tp) => Array /- (eval_nat_expr w) -/ (value tp)
   | (pair tp tp') => value tp × value tp'
@@ -482,7 +482,7 @@ def mux (b : backend.s_bool) : ∀{tp : type}, type.has_mux tp
   -> @value backend tp -> @value backend tp -> @value backend tp
   | (bv _), _, v1, v2      => backend.s_mux_bv   b v1 v2
   | bit,    _, v1, v2      => backend.s_mux_bool b v1 v2
-  | float _,  _, v1, v2      => ()
+  | float _,  _, v1, v2    => backend.s_mux_float b v1 v2
   | x86_80,  _, v1, v2      => ()
   -- This is very inefficient, maybe make Arrays part of backend?  This type is mainly for AVX etc.
   | (vec _ tp), pf, v1, v2 => 
@@ -631,22 +631,39 @@ def prim.eval : ∀{tp : type}, prim tp -> @evaluator backend (@value backend tp
   -- The value `i` is `idx` as a unsigned integer modulo `w`.
   | _, (prim.bts w j)         => throw "prim.eval.bts unimplemented"
 
-  | _, prim.bv_bitcast_to_fp fc => throw "prim.eval.bv_bitcast_to_fp unimplemented"
-  | _, prim.fp_bitcast_to_bv fc => throw "prim.eval.fp_bitcast_to_bv unimplemented"
-  | _, prim.fp_add fc           => throw "prim.eval.fp_add unimplemented"
-  | _, prim.fp_sub fc           => throw "prim.eval.fp_sub unimplemented"
-  | _, prim.fp_mul fc           => throw "prim.eval.fp_mul unimplemented"
-  | _, prim.fp_div fc           => throw "prim.eval.fp_div unimplemented"
-  | _, prim.fp_ordered _        => throw "prim.eval.fp_ordered unimplemented"
-  | _, prim.fp_min _            => throw "prim.eval.fp_min unimplemented"
-  | _, prim.fp_max _            => throw "prim.eval.fp_max unimplemented"
-  | _, prim.fp_lt  _            => throw "prim.eval.fp_lt unimplemented"
-  | _, prim.fp_le  _            => throw "prim.eval.fp_le unimplemented"
-  | _, prim.int_convert_to_fp _ _ => throw "prim.eval.int_convert_to_fp unimplemented"
-  | _, prim.fp_convert_to_int _ _ _ => throw "prim.eval.fp_convert_to_int unimplemented"
-  | _, prim.fp_convert_to_fp _ _ _ => throw "prim.eval.fp_convert_to_fp unimplemented"
-  | _, prim.fp_sqrt _ => throw "prim.eval.fp_sqrt unimplemented"
-  | _, prim.fp_literal _ _ _ _ => throw "prim.eval.fp_literal unimplemented"
+  | _, prim.bv_bitcast_to_fp fc => 
+       pure (backend.s_bv_bitcast_to_fp fc)
+  | _, prim.fp_bitcast_to_bv fc => pure (backend.s_fp_bitcast_to_bv fc )
+  | _, prim.fp_add fc           => pure (backend.s_fp_add fc           )
+  | _, prim.fp_sub fc           => pure (backend.s_fp_sub fc           )
+  | _, prim.fp_mul fc           => pure (backend.s_fp_mul fc           ) 
+  | _, prim.fp_div fc           => pure (backend.s_fp_div fc           ) 
+  | _, prim.fp_sqrt fc          => pure (backend.s_fp_sqrt fc          ) 
+  | _, prim.fp_ordered fc       => pure (backend.s_fp_ordered fc       ) 
+  | _, prim.fp_min fc           => pure (backend.s_fp_min fc           ) 
+  | _, prim.fp_max fc           => pure (backend.s_fp_max fc           ) 
+  | _, prim.fp_lt  fc           => pure (backend.s_fp_lt  fc           ) 
+  | _, prim.fp_le  fc           => pure (backend.s_fp_le  fc           ) 
+  | _, prim.int_convert_to_fp fc n => 
+       if H : 32 = n
+       then pure (cast (congrArg (fun m => value (bv m .→ float fc)) H) 
+                       (backend.s_int_convert_to_fp fc true))
+       else if H' : 64 = n
+            then pure (cast (congrArg (fun m => value (bv m .→ float fc)) H') 
+                       (backend.s_int_convert_to_fp fc false))
+            else throw "int_convert_to_fp: expecting 32 or 64 bit size"
+
+  | _, prim.fp_convert_to_int fc n rm =>
+       if H : 32 = n
+       then pure (cast (congrArg (fun m => value (float fc .→ bv m)) H) 
+                       (backend.s_fp_convert_to_int fc true rm))
+       else if H' : 64 = n
+            then pure (cast (congrArg (fun m => value (float fc .→ bv m)) H') 
+                       (backend.s_fp_convert_to_int fc false rm))
+            else throw "int_convert_to_fp: expecting 32 or 64 bit size"
+
+  | _, prim.fp_convert_to_fp sfc dfc rm  => pure (backend.s_fp_convert_to_fp sfc dfc rm)
+  | _, prim.fp_literal fc m esign e => pure (backend.s_fp_literal fc m esign e)
 
   -- `bv_to_x86_80` converts a bitvector to an extended precision number (lossless)
   | _, (prim.bv_to_x86_80 w)  => throw "prim.eval.bv_to_x86_80 unimplemented"
@@ -667,7 +684,7 @@ def value.make_undef : ∀(tp : type), @value backend tp
   | (bv e) => backend.s_bv_imm e 0
   | bit    => backend.false
   | int    => Int.ofNat 0
-  | float _ => ()
+  | float fc => backend.s_fp_literal fc 0 false 0
   | x86_80  => ()
   | (vec w tp) => mkArray w (make_undef tp)
   | (pair tp tp') => (make_undef tp, make_undef tp')

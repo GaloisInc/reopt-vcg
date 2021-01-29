@@ -17,6 +17,10 @@ open Smt (SmtSort SmtSort.bitvec SmtSort.bool SmtSort.array Term SmtM Command Id
 
 abbrev bitvec (n : Nat) := Term (SmtSort.bitvec n)
 def s_bool              := Term SmtSort.bool
+abbrev s_float (fc : float_class) := bitvec fc.width
+
+instance {n : Nat} : Inhabited (bitvec n) := ⟨Smt.bvimm _ 0⟩
+instance : Inhabited s_bool := ⟨Smt.false⟩
 
 def memaddr := bitvec 64
 def byte    := bitvec 8
@@ -334,6 +338,7 @@ def emit_event (e : Event) : system_m Unit :=
 def symbolicBackend (stdlib : StdLib) : Backend :=
   { s_bv     := bitvec
   , s_bool   := s_bool
+  , s_float  := s_float
 
   , s_bv_imm   := Smt.bvimm
   , s_bool_imm := fun b => if b then Smt.true else Smt.false
@@ -367,6 +372,7 @@ def symbolicBackend (stdlib : StdLib) : Backend :=
   
   , s_mux_bool := fun (b : s_bool) (x y : s_bool) => Smt.smtIte b x y
   , s_mux_bv   := fun {n : Nat} (b : s_bool) (x y : bitvec n) => Smt.smtIte b x y
+  , s_mux_float := fun {fc : float_class} (b : s_bool) (x y : s_float fc) => Smt.smtIte b x y
   
   , s_not      := Smt.not
   , s_or       := Smt.or
@@ -430,6 +436,40 @@ def symbolicBackend (stdlib : StdLib) : Backend :=
   , s_get_ip        := (fun (s : machine_state) => s.ip) <$> get
   , s_set_ip        := fun x => modify (fun s => { s with ip := x })
   , s_cond_set_ip   := fun b x => modify (fun s => { s with ip := Smt.smtIte b x s.ip })
+
+  -- FP, all currently stubbed out
+  , s_fp_literal := fun (_fc : float_class) (_m : Nat) (_esign : Bool) (_e : Nat) => 
+                    panic! "s_fp_literal unimplemented"
+  , s_bv_bitcast_to_fp := fun (fc : float_class) _ =>
+                       panic! "s_bv_bitcast_to_fp unimplemented"
+  
+  , s_fp_bitcast_to_bv := fun (_fc : float_class) _ => 
+                       panic! "s_fp_bitcast_to_bv unimplemented"
+
+  , s_fp_convert_to_fp := fun (_sfc _dfc : float_class) (_rm : RoundingMode) _ =>
+                       panic! "s_fp_convert_to_fp unimplemented"
+
+  , s_fp_convert_to_int := fun (_fc : float_class) (_is32or64 : Bool) (_rm : RoundingMode) _ =>
+                       panic! "s_fp_convert_to_int unimplemented"
+
+  , s_int_convert_to_fp := fun (_fc : float_class) (_is32or64 : Bool) _ =>
+                       panic! "s_int_convert_to_fp unimplemented"
+
+  , s_fp_add  := fun (_fc : float_class) _ _ => panic! "s_fp_add unimplemented"
+
+  , s_fp_sub  := fun (_fc : float_class) _ _ => panic! "s_fp_add unimplemented"
+  , s_fp_mul  := fun (_fc : float_class) _ _ => panic! "s_fp_sub unimplemented"
+  , s_fp_div  := fun (_fc : float_class) _ _ => panic! "s_fp_div unimplemented"
+  , s_fp_sqrt := fun (_fc : float_class) _   => panic! "s_fp_sqrt unimplemented"
+
+  , s_fp_le := fun (_fc : float_class) _ _ => panic! "s_fp_le unimplemented"
+  , s_fp_lt := fun (_fc : float_class) _ _ => panic! "s_fp_lt unimplemented"
+
+  , s_fp_max     := fun (_fc : float_class) _ _ => panic! "s_fp_max unimplemented"
+  , s_fp_min     := fun (_fc : float_class) _ _ => panic! "s_fp_min unimplemented"
+  , s_fp_ordered := fun (_fc : float_class) _ _ => panic! "s_fp_ordered unimplemented"
+
+
   , s_read_cpuid    := pure ()
 
   } 

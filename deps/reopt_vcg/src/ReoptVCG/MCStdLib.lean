@@ -56,6 +56,112 @@ def make (nBytes : Nat) : SmtM (SupportedMemType (SmtSort.bitvec (8 * nBytes))) 
 
 end SupportedMemType
 
+namespace SupportedFPOps 
+
+open mc_semantics (float_class)
+open mc_semantics.float_class
+
+def mkOp (f : float_class -> Type) (mk1 : forall (fc : float_class), SmtM (f fc))
+    : SmtM (forall fc, f fc) := do
+  let op16 <- mk1 fp16
+  let op32 <- mk1 fp32
+  let op64 <- mk1 fp64
+  pure $ λ(fc : float_class) => match fc with 
+              | fp16 => op16
+              | fp32 => op32
+              | fp64 => op64
+
+def mkBinOp (s : float_class -> SmtSort) (name : String) 
+  : SmtM (forall fc, SmtFloat fc -> SmtFloat fc -> Term (s fc)) := do
+  let mk1 := λ(fc : float_class) =>
+    Smt.declareFun ("fpop_" ++ name ++ reprStr fc.width) [SmtFloat_t fc, SmtFloat_t fc] (s fc)
+  mkOp (fun fc => SmtFloat fc -> SmtFloat fc -> Term (s fc)) mk1
+
+def mkUnOp (s : float_class -> SmtSort) (name : String) 
+  : SmtM (forall fc, SmtFloat fc -> Term (s fc)) := do
+  let mk1 := λ(fc : float_class) =>
+    Smt.declareFun ("fpop_" ++ name ++ reprStr fc.width) [SmtFloat_t fc] (s fc)
+  mkOp (fun fc => SmtFloat fc -> Term (s fc)) mk1
+
+def make : SmtM SupportedFPOps := do
+   -- let supported_word_sizes : List Nat := [16, 32, 64] -- Probably we will need more?
+  let boolT :=  (fun (_ : float_class) => SmtSort.bool)     
+
+  let fp_literal <- do
+    let mkT := fun (fc : float_class) => SmtBV fc.width -> Term SmtSort.bool
+                                      -> SmtBV fc.width -> SmtFloat fc
+    let mk1 := fun (fc : float_class) => 
+            Smt.declareFun ("fpop_literal" ++ reprStr fc.width) 
+                           [SmtSort.bitvec fc.width, SmtSort.bool, SmtSort.bitvec fc.width]
+                           (SmtFloat_t fc)
+    let f <- mkOp mkT mk1
+    pure (fun fc m (esign : Bool) e => 
+              f fc (Smt.bvimm _ m) 
+                (if esign then Smt.true else Smt.false) (Smt.bvimm _ e))
+
+  let bv_bitcast_to_fp <- do
+    let mkT := fun (fc : float_class) => SmtBV fc.width -> SmtFloat fc
+    let mk1 := fun (fc : float_class) => 
+            Smt.declareFun ("fpop_bv_bitcast_to_fp" ++ reprStr fc.width) 
+                           [SmtSort.bitvec fc.width] (SmtFloat_t fc)
+    mkOp mkT mk1
+
+  let fp_bitcast_to_bv <- do
+    let mkT := fun (fc : float_class) => SmtFloat fc -> SmtBV fc.width
+    let mk1 := fun (fc : float_class) => 
+            Smt.declareFun ("fpop_fp_bitcast_to_bv" ++ reprStr fc.width)
+                           [SmtFloat_t fc] (SmtSort.bitvec fc.width)
+    mkOp mkT mk1
+  
+  let fp_convert_to_fp <- do
+    let mkT := fun (sfc : float_class) => forall dfc, SmtFloat sfc -> SmtFloat dfc
+    let mk1 := fun (sfc : float_class) => do
+      let mkT' := fun (dfc : float_class) => SmtFloat sfc -> SmtFloat dfc
+      let mk1' := fun (dfc : float_class) =>
+            Smt.declareFun ("fpop_fp_convert_to_fp" ++ reprStr sfc.width ++ "_" ++ reprStr dfc.width)
+                           [SmtFloat_t sfc] (SmtFloat_t dfc)
+      mkOp mkT' mk1'
+    let f <- mkOp mkT mk1
+    pure $ fun sfc dfc (_rm : RoundingMode) => f sfc dfc -- FIXME: we currently ignore the rounding mode
+
+  let fp_convert_to_int <- do
+    let mkT := fun (fc : float_class) => forall (is32or64 : Bool), SmtFloat fc -> 
+                   SmtBV (if is32or64 then 32 else 64)
+    let mk1 := fun (fc : float_class) => do
+      let op32 <- Smt.declareFun ("fpop_fp_convert_to_int" ++ reprStr fc.width ++ "_32")
+                                 [SmtFloat_t fc] (SmtSort.bitvec 32)
+      let op64 <- Smt.declareFun ("fpop_fp_convert_to_int" ++ reprStr fc.width ++ "_64")
+                                 [SmtFloat_t fc] (SmtSort.bitvec 64)
+      pure (fun (is32or64 : Bool) => match is32or64 with | true => op32 | false => op64)
+    let f <- mkOp mkT mk1
+    pure $ fun fc is32or64 (_rm : RoundingMode) v => f fc is32or64 v
+
+  let int_convert_to_fp <- do
+    let mkT := fun (fc : float_class) => forall (is32or64 : Bool), SmtBV (if is32or64 then 32 else 64) ->
+                                         SmtFloat fc
+    let mk1 := fun (fc : float_class) => do
+      let op32 <- Smt.declareFun ("fpop_int_convert_to_fp" ++ reprStr fc.width ++ "_32")
+                                 [SmtSort.bitvec 32] (SmtFloat_t fc)
+      let op64 <- Smt.declareFun ("fpop_int_convert_to_fp" ++ reprStr fc.width ++ "_64")
+                                 [SmtSort.bitvec 64] (SmtFloat_t fc)
+      pure (fun (is32or64 : Bool) => match is32or64 with | true => op32 | false => op64)
+    mkOp mkT mk1
+
+  SupportedFPOps.mk fp_literal bv_bitcast_to_fp fp_bitcast_to_bv 
+                    fp_convert_to_fp fp_convert_to_int int_convert_to_fp
+    <$> mkBinOp SmtFloat_t "add"
+    <*> mkBinOp SmtFloat_t "sub"
+    <*> mkBinOp SmtFloat_t "mul"
+    <*> mkBinOp SmtFloat_t "div"
+    <*> mkUnOp  SmtFloat_t "sqrt"
+    <*> mkBinOp boolT "le"
+    <*> mkBinOp boolT "lt"
+    <*> mkBinOp boolT "max"
+    <*> mkBinOp boolT "min"
+    <*> mkBinOp boolT "ordered"
+
+end SupportedFPOps
+
 
 namespace MCStdLib
 
@@ -162,6 +268,7 @@ def rsp_idx : Fin 16 := Fin.ofNat 4
 def make (ip : Nat) (pageSize : Nat) (guardPageCount : Nat) (allocas : AllocaAnnMap) : SmtM MCStdLib := do
   -- FIXME: add checks
   let memOps ← mkMemOps
+  let fpOps <- SupportedFPOps.make
 
   let funStartRegs ← RegState.declare_const "fnstart_" ip
   let stackHighTerm := funStartRegs.get_gpreg rsp_idx
@@ -212,6 +319,7 @@ def make (ip : Nat) (pageSize : Nat) (guardPageCount : Nat) (allocas : AllocaAnn
   -- Declare isInMCOnlyStackRange
   let isInMCOnlyStackRange ← defineIsInMCOnlyStackRange onStack allocaMap
   pure { memOps        := memOps
+       , fpOps         := fpOps
        , funStartRegs  := funStartRegs
        , blockStartMem := blockStartMem
        , onStack       := onStack

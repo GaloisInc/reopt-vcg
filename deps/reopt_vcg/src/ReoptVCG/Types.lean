@@ -3,9 +3,9 @@ import LeanLLVM.AST
 import LeanLLVM.PP
 import ReoptVCG.Elf
 import ReoptVCG.Annotations
+import X86Semantics.Common
 
 import SmtLib.Smt
-import DecodeX86.DecodeX86
 
 -- TODO move these (or similar fns) to lean-llvm
 def LLVM.Ident.pp : LLVM.Ident → String := LLVM.Doc.render ∘ LLVM.HasPP.pp
@@ -13,7 +13,7 @@ def LLVM.LLVMType.pp : LLVM.LLVMType → String := LLVM.Doc.render ∘ LLVM.HasP
 def LLVM.BlockLabel.pp : LLVM.BlockLabel → String := LLVM.Doc.render ∘ LLVM.HasPP.pp
 
 open Smt (SmtSort SmtSort.bv64 SmtSort.bool SmtSort.bitvec SmtSort.array Term SmtM Command)
-
+open mc_semantics (float_class)
 
 
 -------------------------------------------------------
@@ -91,8 +91,46 @@ inductive Event
   | FetchAndExecuteEvent : RegState -> Event
     -- ^ A fetch and execute
 
+abbrev memory_t := SmtSort.array (SmtSort.bitvec 64) (SmtSort.bitvec 8)
+def memory := Term memory_t
+
+structure SupportedMemType (s : SmtSort) :=
+  (readMem  : memory -> Term (SmtSort.bitvec 64) -> Smt.Term s)
+  (writeMem : memory -> Term (SmtSort.bitvec 64) -> Smt.Term s -> memory)
+
+abbrev SmtFloat_t (fc : float_class) := SmtSort.bitvec fc.width
+abbrev SmtFloat (fc : float_class) := Term (SmtFloat_t fc)
+abbrev SmtBV (n : Nat) := Term (SmtSort.bitvec n)
+
+-- These are taken from X86Semantics.Common (prim) 
+structure SupportedFPOps :=
+  (fp_literal : forall (fc : float_class) (m : Nat) (esign : Bool) (e : Nat), SmtFloat fc)
+  (bv_bitcast_to_fp : forall (fc : float_class), SmtBV fc.width -> SmtFloat fc)
+  (fp_bitcast_to_bv : forall (fc : float_class), SmtFloat fc -> SmtBV fc.width)
+  (fp_convert_to_fp : forall (sfc dfc : float_class) (rm : RoundingMode), SmtFloat sfc -> SmtFloat dfc)
+
+  (fp_convert_to_int : forall (fc : float_class) (is32or64 : Bool) (rm : RoundingMode), SmtFloat fc -> 
+                       SmtBV (if is32or64 then 32 else 64))
+
+  (int_convert_to_fp : forall (fc : float_class) (is32or64 : Bool),
+                       SmtBV (if is32or64 then 32 else 64) -> SmtFloat fc)
+
+  (fp_add : forall (fc : float_class), SmtFloat fc -> SmtFloat fc -> SmtFloat fc)
+  (fp_sub : forall (fc : float_class), SmtFloat fc -> SmtFloat fc -> SmtFloat fc)
+  (fp_mul : forall (fc : float_class), SmtFloat fc -> SmtFloat fc -> SmtFloat fc)
+  (fp_div : forall (fc : float_class), SmtFloat fc -> SmtFloat fc -> SmtFloat fc)
+  (fp_sqrt : forall (fc : float_class), SmtFloat fc -> SmtFloat fc)
+
+  (fp_le : forall (fc : float_class), SmtFloat fc -> SmtFloat fc -> Term SmtSort.bool)
+  (fp_lt : forall (fc : float_class), SmtFloat fc -> SmtFloat fc -> Term SmtSort.bool)
+
+  -- more complex than lt due to NaN etc.  These return 1 if the first is max/min the second
+  (fp_max : forall (fc : float_class), SmtFloat fc -> SmtFloat fc -> Term SmtSort.bool)
+  (fp_min : forall (fc : float_class), SmtFloat fc -> SmtFloat fc -> Term SmtSort.bool)
+  (fp_ordered : forall (fc : float_class), SmtFloat fc -> SmtFloat fc -> Term SmtSort.bool)
+
 def InstructionEventsFun := 
-  forall ( evtMap : Std.RBMap Nat MemoryAnn (fun x y => decide (x < y)) )
+  forall (fpOps : SupportedFPOps) ( evtMap : Std.RBMap Nat MemoryAnn (fun x y => decide (x < y)) )
     -- ^ Map from addresses to annotations of events on that address.
     ( s : RegState )
     -- ^ Initial values for registers
@@ -102,20 +140,12 @@ def InstructionEventsFun :=
     -- ^ Location to explore
     Except String (List Event × IdGen × Nat)
 
-abbrev memory_t := SmtSort.array (SmtSort.bitvec 64) (SmtSort.bitvec 8)
-def memory := Term memory_t
-
-
-
-structure SupportedMemType (s : SmtSort) :=
-  (readMem  : memory -> Term (SmtSort.bitvec 64) -> Smt.Term s)
-  (writeMem : memory -> Term (SmtSort.bitvec 64) -> Smt.Term s -> memory)
-
 
 -- FIXME: the name is wrong, maybe something like MCSMTContext or something?
 -- cf. `mcMemDecls`
 structure MCStdLib :=
   (memOps        : forall (w : WordSize), SupportedMemType w.sort)
+  (fpOps         : SupportedFPOps)
   (funStartRegs  : RegState)
   (blockStartMem : memory)
   (onStack       : Term (SmtSort.bitvec 64) -> Term (SmtSort.bitvec 64) -> Term SmtSort.bool)

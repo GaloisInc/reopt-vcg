@@ -216,7 +216,8 @@ def getNextEvents : BlockVCG Unit := do
 
   let (events, idGen', sz) <-
 
-    match ctx.mcModuleVCGContext.instructionEvents ctx.mcBlockMap s.mcCurRegs s.idGen addr with
+    match ctx.mcModuleVCGContext.instructionEvents 
+             ctx.mcStdLib.fpOps ctx.mcBlockMap s.mcCurRegs s.idGen addr with
     | Except.error e => localBlockError BlockErrorTag.mcInstrEventError e
     | Except.ok    r => pure r;
 

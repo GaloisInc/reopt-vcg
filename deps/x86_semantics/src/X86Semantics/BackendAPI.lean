@@ -10,6 +10,7 @@ structure Backend : Type 1 :=
   -- Symbolic types
   (s_bv : Nat -> Type)
   (s_bool : Type)
+  (s_float : float_class -> Type)
 
   -- injections
   (s_bv_imm     (n : Nat) : Nat  -> s_bv n)
@@ -47,6 +48,7 @@ structure Backend : Type 1 :=
   -- monomorphic to avoid s_ite b (21 : Nat) (32 : Nat)
   (s_mux_bool         : s_bool -> s_bool -> s_bool -> s_bool) 
   (s_mux_bv {n : Nat} : s_bool -> s_bv n -> s_bv n -> s_bv n)
+  (s_mux_float {fc : float_class} : s_bool -> s_float fc -> s_float fc -> s_float fc)
   
   (s_not              : s_bool -> s_bool) 
   (s_or               : s_bool -> s_bool -> s_bool)
@@ -94,6 +96,32 @@ structure Backend : Type 1 :=
   (s_set_ip : s_bv 64 -> monad Unit)
   (s_cond_set_ip : s_bool -> s_bv 64 -> monad Unit) -- We could combine this with the above.
 
+  -- Floating point
+  (s_fp_literal : forall (fc : float_class) (m : Nat) (esign : Bool) (e : Nat), s_float fc)
+  (s_bv_bitcast_to_fp : forall (fc : float_class), s_bv fc.width -> s_float fc)
+  (s_fp_bitcast_to_bv : forall (fc : float_class), s_float fc -> s_bv fc.width)
+  (s_fp_convert_to_fp : forall (sfc dfc : float_class) (rm : RoundingMode), s_float sfc -> s_float dfc)
+
+  (s_fp_convert_to_int : forall (fc : float_class) (is32or64 : Bool) (rm : RoundingMode), s_float fc -> 
+                                s_bv (if is32or64 then 32 else 64))
+
+  (s_int_convert_to_fp : forall (fc : float_class) (is32or64 : Bool),
+                                s_bv (if is32or64 then 32 else 64) -> s_float fc)
+
+  (s_fp_add : forall (fc : float_class), s_float fc -> s_float fc -> s_float fc)
+  (s_fp_sub : forall (fc : float_class), s_float fc -> s_float fc -> s_float fc)
+  (s_fp_mul : forall (fc : float_class), s_float fc -> s_float fc -> s_float fc)
+  (s_fp_div : forall (fc : float_class), s_float fc -> s_float fc -> s_float fc)
+  (s_fp_sqrt : forall (fc : float_class), s_float fc -> s_float fc)
+
+  (s_fp_le : forall (fc : float_class), s_float fc -> s_float fc -> s_bool)
+  (s_fp_lt : forall (fc : float_class), s_float fc -> s_float fc -> s_bool)
+
+  -- more complex than lt due to NaN etc.  These return 1 if the first is max/min the second
+  (s_fp_max : forall (fc : float_class), s_float fc -> s_float fc -> s_bool)
+  (s_fp_min : forall (fc : float_class), s_float fc -> s_float fc -> s_bool)
+  (s_fp_ordered : forall (fc : float_class), s_float fc -> s_float fc -> s_bool)
+  
   -- (s_cond_set_ip : s_bool -> s_bv 64 -> monad Unit)
   (s_read_cpuid : monad Unit)
 

@@ -268,8 +268,9 @@ structure vcg_state :=
   (eventInfo  : Option MemoryAnn)
   (idGen  : IdGen)
   (revEvents : List Event)
+  (fpOps : SupportedFPOps)
 
-def vcg_state.empty : vcg_state := vcg_state.mk none Smt.IdGen.empty []
+-- def vcg_state.empty : vcg_state := vcg_state.mk none Smt.IdGen.empty []
 
 -- Stacking like this makes it easier to derive MonadState
 def base_system_m := (StateT vcg_state (ExceptT String Id))
@@ -347,9 +348,10 @@ end system_m
 
 -- FIXME: maybe factor out common stuff from concreteBackend
 -- FIXME!!: this is a pretty close copy of symbolic.backend
-def backend : Backend :=
+def backend (fpOps : SupportedFPOps) : Backend :=
   { s_bv     := bitvec
   , s_bool   := s_bool
+  , s_float  := fun (fc : float_class) => bitvec fc.width
 
   , s_bv_imm   := Smt.bvimm
   , s_bool_imm := fun b => if b then Smt.true else Smt.false
@@ -376,6 +378,7 @@ def backend : Backend :=
   
   , s_mux_bool := fun (b : s_bool) (x y : s_bool) => Smt.smtIte b x y
   , s_mux_bv   := fun {n : Nat} (b : s_bool) (x y : bitvec n) => Smt.smtIte b x y
+  , s_mux_float := fun {fc : float_class} (b : s_bool) (x y : bitvec fc.width) => Smt.smtIte b x y
   
   , s_not      := Smt.not
   , s_or       := Smt.or
@@ -440,6 +443,26 @@ def backend : Backend :=
   , s_set_ip        := fun x => modify (fun s => { s with ip := x })
   -- FIXME: could just use mux_bv and get_ip
   , s_cond_set_ip   := fun b x => modify (fun s => { s with ip := Smt.smtIte b x s.ip })
+
+  , s_fp_literal := fpOps.fp_literal
+  , s_bv_bitcast_to_fp := fpOps.bv_bitcast_to_fp 
+  , s_fp_bitcast_to_bv := fpOps.fp_bitcast_to_bv
+  , s_fp_convert_to_fp := fpOps.fp_convert_to_fp
+
+  , s_fp_convert_to_int := fpOps.fp_convert_to_int
+  , s_int_convert_to_fp := fpOps.int_convert_to_fp
+  , s_fp_add  := fpOps.fp_add  
+  , s_fp_sub  := fpOps.fp_sub  
+  , s_fp_mul  := fpOps.fp_mul  
+  , s_fp_div  := fpOps.fp_div  
+  , s_fp_sqrt := fpOps.fp_sqrt 
+  , s_fp_le := fpOps.fp_le 
+  , s_fp_lt := fpOps.fp_lt 
+
+  , s_fp_max     := fpOps.fp_max     
+  , s_fp_min     := fpOps.fp_min     
+  , s_fp_ordered := fpOps.fp_ordered 
+
   , s_read_cpuid    := pure ()
   } 
 
@@ -457,6 +480,8 @@ structure Semantics :=
 
 def instructionEvents 
   ( sem    : Semantics )
+  ( fpOps  : SupportedFPOps )
+  -- ^ SMT operations over floating point
   ( evtMap : Std.RBMap Nat MemoryAnn (fun x y => decide (x < y)) )
   -- ^ Map from addresses to annotations of events on that address.
   ( s : RegState )
@@ -474,8 +499,8 @@ def instructionEvents
        let nextIP := ip + sem.instruction_size i;
        let s'  := { s with ip := Smt.bvimm _ nextIP };
        let evt := evtMap.find? ip;
-       let r := (sem.eval backend i).run
-                { idGen := idGen, eventInfo := evt, revEvents := [] }
+       let r := (sem.eval (backend fpOps) i).run -- FIXME: should we factor out backend?
+                { idGen := idGen, eventInfo := evt, revEvents := [], fpOps := fpOps }
                 s';
        match r with
        | Except.ok ((_, s''), os'') =>

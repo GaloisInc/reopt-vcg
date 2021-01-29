@@ -394,6 +394,7 @@ open linux.x86_64
 def concreteBackend : Backend :=
   { s_bv     := bitvec
   , s_bool   := Bool
+  , s_float  := fun (fc : float_class) => bitvec fc.width
 
   , s_bv_imm := bitvec.of_nat
   , s_bool_imm := fun b => b
@@ -422,6 +423,7 @@ def concreteBackend : Backend :=
 
   , s_mux_bool := fun (b : Bool) (x y : Bool) => if b then x else y
   , s_mux_bv   := fun {n : Nat} (b : Bool) (x y : bitvec n) => if b then x else y
+  , s_mux_float := fun {fc : float_class} (b : Bool) (x y : bitvec fc.width) => if b then x else y
   
   , s_not      := not
   , s_or       := or
@@ -489,6 +491,38 @@ def concreteBackend : Backend :=
   , s_get_ip        := (fun (s : machine_state) => s.ip) <$> get
   , s_set_ip        := fun x => modify (fun s => { s with ip := x })
   , s_cond_set_ip   := fun b x => when b $ modify (fun s => { s with ip := x })
+
+  -- FP, all currently stubbed out
+  , s_fp_literal := fun (_fc : float_class) (_m : Nat) (_esign : Bool) (_e : Nat) => 
+                    panic! "s_fp_literal unimplemented"
+  , s_bv_bitcast_to_fp := fun (fc : float_class) _ =>
+                       panic! "s_bv_bitcast_to_fp unimplemented"
+  
+  , s_fp_bitcast_to_bv := fun (_fc : float_class) _ => 
+                       panic! "s_fp_bitcast_to_bv unimplemented"
+
+  , s_fp_convert_to_fp := fun (_sfc _dfc : float_class) (_rm : RoundingMode) _ =>
+                       panic! "s_fp_convert_to_fp unimplemented"
+
+  , s_fp_convert_to_int := fun (_fc : float_class) (_is32or64 : Bool) (_rm : RoundingMode) _ =>
+                       panic! "s_fp_convert_to_int unimplemented"
+
+  , s_int_convert_to_fp := fun (_fc : float_class) (_is32or64 : Bool) _ =>
+                       panic! "s_int_convert_to_fp unimplemented"
+
+  , s_fp_add  := fun (_fc : float_class) _ _ => panic! "s_fp_add unimplemented"
+
+  , s_fp_sub  := fun (_fc : float_class) _ _ => panic! "s_fp_add unimplemented"
+  , s_fp_mul  := fun (_fc : float_class) _ _ => panic! "s_fp_sub unimplemented"
+  , s_fp_div  := fun (_fc : float_class) _ _ => panic! "s_fp_div unimplemented"
+  , s_fp_sqrt := fun (_fc : float_class) _   => panic! "s_fp_sqrt unimplemented"
+
+  , s_fp_le := fun (_fc : float_class) _ _ => panic! "s_fp_le unimplemented"
+  , s_fp_lt := fun (_fc : float_class) _ _ => panic! "s_fp_lt unimplemented"
+
+  , s_fp_max     := fun (_fc : float_class) _ _ => panic! "s_fp_max unimplemented"
+  , s_fp_min     := fun (_fc : float_class) _ _ => panic! "s_fp_min unimplemented"
+  , s_fp_ordered := fun (_fc : float_class) _ _ => panic! "s_fp_ordered unimplemented"
 
   , s_read_cpuid    := linux.x86_64.read_cpuid
 
