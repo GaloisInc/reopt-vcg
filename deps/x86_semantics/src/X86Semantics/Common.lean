@@ -1063,8 +1063,8 @@ inductive event
 | syscall : event
 | unsupported (msg:String) : event
 | pop_x87_register_stack : event
-| call (addr: bv 64) : event
-| jmp  (addr: bv 64) : event
+| call (addr: expression (bv 64)) : event
+| jmp  (addr: expression (bv 64)) : event
 | branch : expression bit → bv 64 → event
 | hlt : event
 | xchg {w : Nat} (addr1: bv w) (addr2: bv w) : event

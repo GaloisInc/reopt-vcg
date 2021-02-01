@@ -111,8 +111,11 @@ def jmp : instruction :=
      record_event (event.jmp (add v off_bv))
     action
    ;
-   instr_pat $ fun (v : expression (bv 64)) =>
-     record_event (event.jmp v)
+   instr_pat $ fun (v : addr (bv 64)) => 
+    let action : semantics Unit := do
+     let ip      <- eval expression.get_rip;
+     record_event (event.jmp (add (coe v : expression (bv 64)) ip))
+    action
    
 
 ------------------------------------------------------------------------
