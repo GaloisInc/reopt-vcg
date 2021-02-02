@@ -159,10 +159,12 @@ def operand_to_value
    match op.value with 
      | (operand_value.immediate nbytes val) => do
      
-     -- FIXME: rather than failing here, we will sign extend/truncate.  This may be the wrong approach.
-     -- We could also extend operand_type
+     -- FIXME: rather than failing here, we will sign extend.  This
+     -- may be the wrong approach.  We could also extend operand_type
        (match tp with
-       | (bv e) => pure (nat_to_signed_bitvec backend val nbytes e)
+       | (bv e) => if nbytes * 8 <= e
+                   then pure (nat_to_signed_bitvec backend val nbytes e) 
+                   else throw "Immediate has incorect size"
        | _      => throw "Immediate should be a bv")
 
      -- FIXME: we use ip out of the state, we could use the value encoded in the decoded instruction 
