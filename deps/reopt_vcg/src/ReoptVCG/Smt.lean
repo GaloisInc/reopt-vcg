@@ -112,16 +112,18 @@ structure VCStats :=
   (fnErrCnt : RBMap String Nat (·<·))
   -- What warnings were raised during VC gen?
   (warnings : Array VerificationWarning)
+  -- Module errors that were encountered during VC
+  (moduleErrs : Array ModuleError)
   -- How many errors of each kind of ModuleError did we encounter?
   (moduleErrCnt : RBMap ModuleErrorTag Nat (·<·))
   -- For each ModuleError kind and additional info, how many times did we see that combination?
   (moduleErrExtraInfoCnt : RBMap ModuleErrorTag (RBMap String Nat (·<·)) (·<·))
+  -- Block errors that were encountered during VC
+  (blockErrs : Array BlockError)
   -- How many errors of each kind of BlockError did we encounter?
   (blockErrCnt : RBMap BlockErrorTag Nat (·<·))
   -- For each BlockError kind and additional info, how many times did we see that combination?
   (blockErrExtraInfoCnt : RBMap BlockErrorTag (RBMap String Nat (·<·)) (·<·))
-  -- Function names, blocks, and warnings
-  (blockWarnings : Array (String × LLVM.BlockLabel × VerificationWarning))
 
 
 namespace VCStats
@@ -131,11 +133,12 @@ def init : VCStats :=
    errCnt := 0,
    fnErrCnt := Std.RBMap.empty,
    warnings := #[],
+   moduleErrs := #[],
    moduleErrCnt := Std.RBMap.empty,
    moduleErrExtraInfoCnt := Std.RBMap.empty,
+   blockErrs := #[]
    blockErrCnt := Std.RBMap.empty,
-   blockErrExtraInfoCnt := Std.RBMap.empty,
-   blockWarnings := #[]}
+   blockErrExtraInfoCnt := Std.RBMap.empty}
 
 def addModuleError (stats : VCStats) (err : ModuleError) : VCStats := do
   let mut stats := stats
@@ -150,6 +153,7 @@ def addModuleError (stats : VCStats) (err : ModuleError) : VCStats := do
                 errCnt.insert fnName (1 + (errCnt.findD fnName 0))}
   pure {stats with
    errCnt := 1 + stats.errCnt,
+   moduleErrs := stats.moduleErrs.push err,
    moduleErrCnt :=
      let errors := stats.moduleErrCnt
      errors.insert err.tag (1 + (errors.findD err.tag 0)),
@@ -163,6 +167,7 @@ def addModuleError (stats : VCStats) (err : ModuleError) : VCStats := do
 def addBlockError (stats : VCStats) (err : BlockError) : VCStats := do
   pure {stats with
    errCnt := 1 + stats.errCnt,
+   blockErrs := stats.blockErrs.push err,
    fnErrCnt :=
      let errCnt := stats.fnErrCnt
      errCnt.insert err.loc.fnName (1 + (errCnt.findD err.loc.fnName 0)),
@@ -473,6 +478,7 @@ def interactiveDoGoal
     IO.println $ "    The SMT query will be stored in "++filePath
     IO.println $ "    The default invocation of CVC4 for these queries is as follows:"
     IO.println $ "      `" ++(defaultCVC4Cmd++" "++filePath)++"`"
+  let extraInfo := if cfg.verbose then "" else "    "++vg.fullDescription++"\n"
   match smtResult.get? 0 with
   | none => do
     -- FIXME print to stderr on next lean4 bump (these and all below printlns in this function)
@@ -481,7 +487,7 @@ def interactiveDoGoal
       -- in non-verbose mode the newline makes a nice break from the stream of periods.
       IO.println $ ""
     IO.println "ERROR"
-    IO.println ""
+    IO.print extraInfo
     IO.println "    Verification failed: no response from the SMT solver was detected."
     ictx.results.modify (λ rs => rs.push ⟨vg, none⟩)
   | some checkSatRes =>
@@ -495,6 +501,7 @@ def interactiveDoGoal
       if !cfg.verbose then do
         IO.println $ ""
       IO.println $ "FAIL"
+      IO.print extraInfo
       IO.println $ "    Verification failed: the SMT query returned `sat`"
       IO.println $ ""
       printExportInstructions
@@ -502,6 +509,7 @@ def interactiveDoGoal
       if !cfg.verbose then do
         IO.println $ ""
       IO.println $ "FAIL"
+      IO.print extraInfo
       IO.println $ "    Verification failed: the SMT query returned `unknown`"
       IO.println $ ""
       printExportInstructions
@@ -509,6 +517,7 @@ def interactiveDoGoal
       if !cfg.verbose then do
         IO.println $ ""
       IO.println $ "ERROR"
+      IO.print extraInfo
       IO.println $ "    Verification failed: the SMT query returned `unsupported`"
       IO.println $ ""
       printExportInstructions
@@ -516,6 +525,7 @@ def interactiveDoGoal
       if !cfg.verbose then do
         IO.println $ ""
       IO.println $ "ERROR"
+      IO.print extraInfo
       IO.println $ "    Verification failed: the SMT solver did not return a recognized response to `check-sat-assuming`."
       IO.println $ ""
       IO.println $ "    Response: "
@@ -557,12 +567,20 @@ def verifyModule'
 
 private def printVCStats (stats : VCStats) : IO Unit := do
   let indent := "    "
-  -- Summarize warnings seen
+  -- Dislpay warnings encountered during VC
   if stats.warnings.size > 0 then do
     IO.println $ ""
-    IO.println $ "======================= "++(repr stats.warnings.size)++" VC WARNINGS ======================="
+    IO.println $ "======================= "++(toString stats.warnings.size)++" VC GENERATION WARNINGS ======================="
     for w in stats.warnings do
       IO.println $ w.loc.pp ++ ": " ++ w.msg
+  -- Dislpay errors encountered during VC
+  if stats.moduleErrs.size > 0 || stats.blockErrs.size > 0 then do
+    IO.println $ ""
+    IO.println $ "======================= "++(toString (stats.moduleErrs.size + stats.blockErrs.size))++" VC GENERATION ERRORS  ======================="
+    for mErr in stats.moduleErrs do
+      IO.println $ mErr.pp
+    for bErr in stats.blockErrs do
+      IO.println $ bErr.pp
   let printExtraInfo : Bool → Nat → String → IO Unit :=
     λ oneCategory n info => 
       if oneCategory && info == ""
@@ -570,23 +588,21 @@ private def printVCStats (stats : VCStats) : IO Unit := do
       else if info == ""
       then IO.println $ indent++"- ("++(repr n)++") no additional information"
       else IO.println $ indent++"- ("++(repr n)++") "++info
-  -- Summarize module errors
-  if stats.moduleErrCnt.size > 0 then do
+  -- Summarize module and block errors by error type
+  if stats.moduleErrCnt.size > 0 || stats.blockErrCnt.size > 0 then do
     let mCnt : Nat := stats.moduleErrCnt.fold (init := 0) (λ acc _fnName cnt => acc + cnt)
+    let bCnt : Nat := stats.blockErrCnt.fold (init := 0) (λ acc _fnName cnt => acc + cnt)
+    -- Summarize module errors by error type
     IO.println $ ""
-    IO.println $ "======================= "++(repr mCnt)++" MODULE VC GENERATION ERRORS ======================="
+    IO.println $ "======================= VC GENERATION ERROR SUMMARY ======================="
     for (tag, tagCnt) in stats.moduleErrCnt.toList do -- FIXME remote .toList after Lean4 bump
-      IO.println $ "* ("++(repr tagCnt)++") "++tag.description
+      IO.println $ "* ("++(repr tagCnt)++") [module] "++tag.description
       let tagMap := stats.moduleErrExtraInfoCnt.findD tag Std.RBMap.empty
       for (extraInfo, n) in tagMap.toList do -- FIXME remove toList next lean bump
         printExtraInfo (tagMap.size > 1) n extraInfo
-  -- Summarize block errors
-  if stats.blockErrCnt.size > 0 then do
-    let bCnt : Nat := stats.blockErrCnt.fold (init := 0) (λ acc _fnName cnt => acc + cnt)
-    IO.println $ ""
-    IO.println $ "======================= "++(repr bCnt)++" BLOCK VC GENERATION ERRORS ======================="
+    -- Summarize block errors by error type
     for (tag, tagCnt) in stats.blockErrCnt.toList do -- FIXME remote .toList after Lean4 bump
-      IO.println $ "* ("++(repr tagCnt)++") "++tag.description
+      IO.println $ "* ("++(repr tagCnt)++") [block] "++tag.description
       let tagMap := stats.blockErrExtraInfoCnt.findD tag Std.RBMap.empty
       for (extraInfo, n) in tagMap.toList do -- FIXME remove toList next lean bump
         printExtraInfo (tagMap.size > 1) n extraInfo
