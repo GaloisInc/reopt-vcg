@@ -168,10 +168,14 @@ protected def toHexWithLeadingZeros : List Char → Nat → Nat → String
   SpecConst.toHexWithLeadingZeros (c::prev) w (Nat.shiftr x 4)
 
 --- Print word as hex
-def ppBin (n : Nat) (v : Nat) : String := 
-  if n % 4 = 0   
+def ppBin (n : Nat) (v : Nat) : String :=
+  if n % 4 = 0
   then "#x" ++ SpecConst.toHexWithLeadingZeros [] (n / 4) v
-  else "#b" ++ (List.map (fun i => if Nat.test_bit v i then '1' else '0') (Nat.upto0_lt n)).asString
+  else do
+    let mut digits := []
+    for i in [:n] do
+      digits := (if Nat.test_bit v i then '1' else '0')::digits
+    "#b"++digits.asString
 
 end toHex
 
