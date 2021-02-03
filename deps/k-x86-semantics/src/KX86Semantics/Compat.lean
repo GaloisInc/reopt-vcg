@@ -94,7 +94,7 @@ def setRegister {t : type} (r : lhs t) (e : expression t) : semantics Unit := (s
 def notBool_ (e : bit) : bit := eq e bit_zero
 
 def isBitSet {n : Nat} (e : bv n) (idx : Nat) : bit := 
-  expression.bit_test e (expression.bv_nat n (n - idx))
+  expression.bit_test e (expression.bv_nat n (n - idx - 1))
 
 def overflowFlag {n : Nat} (e1 : bv n) (e2 : bv n) (r : bv n) : bit :=
     sadd_overflows e1 e2
