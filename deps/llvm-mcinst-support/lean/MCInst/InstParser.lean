@@ -117,6 +117,7 @@ def operand_to_String : operand -> String
 instance operand_has_repr : Repr operand := ⟨fun op _n => operand_to_String op⟩
 
 structure instruction :=
+  (repPfx   : Bool)
   (mnemonic : String)
   (args     : List operand)
 
@@ -127,6 +128,7 @@ instance instruction_has_repr : Repr instruction :=
 namespace instparser
 
 open Parser
+open CharParser
 
 abbrev OpParser := Parser Char
 
@@ -145,11 +147,14 @@ def intP : OpParser Int :=
       pure (Int.negOfNat n)) <|> 
       (Int.ofNat <$> natP)
 
-def stringP (f : Char -> Bool) : OpParser String := List.asString <$> many (token f)
-def string1P (f : Char -> Bool) : OpParser String := List.asString <$> many1 (token f)
+def exactStrP (s : String) : OpParser Unit :=
+  List.forM exact s.toList
 
-def nonWSP : OpParser String := 
-  string1P (fun c => not (Char.isWhitespace c))
+-- def stringP (f : Char -> Bool) : OpParser String := List.asString <$> many (token f)
+-- def string1P (f : Char -> Bool) : OpParser String := List.asString <$> many1 (token f)
+
+-- def nonWSP : OpParser String := 
+--   string1P (fun c => not (Char.isWhitespace c))
 
 def registerP : OpParser register :=
   do let _ <- exact '%';
@@ -201,8 +206,12 @@ def usesAlternateOperandSyntax :=
   ,"jns","jo","jp","jpe","js"] ++ 
   ["callq", "jmpq"]
 
+-- FIXME: if this is inlined we get a runtime lean assertion violation
+def repPfxP : OpParser Bool := (do exactStrP "rep\t\t"; pure true) <|> pure false
+ 
 def instructionP : OpParser instruction :=
   do exact '\t';
+     let repPfx <- repPfxP;
      let mn <- string1P Char.isAlphanum;
      let opP := if usesAlternateOperandSyntax.elem mn 
                 then altOperandP 
@@ -210,7 +219,7 @@ def instructionP : OpParser instruction :=
      let args <- (exact '\t' *>
                   sepBy (do exact ','; exact ' '; pure ()) opP)
                  <|> pure [];
-     pure (instruction.mk mn args)
+     pure (instruction.mk repPfx mn args)
      
 end instparser
 

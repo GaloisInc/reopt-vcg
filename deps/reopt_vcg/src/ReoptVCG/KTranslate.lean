@@ -218,8 +218,8 @@ def instruction_map : RBMap String x86.instruction (fun x y => decide (x < y)) :
 
 def eval_instruction (i : mcinst.instruction) : M backend Unit :=
   match instruction_map.find? i.mnemonic with               
-  | none        => throw ("Unknown instruction: " ++ i.mnemonic)
-  | (some inst) => do let (env, p) <- annotate' "pattern" (instantiate_pattern backend inst i);
+  | none        => throw ("Unknown instruction: " ++ reprStr i)
+  | (some inst) => do let (env, p) <- annotate' ("pattern " ++ reprStr i) (instantiate_pattern backend inst i);
                       annotate' "pattern.eval" (pattern.eval p env)
 
 end Backend

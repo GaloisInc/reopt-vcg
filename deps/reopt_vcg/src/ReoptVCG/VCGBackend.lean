@@ -320,7 +320,10 @@ def emit_event (e : Event) : system_m Unit :=
 def getEventInfo : system_m MemoryAnn := do
   let s ← monadLift (get : base_system_m vcg_state)
   match s.eventInfo with
-  | none => throw "Missing event info"
+  | none => do 
+    -- throw "Missing event info"
+    let rip <- (fun (s : RegState) => s.ip) <$> get
+    throw ("Missing event info at " ++ toString (toSExpr rip))
   | some v => pure v
 
 -- c.f. stmt2SMT

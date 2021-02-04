@@ -19,6 +19,13 @@
 # with that sort of extra "noise" in it will _not_ be considered the
 # same target as the same path without such seemingly innocuous noise.
 
+# Names of the Lean executables if they're not explicitly
+# set already defined already in the environment
+#
+# The full path is required so we can depend on it
+LEAN ?= $(shell which lean)
+LEANC ?= leanc
+
 BUILDDIR    ?= build
 
 # This is ugly, as it as the side effect of creating the build
@@ -32,11 +39,6 @@ BUILDDIR    ?= build
 # ABSBUILDDIR := $(shell mkdir -p ${BUILDDIR} && cd $(BUILDDIR) && pwd)
 
 # $(shell mkdir -p $(DEPDIR) >/dev/null)
-
-# Names of the Lean executables if they're not explicitly
-# set already defined already in the environment
-LEAN ?= lean
-LEANC ?= leanc
 
 # FIXME: move to llvm-tablegen-support submake
 # LLVM_BUILD_ROOT ?= ${HOME}/galois/vadds/llvm-stuff/llvm-build
@@ -133,11 +135,11 @@ $(EXTRAOBJDIR)/libextraobjs.a: $(EXTRAOBJFILES)
 ${OLEANDIRS} ${CLEANDIRS} ${DEPDIRS} ${EXTRAOBJDIRS} ${BINDIR}:
 	$(call cmd,MKDIR)
 
-$(DEPDIR)/%.d: %.lean | ${OLEANDIRS} $(DEPDIRS)
+$(DEPDIR)/%.d: %.lean $(LEAN) | ${OLEANDIRS} $(DEPDIRS)
 	$(call cmd,MAKEDEPEND)
 
 # could do this when making the olean
-$(OBJDIR)/%.c $(OLEANDIR)/%.olean: %.lean | ${OLEANDIRS} $(CLEANDIRS)
+$(OBJDIR)/%.c $(OLEANDIR)/%.olean: %.lean $(LEAN) | ${OLEANDIRS} $(CLEANDIRS)
 	$(call cmd,LEAN)
 
 # mv $(BUILDDIR)/$*.cpp.tmp $(BUILDDIR)/$*.cpp
