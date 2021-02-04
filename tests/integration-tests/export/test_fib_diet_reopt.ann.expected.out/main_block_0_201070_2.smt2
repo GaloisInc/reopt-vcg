@@ -165,7 +165,7 @@
 (define-fun rsp0 () (_ BitVec 64) (bvsub (ite true rsp fnstart_rsp) ((_ sign_extend 56) #x10)))
 (define-fun addr0 () (_ BitVec 64) (bvadd (ite true rbp fnstart_rbp) (bvadd (bvmul #x0000000000000001 #x0000000000000000) #xfffffffffffffffc)))
 (assert (is_in_mc_only_stack_range addr0 #x0000000000000004))
-(define-fun mem0 () (Array (_ BitVec 64) (_ BitVec 8)) (mem_writebv32 mem addr0 ((_ sign_extend 24) #x00)))
+(define-fun mem0 () (Array (_ BitVec 64) (_ BitVec 8)) (mem_writebv32 mem addr0 ((_ sign_extend 0) #x00000000)))
 (define-fun rdi () (_ BitVec 64) ((_ zero_extend 32) ((_ sign_extend 0) #x00000005)))
 (define-fun rsp1 () (_ BitVec 64) (bvsub (ite true rsp0 (ite true rsp fnstart_rsp)) #x0000000000000008))
 (define-fun addr1 () (_ BitVec 64) (bvsub (ite true rsp0 (ite true rsp fnstart_rsp)) #x0000000000000008))
