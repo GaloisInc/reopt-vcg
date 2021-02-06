@@ -213,6 +213,56 @@ def retq : instruction :=
      record_event (event.jmp addr)
     action   
 
+
+------------------------------------------------------------------------
+-- nopw definition
+def nopw : instruction :=
+  definst "nopw" $ do
+   instr_pat $ fun (_ : lhs (bv 16)) =>
+     let action : semantics Unit := do
+       (pure () : semantics Unit)
+     action
+
+------------------------------------------------------------------------
+-- nopl definition
+def nopl : instruction :=
+  definst "nopl" $ do
+   instr_pat $ fun (_ : lhs (bv 32)) =>
+     let action : semantics Unit := do
+       (pure () : semantics Unit)
+     action
+
+
+------------------------------------------------------------------------
+-- Move with Sign-Extension
+def movslq : instruction :=
+ definst "movslq" $
+   instr_pat $ fun (src : expression (bv 32)) (dest : lhs (bv 64)) =>
+    let action : semantics Unit := do
+      dest .= sext src 64
+    action
+
+def movswl : instruction :=
+ definst "movswl" $
+    instr_pat $ fun (src : expression (bv 16)) (dest : lhs (bv 32)) =>
+    let action : semantics Unit := do
+      dest .= sext src 32
+    action
+
+def movsbw : instruction :=
+ definst "movsbw" $
+    instr_pat $ fun (src : expression (bv 8)) (dest : lhs (bv 16)) =>
+    let action : semantics Unit := do
+      dest .= sext src 16
+    action
+
+def movsbl : instruction :=
+ definst "movsbl" $
+    instr_pat $ fun (src : expression (bv 8)) (dest : lhs (bv 32)) =>
+    let action : semantics Unit := do
+      dest .= sext src 32
+    action
+
 ------------------------------------------------------------------------
 -- Exported def.
 -- 
@@ -221,6 +271,12 @@ def manual_instructions : List instruction :=
     [ callq
     , jmp
     , leaveq
+    , movslq
+    , movswl
+    , movsbw
+    , movsbl
+    , nopl
+    , nopw
     , popq
     , popw
     , pushq
