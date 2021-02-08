@@ -1,0 +1,54 @@
+Parsed the JSON annotation file `test_add_diet_reopt.ann` successfully!
+Loading Elf file at `test_add_diet_lld.exe`...
+Elf file loaded!
+x86 decoder built...
+Loading LLVM module at `test_add_diet_reopt.ll`
+LLVM module loaded!
+Generating verification conditions for LLVM module...
+  Verifying add.block_0_201320.1 @ 0x201320: machine code writes to unreserve stack space... OK
+  Verifying add.block_0_201320.1 @ 0x201324: machine code writes to unreserve stack space... OK
+  Verifying add.block_0_201320.1 @ 0x201328: machine code reads from unallocated stack space... OK
+  Verifying add.block_0_201320.1 @ 0x20132c: machine code writes to unreserve stack space... OK
+  Verifying add.block_0_201320.1 @ 0x201330: machine code reads from unallocated stack space... OK
+  Verifying add.block_0_201320.1 @ 0x20133a: machine code reads from unallocated stack space... OK
+  Verifying add.block_0_201320.1 @ 0x20133b: machine code reads from unallocated stack space... OK
+  Verifying add.block_0_201320.1 @ 0x20133b: stack height preserved (after return)... OK
+  Verifying add.block_0_201320.1 @ 0x20133b: return address preserved (after return)... OK
+  Verifying add.block_0_201320.1 @ 0x20133b: register value preserved (rbp, after return)... OK
+  Verifying add.block_0_201320.1 @ 0x20133b: register value preserved (rbx, after return)... OK
+  Verifying add.block_0_201320.1 @ 0x20133b: register value preserved (r12, after return)... OK
+  Verifying add.block_0_201320.1 @ 0x20133b: register value preserved (r13, after return)... OK
+  Verifying add.block_0_201320.1 @ 0x20133b: register value preserved (r14, after return)... OK
+  Verifying add.block_0_201320.1 @ 0x20133b: register value preserved (r15, after return)... OK
+  Verifying add.block_0_201320.1 @ 0x20133b: LLVM and machine code return values match... OK
+  Verifying main.block_0_201340.0 @ 0x201340: machine code writes to unreserve stack space... OK
+  Verifying main.block_0_201340.0 @ 0x201348: machine code writes to unreserve stack space... OK
+  Verifying main.block_0_201340.0 @ 0x201354: machine code writes to unreserve stack space... OK
+  Verifying main.block_0_201340.0 @ 0x201354: argument matches register ($rdi)... OK
+  Verifying main.block_0_201340.0 @ 0x201354: return address is next instruction... OK
+  Verifying main.block_0_201340.1 @ 0x201354: instruction pointer is expected value (jump)... OK
+  Verifying main.block_0_201340.1 @ 0x201354: precondition ((= rbx (fnstart rbx)), for jump)... OK
+  Verifying main.block_0_201340.1 @ 0x201354: precondition ((= rsp (bvsub stack_high (_ bv24 64))), for jump)... OK
+  Verifying main.block_0_201340.1 @ 0x201354: precondition ((= rbp (bvsub stack_high (_ bv8 64))), for jump)... OK
+  Verifying main.block_0_201340.1 @ 0x201354: precondition ((= r12 (fnstart r12)), for jump)... OK
+  Verifying main.block_0_201340.1 @ 0x201354: precondition ((= r13 (fnstart r13)), for jump)... OK
+  Verifying main.block_0_201340.1 @ 0x201354: precondition ((= r14 (fnstart r14)), for jump)... OK
+  Verifying main.block_0_201340.1 @ 0x201354: precondition ((= r15 (fnstart r15)), for jump)... OK
+  Verifying main.block_0_201340.1 @ 0x201354: precondition ((= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp)), for jump)... OK
+  Verifying main.block_0_201359.0 @ 0x20135b: machine code writes to unreserve stack space... OK
+  Verifying main.block_0_201359.0 @ 0x201365: machine code reads from unallocated stack space... OK
+  Verifying main.block_0_201359.0 @ 0x201366: machine code reads from unallocated stack space... OK
+  Verifying main.block_0_201359.0 @ 0x201366: stack height preserved (after return)... OK
+  Verifying main.block_0_201359.0 @ 0x201366: return address preserved (after return)... OK
+  Verifying main.block_0_201359.0 @ 0x201366: register value preserved (rbp, after return)... OK
+  Verifying main.block_0_201359.0 @ 0x201366: register value preserved (rbx, after return)... OK
+  Verifying main.block_0_201359.0 @ 0x201366: register value preserved (r12, after return)... OK
+  Verifying main.block_0_201359.0 @ 0x201366: register value preserved (r13, after return)... OK
+  Verifying main.block_0_201359.0 @ 0x201366: register value preserved (r14, after return)... OK
+  Verifying main.block_0_201359.0 @ 0x201366: register value preserved (r15, after return)... OK
+  Verifying main.block_0_201359.0 @ 0x201366: LLVM and machine code return values match... OK
+
+All 2 functions were assigned verification conditions without error.
+
+====================== GOAL VERIFICATION SUMMARY =======================
+All 42 generated verification goals successfully proven.
