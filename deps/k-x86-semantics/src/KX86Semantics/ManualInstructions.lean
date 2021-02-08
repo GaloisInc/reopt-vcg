@@ -234,6 +234,15 @@ def nopl : instruction :=
 
 
 ------------------------------------------------------------------------
+-- Move
+def movabsq : instruction :=
+ definst "movabsq" $
+   instr_pat $ fun (val : imm int) (dest : lhs (bv 64))  =>
+    let action : semantics Unit := do
+      dest .= (handleImmediateWithSignExtend val 64 64)
+    action
+
+------------------------------------------------------------------------
 -- Move with Sign-Extension
 def movslq : instruction :=
  definst "movslq" $
@@ -271,6 +280,7 @@ def manual_instructions : List instruction :=
     [ callq
     , jmp
     , leaveq
+    , movabsq
     , movslq
     , movswl
     , movsbw
