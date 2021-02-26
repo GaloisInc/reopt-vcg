@@ -265,12 +265,17 @@ namespace MCStdLib
 def rsp_idx : Fin 16 := Fin.ofNat 4
 
 
-def make (ip : Nat) (pageSize : Nat) (guardPageCount : Nat) (allocas : AllocaAnnMap) : SmtM MCStdLib := do
-  -- FIXME: add checks
+def make
+    (ip : Nat)
+    (pageSize : Nat)
+    (guardPageCount : Nat)
+    (allocas : AllocaAnnMap)
+    (dfFlag : Bool) : SmtM MCStdLib := do
+  -- FIXME: add checks (which?)
   let memOps ← mkMemOps
   let fpOps <- SupportedFPOps.make
 
-  let funStartRegs ← RegState.declare_const "fnstart_" ip
+  let funStartRegs ← RegState.declare_const "fnstart_" (ip := ip) (df := dfFlag)
   let stackHighTerm := funStartRegs.get_gpreg rsp_idx
 
   let blockStartMem ← Smt.declareFun "init_mem" [] memory_t

@@ -232,13 +232,10 @@ def getNextEvents : BlockVCG Unit := do
 
 -- | Set machine code registers from reg state.
 def setMCRegs (regs : x86.vcg.RegState) : BlockVCG Unit :=
-  -- FIXME
-  -- topVal <- case regs^.boundValue X87_TopReg of
-  --             BVValue _w i | 0 <= i, i <= 7 -> pure $! fromInteger i
-  --             _ -> error "Unexpected X87_TOP value"
-  -- dfVal <- case regs^.boundValue DF of
-  --            BoolValue b -> pure b
-  --            _ -> error "Unexpected direction flag"
+  -- N.B., the previous Haskell prototype seemed to require Haskell
+  -- representatives of the X87_TopReg and DF values which could be passed
+  -- to some MC-related (Macaw) functions, but it does not appear we
+  -- have any such need heres.
   modify $ fun s => { s with mcCurRegs := regs }
 
 
@@ -405,19 +402,6 @@ def primEvalTypedValueAsBV64 (tyVal:Typed Value) : BlockVCG (Smt.Term SmtSort.bv
 
 
 end
-
--- --------------------------------------------------------------------------------
--- -- Branch support
-
-
--- AMK: `initBlockRegValues` is used in the Haskell implementation of `verifyBlockPreconditions`
---      ... but for ours I just use a helper `checkInitRegVals` since there isn't an obvious
---      analogue to the `X86Reg` from flexdis86 (i.e., a way to index the IP, X87 top reg, and DF)..
--- def initBlockRegValues (ann : ReachableBlockAnn) : List (Fin 16 × Smt.Term (SmtSort.bitvec 64)) :=
---   [ (Some X86_IP,     Smt.bvhexadecimal (toInteger (Ann.blockAddr blockAnn)) 64)
---   -- , (Some X87_TopReg, Smt.bvdecimal (toInteger (Ann.blockX87Top blockAnn)) 3)
---   -- , (Some DF,         if Ann.blockDFFlag blockAnn then Smt.true else Smt.false)
---   ]
 
 
 --------------------------------------------------------------------------------
@@ -643,6 +627,11 @@ def llvmStore (llvmAddr : Smt.Term SmtSort.bv64) {s : SmtSort} (llvmVal : Smt.Te
 
 end
 
+def checkDirectionFlagClear (context : String) : BlockVCG Unit := do
+  let regs <- BlockVCGState.mcCurRegs <$> get
+  let dfVal := regs.get_flag x86.flag.df.index
+  proveTrue GoalTag.expectedDirectionFlagVal context (Smt.not dfVal)
+
 def llvmReturn (mlret : Option (Typed Value)) : BlockVCG Unit := do
   mcExecuteToEnd;
   let regs <- BlockVCGState.mcCurRegs <$> get;
@@ -651,7 +640,8 @@ def llvmReturn (mlret : Option (Typed Value)) : BlockVCG Unit := do
   do let ra <- returnAddrTerm;
      proveEq GoalTag.returnAddressPreserved "after return" regs.ip ra
   
-  -- FIXME checkDirectionFlagClear
+  checkDirectionFlagClear "function return"
+
   let stdLib ← BlockVCGContext.mcStdLib <$> read;
   let rEq := λ r => proveEq GoalTag.registerPreserved (r.name ++ ", after return") (regs.get_reg64 r) (stdLib.funStartRegs.get_reg64 r)
   x86CalleeSavedGPRegs.forM rEq;
@@ -676,10 +666,12 @@ def llvmInvoke (isTailCall : Bool) (fsym : LLVM.Symbol) (args : Array (Typed Val
   when (args.size > x86ArgGPRegs.length) $ 
     localBlockError BlockErrorTag.llvmInvokeArgError "too many arguments"
 
-  for (v, r) in args.toList.zip x86ArgGPRegs do
+  for v in args,
+      r in x86ArgGPRegs do
     proveRegRel GoalTag.argAndRegEq r.repr (regs.get_reg64 r) v
 
-  -- FIXME checkDirectionFlagClear;
+  checkDirectionFlagClear "function call"
+
   let postCallRIP  <- mcNextAddr <$> get;
 
   -- FIXME: generalise returnAddrTerm?
@@ -690,14 +682,23 @@ def llvmInvoke (isTailCall : Bool) (fsym : LLVM.Symbol) (args : Array (Typed Val
   --------------------
   -- Post call
 
-  -- Construct new register after the call.
+  -- Add 8 to RSP for post-call value to represent poping the stack pointer.
   let postCallRSP := Smt.bvadd (regs.get_reg64 x86.reg64.rsp) (Smt.bvimm _ 8);
-  -- create a 
-  let newRegs <- (do let rs <- BlockVCG.runSmtM $ 
-                         x86.vcg.RegState.declare_const ("a" ++ postCallRIP.ppHex  ++ "_")  postCallRIP;
-                     let rs_with_rsp := x86.vcg.RegState.update_reg64 x86.reg64.rsp (fun _ => postCallRSP) rs;
-                     let copy_reg := λ s r => x86.vcg.RegState.update_reg64 r (fun _ => regs.get_reg64 r) s;
-                     pure (List.foldl copy_reg rs_with_rsp x86CalleeSavedGPRegs));
+  -- Create registers (newRegs) for instruction after call.
+  --
+  -- This ensures that callee saved registers and the stack pointer
+  -- are preserved, but nothing is assumed about other registers.
+  let newRegs ← do
+    let mut regs' ← BlockVCG.runSmtM $
+      -- declare fresh constants for all registers and initializes RIP
+      x86.vcg.RegState.declare_const ("a" ++ postCallRIP.ppHex  ++ "_")  (ip := postCallRIP) (df := false)
+    -- restore callee saved register values
+    for r in x86CalleeSavedGPRegs do
+      regs' := regs'.set_reg64 r (regs.get_reg64 r)
+    -- set expected rsp (x87top is not currently reasoned about)
+    regs' := regs'.set_reg64 x86.reg64.rsp postCallRSP
+    -- regs' := regs.set_flag X87_TopReg (bvdecimal 7 3)
+    pure $ regs'
 
   modify $ fun s => {s with mcCurRegs := newRegs };
 
@@ -778,26 +779,27 @@ def tryPrimEval (tp : LLVMType) (v:Value) : BlockVCG (Sigma Smt.Term) :=
 
 namespace BlockVCG
 
-
--- def checkInitRegVals
--- (blockAnn : ReachableBlockAnn)
--- -- ^ Message to preface verification comments/messages/etc
--- (goalFn : Smt.Term SmtSort.bool → Smt.Term SmtSort.bool)
---  : BlockVCG Unit := do
--- -- Check the instruction pointer
--- let expectedIp : Smt.Term SmtSort.bv64 := Smt.bvimm 64 blockAnn.startAddr.toNat;
--- regs <- BlockVCGState.mcCurRegs <$> get;               
--- proveTrue (goalFn (Smt.eq expectedIp regs.ip)) "Checking the IP register.";
-
--- -- Check x87Top value
--- --let expectedX87Top : Smt.Term SmtSort.bv64 := Smt.bv 64 blockAnn.startAddr.toNat;
--- -- (Some X87_TopReg, Smt.bvdecimal (toInteger (Ann.blockX87Top blockAnn)) 3)
--- -- FIXME check BlockVCGState.mcX87Top value against expected ^
--- -- Check the direction flag
--- --let expectedDF : Smt.Term SmtSort.bv64 := Smt.bvimm 64 blockAnn.startAddr.toNat;
--- -- (Some DF,         if Ann.blockDFFlag blockAnn then Smt.true else Smt.false)
--- -- FIXME check BlockVCGState.mcDF value against expected ^
--- pure ()
+/-- Ensure the initial register values when entering a block are as expected.
+    In particular the IP and DF (x87Top currently omitted). C.f. `initBlockRegValues`
+    in the original prototype. -/
+def checkInitBlockRegValues
+  (prefixDescr : String)
+  (blockAnn : ReachableBlockAnn)
+  -- ^ Message to preface verification comments/messages/etc
+  (goalFn : Smt.Term SmtSort.bool → Smt.Term SmtSort.bool) : BlockVCG Unit := do
+  let regs ← BlockVCGState.mcCurRegs <$> get
+  -- Check the instruction pointer
+  let actualIP := regs.ip
+  let expectedIP := Smt.bvimm 64 blockAnn.startAddr.toNat
+  proveTrue GoalTag.expectedInstrPtrVal prefixDescr (goalFn (Smt.eq actualIP expectedIP))
+  -- Check the direction flag
+  let actualDF := regs.get_flag x86.flag.df.index
+  let expectedDF := if blockAnn.dfFlag then Smt.true else Smt.false
+  proveTrue GoalTag.expectedDirectionFlagVal prefixDescr (goalFn (Smt.eq actualDF expectedDF))
+  -- Check x87Top value
+  --let expectedX87Top : Smt.Term SmtSort.bv64 := Smt.bv 64 blockAnn.startAddr.toNat;
+  -- (Some X87_TopReg, Smt.bvdecimal (toInteger (Ann.blockX87Top blockAnn)) 3)
+  pure ()
 
 -- cf. `verifyBlockPreconditions`
 def verifyPreconditions
@@ -819,12 +821,9 @@ def verifyPreconditions
     let firstLabel ← BlockVCGContext.firstBlockLabel <$> read;
     -- Ensure we're not in the first block
     when (lbl == firstLabel) $ localBlockError BlockErrorTag.invalidLLVMInstr "cannot jump to first label in function"
-    -- Check initialized register values (just rip for now)
-    do let regs ← BlockVCGState.mcCurRegs <$> get
-       let expected := Smt.bvimm 64 tgtBlockAnn.startAddr.toNat
-       proveTrue GoalTag.expectedInstrPtrVal prefixDescr (goalFn (Smt.eq expected regs.ip))
-  
-    -- checkInitRegVals tgtBlockAnn goalFn;
+
+    -- Check initialial register values (IP, DF, and x87Top)
+    checkInitBlockRegValues prefixDescr tgtBlockAnn goalFn
   
     let srcLbl ← BlockVCGContext.currentBlock <$> read;
     -- Resolve terms for SMT variables which can appear in precondition statements.
@@ -1068,12 +1067,16 @@ def run (mctx : ModuleVCGContext)
      Std.RBMap.ofList (List.map mk blockAnn.memoryEvents.toList));
   let ((stdLib, blockRegs), (idGen', script)) := Smt.runSmtM IdGen.empty (do
     let ann := mctx.annotations;
-    let stdLib <- x86.vcg.MCStdLib.make firstAddr.addr.toNat ann.pageSize ann.stackGuardPageCount blockAnn.allocas;
+    let stdLib <- x86.vcg.MCStdLib.make
+                    (ip := firstAddr.addr.toNat)
+                    (pageSize := ann.pageSize)
+                    (guardPageCount := ann.stackGuardPageCount)
+                    (allocas := blockAnn.allocas)
+                    (dfFlag := blockAnn.dfFlag)
     let blockRegs <-
       if thisBlock = firstBlock
       then pure stdLib.funStartRegs
-      else x86.vcg.RegState.declare_const ("a" ++ blockStart.ppHex ++ "_")  blockStart;
-    -- FIXME df etc.
+      else x86.vcg.RegState.declare_const ("a" ++ blockStart.ppHex ++ "_")  (ip := blockStart) (df := blockAnn.dfFlag)
     pure (stdLib, blockRegs));
   let ctx : BlockVCGContext :=
     { mcModuleVCGContext := mctx

@@ -1,4 +1,4 @@
-; main.block_0_201070.0 @ 0x201084: return address is next instruction
+; main.block_0_201070.0 @ 0x201084: direction flag is expected value (function call)
 (set-logic ALL)
 (set-option :produce-models true)
 (define-fun mem_readbv8 ((arg (Array (_ BitVec 64) (_ BitVec 8))) (arg0 (_ BitVec 64))) (_ BitVec 8) (select arg (bvadd arg0 #x0000000000000000)))
@@ -95,7 +95,7 @@
 (declare-fun fnstart_sf () Bool)
 (declare-fun fnstart_tf () Bool)
 (declare-fun fnstart_if () Bool)
-(declare-fun fnstart_df () Bool)
+(define-fun fnstart_df () Bool false)
 (declare-fun fnstart_of () Bool)
 (declare-fun fnstart_iopl1 () Bool)
 (declare-fun fnstart_iopl2 () Bool)
@@ -172,5 +172,5 @@
 (assert (is_in_mc_only_stack_range addr1 #x0000000000000008))
 (define-fun mem1 () (Array (_ BitVec 64) (_ BitVec 8)) (mem_writebv64 mem0 addr1 #x0000000000201089))
 (assert (= #x0000000000000005 (ite true rdi fnstart_rdi)))
-(check-sat-assuming ((not (= (mem_readbv64 mem1 (ite true rsp1 (ite true rsp0 (ite true rsp fnstart_rsp)))) #x0000000000201089))))
+(check-sat-assuming ((not (not fnstart_df))))
 (exit)
