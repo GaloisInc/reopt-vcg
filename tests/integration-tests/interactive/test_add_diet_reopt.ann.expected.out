@@ -14,6 +14,7 @@ Generating verification conditions for LLVM module...
   Verifying add.block_0_201320.1 @ 0x20133b: machine code reads from unallocated stack space... OK
   Verifying add.block_0_201320.1 @ 0x20133b: stack height preserved (after return)... OK
   Verifying add.block_0_201320.1 @ 0x20133b: return address preserved (after return)... OK
+  Verifying add.block_0_201320.1 @ 0x20133b: direction flag is expected value (function return)... OK
   Verifying add.block_0_201320.1 @ 0x20133b: register value preserved (rbp, after return)... OK
   Verifying add.block_0_201320.1 @ 0x20133b: register value preserved (rbx, after return)... OK
   Verifying add.block_0_201320.1 @ 0x20133b: register value preserved (r12, after return)... OK
@@ -25,8 +26,10 @@ Generating verification conditions for LLVM module...
   Verifying main.block_0_201340.0 @ 0x201348: machine code writes to unreserve stack space... OK
   Verifying main.block_0_201340.0 @ 0x201354: machine code writes to unreserve stack space... OK
   Verifying main.block_0_201340.0 @ 0x201354: argument matches register ($rdi)... OK
+  Verifying main.block_0_201340.0 @ 0x201354: direction flag is expected value (function call)... OK
   Verifying main.block_0_201340.0 @ 0x201354: return address is next instruction... OK
   Verifying main.block_0_201340.1 @ 0x201354: instruction pointer is expected value (jump)... OK
+  Verifying main.block_0_201340.1 @ 0x201354: direction flag is expected value (jump)... OK
   Verifying main.block_0_201340.1 @ 0x201354: precondition ((= rbx (fnstart rbx)), for jump)... OK
   Verifying main.block_0_201340.1 @ 0x201354: precondition ((= rsp (bvsub stack_high (_ bv24 64))), for jump)... OK
   Verifying main.block_0_201340.1 @ 0x201354: precondition ((= rbp (bvsub stack_high (_ bv8 64))), for jump)... OK
@@ -40,6 +43,7 @@ Generating verification conditions for LLVM module...
   Verifying main.block_0_201359.0 @ 0x201366: machine code reads from unallocated stack space... OK
   Verifying main.block_0_201359.0 @ 0x201366: stack height preserved (after return)... OK
   Verifying main.block_0_201359.0 @ 0x201366: return address preserved (after return)... OK
+  Verifying main.block_0_201359.0 @ 0x201366: direction flag is expected value (function return)... OK
   Verifying main.block_0_201359.0 @ 0x201366: register value preserved (rbp, after return)... OK
   Verifying main.block_0_201359.0 @ 0x201366: register value preserved (rbx, after return)... OK
   Verifying main.block_0_201359.0 @ 0x201366: register value preserved (r12, after return)... OK
@@ -51,4 +55,4 @@ Generating verification conditions for LLVM module...
 All 2 functions were assigned verification conditions without error.
 
 ====================== GOAL VERIFICATION SUMMARY =======================
-All 42 generated verification goals successfully proven.
+All 46 generated verification goals successfully proven.
