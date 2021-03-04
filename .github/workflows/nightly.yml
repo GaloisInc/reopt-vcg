@@ -1,0 +1,19 @@
+name: reopt-vcg nightly docker build
+on:
+  push:
+    branches: ["actions/**"]
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+jobs:
+  reopt-vcg-docker:
+    runs-on: ubuntu-latest
+    needs: [outputs]
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+      - name: Build Dockerfile
+        run: docker build .
+
