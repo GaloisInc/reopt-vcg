@@ -556,6 +556,7 @@ inductive GoalTag
   | returnAddrNextInstr : GoalTag
   | llvmAndMCReturnValuesEq : GoalTag
   | argAndRegEq : GoalTag
+  | expectedDirectionFlagVal : GoalTag
 
 namespace GoalTag
 
@@ -578,6 +579,7 @@ def index : GoalTag → UInt32
   | returnAddrNextInstr => 15
   | llvmAndMCReturnValuesEq => 16
   | argAndRegEq => 17
+  | expectedDirectionFlagVal => 18
 
 instance hasLess : HasLess GoalTag :=
   ⟨λ x y => x.index < y.index⟩
@@ -623,6 +625,8 @@ def description : GoalTag → String
     "LLVM and machine code return values match"
   | argAndRegEq =>
     "argument matches register"
+  | expectedDirectionFlagVal =>
+    "direction flag is expected value"
 
 end GoalTag
 
@@ -817,8 +821,6 @@ structure BlockVCGState :=
   -- ^ Size of current instruction.
 --(mcX87Top : Nat) -- TODO...? later
   -- ^ Top index in x86 stack (starts at 7 and grows down).
--- (mcDF : Bool) -- FIXME
-  -- ^ Direction flag
 (mcCurRegs : x86.vcg.RegState)
   -- ^ Map registers to the SMT term.
 (mcCurMem : x86.vcg.memory)

@@ -95,7 +95,7 @@
 (declare-fun fnstart_sf () Bool)
 (declare-fun fnstart_tf () Bool)
 (declare-fun fnstart_if () Bool)
-(declare-fun fnstart_df () Bool)
+(define-fun fnstart_df () Bool false)
 (declare-fun fnstart_of () Bool)
 (declare-fun fnstart_iopl1 () Bool)
 (declare-fun fnstart_iopl2 () Bool)

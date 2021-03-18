@@ -496,6 +496,9 @@ def fromName : String -> Option flag
 | "of" => some of 
 | _    => none
 
+def index : flag → Fin 32
+  | concrete_reg.flagreg idx => idx
+
 end flag
 
 

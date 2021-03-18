@@ -9,6 +9,7 @@ Generating verification conditions for LLVM module...
   Verifying fib.block_0_201000.4 @ 0x201008: machine code writes to unreserve stack space... OK
   Verifying fib.block_0_201000.4 @ 0x20100c: machine code reads from unallocated stack space... OK
   Verifying fib.block_0_201000.4 @ 0x201011: instruction pointer is expected value (true branch)... OK
+  Verifying fib.block_0_201000.4 @ 0x201011: direction flag is expected value (true branch)... OK
   Verifying fib.block_0_201000.4 @ 0x201011: precondition ((= (llvm t5) rdi), for true branch)... OK
   Verifying fib.block_0_201000.4 @ 0x201011: precondition ((= (llvm t5) (mcstack (bvsub stack_high (_ bv24 64)) (_ BitVec 64))), for true branch)... OK
   Verifying fib.block_0_201000.4 @ 0x201011: precondition ((= rbx (fnstart rbx)), for true branch)... OK
@@ -21,6 +22,7 @@ Generating verification conditions for LLVM module...
   Verifying fib.block_0_201000.4 @ 0x201011: precondition ((= rdi (mcstack (bvsub stack_high (_ bv24 64)) (_ BitVec 64))), for true branch)... OK
   Verifying fib.block_0_201000.4 @ 0x201011: precondition ((= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp)), for true branch)... OK
   Verifying fib.block_0_201000.4 @ 0x201011: instruction pointer is expected value (false branch)... OK
+  Verifying fib.block_0_201000.4 @ 0x201011: direction flag is expected value (false branch)... OK
   Verifying fib.block_0_201000.4 @ 0x201011: precondition ((= (llvm t4) rdi), for false branch)... OK
   Verifying fib.block_0_201000.4 @ 0x201011: precondition ((= (llvm t4) (mcstack (bvsub stack_high (_ bv24 64)) (_ BitVec 64))), for false branch)... OK
   Verifying fib.block_0_201000.4 @ 0x201011: precondition ((= rbx (fnstart rbx)), for false branch)... OK
@@ -35,6 +37,7 @@ Generating verification conditions for LLVM module...
   Verifying fib.block_0_201017.0 @ 0x201017: machine code reads from unallocated stack space... OK
   Verifying fib.block_0_201017.0 @ 0x20101b: machine code writes to unreserve stack space... OK
   Verifying fib.block_0_201017.0 @ 0x20101f: instruction pointer is expected value (jump)... OK
+  Verifying fib.block_0_201017.0 @ 0x20101f: direction flag is expected value (jump)... OK
   Verifying fib.block_0_201017.0 @ 0x20101f: precondition ((= (llvm t15) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 64))), for jump)... OK
   Verifying fib.block_0_201017.0 @ 0x20101f: precondition ((= rbx (fnstart rbx)), for jump)... OK
   Verifying fib.block_0_201017.0 @ 0x20101f: precondition ((= rsp (bvsub stack_high (_ bv40 64))), for jump)... OK
@@ -47,8 +50,10 @@ Generating verification conditions for LLVM module...
   Verifying fib.block_0_201024.1 @ 0x201024: machine code reads from unallocated stack space... OK
   Verifying fib.block_0_201024.1 @ 0x201031: machine code writes to unreserve stack space... OK
   Verifying fib.block_0_201024.1 @ 0x201031: argument matches register ($rdi)... OK
+  Verifying fib.block_0_201024.1 @ 0x201031: direction flag is expected value (function call)... OK
   Verifying fib.block_0_201024.1 @ 0x201031: return address is next instruction... OK
   Verifying fib.block_0_201024.2 @ 0x201031: instruction pointer is expected value (jump)... OK
+  Verifying fib.block_0_201024.2 @ 0x201031: direction flag is expected value (jump)... OK
   Verifying fib.block_0_201024.2 @ 0x201031: precondition ((= (llvm t8) rax), for jump)... OK
   Verifying fib.block_0_201024.2 @ 0x201031: precondition ((= (llvm t9) (mcstack (bvsub stack_high (_ bv24 64)) (_ BitVec 64))), for jump)... OK
   Verifying fib.block_0_201024.2 @ 0x201031: precondition ((= rbx (fnstart rbx)), for jump)... OK
@@ -63,8 +68,10 @@ Generating verification conditions for LLVM module...
   Verifying fib.block_0_201036.1 @ 0x201044: machine code writes to unreserve stack space... OK
   Verifying fib.block_0_201036.1 @ 0x201048: machine code writes to unreserve stack space... OK
   Verifying fib.block_0_201036.1 @ 0x201048: argument matches register ($rdi)... OK
+  Verifying fib.block_0_201036.1 @ 0x201048: direction flag is expected value (function call)... OK
   Verifying fib.block_0_201036.1 @ 0x201048: return address is next instruction... OK
   Verifying fib.block_0_201036.2 @ 0x201048: instruction pointer is expected value (jump)... OK
+  Verifying fib.block_0_201036.2 @ 0x201048: direction flag is expected value (jump)... OK
   Verifying fib.block_0_201036.2 @ 0x201048: precondition ((= (llvm t12) rax), for jump)... OK
   Verifying fib.block_0_201036.2 @ 0x201048: precondition ((= (llvm t13) (mcstack (bvsub stack_high (_ bv32 64)) (_ BitVec 64))), for jump)... OK
   Verifying fib.block_0_201036.2 @ 0x201048: precondition ((= rbx (fnstart rbx)), for jump)... OK
@@ -78,6 +85,7 @@ Generating verification conditions for LLVM module...
   Verifying fib.block_0_20104d.1 @ 0x20104d: machine code reads from unallocated stack space... OK
   Verifying fib.block_0_20104d.1 @ 0x201054: machine code writes to unreserve stack space... OK
   Verifying fib.block_0_20104d.1 @ 0x201054: instruction pointer is expected value (jump)... OK
+  Verifying fib.block_0_20104d.1 @ 0x201054: direction flag is expected value (jump)... OK
   Verifying fib.block_0_20104d.1 @ 0x201054: precondition ((= (llvm t15) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 64))), for jump)... OK
   Verifying fib.block_0_20104d.1 @ 0x201054: precondition ((= rbx (fnstart rbx)), for jump)... OK
   Verifying fib.block_0_20104d.1 @ 0x201054: precondition ((= rsp (bvsub stack_high (_ bv40 64))), for jump)... OK
@@ -92,6 +100,7 @@ Generating verification conditions for LLVM module...
   Verifying fib.block_0_201058.0 @ 0x201061: machine code reads from unallocated stack space... OK
   Verifying fib.block_0_201058.0 @ 0x201061: stack height preserved (after return)... OK
   Verifying fib.block_0_201058.0 @ 0x201061: return address preserved (after return)... OK
+  Verifying fib.block_0_201058.0 @ 0x201061: direction flag is expected value (function return)... OK
   Verifying fib.block_0_201058.0 @ 0x201061: register value preserved (rbp, after return)... OK
   Verifying fib.block_0_201058.0 @ 0x201061: register value preserved (rbx, after return)... OK
   Verifying fib.block_0_201058.0 @ 0x201061: register value preserved (r12, after return)... OK
@@ -103,8 +112,10 @@ Generating verification conditions for LLVM module...
   Verifying main.block_0_201070.0 @ 0x201078: machine code writes to unreserve stack space... OK
   Verifying main.block_0_201070.0 @ 0x201084: machine code writes to unreserve stack space... OK
   Verifying main.block_0_201070.0 @ 0x201084: argument matches register ($rdi)... OK
+  Verifying main.block_0_201070.0 @ 0x201084: direction flag is expected value (function call)... OK
   Verifying main.block_0_201070.0 @ 0x201084: return address is next instruction... OK
   Verifying main.block_0_201070.1 @ 0x201084: instruction pointer is expected value (jump)... OK
+  Verifying main.block_0_201070.1 @ 0x201084: direction flag is expected value (jump)... OK
   Verifying main.block_0_201070.1 @ 0x201084: precondition ((= (llvm t1) rax), for jump)... OK
   Verifying main.block_0_201070.1 @ 0x201084: precondition ((= rbx (fnstart rbx)), for jump)... OK
   Verifying main.block_0_201070.1 @ 0x201084: precondition ((= rsp (bvsub stack_high (_ bv24 64))), for jump)... OK
@@ -117,8 +128,10 @@ Generating verification conditions for LLVM module...
   Verifying main.block_0_201089.0 @ 0x201098: machine code writes to unreserve stack space... OK
   Verifying main.block_0_201089.0 @ 0x201098: argument matches register ($rdi)... OK
   Verifying main.block_0_201089.0 @ 0x201098: argument matches register ($rsi)... OK
+  Verifying main.block_0_201089.0 @ 0x201098: direction flag is expected value (function call)... OK
   Verifying main.block_0_201089.0 @ 0x201098: return address is next instruction... OK
   Verifying main.block_0_201089.1 @ 0x201098: instruction pointer is expected value (jump)... OK
+  Verifying main.block_0_201089.1 @ 0x201098: direction flag is expected value (jump)... OK
   Verifying main.block_0_201089.1 @ 0x201098: precondition ((= rbx (fnstart rbx)), for jump)... OK
   Verifying main.block_0_201089.1 @ 0x201098: precondition ((= rsp (bvsub stack_high (_ bv24 64))), for jump)... OK
   Verifying main.block_0_201089.1 @ 0x201098: precondition ((= rbp (bvsub stack_high (_ bv8 64))), for jump)... OK
@@ -132,6 +145,7 @@ Generating verification conditions for LLVM module...
   Verifying main.block_0_20109d.0 @ 0x2010a9: machine code reads from unallocated stack space... OK
   Verifying main.block_0_20109d.0 @ 0x2010a9: stack height preserved (after return)... OK
   Verifying main.block_0_20109d.0 @ 0x2010a9: return address preserved (after return)... OK
+  Verifying main.block_0_20109d.0 @ 0x2010a9: direction flag is expected value (function return)... OK
   Verifying main.block_0_20109d.0 @ 0x2010a9: register value preserved (rbp, after return)... OK
   Verifying main.block_0_20109d.0 @ 0x2010a9: register value preserved (rbx, after return)... OK
   Verifying main.block_0_20109d.0 @ 0x2010a9: register value preserved (r12, after return)... OK
@@ -143,4 +157,4 @@ Generating verification conditions for LLVM module...
 All 2 functions were assigned verification conditions without error.
 
 ====================== GOAL VERIFICATION SUMMARY =======================
-All 134 generated verification goals successfully proven.
+All 148 generated verification goals successfully proven.

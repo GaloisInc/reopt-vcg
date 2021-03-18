@@ -28,7 +28,7 @@ open Smt (SmtSort SmtSort.bool SmtSort.bitvec SmtSort.array Term SmtM Command Id
 open ReoptVCG (MemoryAnn)
 
 abbrev bitvec (n : Nat) := Term (SmtSort.bitvec n)
-def s_bool              := Term SmtSort.bool
+abbrev s_bool              := Term SmtSort.bool
 
 abbrev memaddr := bitvec 64
 def byte    := bitvec 8
@@ -106,12 +106,20 @@ def update_flag'  (r : concrete_reg bit)
   match r with
   | concrete_reg.flagreg idx => update_flag idx f s
 
+def set_flag (r : concrete_reg bit) (v : s_bool) (s : RegState) : RegState :=
+  update_flag' r (λ _ => v) s
+
 def get_reg64 (s : RegState) (r : concrete_reg (bv gpreg_type.reg64.width)) : machine_word :=
   get_reg64' _ rfl s r
 
 def update_reg64  (r : concrete_reg (bv gpreg_type.reg64.width)) 
                   (f : machine_word -> machine_word) (s : RegState) : RegState :=
     update_reg64' _ rfl r f s
+
+def set_reg64  (r : concrete_reg (bv gpreg_type.reg64.width))
+               (v : machine_word)
+               (s : RegState) : RegState :=
+    update_reg64 r (λ _ => v) s
 
 def get_avxreg  (s : RegState) (idx : Fin 16) : avx_word := 
   -- FIXME
@@ -128,24 +136,40 @@ def print_regs (s : RegState) : String :=
   let lines := List.zipWith (fun n (r : bitvec 64) => (n ++ ": " ++ toString (toSExpr r) ++ ", ")) reg.r64_names s.gpregs.toList;
   String.join lines
 
+section
+open Std
+
 -- Constructs a new machine state where all the elements are fresh constants
 -- FIXME: could use sz = ns.length
 protected 
-def declare_const_aux {s : SmtSort} (pfx : String) (ns : List String) (sz : Nat) : SmtM (Array (Term s)) := do
+def declare_const_aux 
+  {s : SmtSort}
+  (pfx : String)
+  (ns : List String)
+  (sz : Nat)
+  (knownVals : RBMap Nat (Term s) (λ x y => x < y) := RBMap.empty) : SmtM (Array (Term s)) := do
   let mut terms : Array (Term s) := Array.mkEmpty sz
   for n in [:sz] do
-    let fn ← Smt.declareFun (pfx ++ List.getD n ns "el") [] s
-    terms := terms.push fn
+    let val ← match knownVals.find? n with
+              | none => Smt.declareFun (pfx ++ List.getD n ns "el") [] s
+              | some v => Smt.defineFun (pfx ++ List.getD n ns "el") [] s v
+    terms := terms.push val
   pure terms
 
--- We normally havea concrete rip
-def declare_const (pfx : String) (ip : Nat) : SmtM RegState := do
+/-- Returns a RegState with fresh SMT constants except for the IP and DF (which we normally know concretely). -/
+def declare_const (pfx : String) (ip : Nat) (df : Bool) : SmtM RegState := do
   let gprs  <- RegState.declare_const_aux pfx reg.r64_names 16;
-  let flags <- RegState.declare_const_aux pfx reg.flag_names 32;
+  let flags <- RegState.declare_const_aux pfx reg.flag_names 32 
+                (knownVals := (RBMap.fromList [(x86.flag.df.index.val, if df then Smt.true else Smt.false)])
+                                              (λ x y => x < y))
   let avxregs <- RegState.declare_const_aux pfx (List.map (fun i => "xmm" ++ reprStr i) (Nat.upto0_lt 16)) 16;
-  pure { gpregs := gprs, flags := flags, avxregs := avxregs, ip := Smt.bvimm _ ip }
+  let regs := { gpregs := gprs, flags := flags, avxregs := avxregs, ip := Smt.bvimm _ ip }
+  pure regs
+
+end
 
 end RegState
+
 
 
 namespace Event
@@ -326,7 +350,7 @@ def getEventInfo : system_m MemoryAnn := do
   match s.eventInfo with
   | none => do 
     -- throw "Missing event info"
-    let rip <- (fun (s : RegState) => s.ip) <$> get
+    let rip <- RegState.ip <$> get
     throw ("Missing event info at " ++ toString (toSExpr rip))
   | some v => pure v
 
@@ -450,7 +474,7 @@ def mkBackend (fpOps : SupportedFPOps) : Backend :=
    
   -- System operations
   , s_os_transition := pure ()
-  , s_get_ip        := (fun (s : RegState) => s.ip) <$> get
+  , s_get_ip        := RegState.ip <$> get
   , s_set_ip        := fun x => modify (fun s => { s with ip := x })
   -- FIXME: could just use mux_bv and get_ip
   , s_cond_set_ip   := fun b x => modify (fun s => { s with ip := Smt.smtIte b x s.ip })

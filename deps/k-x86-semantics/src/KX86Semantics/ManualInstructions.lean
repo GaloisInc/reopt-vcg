@@ -28,15 +28,17 @@ def syscall : instruction :=
 -- leave definition
 -- High Level Procedure Exit
 
+def leaveImpl : semantics Unit := do
+  rsp .= rbp;
+  let v ← eval (expression.read (bv 64) rsp);
+  rsp .= coe rsp + nat_to_bv 8;
+  rbp .= v
+
+def leave : instruction :=
+ definst "leave" $ instr_pat leaveImpl
+
 def leaveq : instruction :=
- definst "leaveq" $ do
-   instr_pat $
-    let action : semantics Unit := do
-     rsp .= rbp;
-     let v ← eval (expression.read (bv 64) rsp);
-     rsp .= coe rsp + nat_to_bv 8;
-     rbp .= v
-    action
+ definst "leaveq" $ instr_pat leaveImpl
 
 ------------------------------------------------------------------------
 -- push definition
@@ -279,6 +281,7 @@ def movsbl : instruction :=
 def manual_instructions : List instruction :=
     [ callq
     , jmp
+    , leave
     , leaveq
     , movabsq
     , movslq
