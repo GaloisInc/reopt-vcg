@@ -462,7 +462,8 @@ open LLVM.Value
 def primEval : forall (tp : LLVMType) (H : HasBVRepr tp), Value -> BlockVCG (Smt.Term (asSMTSort tp H))
 | tp, H, ident i => lookupIdent i (asSMTSort tp H)
 | LLVM.LLVMType.prim (LLVM.PrimType.integer w), H, integer i => pure (mkInt i H)
-| tp, _, _ => BlockVCG.localBlockError BlockErrorTag.unimplementedFeature ("primEval for " ++ ppLLVM tp)
+| LLVM.LLVMType.prim (LLVM.PrimType.integer w), H, undef     => pure (mkInt 0 H) -- FIXME
+| tp, _, v => BlockVCG.localBlockError BlockErrorTag.unimplementedFeature ("primEval for " ++ ppLLVM tp ++ " at " ++ ppLLVM v)
 
 
 def primEvalTypedValueAsBV64 (tyVal:Typed Value) : BlockVCG (Smt.Term SmtSort.bv64) :=
@@ -848,6 +849,8 @@ def tryPrimEval (tp : LLVMType) (v:Value) : BlockVCG (Sigma Smt.Term) :=
     BlockVCG.localBlockError BlockErrorTag.unexpectedSort ((ppLLVM v)++" is not of type "++(ppLLVM tp))
 
 
+
+
 --------------------------------------------------------------------------------
 -- Block Precondition Verification
 
@@ -929,6 +932,8 @@ end BlockVCG
 section
 open LLVM.Instruction
 open BlockVCG (verifyPreconditions)
+open LLVM.ConvOp
+open mc_semantics.float_class
 
 def stepNextStmt (stmt : LLVM.Stmt) : BlockVCG Bool := do
   let unimplemented {t : Type} : BlockVCG t :=
@@ -971,7 +976,6 @@ def stepNextStmt (stmt : LLVM.Stmt) : BlockVCG Bool := do
     | _ => localBlockError BlockErrorTag.unimplementedFeature "indirect function call"
     pure true
 
---   | conv : conv_op -> typed value -> LLVMType -> instruction
   | icmp bop { type := lty, value := lhs } rhs => do
     if H : HasBVRepr lty then do
       let lhsv <- primEval lty H lhs;
@@ -1010,12 +1014,28 @@ def stepNextStmt (stmt : LLVM.Stmt) : BlockVCG Bool := do
         if H : m <= n -- FIXME: we should move these out of VCGBackend
         then assignTerm (x86.vcg.bitvec.trunc m H l)
         else unimplemented
-      | SmtSort.bitvec n, SmtSort.bitvec m, LLVM.ConvOp.zext, l => do 
+      | SmtSort.bitvec n, SmtSort.bitvec m, zext, l => do 
         assignTerm (x86.vcg.bitvec.uresize n m l)
-      | SmtSort.bitvec n, SmtSort.bitvec m, LLVM.ConvOp.sext, l => do 
+      | SmtSort.bitvec n, SmtSort.bitvec m, sext, l => do 
         assignTerm (x86.vcg.bitvec.sresize n m l)
-      | SmtSort.bitvec n, SmtSort.bitvec m, LLVM.ConvOp.int_to_ptr, l => assignTerm l
-      | SmtSort.bitvec n, SmtSort.bitvec m, LLVM.ConvOp.ptr_to_int, l => assignTerm l
+      | SmtSort.bitvec n, SmtSort.bitvec m, int_to_ptr, l => assignTerm l
+      | SmtSort.bitvec n, SmtSort.bitvec m, ptr_to_int, l => assignTerm l
+      | SmtSort.bitvec n, SmtSort.bitvec m, bit_cast,   l => assignTerm l -- bit cast is identity
+      -- FIXME: rounding mode
+      | SmtSort.bitvec 32, SmtSort.bitvec 32, fp_to_si, l => do
+        let stdLib <- BlockVCGContext.mcStdLib <$> read
+        assignTerm (stdLib.fpOps.fp_convert_to_int fp32 true x86.RoundingMode.Truncate l)
+      | SmtSort.bitvec 64, SmtSort.bitvec 64, fp_to_si, l => do
+        let stdLib <- BlockVCGContext.mcStdLib <$> read
+        assignTerm (stdLib.fpOps.fp_convert_to_int fp64 false x86.RoundingMode.Truncate l)
+      -- FIXME: rounding mode
+      | SmtSort.bitvec 32, SmtSort.bitvec 32, si_to_fp, l => do
+        let stdLib <- BlockVCGContext.mcStdLib <$> read
+        assignTerm (stdLib.fpOps.int_convert_to_fp fp32 true l)
+      | SmtSort.bitvec 64, SmtSort.bitvec 64, si_to_fp, l => do
+        let stdLib <- BlockVCGContext.mcStdLib <$> read
+        assignTerm (stdLib.fpOps.int_convert_to_fp fp64 false l)
+
       | _, _, _, _ => unimplemented;
       pure true
     else BlockVCG.localBlockError BlockErrorTag.unexpectedSort "conv in stepNextStatement"

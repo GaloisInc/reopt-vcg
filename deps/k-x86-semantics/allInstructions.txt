@@ -162,7 +162,7 @@ cvtpd2ps
 # cvtsi2sdl
 # cvtpi2ps
 cmpxchg16b
-# cvtsi2sdq
+cvtsi2sdq
 cvtpd2dq
 cmpxchg8b
 cvtsd2ss

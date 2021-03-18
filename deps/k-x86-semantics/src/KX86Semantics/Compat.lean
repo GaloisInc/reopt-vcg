@@ -52,6 +52,8 @@ def bv_bitcast_to_fp (fc : float_class) (x : bv fc.width) : float fc := prim.bv_
 
 -- FIXME: check the nat is fc.width?
 def fp_bitcast_to_bv {fc : float_class} (x : expression (float fc))    (_ : Nat) : bv fc.width := prim.fp_bitcast_to_bv fc x
+def int_convert_to_fp (fc : float_class) (n : Nat) (x : expression (bv n)) : float fc := prim.int_convert_to_fp fc n x 
+
 def fp_add           {fc : float_class} (x y : expression (float fc)) : expression (float fc) := prim.fp_add fc x y
 def fp_sub           {fc : float_class} (x y : expression (float fc)) : expression (float fc) := prim.fp_sub fc x y
 def fp_mul           {fc : float_class} (x y : expression (float fc)) : expression (float fc) := prim.fp_mul fc x y
