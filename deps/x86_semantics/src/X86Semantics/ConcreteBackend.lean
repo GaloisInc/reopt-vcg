@@ -19,7 +19,7 @@ axiom I_am_really_sorry2 : ∀(P : Prop),  P
 def machine_word := bitvec 64
 
 @[reducible]
-def avx_word := bitvec 256
+def avx_word := bitvec avx_width
 
 def bitvec.uext {n} (m : Nat) (p: n ≤ m) (x:bitvec n) : bitvec m :=
   bitvec.set_bits 0 0 x (I_am_really_sorry2 _) -- (begin simp, exact p end)

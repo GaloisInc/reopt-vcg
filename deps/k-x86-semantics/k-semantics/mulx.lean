@@ -8,10 +8,10 @@ def mulx : instruction :=
       let v_6 <- load v_3 4;
       let v_7 <- eval (concat (expression.bv_nat 32 0) v_6);
       let v_8 <- eval (mul v_5 v_7);
-      let (v_9 : expression (bv 32)) <- eval (extract v_8 32 64);
-      let (v_10 : expression (bv 32)) <- eval (extract v_8 0 32);
-      setRegister (lhs.of_reg r32_2) v_10;
-      setRegister (lhs.of_reg r32_1) v_9;
+      let (v_9 : expression (bv 32)) <- eval (extract v_8 0 32);
+      let (v_10 : expression (bv 32)) <- eval (extract v_8 32 64);
+      setRegister (lhs.of_reg r32_1) v_10;
+      setRegister (lhs.of_reg r32_2) v_9;
       pure ()
      action;
     instr_pat $ fun (mem_0 : Mem) (r64_1 : reg (bv 64)) (r64_2 : reg (bv 64)) =>
@@ -35,10 +35,10 @@ def mulx : instruction :=
       let v_6 <- getRegister (lhs.of_reg r32_0);
       let v_7 <- eval (concat (expression.bv_nat 32 0) v_6);
       let v_8 <- eval (mul v_5 v_7);
-      let (v_9 : expression (bv 32)) <- eval (extract v_8 0 32);
-      let (v_10 : expression (bv 32)) <- eval (extract v_8 32 64);
-      setRegister (lhs.of_reg r32_1) v_10;
-      setRegister (lhs.of_reg r32_2) v_9;
+      let (v_9 : expression (bv 32)) <- eval (extract v_8 32 64);
+      let (v_10 : expression (bv 32)) <- eval (extract v_8 0 32);
+      setRegister (lhs.of_reg r32_2) v_10;
+      setRegister (lhs.of_reg r32_1) v_9;
       pure ()
      action;
     instr_pat $ fun (r64_0 : reg (bv 64)) (r64_1 : reg (bv 64)) (r64_2 : reg (bv 64)) =>
@@ -48,9 +48,9 @@ def mulx : instruction :=
       let v_5 <- getRegister (lhs.of_reg r64_0);
       let v_6 <- eval (concat (expression.bv_nat 64 0) v_5);
       let v_7 <- eval (mul v_4 v_6);
-      let (v_8 : expression (bv 64)) <- eval (extract v_7 64 128);
-      let (v_9 : expression (bv 64)) <- eval (extract v_7 0 64);
-      setRegister (lhs.of_reg r64_2) v_9;
-      setRegister (lhs.of_reg r64_1) v_8;
+      let (v_8 : expression (bv 64)) <- eval (extract v_7 0 64);
+      let (v_9 : expression (bv 64)) <- eval (extract v_7 64 128);
+      setRegister (lhs.of_reg r64_1) v_9;
+      setRegister (lhs.of_reg r64_2) v_8;
       pure ()
      action

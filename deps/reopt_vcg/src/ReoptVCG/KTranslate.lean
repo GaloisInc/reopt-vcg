@@ -41,28 +41,32 @@ namespace x86
 namespace mcinst
 
 @[reducible]
-def some_gpr := Sigma (fun (tp : gpreg_type) => concrete_reg (bv tp.width))
+def some_reg := Sigma (fun n => concrete_reg (bv n))
 
 -- @[reducible]
 -- def some_reg := Sigma concrete_reg
 
-def reg_names : List (String × some_gpr) :=
-  let default_reg : some_gpr := Sigma.mk _ (concrete_reg.gpreg 0 gpreg_type.reg64);
-  let mkOne (n : Nat) (f : Fin n -> some_gpr) (name : Nat × String) : (String × some_gpr) :=
+def reg_names : List (String × some_reg) :=
+  let default_reg : some_reg := Sigma.mk _ (concrete_reg.gpreg 0 gpreg_type.reg64);
+  let mkOne (n : Nat) (f : Fin n -> some_reg) (name : Nat × String) : (String × some_reg) :=
       (name.snd, if H : name.fst < n then f (@Fin.mk n name.fst H) else default_reg);  
-  let mk {n : Nat} (f : Fin n -> some_gpr) (names : List String) : List (String × some_gpr) :=
+  let mk {n : Nat} (f : Fin n -> some_reg) (names : List String) : List (String × some_reg) :=
       List.map (mkOne n f) names.enum;
+  -- XMM and YMM 
+  let mkxMM (avx_ty : avxreg_type) (pfx : String) := 
+      List.map (fun n => mkOne 16 (fun i => Sigma.mk _ (concrete_reg.avxreg i avx_ty)) (n, pfx ++ reprStr n))
+               (List.range 16);
      mk (fun i => Sigma.mk _ (concrete_reg.gpreg i gpreg_type.reg8l)) reg.r8l_names
   ++ mk (fun i => Sigma.mk _ (concrete_reg.gpreg i gpreg_type.reg8h)) reg.r8h_names
   ++ mk (fun i => Sigma.mk _ (concrete_reg.gpreg i gpreg_type.reg16)) reg.r16_names
   ++ mk (fun i => Sigma.mk _ (concrete_reg.gpreg i gpreg_type.reg32)) reg.r32_names
   ++ mk (fun i => Sigma.mk _ (concrete_reg.gpreg i gpreg_type.reg64)) reg.r64_names
-  -- FIXME: add in AVX
+  ++ mkxMM avxreg_type.xmm "xmm" ++ mkxMM avxreg_type.ymm "ymm"
 
-def reg_name_map : RBMap String some_gpr (fun x y => decide (x < y)) :=
+def reg_name_map : RBMap String some_reg (fun x y => decide (x < y)) :=
   Std.RBMap.fromList reg_names (fun x y => decide (x < y))
 
-def register_to_reg (r : mcinst.register) : Option some_gpr :=
+def register_to_reg (r : mcinst.register) : Option some_reg :=
   reg_name_map.find? r
 
 def throw_if {m} {ε} [Monad m] [MonadExcept ε m] (P : Prop) [Decidable P] (what : ε) : m Unit :=
@@ -102,17 +106,17 @@ def option_register_to_bv64 (opt_r : Option mcinst.register) : M backend (backen
     (match String.decEq r "rip" with -- FIXME: compiler bug with ite?
      | isTrue _  => backend.s_get_ip
      | isFalse _ => guard_some "option_register_to_bv64" (register_to_reg r)
-                    (fun (r' : some_gpr) =>
+                    (fun (r' : some_reg) =>
                       match r' with 
-                      | (Sigma.mk gpreg_type.reg64 rr) => concrete_reg.from_state rr
-                      | _                              => throw "not a 64bit reg"
+                      | (Sigma.mk 64 rr) => concrete_reg.from_state rr
+                      | _                => throw "not a 64bit reg"
       ))
 
 def operand_to_arg_lval (tp : type) : mcinst.operand -> M backend (@arg_lval backend)
   -- FIXME: check width?
   | (operand.register r) => do 
     let sgpr <- guard_some "operand_to_arg_lval register" (register_to_reg r) pure;
-    assert_types (bv sgpr.fst.width) tp;
+    assert_types (bv sgpr.fst) tp;
     pure (arg_lval.reg sgpr.snd)
   -- FIXME: check width?
   | (operand.immediate val) => throw "operand_to_arg_lval: got an immdiate"
@@ -196,8 +200,8 @@ def make_environment_helper : List binding -> List mcinst.operand -> M backend (
   | (binding.exact_reg tp r :: rest), (operand.register r' :: ops) =>
     match register_to_reg r' with
     | none => throw "Unknown register"
-    | some (Sigma.mk tp' rr) => 
-      if concrete_reg.nondepEq tp (bv tp'.width) r rr
+    | some (Sigma.mk n rr) => 
+      if concrete_reg.nondepEq tp (bv n) r rr
       then do let e   <- make_environment_helper rest ops;
               -- value here can be anything
               pure (arg_value.lval (arg_lval.reg r) :: e)

@@ -34,7 +34,7 @@ abbrev memaddr := bitvec 64
 def byte    := bitvec 8
 
 def machine_word := bitvec 64
-def avx_word := bitvec 256
+def avx_word := bitvec 512
 
 
 /- The statement that either [low1,high1) preceeds and does not overlap
@@ -83,6 +83,8 @@ def get_reg64' (n : Nat) (pf : n = 64) (s : RegState) (r : concrete_reg (bv n)) 
     let pf' : ¬ (Eq 256 64) := Nat.neOfBeqEqFalse rfl; absurd pf pf'
   | _, concrete_reg.avxreg _ avxreg_type.xmm, pf => 
     let pf' : ¬ (Eq 128 64) := Nat.neOfBeqEqFalse rfl; absurd pf pf'
+  | _, concrete_reg.avxreg _ avxreg_type.zmm, pf => 
+    let pf' : ¬ (Eq 512 64) := Nat.neOfBeqEqFalse rfl; absurd pf pf'
 
 def update_reg64' (n : Nat) (pf : n = 64) (r : concrete_reg (bv n)) 
                   (f : machine_word -> machine_word) (s : RegState) : RegState :=
@@ -92,6 +94,8 @@ def update_reg64' (n : Nat) (pf : n = 64) (r : concrete_reg (bv n))
     let pf' : ¬ (Eq 256 64) := Nat.neOfBeqEqFalse rfl; absurd pf pf'
   | _, concrete_reg.avxreg _ avxreg_type.xmm, pf => 
     let pf' : ¬ (Eq 128 64) := Nat.neOfBeqEqFalse rfl; absurd pf pf'
+  | _, concrete_reg.avxreg _ avxreg_type.zmm, pf => 
+    let pf' : ¬ (Eq 512 64) := Nat.neOfBeqEqFalse rfl; absurd pf pf'
 
 def get_flag'  (s : RegState) (r : concrete_reg bit) : s_bool :=
   match r with
@@ -349,9 +353,13 @@ def read_word (n : Nat) (addr : memaddr) : system_m (bitvec n) := do
 
 end system_m
 
+end Internal
+
+open Internal 
+
 -- FIXME: maybe factor out common stuff from concreteBackend
 -- FIXME!!: this is a pretty close copy of symbolic.backend
-def backend (fpOps : SupportedFPOps) : Backend :=
+def mkBackend (fpOps : SupportedFPOps) : Backend :=
   { s_bv     := bitvec
   , s_bool   := s_bool
   , s_float  := fun (fc : float_class) => bitvec fc.width
@@ -468,48 +476,6 @@ def backend (fpOps : SupportedFPOps) : Backend :=
 
   , s_read_cpuid    := pure ()
   } 
-
-end Internal
-
-open Internal
-
-structure Semantics :=
-  (instruction : Type)
-  (instruction_size : instruction -> Nat)
-  (decode      : Nat -> Sum String instruction)
-  (eval        : forall (backend : Backend), instruction -> backend.monad Unit)
-
--- We can't stick the above in Context as it is in Type 1
-
-def instructionEvents 
-  ( sem    : Semantics )
-  ( fpOps  : SupportedFPOps )
-  -- ^ SMT operations over floating point
-  ( evtMap : Std.RBMap Nat MemoryAnn (fun x y => decide (x < y)) )
-  -- ^ Map from addresses to annotations of events on that address.
-  ( s : RegState )
-  -- ^ Initial values for registers
-  ( idGen : IdGen)
-  -- ^ Used to generate unique/fresh identifiers for SMT terms.
-  ( ip : Nat )
-  -- ^ Location to explore
-  : Except String (List Event × IdGen × Nat) :=
-  let inst := sem.decode ip;
-  match inst with 
-  | (Sum.inl _) => throw "Unknown byte"
-  | (Sum.inr i) => do
-       -- set ip of next instruction, used for getting ip-relative addrs.
-       let nextIP := ip + sem.instruction_size i;
-       let s'  := { s with ip := Smt.bvimm _ nextIP };
-       let evt := evtMap.find? ip;
-       let r := (sem.eval (backend fpOps) i).run -- FIXME: should we factor out backend?
-                { idGen := idGen, eventInfo := evt, revEvents := [], fpOps := fpOps }
-                s';
-       match r with
-       | Except.ok ((_, s''), os'') =>
-             let fAndE := Event.FetchAndExecuteEvent s'';
-             Except.ok (List.reverse (fAndE :: os''.revEvents), os''.idGen, sem.instruction_size i)
-       | Except.error err => Except.error err -- (err ++ " " ++ repr i)
 
 end vcg
 end x86

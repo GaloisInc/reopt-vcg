@@ -207,6 +207,7 @@ inductive gpreg_type : Type
 | reg16 : gpreg_type
 | reg32 : gpreg_type
 | reg64 : gpreg_type
+  deriving BEq
 
 namespace gpreg_type
 
@@ -218,41 +219,45 @@ def width : gpreg_type → Nat
 | reg32 => 32
 | reg64 => 64
 
-protected def hasDecEq : ∀(e e' : gpreg_type), Decidable (e = e')
-| reg8l, reg8l => isTrue rfl
-| reg8h, reg8h => isTrue rfl
-| reg16, reg16 => isTrue rfl
-| reg32, reg32 => isTrue rfl
-| reg64, reg64 => isTrue rfl
-| reg8l, reg8h => isFalse (fun h => gpreg_type.noConfusion h)
-| reg8l, reg16 => isFalse (fun h => gpreg_type.noConfusion h)
-| reg8l, reg32 => isFalse (fun h => gpreg_type.noConfusion h)
-| reg8l, reg64 => isFalse (fun h => gpreg_type.noConfusion h)
-| reg8h, reg8l => isFalse (fun h => gpreg_type.noConfusion h)
-| reg8h, reg16 => isFalse (fun h => gpreg_type.noConfusion h)
-| reg8h, reg32 => isFalse (fun h => gpreg_type.noConfusion h)
-| reg8h, reg64 => isFalse (fun h => gpreg_type.noConfusion h)
-| reg16, reg8l => isFalse (fun h => gpreg_type.noConfusion h)
-| reg16, reg8h => isFalse (fun h => gpreg_type.noConfusion h)
-| reg16, reg32 => isFalse (fun h => gpreg_type.noConfusion h)
-| reg16, reg64 => isFalse (fun h => gpreg_type.noConfusion h)
-| reg32, reg8l => isFalse (fun h => gpreg_type.noConfusion h)
-| reg32, reg8h => isFalse (fun h => gpreg_type.noConfusion h)
-| reg32, reg16 => isFalse (fun h => gpreg_type.noConfusion h)
-| reg32, reg64 => isFalse (fun h => gpreg_type.noConfusion h)
-| reg64, reg8l => isFalse (fun h => gpreg_type.noConfusion h)
-| reg64, reg8h => isFalse (fun h => gpreg_type.noConfusion h)
-| reg64, reg16 => isFalse (fun h => gpreg_type.noConfusion h)
-| reg64, reg32 => isFalse (fun h => gpreg_type.noConfusion h)
+-- protected def hasDecEq : ∀(e e' : gpreg_type), Decidable (e = e')
+-- | reg8l, reg8l => isTrue rfl
+-- | reg8h, reg8h => isTrue rfl
+-- | reg16, reg16 => isTrue rfl
+-- | reg32, reg32 => isTrue rfl
+-- | reg64, reg64 => isTrue rfl
+-- | reg8l, reg8h => isFalse (fun h => gpreg_type.noConfusion h)
+-- | reg8l, reg16 => isFalse (fun h => gpreg_type.noConfusion h)
+-- | reg8l, reg32 => isFalse (fun h => gpreg_type.noConfusion h)
+-- | reg8l, reg64 => isFalse (fun h => gpreg_type.noConfusion h)
+-- | reg8h, reg8l => isFalse (fun h => gpreg_type.noConfusion h)
+-- | reg8h, reg16 => isFalse (fun h => gpreg_type.noConfusion h)
+-- | reg8h, reg32 => isFalse (fun h => gpreg_type.noConfusion h)
+-- | reg8h, reg64 => isFalse (fun h => gpreg_type.noConfusion h)
+-- | reg16, reg8l => isFalse (fun h => gpreg_type.noConfusion h)
+-- | reg16, reg8h => isFalse (fun h => gpreg_type.noConfusion h)
+-- | reg16, reg32 => isFalse (fun h => gpreg_type.noConfusion h)
+-- | reg16, reg64 => isFalse (fun h => gpreg_type.noConfusion h)
+-- | reg32, reg8l => isFalse (fun h => gpreg_type.noConfusion h)
+-- | reg32, reg8h => isFalse (fun h => gpreg_type.noConfusion h)
+-- | reg32, reg16 => isFalse (fun h => gpreg_type.noConfusion h)
+-- | reg32, reg64 => isFalse (fun h => gpreg_type.noConfusion h)
+-- | reg64, reg8l => isFalse (fun h => gpreg_type.noConfusion h)
+-- | reg64, reg8h => isFalse (fun h => gpreg_type.noConfusion h)
+-- | reg64, reg16 => isFalse (fun h => gpreg_type.noConfusion h)
+-- | reg64, reg32 => isFalse (fun h => gpreg_type.noConfusion h)
 
-instance decidable_eq_gpreg_type : DecidableEq gpreg_type := -- by tactic.mk_dec_eq_instance
-  gpreg_type.hasDecEq
+-- instance decidable_eq_gpreg_type : DecidableEq gpreg_type := -- by tactic.mk_dec_eq_instance
+--   gpreg_type.hasDecEq
 
 end gpreg_type
 
 inductive avxreg_type : Type
 | xmm : avxreg_type -- 128 bit
 | ymm : avxreg_type -- 256 bit
+| zmm : avxreg_type -- 512 bit
+  deriving BEq
+
+abbrev avx_width : Nat := 512
 
 namespace avxreg_type
 
@@ -260,15 +265,17 @@ namespace avxreg_type
 def width : avxreg_type → Nat
 | xmm => 128
 | ymm => 256
+| zmm => 512
 
-protected def hasDecEq : ∀(e e' : avxreg_type), Decidable (e = e')
-| xmm, xmm => isTrue rfl
-| ymm, ymm => isTrue rfl
-| xmm, ymm => isFalse (fun h => avxreg_type.noConfusion h)
-| ymm, xmm => isFalse (fun h => avxreg_type.noConfusion h)
 
-instance decidable_eq_avxreg_type : DecidableEq avxreg_type := -- by tactic.mk_dec_eq_instance
-  avxreg_type.hasDecEq
+-- protected def hasDecEq : ∀(e e' : avxreg_type), Decidable (e = e')
+-- | xmm, xmm => isTrue rfl
+-- | ymm, ymm => isTrue rfl
+-- | xmm, ymm => isFalse (fun h => avxreg_type.noConfusion h)
+-- | ymm, xmm => isFalse (fun h => avxreg_type.noConfusion h)
+
+-- instance decidable_eq_avxreg_type : DecidableEq avxreg_type := -- by tactic.mk_dec_eq_instance
+--   avxreg_type.hasDecEq
 
 end avxreg_type
 
@@ -307,14 +314,14 @@ namespace concrete_reg
 
 def nondepEq : ∀(tp tp' : type) (e : concrete_reg tp) (e' : concrete_reg tp'), Bool
 | _, _, (gpreg c1 c2), (gpreg c1' c2') => 
- (match decEq c1 c1', decEq c2 c2' with 
-  | (isTrue h1), (isTrue h2) => true
-  | _, _                     => false )
+ (match decEq c1 c1' with 
+  | (isTrue h1) => BEq.beq c2 c2' 
+  | _                     => false )
 | _, _, (flagreg c1), (flagreg c1') => if c1 = c1' then true else false
 | _, _, (avxreg c1 c2), (avxreg c1' c2') => 
- (match decEq c1 c1', decEq c2 c2' with 
-  | (isTrue h1), (isTrue h2) => true
-  | _,_                      => false)
+ (match decEq c1 c1' with 
+  | (isTrue h1) => c2 == c2'
+  | _           => false)
 | _, _, (gpreg _ _), (flagreg _)  => false
 | _, _, (gpreg _ _), (avxreg _ _) => false
 | _, _, (flagreg _), (gpreg _ _)  => false
@@ -406,6 +413,7 @@ def name : ∀{tp:type}, concrete_reg tp → String
   (match tp with
   | avxreg_type.xmm => "xmm" ++ reprStr idx
   | avxreg_type.ymm => "ymm" ++ reprStr idx
+  | avxreg_type.zmm => "zmm" ++ reprStr idx 
   )
 
 protected def repr {tp:type} (r:concrete_reg tp) : String :=
@@ -413,7 +421,8 @@ protected def repr {tp:type} (r:concrete_reg tp) : String :=
 
 end concrete_reg
 
-abbrev reg64 := concrete_reg (bv gpreg_type.reg64.width)
+abbrev reg64  := concrete_reg (bv gpreg_type.reg64.width)
+abbrev avxreg := concrete_reg (bv avx_width)
 
 namespace reg64
 
@@ -1026,12 +1035,12 @@ def xmm6 := xmmreg $ Fin.ofNat 6
 def xmm7 := xmmreg $ Fin.ofNat 7
 def xmm8 := xmmreg $ Fin.ofNat 8
 def xmm9 := xmmreg $ Fin.ofNat 9
-def xmm10 := xmmreg $ Fin.ofNat 0
-def xmm11 := xmmreg $ Fin.ofNat 1
-def xmm12 := xmmreg $ Fin.ofNat 2
-def xmm13 := xmmreg $ Fin.ofNat 3
-def xmm14 := xmmreg $ Fin.ofNat 4
-def xmm15 := xmmreg $ Fin.ofNat 5
+def xmm10 := xmmreg $ Fin.ofNat 10
+def xmm11 := xmmreg $ Fin.ofNat 11
+def xmm12 := xmmreg $ Fin.ofNat 12
+def xmm13 := xmmreg $ Fin.ofNat 13
+def xmm14 := xmmreg $ Fin.ofNat 14
+def xmm15 := xmmreg $ Fin.ofNat 15
 
 def ymmreg (i:Fin 16) := lhs.set_reg $ concrete_reg.avxreg i avxreg_type.ymm
 

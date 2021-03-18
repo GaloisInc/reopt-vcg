@@ -11,6 +11,7 @@ import X86Semantics.Common
 import DecodeX86.DecodeX86
 
 import ReoptVCG.Translate
+import ReoptVCG.InstructionEvents
 
 import MCInst.Basic
 import ReoptVCG.KTranslate
@@ -54,7 +55,7 @@ open Lean (Json strLt)
 open Lean.Json (parseObjValAsString)
 
 open elf.elf_class (ELF64)
-open LLVM (LLVMType LLVMType.prim LLVMType.ptr PrimType PrimType.integer)
+open LLVM (LLVMType LLVMType.prim LLVMType.vector LLVMType.ptr PrimType PrimType.integer PrimType.floatType)
 
 open Smt (SmtSort SmtSort.bitvec SmtSort.bv64)
 
@@ -199,20 +200,35 @@ def parseLLVMArgs
   List LLVMMCArgBinding → -- ^ Accumulator for parsed arguments.
   List (LLVM.Typed LLVM.Ident) → -- ^ Arguments to be parsed.
   List x86.reg64 →  -- ^ Remaining registers available for arguments.
+  List x86.avxreg →  -- ^ Remaining float registers available for arguments.
   ModuleVCG (List LLVMMCArgBinding)
-| revArgs, [], _ => pure revArgs.reverse
-| revBinds, (⟨LLVMType.prim (PrimType.integer 64), nm⟩::restArgs), regs =>
+| revArgs, [], _, _ => pure revArgs.reverse
+| revBinds, (⟨LLVMType.prim (PrimType.integer 64), nm⟩::restArgs), regs, fpregs =>
   match regs with
   | [] => 
     let maxArgs : Nat := x86ArgGPRegs.length
     let totalArgs : Nat := maxArgs + 1 + restArgs.length
     moduleThrow {fnName := some fnm, blockLbl := none}
                 ModuleErrorTag.maxFnArgCntSurpassed 
-                ((reprStr maxArgs)++" supported, but got "++(reprStr totalArgs))
+                ((reprStr maxArgs)++" word args supported, but got "++(reprStr totalArgs))
   | (reg::restRegs) =>
-    let binding := LLVMMCArgBinding.mk nm (SmtSort.bv64) reg;
-    parseLLVMArgs fnm (binding::revBinds) restArgs restRegs
-| _, (⟨tp, nm⟩::restArgs), _ =>
+    let binding := LLVMMCArgBinding.mk nm SmtSort.bv64 (Sigma.mk _ reg);
+    parseLLVMArgs fnm (binding::revBinds) restArgs restRegs fpregs
+ -- FIXME: Copied from above, maybe merge?
+ -- (LLVMType.prim (PrimType.floatType LLVM.FloatType.double)
+| revBinds, ( ⟨LLVMType.vector 8 (LLVMType.prim (PrimType.floatType LLVM.FloatType.double)), nm⟩ :: restArgs), regs, fpregs =>
+  match fpregs with
+  | [] => 
+    let maxArgs : Nat := x86ArgFPRegs.length
+    let totalArgs : Nat := maxArgs + 1 + restArgs.length
+    moduleThrow {fnName := some fnm, blockLbl := none}
+                ModuleErrorTag.maxFnArgCntSurpassed 
+                ((reprStr maxArgs)++" FP args supported, but got "++(reprStr totalArgs))
+  | (reg::restFPRegs) =>
+    let binding := LLVMMCArgBinding.mk nm (SmtSort.bitvec x86.avx_width) (Sigma.mk _ reg);
+    parseLLVMArgs fnm (binding::revBinds) restArgs regs restFPRegs
+
+| _, (⟨tp, nm⟩::restArgs), _, _ =>
   moduleThrow {fnName := some fnm, blockLbl := none}
               ModuleErrorTag.argTypeUnsupported
               (nm.asString++ " : "++ppLLVM tp)
@@ -243,7 +259,7 @@ def verifyFunction (lMod:LLVM.Module) (fAnn: FunctionAnn): ModuleVCG FnVerificat
                   ModuleErrorTag.fnNotFound
                   ""
   -- Parse the LLVM args and assign them to registers
-  let argBindings ← parseLLVMArgs fnm [] lFun.args.toList x86ArgGPRegs;
+  let argBindings ← parseLLVMArgs fnm [] lFun.args.toList x86ArgGPRegs x86ArgFPRegs;
   -- Build a mapping from block labels to the JSON block annotations
   let blockMap ← buildBlockAnnMap fAnn;
   -- Parse each block annotation in the JSON
@@ -436,7 +452,7 @@ def runVCG (cfg : VCGConfig) : IO UInt32 := do
   -- Create verification coontext for module.
   let modCtx : ModuleVCGContext :=
     { annotations := ann
-    , instructionEvents := x86.vcg.instructionEvents sem
+    , mkBackendFuns := x86.vcg.mkBackendFuns sem
     , symbolAddrMap := fnSymAddrMap
     , moduleTypeMap := mkLLVMTypeMap lMod
     };

@@ -4,6 +4,7 @@ import LeanLLVM.PP
 import ReoptVCG.Elf
 import ReoptVCG.Annotations
 import X86Semantics.Common
+import X86Semantics.BackendAPI
 
 import SmtLib.Smt
 
@@ -53,7 +54,7 @@ open ReoptVCG
 structure RegState : Type :=
   (gpregs : Array  (Term (SmtSort.bitvec 64))) -- 16
   (flags  : Array  (Term (SmtSort.bool))) -- 32
-  (avxregs : Array (Term (SmtSort.bitvec 256)))
+  (avxregs : Array (Term (SmtSort.bitvec 512)))
   (ip     : (Term (SmtSort.bitvec 64)))
 
 -- This mirrors the Haskell prototype as far as possible, hence the slightly verbose names.
@@ -130,7 +131,7 @@ structure SupportedFPOps :=
   (fp_ordered : forall (fc : float_class), SmtFloat fc -> SmtFloat fc -> Term SmtSort.bool)
 
 def InstructionEventsFun := 
-  forall (fpOps : SupportedFPOps) ( evtMap : Std.RBMap Nat MemoryAnn (fun x y => decide (x < y)) )
+  forall ( evtMap : Std.RBMap Nat MemoryAnn (fun x y => decide (x < y)) )
     -- ^ Map from addresses to annotations of events on that address.
     ( s : RegState )
     -- ^ Initial values for registers
@@ -139,6 +140,10 @@ def InstructionEventsFun :=
     ( ip : Nat ), 
     -- ^ Location to explore
     Except String (List Event × IdGen × Nat)
+
+def GetRegisterFun := 
+    RegState -> forall {n : Nat} (r : concrete_reg (mc_semantics.type.bv n)), SmtBV n
+
 
 
 -- FIXME: the name is wrong, maybe something like MCSMTContext or something?
@@ -255,7 +260,7 @@ def LLVMTypeMap := Std.RBMap String (Option LLVM.LLVMType) Lean.strLt
 structure ModuleVCGContext :=
 (annotations : ModuleAnnotations)
 -- ^ Annotations for module.
-(instructionEvents : x86.vcg.InstructionEventsFun)
+(mkBackendFuns : x86.vcg.SupportedFPOps -> x86.vcg.InstructionEventsFun × x86.vcg.GetRegisterFun)
 -- ^ Machine code memory / decoder state
 (symbolAddrMap : Std.RBMap String (elf.word elf.elf_class.ELF64) Lean.strLt)
 -- ^ Maps bytes to the symbol name
@@ -800,6 +805,9 @@ structure BlockVCGContext :=
   -- ^ Map from addresses to annotations of events on that address.
 (mcStdLib     : x86.vcg.MCStdLib)
 -- ^ Machine-code specific declarations.
+(mcInstructionEvents : x86.vcg.InstructionEventsFun)
+(mcGetReg            : x86.vcg.GetRegisterFun)
+-- ^ Having this here allows us to reuse parts of the evaluator.  Something of a hack.
 
 -- State that changes during execution of a BlockVCG action.
 structure BlockVCGState :=
@@ -898,7 +906,7 @@ def elseThrowPrefixed {ε α : Type} [ToString ε] (e : Except ε α) (pfx : Str
 structure LLVMMCArgBinding :=
 (llvmArgName : LLVM.Ident)
 (smtSort: Smt.SmtSort)
-(register: x86.reg64)
+(register: Sigma (fun n => x86.concrete_reg (mc_semantics.type.bv n))) -- FIXME
 
 
 end ReoptVCG

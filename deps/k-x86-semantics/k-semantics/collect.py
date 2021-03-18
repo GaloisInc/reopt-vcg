@@ -45,7 +45,7 @@ skip_opcode_prefixes = [
   
   # conditions
   'lods', # string operation
-  'movs', # string operation
+  'movs_', # string operation, the '_' is a hack
   'stos', # string operation
   'cmps', # string operation
   'scas', # string operation

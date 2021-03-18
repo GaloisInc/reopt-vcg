@@ -366,6 +366,24 @@ def x86ArgGPRegs : List x86.reg64 :=
   x86.reg64.r9 ]
 
 
+section
+open mc_semantics (type)
+open mc_semantics.type
+open x86.avxreg_type
+open x86.concrete_reg
+
+def x86ArgFPRegs : List (x86.concrete_reg (bv 512)) :=
+ [ avxreg (Fin.ofNat 0) zmm
+ , avxreg (Fin.ofNat 1) zmm
+ , avxreg (Fin.ofNat 2) zmm
+ , avxreg (Fin.ofNat 3) zmm
+ , avxreg (Fin.ofNat 4) zmm
+ , avxreg (Fin.ofNat 5) zmm
+ , avxreg (Fin.ofNat 6) zmm
+ , avxreg (Fin.ofNat 7) zmm
+ ]
+
+end
 
 def parsePrecondition (llvmMap: LLVMTyEnv) (js:Json) : Except String (BlockExpr SmtSort.bool) := do
   let rawStr ← match js.getStr? with
