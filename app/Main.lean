@@ -21,7 +21,7 @@ structure VCGArgs :=
 -- | State of argument parsing before any user arguments have actually
 -- been processed.
 
-def initVCGArgs := VCGArgs.mk none none false SemanticsBackend.ManualSemantics
+def initVCGArgs := VCGArgs.mk none none false SemanticsBackend.KSemantics
 
 -- Function for parsing command line arguments to reopt-vcg.
 partial def parseArgs : List String → VCGArgs → Except String VCGCmd
@@ -52,8 +52,8 @@ partial def parseArgs : List String → VCGArgs → Except String VCGCmd
     | (solver::solverArgs) =>
       let vm := VerificationMode.solverMode {SolverConfig.default with solverPathAndArgs := some (solver, solverArgs)}
       parseArgs ss' $ {args with mode := some vm}
-    else if s == "--kbackend" then
-    parseArgs ss $ {args with semanticsBackend := SemanticsBackend.KSemantics}
+    else if s == "--alt-backend" then
+    parseArgs ss $ {args with semanticsBackend := SemanticsBackend.ManualSemantics}
   else if s == "--json-goals" then do
     match ss with
     | [] => throw "missing argument for `--json-goals` flag"
@@ -76,7 +76,7 @@ partial def parseArgs : List String → VCGArgs → Except String VCGCmd
 
 
 def showUsage : IO Unit := do
-  IO.println "Usage: reopt-vcg [-v|--verbose] <input.json> {--export <export-dir> | --solver <solver-path>} [--json-goals <json-path>]"
+  IO.println "Usage: reopt-vcg [-v|--verbose] <input.json> [--alt-backend] {--export <export-dir> | --solver <solver-path>} [--json-goals <json-path>]"
   
 def showHelp : IO Unit := do
   showUsage;

@@ -35,7 +35,7 @@ fi
 echo "-- testing $f"
 rm -fr "$f.produced.out"
 mkdir -p "$f.produced.out"
-$TEST_EXE --kbackend "$testname" --export "$f.produced.out" 1> /dev/null
+$TEST_EXE "$testname" --export "$f.produced.out" 1> /dev/null
 if test -d "$f.expected.out"; then
     if $DIFF -u --ignore-all-space -I "executing external script" "$f.expected.out" "$f.produced.out"; then
         echo "-- checked"
