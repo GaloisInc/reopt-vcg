@@ -18,7 +18,7 @@ ln -s $OUT $RESDIR/latest.txt
 
 pushd test-programs > /dev/null
 
-RUNTIME=`(/usr/bin/time ../build/bin/reopt-vcg nweb23_static_freebsd.ann > $OUT) 2>&1`
+RUNTIME=`(/usr/bin/time ../build/bin/reopt-vcg --kbackend nweb23_static_freebsd.ann > $OUT) 2>&1`
 GITREV=`git rev-parse HEAD`
 
 echo "# gitrev $GITREV time $RUNTIME" >> $OUT

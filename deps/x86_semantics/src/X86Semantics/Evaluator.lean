@@ -81,31 +81,6 @@ def value : type -> Type
 
 -- end value
 
-namespace reg
-
-axiom inject_ax0 : 8 + gpreg_type.width gpreg_type.reg8h ≤ 64
-axiom inject_ax1 : ∀(rtp : gpreg_type), 0 + gpreg_type.width rtp ≤ 64
-axiom avx_inject_ax1 : ∀(rtp : avxreg_type), 0 + avxreg_type.width rtp ≤ 256
-
-def inject : ∀(rtp : gpreg_type), backend.s_bv rtp.width -> backend.s_bv 64 -> backend.s_bv 64
-  | gpreg_type.reg32, b, _   => backend.s_uext _ _ b
-  | gpreg_type.reg8h, b, old => backend.s_bvsetbits 8 old b -- inject_ax0
-  | gpreg_type.reg64, b, _   => b -- special case to keep output compact
-  | rtp,              b, old => backend.s_bvsetbits 0 old b -- (inject_ax1 rtp) -- (begin cases rtp; simp end)
-
-def project : ∀(rtp : gpreg_type), backend.s_bv 64 -> backend.s_bv rtp.width
-  | gpreg_type.reg8h, b => backend.s_bvgetbits 8 8 b -- inject_ax0 -- (begin simp [gpreg_type.width], exact dec_trivial end)
-  | gpreg_type.reg64, b => b -- special case to keep output compact
-  | rtp,              b => backend.s_bvgetbits 0 rtp.width b -- (inject_ax1 rtp) -- (begin cases rtp; simp end)
-
--- FIXME: this depends on the mode, no? SSE instructions inject, while AVX clear upper bits
-def avx_inject : ∀(rtp : avxreg_type), backend.s_bv rtp.width -> backend.s_bv 256 -> backend.s_bv 256 
-  := fun rtp b old => backend.s_bvsetbits 0 old b -- (avx_inject_ax1 rtp) -- (begin cases rtp; simp end)
-
-def avx_project : ∀(rtp : avxreg_type), backend.s_bv 256 -> backend.s_bv rtp.width
-    := fun rtp b =>  backend.s_bvgetbits 0 rtp.width b
-
-end reg
 
 inductive arg_lval
   | reg {} {tp : type}  : concrete_reg tp -> arg_lval 
@@ -115,21 +90,11 @@ inductive arg_lval
 
 -- def repr : arg_lval -> String
 --   | (reg r)             => r.repr
---   | (memloc width addr) => HasRepr.repr addr ++ "@" ++ HasRepr.repr width
+--   | (memloc width addr) => addr.repr ++ "@" ++ reprStr width
 
--- instance arg_lval_repr : HasRepr arg_lval := ⟨repr⟩
+-- -- instance arg_lval_repr : HasRepr arg_lval := ⟨repr⟩
 
 -- end arg_lval
-
--- This also needs to be a StateMonad machine_state (it owns that)
--- class SystemM (m : Type -> Type) extends Monad m, MonadState machine_state m, MonadExcept String m :=
---   (os_transition    {} : m Unit )
---   (emit_read_event  {} : machine_word -> ∀(n : Nat), bitvec n -> m Unit)
---   (emit_write_event {}  : machine_word -> ∀(n : Nat), bitvec n -> m Unit)
-
--- section with_nat_env
-
--- variables (system_m : Type -> Type) [SystemM system_m]
 
 -- Corresponding to the binder type, more or less.
 inductive arg_value 
@@ -143,7 +108,7 @@ inductive arg_value
 --   | (lval l) => l.repr
 --   | (rval v)  => v.repr
 
--- instance arg_value_repr : has_repr arg_value := ⟨repr⟩
+-- instance arg_value_repr : HasRepr arg_value := ⟨repr⟩
 
 -- end arg_value
 

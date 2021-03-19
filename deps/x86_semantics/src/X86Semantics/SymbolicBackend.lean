@@ -125,7 +125,7 @@ def read_word (m : memory) (stdlib : StdLib) (addr : memaddr) (n : Nat) : bitvec
 end memory
 
 def machine_word := bitvec 64
-def avx_word := bitvec 256
+def avx_word := bitvec avx_width
 
 structure machine_state : Type :=
   (mem    : memory)

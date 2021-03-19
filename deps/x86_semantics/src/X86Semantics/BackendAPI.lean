@@ -35,9 +35,9 @@ structure Backend : Type 1 :=
   -- (set_flag  : Fin 32 -> s_bool  -> monad Unit)
   (s_cond_set_flag   : s_bool -> Fin 32 -> s_bool -> monad Unit)
 
-  (get_avxreg : Fin 16            -> monad (s_bv 256))
+  (get_avxreg : Fin 16            -> monad (s_bv avx_width))
   -- (set_avxreg : Fin 16 -> s_bv 256 -> monad Unit)
-  (s_cond_set_avxreg : s_bool -> Fin 16 -> s_bv 256 -> monad Unit)
+  (s_cond_set_avxreg : s_bool -> Fin 16 -> s_bv avx_width -> monad Unit)
 
   
 
@@ -152,9 +152,47 @@ def set_gpreg (backend : Backend) (r : Fin 16) (v : backend.s_bv 64) : backend.m
 def set_flag (backend : Backend) (r : Fin 32) (v : backend.s_bool) : backend.monad Unit :=
   backend.s_cond_set_flag backend.true r v
 
-def set_avxreg (backend : Backend) (r : Fin 16) (v : backend.s_bv 256) : backend.monad Unit :=
+def set_avxreg (backend : Backend) (r : Fin 16) (v : backend.s_bv avx_width) : backend.monad Unit :=
   backend.s_cond_set_avxreg backend.true r v
 
  
 end Backend
+
+namespace reg
+
+
+-- ------------------------------------------------------------------------------
+-- Convenience functions in backend
+
+section with_backend
+
+variable {backend : Backend}
+
+
+axiom inject_ax0 : 8 + gpreg_type.width gpreg_type.reg8h ≤ 64
+axiom inject_ax1 : ∀(rtp : gpreg_type), 0 + gpreg_type.width rtp ≤ 64
+axiom avx_inject_ax1 : ∀(rtp : avxreg_type), 0 + avxreg_type.width rtp ≤ 256
+
+def inject : ∀(rtp : gpreg_type), backend.s_bv rtp.width -> backend.s_bv 64 -> backend.s_bv 64
+  | gpreg_type.reg32, b, _   => backend.s_uext _ _ b
+  | gpreg_type.reg8h, b, old => backend.s_bvsetbits 8 old b -- inject_ax0
+  | gpreg_type.reg64, b, _   => b -- special case to keep output compact
+  | rtp,              b, old => backend.s_bvsetbits 0 old b -- (inject_ax1 rtp) -- (begin cases rtp; simp end)
+
+def project : ∀(rtp : gpreg_type), backend.s_bv 64 -> backend.s_bv rtp.width
+  | gpreg_type.reg8h, b => backend.s_bvgetbits 8 8 b -- inject_ax0 -- (begin simp [gpreg_type.width], exact dec_trivial end)
+  | gpreg_type.reg64, b => b -- special case to keep output compact
+  | rtp,              b => backend.s_bvgetbits 0 rtp.width b -- (inject_ax1 rtp) -- (begin cases rtp; simp end)
+
+-- FIXME: this depends on the mode, no? SSE instructions inject, while AVX clear upper bits
+def avx_inject : ∀(rtp : avxreg_type), backend.s_bv rtp.width -> backend.s_bv avx_width -> backend.s_bv avx_width
+  := fun rtp b old => backend.s_bvsetbits 0 old b -- (avx_inject_ax1 rtp) -- (begin cases rtp; simp end)
+
+def avx_project : ∀(rtp : avxreg_type), backend.s_bv avx_width -> backend.s_bv rtp.width
+    := fun rtp b =>  backend.s_bvgetbits 0 rtp.width b
+
+end with_backend
+
+end reg
+
 end x86
