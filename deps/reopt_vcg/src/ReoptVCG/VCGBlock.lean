@@ -9,105 +9,7 @@ import ReoptVCG.VCGBackend
 import ReoptVCG.WordSize
 import ReoptVCG.MCStdLib
 import ReoptVCG.Smt
-
-namespace LLVM
-namespace PrimType
-
-open LLVM.PrimType
-
-def HasBVRepr : PrimType -> Prop
-| integer i => i > 0
-| floatType _ => True
-| _ => False
-
-namespace HasBVRepr
-
-protected 
-def dec : forall (tp : PrimType), Decidable (HasBVRepr tp)
-| integer i    => Nat.decLt _ _
-| label        => isFalse (fun x => x) 
-| token        => isFalse (fun x => x) 
-| void         => isFalse (fun x => x) 
-| floatType  _ => isTrue True.intro
-| x86mmx       => isFalse (fun x => x) 
-| metadata     => isFalse (fun x => x) 
-
-instance {tp : PrimType} : Decidable (HasBVRepr tp) := HasBVRepr.dec tp
-
-end HasBVRepr
-
-end PrimType
-
-namespace LLVMType
-
--- The restriction to vecs of prims gets around Lean not supporting
--- recursion over types containing arrays
-@[reducible]
-def HasBVRepr : LLVMType -> Prop
-| LLVM.LLVMType.ptr _  => True
-| LLVM.LLVMType.prim pt  => PrimType.HasBVRepr pt
-| LLVM.LLVMType.vector _ ty => match ty with
-  | LLVM.LLVMType.prim pt => PrimType.HasBVRepr pt
-  | _ => False
-| _ => False
-
-namespace HasBVRepr
-
-open LLVM.LLVMType
-open LLVM.PrimType
-
-protected 
-def dec : forall (tp : LLVMType), Decidable (HasBVRepr tp)
-| ptr t   => isTrue True.intro
-| prim pt => PrimType.HasBVRepr.dec pt
-| alias _        => isFalse (fun x => x)  
-| array _ _      => isFalse (fun x => x)  
-| funType _ _ _  => isFalse (fun x => x)
-| struct _ _     => isFalse (fun x => x)  
-| vector _ ty     => match ty with
-  | prim pt        => PrimType.HasBVRepr.dec pt
-  | ptr _          => isFalse (fun x => x)
-  | alias _        => isFalse (fun x => x)  
-  | array _ _      => isFalse (fun x => x)  
-  | funType _ _ _  => isFalse (fun x => x)
-  | struct _ _     => isFalse (fun x => x)  
-  | vector _ _     => isFalse (fun x => x)  
-
-instance {tp : LLVMType} : Decidable (HasBVRepr tp) := HasBVRepr.dec tp
-
-end HasBVRepr
-
-end LLVMType
-
-namespace FloatType
-
-def nbits : FloatType -> Nat
-| LLVM.FloatType.half     => 16
-| LLVM.FloatType.float    => 32
-| LLVM.FloatType.double   => 64 
-| LLVM.FloatType.fp128    => 128
-| LLVM.FloatType.x86FP80  => 80
-| LLVM.FloatType.ppcFP128 => 128
-
-end FloatType
-
-namespace PrimType
-
-def nbits : forall (tp : PrimType) (pf : PrimType.HasBVRepr tp), Nat
-| LLVM.PrimType.integer i, _ => i
-| LLVM.PrimType.floatType ft, _ => ft.nbits
-
-end PrimType
-
-namespace LLVMType
-
-def nbits : forall (tp : LLVMType) (pf : LLVMType.HasBVRepr tp), Nat
-| LLVM.LLVMType.ptr _, _  => 64
-| LLVM.LLVMType.prim pt, pf => pt.nbits pf
-| LLVM.LLVMType.vector n (LLVM.LLVMType.prim pt), pf => n * pt.nbits pf
-
-end LLVMType
-end LLVM
+import ReoptVCG.ABI
 
 
 
@@ -228,6 +130,7 @@ open LLVM.LLVMType (HasBVRepr)
 
 
 -- | Convert LLVM type to SMT sort.
+@[reducible]
 def asSMTSort (tp : LLVMType) (pf : HasBVRepr tp) : SmtSort := 
   SmtSort.bitvec (tp.nbits pf)
 
@@ -529,7 +432,6 @@ def proveRegRel (p : GoalTag) (extraInfo : String) (w : x86.vcg.bitvec 64)
   let lv <- primEval ty pf v;
   proveEq p extraInfo lv mcv
 
-
 section
 
 open x86.vcg (Event)
@@ -726,7 +628,25 @@ def llvmReturn (mlret : Option (Typed Value)) : BlockVCG Unit := do
   | some v =>
     proveRegRel GoalTag.llvmAndMCReturnValuesEq "" (regs.get_reg64 x86.reg64.rax) v
 
-  
+
+section
+open mc_semantics.type
+
+-- c.f. parseLLVMArgs
+def checkLLVMArgs (args : List (Typed Value)) : BlockVCG Unit :=
+  let prove (lty : LLVMType) (H : HasBVRepr lty) 
+            (v : Value) 
+            (r : x86.concrete_reg (bv (lty.nbits H))) 
+            : BlockVCG Unit := do
+      let ctx <- read
+      let regs <- BlockVCGState.mcCurRegs <$> get;
+      let rv  <- ctx.mcGetReg regs r
+      let vv  <- primEval lty H v
+      proveEq GoalTag.argAndRegEq r.repr vv rv
+
+  discard $ forEachArg (localBlockError BlockErrorTag.llvmInvokeArgError) prove args
+end
+
 def llvmInvoke (isTailCall : Bool) (fsym : LLVM.Symbol) (args : Array (Typed Value))
     (lRet : Option (LLVM.Ident × LLVMType)) : BlockVCG Unit := do
   when isTailCall $ localBlockError BlockErrorTag.unimplementedFeature "tail call"
@@ -739,13 +659,7 @@ def llvmInvoke (isTailCall : Bool) (fsym : LLVM.Symbol) (args : Array (Typed Val
   -- Pre call
 
   -- FIXME assertFnNameEq fsym regs.ip
-  when (args.size > x86ArgGPRegs.length) $ 
-    localBlockError BlockErrorTag.llvmInvokeArgError "too many arguments"
-
-  for v in args,
-      r in x86ArgGPRegs do
-    proveRegRel GoalTag.argAndRegEq r.repr (regs.get_reg64 r) v
-
+  checkLLVMArgs args.toList
   checkDirectionFlagClear "function call"
 
   let postCallRIP  <- mcNextAddr <$> get;
