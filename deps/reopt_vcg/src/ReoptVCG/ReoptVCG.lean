@@ -21,13 +21,13 @@ namespace x86
 namespace manual_semantics
 
 def mkSemantics (text_bytes : ByteArray) (vaddr : Nat) : x86.vcg.Semantics :=
-  let d := decodex86.mk_decoder text_bytes vaddr;  
-  { instruction := decodex86.instruction, 
+  let d := decodex86.mk_decoder text_bytes vaddr;
+  { instruction := decodex86.instruction,
     instruction_size := fun i => i.nbytes,
-    decode           := fun n => match decodex86.decode d n with 
+    decode           := fun n => match decodex86.decode d n with
                                  | Sum.inl _ => Sum.inl "Unknown"
                                  | Sum.inr r => Sum.inr r,
-    eval             := eval_instruction     
+    eval             := eval_instruction
   }
 end manual_semantics
 end x86
@@ -36,10 +36,10 @@ namespace x86
 namespace mcinst
 
 def mkSemantics (text_bytes : ByteArray) (vaddr : Nat) : x86.vcg.Semantics :=
-  let d := mk_decoder text_bytes vaddr;  
-  { instruction := instruction × Nat, 
+  let d := mk_decoder text_bytes vaddr;
+  { instruction := instruction × Nat,
     instruction_size := fun i => i.snd,
-    decode           := fun n => match decode d n with 
+    decode           := fun n => match decode d n with
                                  | Sum.inl _ => Sum.inl "Unknown"
                                  | Sum.inr r => Sum.inr r,
     eval             := fun backend i => eval_instruction backend i.fst
@@ -121,7 +121,7 @@ def verifyBlock
       pure $ Except.error e
     | Except.error (BlockVCGError.globalErr msg) =>
       moduleThrow {fnName := some funAnn.llvmFnName,
-                   blockLbl := aBlock.label} 
+                   blockLbl := aBlock.label}
                   ModuleErrorTag.fatal
                   msg
 
@@ -130,7 +130,7 @@ def verifyBlock
 /- Extract the phi statements from the list of statements, returning
    either the name of the variable and type that could not be interpreted
    or a map from from variable names to their types. -/
-def extractPhiStmtVars : 
+def extractPhiStmtVars :
 List (LLVM.Ident × LLVMType × BlockLabelValMap) →
 List LLVM.Stmt →
 (List (LLVM.Ident × LLVMType × BlockLabelValMap)
@@ -154,13 +154,13 @@ def parseAnnotatedBlock
   : ModuleVCG AnnotatedBlock := do
   let lbl := b.label;
   let (phiVarList, llvmStmts) := extractPhiStmtVars [] b.stmts.toList;
-  let parseLLVMVar : (LLVM.Ident × LLVMType × BlockLabelValMap) → 
+  let parseLLVMVar : (LLVM.Ident × LLVMType × BlockLabelValMap) →
                      ModuleVCG (LLVM.Ident × SmtSort) :=
       λ (p : (LLVM.Ident × LLVMType × BlockLabelValMap)) =>
       let (nm, tp, _) := p
       match llvmTypeToSort tp with
       | Option.some s => pure (nm, s)
-      | Option.none   => 
+      | Option.none   =>
         moduleThrow {fnName := some fnm,
                      blockLbl := some lbl}
                     ModuleErrorTag.unsupportedPhiVarType
@@ -169,13 +169,13 @@ def parseAnnotatedBlock
   let llvmTyEnv := Std.RBMap.ltMap varTypes;
   let blockJson ← match blockMap.find? lbl.label with
     | Option.some json => pure json
-    | Option.none => 
+    | Option.none =>
       moduleThrow {fnName := some fnm,
                      blockLbl := some lbl}
                   ModuleErrorTag.blockMissingAnnotations
                   ""
   match parseBlockAnn llvmTyEnv blockJson with
-  | Except.error errMsg => 
+  | Except.error errMsg =>
     moduleThrow {fnName := some fnm,
                  blockLbl := some lbl}
                 ModuleErrorTag.annParseFailure
@@ -205,11 +205,11 @@ def parseLLVMArgs
 | revArgs, [], _, _ => pure revArgs.reverse
 | revBinds, (⟨LLVMType.prim (PrimType.integer 64), nm⟩::restArgs), regs, fpregs =>
   match regs with
-  | [] => 
+  | [] =>
     let maxArgs : Nat := x86ArgGPRegs.length
     let totalArgs : Nat := maxArgs + 1 + restArgs.length
     moduleThrow {fnName := some fnm, blockLbl := none}
-                ModuleErrorTag.maxFnArgCntSurpassed 
+                ModuleErrorTag.maxFnArgCntSurpassed
                 ((reprStr maxArgs)++" word args supported, but got "++(reprStr totalArgs))
   | (reg::restRegs) =>
     let binding := LLVMMCArgBinding.mk nm SmtSort.bv64 (Sigma.mk _ reg);
@@ -218,11 +218,11 @@ def parseLLVMArgs
  -- (LLVMType.prim (PrimType.floatType LLVM.FloatType.double)
 | revBinds, ( ⟨LLVMType.vector 8 (LLVMType.prim (PrimType.floatType LLVM.FloatType.double)), nm⟩ :: restArgs), regs, fpregs =>
   match fpregs with
-  | [] => 
+  | [] =>
     let maxArgs : Nat := x86ArgFPRegs.length
     let totalArgs : Nat := maxArgs + 1 + restArgs.length
     moduleThrow {fnName := some fnm, blockLbl := none}
-                ModuleErrorTag.maxFnArgCntSurpassed 
+                ModuleErrorTag.maxFnArgCntSurpassed
                 ((reprStr maxArgs)++" FP args supported, but got "++(reprStr totalArgs))
   | (reg::restFPRegs) =>
     let binding := LLVMMCArgBinding.mk nm (SmtSort.bitvec x86.avx_width) (Sigma.mk _ reg);
@@ -236,7 +236,7 @@ def parseLLVMArgs
 /- Builds a mapping from block labels to corresponding block annotation json objects. -/
 def buildBlockAnnMap (fAnn:FunctionAnn) : ModuleVCG (Std.RBMap LLVM.Ident Json (λ x y => x<y)) := do
 let mkEntry : List (LLVM.Ident × Json) → Json → ModuleVCG (List (LLVM.Ident × Json)) :=
-  λ entries blockAnn => 
+  λ entries blockAnn =>
     match parseObjValAsString blockAnn "label" with
     | Except.error errMsg =>
       moduleThrow {fnName := some fAnn.llvmFnName, blockLbl := none}
@@ -254,7 +254,7 @@ def verifyFunction (lMod:LLVM.Module) (fAnn: FunctionAnn): ModuleVCG FnVerificat
   -- Get the LLVM `define` associated with the function name
   let lFun ← match getDefineByName lMod fnm with
     | Option.some f => pure f
-    | Option.none => 
+    | Option.none =>
       moduleThrow {fnName := fnm, blockLbl := none}
                   ModuleErrorTag.fnNotFound
                   ""
@@ -274,12 +274,12 @@ def verifyFunction (lMod:LLVM.Module) (fAnn: FunctionAnn): ModuleVCG FnVerificat
                         ModuleErrorTag.missingEntryBlock
                         ""
     | (firstBlock :: _) => match blockMap.find? firstBlock.label with
-      | Option.none => 
+      | Option.none =>
         moduleThrow {fnName := fnm, blockLbl := firstBlock.label}
                     ModuleErrorTag.blockMissingAnnotations
                     ""
       | Option.some ab => match ab.annotation with
-        | BlockAnn.unreachable => 
+        | BlockAnn.unreachable =>
           moduleThrow {fnName := fnm, blockLbl := none}
                       ModuleErrorTag.entryUnreachable
                       ""
@@ -289,7 +289,7 @@ def verifyFunction (lMod:LLVM.Module) (fAnn: FunctionAnn): ModuleVCG FnVerificat
             -- TODO(AMK) once we actually parse the addresses from the ELF file
             -- we can raise an error if the two addresses don't match
             pure (ab.label, MCAddr.mk (UInt64.ofNat 0))
-            -- functionError fnm $ FnError.custom $ 
+            -- functionError fnm $ FnError.custom $
             --   "Unable to find function machine code address: " ++ errMsg
           | Except.ok addr =>
             if (addr == firstBlockAnn.startAddr)
@@ -347,22 +347,21 @@ def setupWithConfig (cfg : VCGConfig) : IO (ModuleAnnotations × VerificationSes
   -- Output into the specified directory.
   | VerificationMode.exportMode outDir => do
     let outDirExists ← IO.isDir outDir;
-    unless outDirExists do 
+    unless outDirExists do
       throw $ IO.userError $ "Output directory `"++outDir++"` does not exists.";
     -- FIXME create the directory if it's missing? (It's not clear there's a lean4 API for that yet)
     let vs ← exportVerificationSession outDir;
     pure (modAnn, vs)
-  
 
 /- Load the elf binary file and check it is a linux x86_64 binary (erroring if not). -/
-def loadElf (filePath : String) : 
+def loadElf (filePath : String) :
   IO (elf.ehdr ELF64 × List (elf.phdr ELF64) × elf.elfmem × (Std.RBMap String (elf.word ELF64) Lean.strLt)) := do
   let fileContents ← elf.read_info_from_file filePath;
   match fileContents with
   | (⟨ELF64, (hdr, phdrs)⟩, elfMem) => do
     -- Check the Elf file is for a x86_64
     unless (hdr.machine == elf.machine.EM_X86_64) do
-      throw $ IO.userError $ 
+      throw $ IO.userError $
         "Expected elf header machine type EM_X86_64 but got `"++ hdr.machine.name ++"`.";
     -- Check the Elf file is a linux binary
     unless (hdr.info.osabi == elf.osabi.ELFOSABI_SYSV
@@ -426,13 +425,26 @@ def reportErrors (bErrors : List BlockError) (mErrors : List ModuleError) (succe
   then pure 1
   else pure $ if bErrCnt > 0 then 1 else 0
 
+/- Combines a directory with a relative file path.-/
+def joinPath (name root p : String) : IO String :=
+  if p == "" then
+    throw $ IO.userError $ s!"Expected non-empty {name}."
+  else if root == "." then
+    pure p
+  else
+   pure $ System.mkFilePath [root, p]
+
 /- Run a ReoptVCG instance w.r.t. the given configuration. -/
 def runVCG (cfg : VCGConfig) : IO UInt32 := do
+  IO.println "runVCG"
+  let annDir := System.FilePath.dirName cfg.annFile
   let (ann, verificationSession) ← setupWithConfig cfg;
+  let binPath  ← joinPath "binary filepath" annDir ann.binFilePath
+  let llvmPath ← joinPath "llvm filepath"   annDir ann.llvmFilePath
   -- Load Elf file and emit warnings
   -- FIXME: cleanup
-  when cfg.verbose $ IO.println $ "Loading Elf file at `" ++ ann.binFilePath ++ "`...";
-  let (elfHdr, prgmHdrs, elfMem, fnSymAddrMap) ← loadElf ann.binFilePath;
+  when cfg.verbose $ IO.println $ s!"Loading Elf file at `{binPath}`...";
+  let (elfHdr, prgmHdrs, elfMem, fnSymAddrMap) ← loadElf binPath;
   when cfg.verbose $ IO.println $ "Elf file loaded!";
   let text_phdr <- (match get_text_segment elfHdr prgmHdrs with
                 | none     => throw $ IO.userError $ "No executable segment"
@@ -446,8 +458,8 @@ def runVCG (cfg : VCGConfig) : IO UInt32 := do
              | SemanticsBackend.ManualSemantics => x86.manual_semantics.mkSemantics text_bytes text_phdr.vaddr.toNat;
   when cfg.verbose $ IO.println $ "x86 decoder built...";
   -- Get LLVM module
-  when cfg.verbose $ IO.println $ "Loading LLVM module at `"++ann.llvmFilePath++"`";
-  let lMod ← loadLLVMModule ann.llvmFilePath;
+  when cfg.verbose $ IO.println $ s!"Loading LLVM module at `{llvmPath}`";
+  let lMod ← loadLLVMModule llvmPath;
   when cfg.verbose $ IO.println $ "LLVM module loaded!";
   -- Create verification coontext for module.
   let modCtx : ModuleVCGContext :=
@@ -462,8 +474,7 @@ def runVCG (cfg : VCGConfig) : IO UInt32 := do
   let mv ← match runModuleVCG modCtx verifyModule with
            | Except.ok res => pure res
            | Except.error e =>
-           throw $ IO.userError $ "Fatal error encountered while constructing verification for functions: "
-                                  ++ (ModuleError.pp e)
+           throw $ IO.userError $ s!"Fatal error encountered while constructing verification for functions: {ModuleError.pp e}"
   verificationSession.verifyModule cfg mv
 
 
