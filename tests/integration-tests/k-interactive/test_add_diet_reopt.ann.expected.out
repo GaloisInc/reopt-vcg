@@ -1,3 +1,4 @@
+runVCG
 Parsed the JSON annotation file `test_add_diet_reopt.ann` successfully!
 Loading Elf file at `test_add_diet_lld.exe`...
 Elf file loaded!
