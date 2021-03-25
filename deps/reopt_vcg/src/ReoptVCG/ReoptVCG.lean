@@ -436,7 +436,6 @@ def joinPath (name root p : String) : IO String :=
 
 /- Run a ReoptVCG instance w.r.t. the given configuration. -/
 def runVCG (cfg : VCGConfig) : IO UInt32 := do
-  IO.println "runVCG"
   let annDir := System.FilePath.dirName cfg.annFile
   let (ann, verificationSession) ← setupWithConfig cfg;
   let binPath  ← joinPath "binary filepath" annDir ann.binFilePath
