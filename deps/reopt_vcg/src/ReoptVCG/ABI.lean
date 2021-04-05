@@ -154,13 +154,23 @@ def matchArgToReg {a b : Type} {m : Type -> Type} [Monad m] (err : forall {c}, S
   List x86.reg64 →  -- ^ Remaining registers available for arguments.
   List x86.avxreg →  -- ^ Remaining float registers available for arguments.
   m (b × List x86.reg64 × List x86.avxreg)
-| ⟨LLVMType.prim (PrimType.integer 64), v⟩, regs, fpregs =>
+| ⟨LLVMType.prim (PrimType.integer n), v⟩, regs, fpregs =>
   match regs with
   | [] => err "Ran out of GP registers"
   | (reg::restRegs) => do  
-    let f' := fun (rs : x86.vcg.RegState) => rs.get_reg64 reg
-    let r <- f (LLVMType.prim (PrimType.integer 64)) rfl v f'
-    pure (r, restRegs, fpregs)
+    let mkReg (H : n <= 64) (rs : x86.vcg.RegState) := 
+       if H': 64 = n
+       then let pf := congrArg (fun i => Smt.Term (Smt.bitvec i)) H'; 
+            cast pf (rs.get_reg64 reg)
+       else x86.vcg.bitvec.trunc n H (rs.get_reg64 reg)
+      
+    let f' <- if H : n <= 64 then pure (mkReg H) else err "Integer argument too large"
+
+    if Hi : n > 0 
+      then do
+        let r <- f (LLVMType.prim (PrimType.integer n)) Hi v f'
+        pure (r, restRegs, fpregs)
+      else err "Zero-sized integer"
 
 | ⟨LLVMType.vector 8 (LLVMType.prim (PrimType.floatType LLVM.FloatType.double)), v⟩, regs, fpregs =>
   match fpregs with
