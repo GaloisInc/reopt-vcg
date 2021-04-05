@@ -4,6 +4,8 @@ import LeanLLVM.PP
 import SmtLib.Smt
 import X86Semantics.Common
 import ReoptVCG.Annotations
+import ReoptVCG.VCGBackend
+import ReoptVCG.Types
 
 -- ABI helpers
 
@@ -90,6 +92,7 @@ end LLVMType
 
 namespace FloatType
 
+@[reducible]
 def nbits : FloatType -> Nat
 | LLVM.FloatType.half     => 16
 | LLVM.FloatType.float    => 32
@@ -132,8 +135,20 @@ open mc_semantics.type
 
 namespace Internal
 
+open mc_semantics
+
+-- FIXME: move
+def float_type_nbits_le_avx_width : forall (ft : LLVM.FloatType), ft.nbits <= x86.avx_width 
+| LLVM.FloatType.half     => rfl
+| LLVM.FloatType.float    => rfl
+| LLVM.FloatType.double   => rfl
+| LLVM.FloatType.fp128    => rfl
+| LLVM.FloatType.x86FP80  => rfl
+| LLVM.FloatType.ppcFP128 => rfl
+
 def forEachArgImpl {a b : Type} {m : Type -> Type} [Monad m] (err : forall {c}, String -> m c)
-  ( f : forall (lty : LLVMType) ( H : HasBVRepr lty ), a -> concrete_reg (bv (lty.nbits H)) -> m b ) :
+  ( f : forall (lty : LLVMType) ( H : HasBVRepr lty ), 
+        a -> (x86.vcg.RegState -> Smt.Term (SmtSort.bitvec (lty.nbits H))) -> m b ) :
   List b →
   List (Typed a) →
   List x86.reg64 →  -- ^ Remaining registers available for arguments.
@@ -144,24 +159,80 @@ def forEachArgImpl {a b : Type} {m : Type -> Type} [Monad m] (err : forall {c}, 
   match regs with
   | [] => err "Ran out of GP registers"
   | (reg::restRegs) => do  
-    let r <- f (LLVMType.prim (PrimType.integer 64)) rfl v reg
+    let f' := fun (rs : x86.vcg.RegState) => rs.get_reg64 reg
+    let r <- f (LLVMType.prim (PrimType.integer 64)) rfl v f'
     forEachArgImpl err f (r :: revAcc) restArgs restRegs fpregs
 
 | revAcc, ( ⟨LLVMType.vector 8 (LLVMType.prim (PrimType.floatType LLVM.FloatType.double)), v⟩ :: restArgs), regs, fpregs =>
   match fpregs with
   | [] => err "Ran out of FP registers"
   | (reg::restFPRegs) => do
-    let r <- f (LLVMType.vector 8 (LLVMType.prim (PrimType.floatType LLVM.FloatType.double))) True.intro v reg
+    let f' := fun (rs : x86.vcg.RegState) => rs.get_avxreg' reg
+    let r <- f (LLVMType.vector 8 (LLVMType.prim (PrimType.floatType LLVM.FloatType.double))) True.intro v f'
+    forEachArgImpl err f (r :: revAcc) restArgs regs restFPRegs
+
+| revAcc, ( ⟨PrimType.floatType ft, v⟩ :: restArgs), regs, fpregs =>
+  match fpregs with
+  | [] => err "Ran out of FP registers"
+  | (reg::restFPRegs) => do
+    let rv := fun (rs : x86.vcg.RegState) => 
+                  x86.vcg.bitvec.trunc ft.nbits (float_type_nbits_le_avx_width ft) 
+                                       (rs.get_avxreg' reg)
+    let r <- f (PrimType.floatType ft) True.intro v rv
     forEachArgImpl err f (r :: revAcc) restArgs regs restFPRegs
 
 | _, (⟨tp, _⟩::_), _, _ => err ("Unsupported type: " ++ ppLLVM tp)
 
+
+-- FIXME: merge with above
+def forReturnValImpl {a b : Type} {m : Type -> Type} [Monad m] (err : forall {c}, String -> m c)
+  ( f : forall (lty : LLVMType) ( H : HasBVRepr lty ), 
+        a -> (x86.vcg.RegState -> Smt.Term (SmtSort.bitvec (lty.nbits H))) -> m b ) :
+  Typed a →
+  List x86.reg64 →  -- ^ Remaining registers available for arguments.
+  List x86.avxreg →  -- ^ Remaining float registers available for arguments.
+  m b
+| ⟨LLVMType.prim (PrimType.integer 64), v⟩, regs, fpregs =>
+  match regs with
+  | [] => err "Ran out of GP registers"
+  | (reg::restRegs) => do  
+    let f' := fun (rs : x86.vcg.RegState) => rs.get_reg64 reg
+    f (LLVMType.prim (PrimType.integer 64)) rfl v f'
+
+| ⟨LLVMType.vector 8 (LLVMType.prim (PrimType.floatType LLVM.FloatType.double)), v⟩, regs, fpregs =>
+  match fpregs with
+  | [] => err "Ran out of FP registers"
+  | (reg::restFPRegs) => do
+    let f' := fun (rs : x86.vcg.RegState) => rs.get_avxreg' reg
+    f (LLVMType.vector 8 (LLVMType.prim (PrimType.floatType LLVM.FloatType.double))) True.intro v f'
+
+| ⟨PrimType.floatType ft, v⟩, regs, fpregs =>
+  match fpregs with
+  | [] => err "Ran out of FP registers"
+  | (reg::restFPRegs) => do
+    let rv := fun (rs : x86.vcg.RegState) => 
+                  x86.vcg.bitvec.trunc ft.nbits (float_type_nbits_le_avx_width ft) 
+                                       (rs.get_avxreg' reg)
+    f (PrimType.floatType ft) True.intro v rv
+
+| ⟨tp, _⟩, _, _ => err ("Unsupported type: " ++ ppLLVM tp)
+
+
 end Internal
 
 def forEachArg {a b : Type} {m : Type -> Type} [Monad m] (err : forall {c}, String -> m c)
-  ( f : forall (lty : LLVMType) ( H : HasBVRepr lty ), a -> concrete_reg (bv (lty.nbits H)) -> m b )
+  ( f : forall (lty : LLVMType) ( H : HasBVRepr lty ), 
+        a -> (x86.vcg.RegState -> Smt.Term (SmtSort.bitvec (lty.nbits H))) -> m b )
   (args : List (Typed a)) : m (List b) := 
   Internal.forEachArgImpl err f [] args x86ArgGPRegs x86ArgFPRegs
+
+def forReturnVal {a b : Type} {m : Type -> Type} [Monad m] (err : forall {c}, String -> m c)
+  ( f : forall (lty : LLVMType) ( H : HasBVRepr lty ), 
+        a -> (x86.vcg.RegState -> Smt.Term (SmtSort.bitvec (lty.nbits H))) -> m b )
+  (arg : Typed a) : m b := 
+  Internal.forReturnValImpl err f arg x86ResultGPRegs x86ResultFPRegs
+
+
 
 end ReoptVCG
 
