@@ -59,7 +59,7 @@ jobs:
           key: lean4-${{ matrix.os }}-${{ needs.lean.outputs.lean4-sha }}
 
       - shell: bash
-        run: apt-get install clang-8
+        run: sudo apt-get install clang-8
           
       - shell: bash
         run: .github/ci.sh build
