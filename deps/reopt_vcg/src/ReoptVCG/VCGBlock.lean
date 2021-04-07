@@ -425,13 +425,6 @@ def wordAsType (w : x86.vcg.bitvec 64) (ty : LLVMType)
      else BlockVCG.localBlockError BlockErrorTag.unexpectedSort ("Unexpected sort in wordAsType: " ++ (ppLLVM ty))
   | _ => BlockVCG.localBlockError BlockErrorTag.unexpectedSort ("Unexpected sort in wordAsType: " ++ (ppLLVM ty))
   
-def proveRegRel (p : GoalTag) (extraInfo : String) (w : x86.vcg.bitvec 64)
-  : LLVM.Typed LLVM.Value ->  BlockVCG Unit
-| { type := ty, value := v } => do  
-  let ⟨pf, mcv⟩ <- wordAsType w ty;
-  let lv <- primEval ty pf v;
-  proveEq p extraInfo lv mcv
-
 section
 
 open x86.vcg (Event)
@@ -610,6 +603,17 @@ def checkDirectionFlagClear (context : String) : BlockVCG Unit := do
   let dfVal := regs.get_flag x86.flag.df.index
   proveTrue GoalTag.expectedDirectionFlagVal context (Smt.not dfVal)
 
+def proveLLVMReturn (rv : Typed Value) : BlockVCG Unit := do
+  let regs <- BlockVCGState.mcCurRegs <$> get
+  let prove (lty : LLVMType) (H : HasBVRepr lty) 
+            (v : Value) 
+            (rv : x86.vcg.RegState -> Smt.Term (SmtSort.bitvec (lty.nbits H)))
+            : BlockVCG Unit := do
+      let vv  <- primEval lty H v
+      proveEq GoalTag.llvmAndMCReturnValuesEq (ppLLVM v) vv (rv regs)
+
+  discard $ forReturnVal (localBlockError BlockErrorTag.unexpectedSort) prove rv
+
 def llvmReturn (mlret : Option (Typed Value)) : BlockVCG Unit := do
   mcExecuteToEnd;
   let regs <- BlockVCGState.mcCurRegs <$> get;
@@ -625,30 +629,36 @@ def llvmReturn (mlret : Option (Typed Value)) : BlockVCG Unit := do
   x86CalleeSavedGPRegs.forM rEq;
   match mlret with
   | none => pure ()
-  | some v =>
-    proveRegRel GoalTag.llvmAndMCReturnValuesEq "" (regs.get_reg64 x86.reg64.rax) v
-
+  | some v => proveLLVMReturn v
 
 section
 open mc_semantics.type
 
 -- c.f. parseLLVMArgs
-def checkLLVMArgs (args : List (Typed Value)) : BlockVCG Unit :=
+def checkLLVMArgs (args : List (Typed Value)) : BlockVCG Unit := do
+  let regs <- BlockVCGState.mcCurRegs <$> get
   let prove (lty : LLVMType) (H : HasBVRepr lty) 
             (v : Value) 
-            (r : x86.concrete_reg (bv (lty.nbits H))) 
+            (rv : x86.vcg.RegState -> Smt.Term (SmtSort.bitvec (lty.nbits H)))
             : BlockVCG Unit := do
-      let ctx <- read
-      let regs <- BlockVCGState.mcCurRegs <$> get;
-      let rv  <- ctx.mcGetReg regs r
       let vv  <- primEval lty H v
-      proveEq GoalTag.argAndRegEq r.repr vv rv
+      proveEq GoalTag.argAndRegEq (ppLLVM v) vv (rv regs)
 
   discard $ forEachArg (localBlockError BlockErrorTag.llvmInvokeArgError) prove args
 end
 
+
+def assignLLVMReturn (newRegs : x86.vcg.RegState) (ri : Typed LLVM.Ident) : BlockVCG Unit := do
+  let prove (lty : LLVMType) (H : HasBVRepr lty) 
+            (i : LLVM.Ident) 
+            (rv : x86.vcg.RegState -> Smt.Term (SmtSort.bitvec (lty.nbits H)))
+            : BlockVCG Unit :=
+      discard $ defineTerm i (rv newRegs);
+
+  discard $ forReturnVal (localBlockError BlockErrorTag.unexpectedSort) prove ri
+
 def llvmInvoke (isTailCall : Bool) (fsym : LLVM.Symbol) (args : Array (Typed Value))
-    (lRet : Option (LLVM.Ident × LLVMType)) : BlockVCG Unit := do
+    (lRet : Option (Typed LLVM.Ident)) : BlockVCG Unit := do
   when isTailCall $ localBlockError BlockErrorTag.unimplementedFeature "tail call"
 
   BlockVCGContext.mcBlockEndAddr <$> read >>= execMCOnlyEvents;
@@ -702,10 +712,7 @@ def llvmInvoke (isTailCall : Bool) (fsym : LLVM.Symbol) (args : Array (Typed Val
   -- Assign returned value by assigning LLVM variable
   match lRet with
   | none => pure ()
-  | some (i, ty) => do
-    let ⟨pf, mcv⟩ <- wordAsType (newRegs.get_reg64 x86.reg64.rax) ty;
-    let _ <- defineTerm i mcv;
-    pure ()
+  | some ri => assignLLVMReturn newRegs ri
 
 --------------------------------------------------------------------------------
 -- Arithmetic
@@ -885,7 +892,7 @@ def stepNextStmt (stmt : LLVM.Stmt) : BlockVCG Bool := do
     match f with 
     | LLVM.Value.symbol s =>
       llvmInvoke tailcall s args (match o_ty, stmt.assign with 
-                                  | some ty, some i => some (i, ty)
+                                  | some ty, some i => some ⟨ty, i⟩
                                   | _, _ => none)
     | _ => localBlockError BlockErrorTag.unimplementedFeature "indirect function call"
     pure true
@@ -935,6 +942,7 @@ def stepNextStmt (stmt : LLVM.Stmt) : BlockVCG Bool := do
       | SmtSort.bitvec n, SmtSort.bitvec m, int_to_ptr, l => assignTerm l
       | SmtSort.bitvec n, SmtSort.bitvec m, ptr_to_int, l => assignTerm l
       | SmtSort.bitvec n, SmtSort.bitvec m, bit_cast,   l => assignTerm l -- bit cast is identity
+
       -- FIXME: rounding mode
       | SmtSort.bitvec 32, SmtSort.bitvec 32, fp_to_si, l => do
         let stdLib <- BlockVCGContext.mcStdLib <$> read
@@ -942,6 +950,7 @@ def stepNextStmt (stmt : LLVM.Stmt) : BlockVCG Bool := do
       | SmtSort.bitvec 64, SmtSort.bitvec 64, fp_to_si, l => do
         let stdLib <- BlockVCGContext.mcStdLib <$> read
         assignTerm (stdLib.fpOps.fp_convert_to_int fp64 false x86.RoundingMode.Truncate l)
+
       -- FIXME: rounding mode
       | SmtSort.bitvec 32, SmtSort.bitvec 32, si_to_fp, l => do
         let stdLib <- BlockVCGContext.mcStdLib <$> read
@@ -1142,9 +1151,8 @@ def checkEachStmt : List LLVM.Stmt → BlockVCG Unit
 
 def defineArgBinding (b : LLVMMCArgBinding) : BlockVCG Unit := do
 let funStartRegs ← (x86.vcg.MCStdLib.funStartRegs ∘ BlockVCGContext.mcStdLib) <$> read;
-let ctx <- read;
-match b.register with
-  | Sigma.mk n r => discard $ defineTerm b.llvmArgName $ ctx.mcGetReg funStartRegs r
+match b.value funStartRegs with
+  | Sigma.mk _n v => discard $ defineTerm b.llvmArgName v
 pure ()
 
 def definePhiVar (nm : LLVM.Ident) (entry : LLVM.LLVMType × BlockLabelValMap) : BlockVCG Unit := do

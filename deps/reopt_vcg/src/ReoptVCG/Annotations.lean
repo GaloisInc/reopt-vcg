@@ -365,6 +365,11 @@ def x86ArgGPRegs : List x86.reg64 :=
   x86.reg64.r8,
   x86.reg64.r9 ]
 
+/- General purpose registers that may be used to pass arguments. -/
+def x86ResultGPRegs : List x86.reg64 :=
+[ x86.reg64.rax,
+  x86.reg64.rdx
+]
 
 section
 open mc_semantics (type)
@@ -381,6 +386,11 @@ def x86ArgFPRegs : List (x86.concrete_reg (bv 512)) :=
  , avxreg (Fin.ofNat 5) zmm
  , avxreg (Fin.ofNat 6) zmm
  , avxreg (Fin.ofNat 7) zmm
+ ]
+
+def x86ResultFPRegs : List (x86.concrete_reg (bv 512)) :=
+ [ avxreg (Fin.ofNat 0) zmm
+ , avxreg (Fin.ofNat 1) zmm
  ]
 
 end

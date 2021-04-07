@@ -10,6 +10,7 @@ import SmtLib.Smt
 import X86Semantics.Common
 import DecodeX86.DecodeX86
 
+import ReoptVCG.ABI
 import ReoptVCG.Translate
 import ReoptVCG.InstructionEvents
 
@@ -195,43 +196,25 @@ def getDefineByName (lMod:LLVM.Module) (name:String) : Option LLVM.Define :=
 
 /- Define LLVM arguments in terms of the function start value of
    machine code registers. -/
-def parseLLVMArgs
-  (fnm:FnName) : -- ^ Name of function for error purposes.
-  List LLVMMCArgBinding → -- ^ Accumulator for parsed arguments.
-  List (LLVM.Typed LLVM.Ident) → -- ^ Arguments to be parsed.
-  List x86.reg64 →  -- ^ Remaining registers available for arguments.
-  List x86.avxreg →  -- ^ Remaining float registers available for arguments.
-  ModuleVCG (List LLVMMCArgBinding)
-| revArgs, [], _, _ => pure revArgs.reverse
-| revBinds, (⟨LLVMType.prim (PrimType.integer 64), nm⟩::restArgs), regs, fpregs =>
-  match regs with
-  | [] =>
-    let maxArgs : Nat := x86ArgGPRegs.length
-    let totalArgs : Nat := maxArgs + 1 + restArgs.length
-    moduleThrow {fnName := some fnm, blockLbl := none}
-                ModuleErrorTag.maxFnArgCntSurpassed
-                ((reprStr maxArgs)++" word args supported, but got "++(reprStr totalArgs))
-  | (reg::restRegs) =>
-    let binding := LLVMMCArgBinding.mk nm SmtSort.bv64 (Sigma.mk _ reg);
-    parseLLVMArgs fnm (binding::revBinds) restArgs restRegs fpregs
- -- FIXME: Copied from above, maybe merge?
- -- (LLVMType.prim (PrimType.floatType LLVM.FloatType.double)
-| revBinds, ( ⟨LLVMType.vector 8 (LLVMType.prim (PrimType.floatType LLVM.FloatType.double)), nm⟩ :: restArgs), regs, fpregs =>
-  match fpregs with
-  | [] =>
-    let maxArgs : Nat := x86ArgFPRegs.length
-    let totalArgs : Nat := maxArgs + 1 + restArgs.length
-    moduleThrow {fnName := some fnm, blockLbl := none}
-                ModuleErrorTag.maxFnArgCntSurpassed
-                ((reprStr maxArgs)++" FP args supported, but got "++(reprStr totalArgs))
-  | (reg::restFPRegs) =>
-    let binding := LLVMMCArgBinding.mk nm (SmtSort.bitvec x86.avx_width) (Sigma.mk _ reg);
-    parseLLVMArgs fnm (binding::revBinds) restArgs regs restFPRegs
+open LLVM.LLVMType (HasBVRepr)
 
-| _, (⟨tp, nm⟩::restArgs), _, _ =>
-  moduleThrow {fnName := some fnm, blockLbl := none}
-              ModuleErrorTag.argTypeUnsupported
-              (nm.asString++ " : "++ppLLVM tp)
+def parseLLVMArgs
+  (fnm:FnName)   -- ^ Name of function for error purposes.
+  (args : List (LLVM.Typed LLVM.Ident))  -- ^ Arguments to be parsed.
+  : ModuleVCG (List LLVMMCArgBinding) := do
+  
+  -- let err := moduleThrow {fnName := some fnm, blockLbl := none}
+  --                       ModuleErrorTag.maxFnArgCntSurpassed
+
+  let mkBinding (lty : LLVMType) (H : HasBVRepr lty) 
+            (nm : LLVM.Ident ) 
+            (rv : x86.vcg.RegState -> Smt.Term (SmtSort.bitvec (lty.nbits H)))
+            : ModuleVCG LLVMMCArgBinding := 
+      LLVMMCArgBinding.mk nm (fun (rs : x86.vcg.RegState) => (Sigma.mk _ (rv rs)))
+
+  forEachArg (moduleThrow {fnName := some fnm, blockLbl := none}
+                        ModuleErrorTag.maxFnArgCntSurpassed)
+             mkBinding args
 
 /- Builds a mapping from block labels to corresponding block annotation json objects. -/
 def buildBlockAnnMap (fAnn:FunctionAnn) : ModuleVCG (Std.RBMap LLVM.Ident Json (λ x y => x<y)) := do
@@ -259,7 +242,7 @@ def verifyFunction (lMod:LLVM.Module) (fAnn: FunctionAnn): ModuleVCG FnVerificat
                   ModuleErrorTag.fnNotFound
                   ""
   -- Parse the LLVM args and assign them to registers
-  let argBindings ← parseLLVMArgs fnm [] lFun.args.toList x86ArgGPRegs x86ArgFPRegs;
+  let argBindings ← parseLLVMArgs fnm lFun.args.toList
   -- Build a mapping from block labels to the JSON block annotations
   let blockMap ← buildBlockAnnMap fAnn;
   -- Parse each block annotation in the JSON

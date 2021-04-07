@@ -126,6 +126,25 @@ def get_avxreg  (s : RegState) (idx : Fin 16) : avx_word :=
   if h : 16 = s.avxregs.size
   then Array.get s.avxregs (cast (congrArg _ h) idx) else  Smt.bvimm _ 0
 
+-- FIXME: move
+def reg_width_neq_avx_width : forall (tp : gpreg_type), Not (Eq tp.width 512)
+| gpreg_type.reg8l =>  Nat.neOfBeqEqFalse rfl
+| gpreg_type.reg8h =>  Nat.neOfBeqEqFalse rfl
+| gpreg_type.reg16 =>  Nat.neOfBeqEqFalse rfl
+| gpreg_type.reg32 =>  Nat.neOfBeqEqFalse rfl
+| gpreg_type.reg64 =>  Nat.neOfBeqEqFalse rfl
+
+
+-- FIXME
+def get_avxreg'' (n : Nat) (pf : n = avx_width) (s : RegState) (r : concrete_reg (bv n)) : avx_word :=
+  match n, r, pf with
+  | _, concrete_reg.gpreg  _   tp, pf => 
+    let pf' : ¬ (Eq tp.width avx_width) := reg_width_neq_avx_width tp; absurd pf pf'
+  | _, concrete_reg.avxreg idx tp, _ => s.get_avxreg idx
+
+def get_avxreg' (s : RegState) (r : concrete_reg (bv avx_width)) : avx_word := 
+  get_avxreg'' _ rfl s r
+
 def update_avxreg (idx : Fin 16) (f : avx_word -> avx_word) (s : RegState) : RegState :=
   -- FIXME
   if h : 16 = s.avxregs.size 
@@ -480,8 +499,8 @@ def mkBackend (fpOps : SupportedFPOps) : Backend :=
   , s_cond_set_ip   := fun b x => modify (fun s => { s with ip := Smt.smtIte b x s.ip })
 
   , s_fp_literal := fpOps.fp_literal
-  , s_bv_bitcast_to_fp := fpOps.bv_bitcast_to_fp 
-  , s_fp_bitcast_to_bv := fpOps.fp_bitcast_to_bv
+  , s_bv_bitcast_to_fp := fun _ x => x -- fpOps.bv_bitcast_to_fp 
+  , s_fp_bitcast_to_bv := fun _ x => x -- fpOps.fp_bitcast_to_bv
   , s_fp_convert_to_fp := fpOps.fp_convert_to_fp
 
   , s_fp_convert_to_int := fpOps.fp_convert_to_int
