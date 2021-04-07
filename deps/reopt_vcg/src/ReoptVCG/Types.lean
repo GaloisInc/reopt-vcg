@@ -907,8 +907,6 @@ def elseThrowPrefixed {ε α : Type} [ToString ε] (e : Except ε α) (pfx : Str
 /- Maps between LLVM argument and machine code name. -/
 structure LLVMMCArgBinding :=
 (llvmArgName : LLVM.Ident)
-(smtSort: Smt.SmtSort)
-(register: Sigma (fun n => x86.concrete_reg (mc_semantics.type.bv n))) -- FIXME
-
+(value: x86.vcg.RegState -> Sigma (fun n => Smt.Term (SmtSort.bitvec n)))
 
 end ReoptVCG

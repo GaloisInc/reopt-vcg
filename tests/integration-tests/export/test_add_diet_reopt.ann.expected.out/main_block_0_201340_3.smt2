@@ -1,4 +1,4 @@
-; main.block_0_201340.0 @ 0x201354: argument matches register ($rdi)
+; main.block_0_201340.0 @ 0x201354: argument matches register (42)
 (set-logic ALL)
 (set-option :produce-models true)
 (define-fun mem_readbv8 ((arg (Array (_ BitVec 64) (_ BitVec 8))) (arg0 (_ BitVec 64))) (_ BitVec 8) (select arg (bvadd arg0 #x0000000000000000)))

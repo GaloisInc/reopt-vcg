@@ -49,7 +49,7 @@ Generating verification conditions for LLVM module...
   Verifying fib.block_0_201017.0 @ 0x20101f: precondition ((= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp)), for jump)... OK
   Verifying fib.block_0_201024.1 @ 0x201024: machine code reads from unallocated stack space... OK
   Verifying fib.block_0_201024.1 @ 0x201031: machine code writes to unreserve stack space... OK
-  Verifying fib.block_0_201024.1 @ 0x201031: argument matches register ($rdi)... OK
+  Verifying fib.block_0_201024.1 @ 0x201031: argument matches register (%t6)... OK
   Verifying fib.block_0_201024.1 @ 0x201031: direction flag is expected value (function call)... OK
   Verifying fib.block_0_201024.1 @ 0x201031: return address is next instruction... OK
   Verifying fib.block_0_201024.2 @ 0x201031: instruction pointer is expected value (jump)... OK
@@ -67,7 +67,7 @@ Generating verification conditions for LLVM module...
   Verifying fib.block_0_201036.1 @ 0x201036: machine code reads from unallocated stack space... OK
   Verifying fib.block_0_201036.1 @ 0x201044: machine code writes to unreserve stack space... OK
   Verifying fib.block_0_201036.1 @ 0x201048: machine code writes to unreserve stack space... OK
-  Verifying fib.block_0_201036.1 @ 0x201048: argument matches register ($rdi)... OK
+  Verifying fib.block_0_201036.1 @ 0x201048: argument matches register (%t10)... OK
   Verifying fib.block_0_201036.1 @ 0x201048: direction flag is expected value (function call)... OK
   Verifying fib.block_0_201036.1 @ 0x201048: return address is next instruction... OK
   Verifying fib.block_0_201036.2 @ 0x201048: instruction pointer is expected value (jump)... OK
@@ -107,11 +107,11 @@ Generating verification conditions for LLVM module...
   Verifying fib.block_0_201058.0 @ 0x201061: register value preserved (r13, after return)... OK
   Verifying fib.block_0_201058.0 @ 0x201061: register value preserved (r14, after return)... OK
   Verifying fib.block_0_201058.0 @ 0x201061: register value preserved (r15, after return)... OK
-  Verifying fib.block_0_201058.0 @ 0x201061: LLVM and machine code return values match... OK
+  Verifying fib.block_0_201058.0 @ 0x201061: LLVM and machine code return values match (%t15)... OK
   Verifying main.block_0_201070.0 @ 0x201070: machine code writes to unreserve stack space... OK
   Verifying main.block_0_201070.0 @ 0x201078: machine code writes to unreserve stack space... OK
   Verifying main.block_0_201070.0 @ 0x201084: machine code writes to unreserve stack space... OK
-  Verifying main.block_0_201070.0 @ 0x201084: argument matches register ($rdi)... OK
+  Verifying main.block_0_201070.0 @ 0x201084: argument matches register (5)... OK
   Verifying main.block_0_201070.0 @ 0x201084: direction flag is expected value (function call)... OK
   Verifying main.block_0_201070.0 @ 0x201084: return address is next instruction... OK
   Verifying main.block_0_201070.1 @ 0x201084: instruction pointer is expected value (jump)... OK
@@ -126,8 +126,8 @@ Generating verification conditions for LLVM module...
   Verifying main.block_0_201070.1 @ 0x201084: precondition ((= r15 (fnstart r15)), for jump)... OK
   Verifying main.block_0_201070.1 @ 0x201084: precondition ((= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp)), for jump)... OK
   Verifying main.block_0_201089.0 @ 0x201098: machine code writes to unreserve stack space... OK
-  Verifying main.block_0_201089.0 @ 0x201098: argument matches register ($rdi)... OK
-  Verifying main.block_0_201089.0 @ 0x201098: argument matches register ($rsi)... OK
+  Verifying main.block_0_201089.0 @ 0x201098: argument matches register (2097618)... OK
+  Verifying main.block_0_201089.0 @ 0x201098: argument matches register (%t1)... OK
   Verifying main.block_0_201089.0 @ 0x201098: direction flag is expected value (function call)... OK
   Verifying main.block_0_201089.0 @ 0x201098: return address is next instruction... OK
   Verifying main.block_0_201089.1 @ 0x201098: instruction pointer is expected value (jump)... OK
@@ -152,7 +152,7 @@ Generating verification conditions for LLVM module...
   Verifying main.block_0_20109d.0 @ 0x2010a9: register value preserved (r13, after return)... OK
   Verifying main.block_0_20109d.0 @ 0x2010a9: register value preserved (r14, after return)... OK
   Verifying main.block_0_20109d.0 @ 0x2010a9: register value preserved (r15, after return)... OK
-  Verifying main.block_0_20109d.0 @ 0x2010a9: LLVM and machine code return values match... OK
+  Verifying main.block_0_20109d.0 @ 0x2010a9: LLVM and machine code return values match (0)... OK
 
 All 2 functions were assigned verification conditions without error.
 
