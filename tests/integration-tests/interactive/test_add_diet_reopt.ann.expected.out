@@ -21,11 +21,11 @@ Generating verification conditions for LLVM module...
   Verifying add.block_0_201320.1 @ 0x20133b: register value preserved (r13, after return)... OK
   Verifying add.block_0_201320.1 @ 0x20133b: register value preserved (r14, after return)... OK
   Verifying add.block_0_201320.1 @ 0x20133b: register value preserved (r15, after return)... OK
-  Verifying add.block_0_201320.1 @ 0x20133b: LLVM and machine code return values match... OK
+  Verifying add.block_0_201320.1 @ 0x20133b: LLVM and machine code return values match (%t0)... OK
   Verifying main.block_0_201340.0 @ 0x201340: machine code writes to unreserve stack space... OK
   Verifying main.block_0_201340.0 @ 0x201348: machine code writes to unreserve stack space... OK
   Verifying main.block_0_201340.0 @ 0x201354: machine code writes to unreserve stack space... OK
-  Verifying main.block_0_201340.0 @ 0x201354: argument matches register ($rdi)... OK
+  Verifying main.block_0_201340.0 @ 0x201354: argument matches register (42)... OK
   Verifying main.block_0_201340.0 @ 0x201354: direction flag is expected value (function call)... OK
   Verifying main.block_0_201340.0 @ 0x201354: return address is next instruction... OK
   Verifying main.block_0_201340.1 @ 0x201354: instruction pointer is expected value (jump)... OK
@@ -50,7 +50,7 @@ Generating verification conditions for LLVM module...
   Verifying main.block_0_201359.0 @ 0x201366: register value preserved (r13, after return)... OK
   Verifying main.block_0_201359.0 @ 0x201366: register value preserved (r14, after return)... OK
   Verifying main.block_0_201359.0 @ 0x201366: register value preserved (r15, after return)... OK
-  Verifying main.block_0_201359.0 @ 0x201366: LLVM and machine code return values match... OK
+  Verifying main.block_0_201359.0 @ 0x201366: LLVM and machine code return values match (0)... OK
 
 All 2 functions were assigned verification conditions without error.
 
