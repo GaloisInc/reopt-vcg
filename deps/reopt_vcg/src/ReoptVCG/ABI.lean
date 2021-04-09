@@ -109,6 +109,41 @@ def bitvec_toSmtSort? {n : Nat} (pf : n > 0) :
     toSmtSort? (prim (PrimType.integer n)) = some (SmtSort.bitvec n) :=
     ifPos pf
 
+
+section
+open Smt (SmtSort.bitvec SmtSort.tuple SmtSort.bool)
+
+-- returns lower n, remaining m
+def split_word (n m : Nat) (pf_n : n > 0) (w : Smt.Term (SmtSort.bitvec (n + m))) : Smt.Term (SmtSort.bitvec n) × Smt.Term (SmtSort.bitvec m) :=
+  let lower : Smt.Term (SmtSort.bitvec (n - 1 + 1 - 0)) := Smt.extract (n - 1) 0 w
+  let lower_pf : n - 1 + 1 - 0 = n := sorryAx _
+  let upper : Smt.Term (SmtSort.bitvec ((m + n) - 1 + 1 - n)) := Smt.extract ((m + n) - 1) n w
+  let upper_pf : (m + n) - 1 + 1 - n = m := sorryAx _
+  ( cast (congrArg (Smt.Term ∘ SmtSort.bitvec) lower_pf) lower
+  , cast (congrArg (Smt.Term ∘ SmtSort.bitvec) upper_pf) upper)
+
+-- FIXME: probably move
+-- We use xucc to avoid creating 0 size bitvecs, which smtlib doesn't support
+def unpackVecWord (w : Nat) (pf : w > 0) 
+  : forall (n : Nat) (sw : Smt.Term (SmtSort.bitvec ((Nat.succ n) * w))),
+    Smt.Term (LLVM.LLVMType.mkNTuple (List.replicate (Nat.succ n) (SmtSort.bitvec w)))
+| Nat.zero,   sw   => 
+  -- FIXME: should be rfl?
+  let pf : SmtSort.tuple (SmtSort.bitvec ((Nat.succ Nat.zero) * w)) SmtSort.bool = 
+           LLVM.LLVMType.mkNTuple (List.replicate (Nat.succ Nat.zero) (Smt.bitvec w)) := sorryAx _ 
+  -- add the terminating bool
+  cast (congrArg _ pf) (Smt.mkTuple _ _ sw Smt.false)
+
+| Nat.succ n, sw => 
+  let pf' : SmtSort.bitvec (Nat.succ (Nat.succ n) * w) = SmtSort.bitvec (w + (Nat.succ n) * w) := sorryAx _
+  let (low, high) := split_word w ((Nat.succ n) * w) pf (cast (congrArg _ pf') sw)
+  let rest        := unpackVecWord w pf n high
+  let IH : Smt.tuple (Smt.bitvec w) (LLVM.LLVMType.mkNTuple (List.replicate (Nat.succ n) (Smt.bitvec w))) = (LLVM.LLVMType.mkNTuple (List.replicate (Nat.succ (Nat.succ n)) (Smt.bitvec w))) := sorryAx _
+  cast (congrArg _ IH) (Smt.mkTuple _ _ low rest)
+
+end
+
+
 -- @[reducible]
 -- def HasBVRepr : LLVMType -> Prop
 -- | LLVM.LLVMType.ptr _  => True
@@ -143,6 +178,8 @@ namespace HasBVRepr
 end HasBVRepr
 
 end LLVMType
+
+export LLVMType ( bitvec_toSmtSort? )
 
 namespace PrimType
 
@@ -190,34 +227,6 @@ def float_type_nbits_le_avx_width : forall (ft : LLVM.FloatType), ft.nbits <= x8
 | LLVM.FloatType.x86FP80  => rfl
 | LLVM.FloatType.ppcFP128 => rfl
 
--- returns lower n, remaining m
-def split_word (n m : Nat) (pf_n : n > 0) (w : Smt.Term (SmtSort.bitvec (n + m))) : Smt.Term (SmtSort.bitvec n) × Smt.Term (SmtSort.bitvec m) :=
-  let lower : Smt.Term (SmtSort.bitvec (n - 1 + 1 - 0)) := Smt.extract (n - 1) 0 w
-  let lower_pf : n - 1 + 1 - 0 = n := sorryAx _
-  let upper : Smt.Term (SmtSort.bitvec ((m + n) - 1 + 1 - n)) := Smt.extract ((m + n) - 1) n w
-  let upper_pf : (m + n) - 1 + 1 - n = m := sorryAx _
-  ( cast (congrArg (Smt.Term ∘ SmtSort.bitvec) lower_pf) lower
-  , cast (congrArg (Smt.Term ∘ SmtSort.bitvec) upper_pf) upper)
-
--- FIXME: probably move
--- We use xucc to avoid creating 0 size bitvecs, which smtlib doesn't support
-def unpackVecWordAux (w : Nat) (pf : w > 0) 
-  : forall (n : Nat) (sw : Smt.Term (SmtSort.bitvec ((Nat.succ n) * w))),
-    Smt.Term (LLVM.LLVMType.mkNTuple (List.replicate (Nat.succ n) (SmtSort.bitvec w)))
-| Nat.zero,   sw   => 
-  -- FIXME: should be rfl?
-  let pf : SmtSort.tuple (SmtSort.bitvec ((Nat.succ Nat.zero) * w)) SmtSort.bool = 
-           LLVM.LLVMType.mkNTuple (List.replicate (Nat.succ Nat.zero) (Smt.bitvec w)) := sorryAx _ 
-  -- add the terminating bool
-  cast (congrArg _ pf) (Smt.mkTuple _ _ sw Smt.false)
-
-| Nat.succ n, sw => 
-  let pf' : SmtSort.bitvec (Nat.succ (Nat.succ n) * w) = SmtSort.bitvec (w + (Nat.succ n) * w) := sorryAx _
-  let (low, high) := split_word w ((Nat.succ n) * w) pf (cast (congrArg _ pf') sw)
-  let rest        := unpackVecWordAux w pf n high
-  let IH : Smt.tuple (Smt.bitvec w) (LLVM.LLVMType.mkNTuple (List.replicate (Nat.succ n) (Smt.bitvec w))) = (LLVM.LLVMType.mkNTuple (List.replicate (Nat.succ (Nat.succ n)) (Smt.bitvec w))) := sorryAx _
-  cast (congrArg _ IH) (Smt.mkTuple _ _ low rest)
-
 -- Shared between arg and ret
 def matchArgToReg {a b : Type} {m : Type -> Type} [Monad m] (err : forall {c}, String -> m c)
   ( f : forall (lty : LLVMType) (s : SmtSort) (pf : lty.toSmtSort? = some s), 
@@ -248,7 +257,7 @@ def matchArgToReg {a b : Type} {m : Type -> Type} [Monad m] (err : forall {c}, S
   match fpregs with
   | [] => err "Ran out of FP registers"
   | (reg::restFPRegs) => do
-    let f' := fun (rs : x86.vcg.RegState) => unpackVecWordAux 64 rfl 7 (rs.get_avxreg' reg)
+    let f' := fun (rs : x86.vcg.RegState) => LLVM.LLVMType.unpackVecWord 64 rfl 7 (rs.get_avxreg' reg)
     let r <- f (LLVMType.vector 8 (LLVMType.prim (PrimType.floatType LLVM.FloatType.double))) 
                _ rfl v f'
     pure (r, regs, restFPRegs)
