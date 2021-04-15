@@ -152,14 +152,14 @@ def lookupIdent (i : LLVM.Ident) (s : SmtSort) : BlockVCG (Smt.Term s) := do
     else BlockVCG.fatalBlockError ("Sort mismatch for " ++ i.asString)
   | none => BlockVCG.fatalBlockError ("Unknown ident: " ++ i.asString)
 
-def freshSymbol (n : String) (s : SmtSort) : BlockVCG (Smt.Term s) := do
+def declareFreshSymbol (n : String) (s : SmtSort) : BlockVCG (Smt.Term s) := do
   let sym <- BlockVCG.runSmtM (Smt.freshSymbol n); -- FIXME: this should be primitive in SMT
-  pure (Smt.mkSymbol sym s)
+  BlockVCG.runSmtM (Smt.declareFun sym [] s);
 
-def freshIdent (i : LLVM.Ident) (s : SmtSort) : BlockVCG (Smt.Term s) := do
-  let tm <- freshSymbol i.asString s
-  modify (fun s => {s with llvmIdentMap := s.llvmIdentMap.insert i (Sigma.mk _ tm)});
-  pure tm
+-- def freshIdent (i : LLVM.Ident) (s : SmtSort) : BlockVCG (Smt.Term s) := do
+--   let tm <- freshSymbol i.asString s
+--   modify (fun s => {s with llvmIdentMap := s.llvmIdentMap.insert i (Sigma.mk _ tm)});
+--   pure tm
 
 def defineTerm {s : SmtSort} (i : LLVM.Ident) (tm : Smt.Term s) : BlockVCG (Smt.Term s) := do
   let sym <- BlockVCG.runSmtM (Smt.defineFun i.asString [] s tm);
@@ -368,7 +368,7 @@ structure SortedTerm (lty : LLVMType) : Type :=
 
 def primEval' (s : SmtSort) : Value -> BlockVCG (Smt.Term s)
 | ident i => lookupIdent i s
-| undef   => freshSymbol "undef" s
+| undef   => declareFreshSymbol "undef" s
 | integer i => match s with
   | SmtSort.bitvec w => Smt.bvimm' w i
   | _ => BlockVCG.localBlockError BlockErrorTag.unexpectedSort ("Expected a bitvec, got: " ++ s.toString)   
@@ -984,6 +984,34 @@ def insertValue : forall (lty : LLVM.LLVMType) (s s' : SmtSort) (pf : lty.toSmtS
 
 | lty, _, _, _, _, _, _ => localBlockError BlockErrorTag.unimplementedFeature ("Unimplemented insert into " ++ ppLLVM lty)
 
+-- FIXME: we could be more elaborate with the type, but this is enough for now
+def extractValue : forall (lty : LLVM.LLVMType) (s : SmtSort) (pf : lty.toSmtSort? = some s) 
+                   (tm : Smt.Term s) (ns : List Nat), BlockVCG (Sigma Smt.Term)
+| vector n ty, s, pf, tm, [n'] => 
+  -- s is 'NTuple.make (List.replicate n s)', with n > 0 and prim_toSmtSort? ty = some s
+  let ⟨s'', H⟩ := LLVM.LLVMType.invert_vector_toSmtSort? pf
+  if Hn : n' < n
+  then let Hn' : n' < List.length (List.replicate n s'') :=
+         cast (congrArg _ (List.lengthReplicateEq n s'').symm) Hn;
+       let tm' : Smt.Term ((List.replicate n s'').get n' Hn') := 
+          NTuple.index n' Hn' (cast (congrArg _ H.right) tm)
+       pure (Sigma.mk _ tm')
+                       
+  else localBlockError BlockErrorTag.unimplementedFeature ("Index out of range")
+
+| struct _ tys, s, pf, tm, [n] => 
+  let ⟨ss, H⟩ := LLVM.LLVMType.invert_struct_toSmtSort? pf
+  if Hn : n < ss.length
+  then let tm' : Smt.Term (ss.get n Hn) := 
+         NTuple.index n Hn (cast (congrArg _ H.right) tm)
+       pure (Sigma.mk _ tm')
+  else localBlockError BlockErrorTag.unimplementedFeature ("Index out of range")
+
+| lty, _, _, _, _ => localBlockError BlockErrorTag.unimplementedFeature ("Unimplemented insert into " ++ ppLLVM lty)
+
+
+
+
 def stepNextStmt (stmt : LLVM.Stmt) : BlockVCG Bool := do
   let unimplemented {t : Type} : BlockVCG t :=
     BlockVCG.localBlockError BlockErrorTag.unimplementedFeature ("stepNextStmt, " ++ ppLLVM stmt)
@@ -1092,6 +1120,12 @@ def stepNextStmt (stmt : LLVM.Stmt) : BlockVCG Bool := do
     let ⟨s1, H, v1⟩  <- primEval t1 e1
     let ⟨s2, _H, v2⟩ <- primEval t2 e2
     let r <- insertValue t1 s1 s2 H v1 v2 idxs.data
+    assignTerm r
+    pure true
+
+  | extractvalue { type := t1, value := e1 } idxs => do
+    let ⟨s1, H, v1⟩  <- primEval t1 e1
+    let ⟨s, r⟩ <- extractValue t1 s1 H v1 idxs.data
     assignTerm r
     pure true
 

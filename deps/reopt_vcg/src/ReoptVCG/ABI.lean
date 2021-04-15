@@ -19,6 +19,11 @@ open Smt.SmtSort -- (bool bitvec array bv64 tuple)
 @[reducible]
 def make ( ss : List SmtSort ) : SmtSort := List.foldr tuple bool ss 
 
+@[reducible]
+def value : forall (xs : List (Σs, Smt.Term s)), Smt.Term (make (List.map Sigma.fst xs)) 
+| []      => Smt.false
+| x :: xs => Smt.mkTuple _ _ x.snd (value xs)
+
 def lens {a : Type} : forall (n : Nat) {ss : List SmtSort} (pf : n < ss.length)
                       (f : Smt.Term (ss.get n pf) -> a × Smt.Term (ss.get n pf)),
                       Smt.Term (NTuple.make ss) -> a × Smt.Term (NTuple.make ss) 
@@ -37,6 +42,8 @@ def lens {a : Type} : forall (n : Nat) {ss : List SmtSort} (pf : n < ss.length)
 def index (n : Nat) {ss : List SmtSort} (pf : n < ss.length)
           (tm : Smt.Term (NTuple.make ss)) : Smt.Term (ss.get n pf) :=
  (lens n pf (fun tm' => (tm', tm')) tm).fst
+
+
 
 end NTuple
 
@@ -357,11 +364,71 @@ def forEachArg {a b : Type} {m : Type -> Type} [Monad m] (err : forall {c}, Stri
   (args : List (Typed a)) : m (List b) := 
   Internal.forEachArgImpl err f [] args x86ArgGPRegs x86ArgFPRegs
 
+theorem map_map {α β γ : Type} (f : α -> β) (g : β -> γ) (xs : List α) : 
+        List.map g (List.map f xs) = List.map (g ∘ f) xs := by
+  induction xs with
+  | nil => exact rfl
+  | cons x xs' ih => 
+    have rl : g (f x) :: List.map g (List.map f xs') = (g ∘ f) x :: List.map (g ∘ f) xs'
+      := by rw ih
+    exact rl
+
+theorem map_ext {α β : Type} (f g : α -> β) (pf : forall x, f x = g x) (xs : List α) :
+        List.map f xs = List.map g xs := by
+  induction xs with
+  | nil => exact rfl
+  | cons x xs' ih => 
+    have rl : f x :: List.map f xs' = g x :: List.map g xs' := by rw ih; rw (pf x)
+    exact rl
+
+-- set_option pp.raw true
+
 def forReturnVal {a b : Type} {m : Type -> Type} [Monad m] (err : forall {c}, String -> m c)
   ( f : forall (lty : LLVMType) ( s : SmtSort ) (pf : lty.toSmtSort? = some s),
         a -> (x86.vcg.RegState -> Smt.Term s) -> m b )
   (arg : Typed a) : m b := 
-  Internal.forReturnValImpl err f arg x86ResultGPRegs x86ResultFPRegs
+  match arg.type with
+  | LLVM.LLVMType.struct b tys => do
+    -- we remake the proof later, plumbing it through would be a pain (although more correct)
+    let fake_f _lty (s : SmtSort)  _pf _unit (mk : x86.vcg.RegState -> Smt.Term s) := pure (Sigma.mk s mk)
+    -- unpack the struct and assign to return registers
+    let mks : List (Σ s, x86.vcg.RegState -> Smt.Term s) <- 
+       Internal.forEachArgImpl err fake_f [] (List.map (fun lty => ⟨lty, ()⟩) tys.data) x86ResultGPRegs x86ResultFPRegs
+
+    let mk : x86.vcg.RegState -> Smt.Term (NTuple.make (List.map Sigma.fst mks)) := fun regs => 
+
+      let tm -- : Smt.Term (NTuple.make (List.map Sigma.fst (List.map (fun (Sigma.mk s mkf) => Sigma.mk s (mkf regs)) mks)))
+        := NTuple.value (List.map (fun (Sigma.mk s mkf) => ⟨s, mkf regs⟩) mks)
+
+      -- let pf : List.map Sigma.fst (List.map (fun (Sigma.mk s mkf) => Sigma.mk s (mkf regs)) mks)
+      --        = List.map Sigma.fst mks := by 
+      --    rw (map_map _ _ mks)
+      --    apply map_ext
+      --    intros x
+      --    cases x
+      --    exact rfl
+
+      -- let pf' : Smt.Term (NTuple.make (List.map Sigma.fst (List.map (fun (Sigma.mk s mkf) => Sigma.mk s (mkf regs)) mks)))
+      --        = Smt.Term (NTuple.make (List.map Sigma.fst mks)) := 
+      --   congrArg (Smt.Term ∘ NTuple.make) pf
+  
+      let pf' := by 
+         rw (map_map _ _ mks)
+         rw map_ext
+         intros x
+         cases x
+         exact rfl
+
+      cast pf' tm 
+
+    if pf : arg.type.toSmtSort? = some (NTuple.make (List.map Sigma.fst mks))
+    then f _ _ pf arg.value mk 
+    else err ("Internal error: type mismatch in forReturnVal")
+
+  | _            => Internal.forReturnValImpl err f arg x86ResultGPRegs x86ResultFPRegs
+
+
+
 
 
 
