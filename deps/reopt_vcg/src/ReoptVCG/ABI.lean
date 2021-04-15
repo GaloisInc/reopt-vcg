@@ -9,6 +9,37 @@ import ReoptVCG.Types
 
 -- ABI helpers
 
+namespace NTuple
+
+open Smt (SmtM SmtSort IdGen.empty RangeSort.bitvec SmtSort.bitvec)
+open Smt.SmtSort -- (bool bitvec array bv64 tuple)
+
+-- We always get a bool terminator, unit would also work.  This could
+-- be nicer
+@[reducible]
+def make ( ss : List SmtSort ) : SmtSort := List.foldr tuple bool ss 
+
+def lens {a : Type} : forall (n : Nat) {ss : List SmtSort} (pf : n < ss.length)
+                      (f : Smt.Term (ss.get n pf) -> a × Smt.Term (ss.get n pf)),
+                      Smt.Term (NTuple.make ss) -> a × Smt.Term (NTuple.make ss) 
+| n, [], pf, _, _            => absurd pf (Nat.notLtZero n)
+| Nat.zero, s :: _, _, f, tm => 
+  let old      := Smt.fst _ _ tm 
+  let rest     := Smt.snd _ _ tm 
+  let (r, new) := f old
+  (r, Smt.mkTuple _ _ new rest) 
+| Nat.succ n, s :: ss, pf, f, tm => 
+  let pf' := cast (congrArg _ (List.lengthConsEq s ss)) pf;
+  let hd  := Smt.fst _ _ tm 
+  let (r, rest) := lens n (Nat.ltOfSuccLtSucc pf') f (Smt.snd _ _ tm)
+  (r, Smt.mkTuple _ _ hd rest)
+
+def index (n : Nat) {ss : List SmtSort} (pf : n < ss.length)
+          (tm : Smt.Term (NTuple.make ss)) : Smt.Term (ss.get n pf) :=
+ (lens n pf (fun tm' => (tm', tm')) tm).fst
+
+end NTuple
+
 
 -- ----------------------------------------------------------------------------------------
 -- HasBVRepr and helpers
@@ -78,29 +109,22 @@ namespace LLVMType
 @[reducible]
 def prim_toSmtSort? : LLVMType -> Option SmtSort 
 | prim pt => pt.toSmtSort?
+| vector n (prim pt) => 
+  (NTuple.make ∘ List.replicate n) <$> pt.toSmtSort?
 | _       => none
-
--- We always get a bool terminator, unit would also work.  This could
--- be nicer
-@[reducible]
-def mkNTuple ( ss : List SmtSort ) : SmtSort :=
-  List.foldr tuple bool ss 
 
 @[reducible]
 def toSmtSort? : LLVMType -> Option SmtSort
 | ptr _   => some (bitvec 64)
 | prim pt => pt.toSmtSort?
 | vector n ty => 
-  if n == 0 
+  if n = 0 
   then none -- FIXME
   else match prim_toSmtSort? ty with
        | none   => none
-       | some s => some (mkNTuple (List.replicate n s))
-| struct _ tys => do
-  let ss <- List.mapM prim_toSmtSort? tys.data
-  match ss with 
-  | [] => none
-  | _  => some (mkNTuple ss)
+       | some s => some (NTuple.make (List.replicate n s))
+| struct _ tys =>
+  NTuple.make <$> List.mapM prim_toSmtSort? tys.data
 
 -- FIXME: lean bug/missing feature
 | _ => none
@@ -109,6 +133,30 @@ def bitvec_toSmtSort? {n : Nat} (pf : n > 0) :
     toSmtSort? (prim (PrimType.integer n)) = some (SmtSort.bitvec n) :=
     ifPos pf
 
+def invert_vector_toSmtSort? {n : Nat} {lty : LLVMType} : forall {s : SmtSort} 
+    ( pf : (vector n lty).toSmtSort? = some s ),
+    -- also have n ≠ 0
+    (Σ' s', prim_toSmtSort? lty = some s' ∧ s = NTuple.make (List.replicate n s')) := by
+    match n with
+    | 0 => intros pf; injection pf
+    | Nat.succ m => 
+      have H: (vector (Nat.succ m) lty).toSmtSort? = (match prim_toSmtSort? lty with
+              | none   => none
+              | some s => some (NTuple.make (List.replicate (Nat.succ m) s))) by rfl
+      rw H
+      match prim_toSmtSort? lty with
+      | none => intros pf; injection pf
+      | some s' => intros pf; injection pf with H'; exists s'; simp [H']; decide!
+
+def invert_struct_toSmtSort? {b : Bool} {ltys : Array LLVMType} : forall {s : SmtSort} 
+    ( pf : (struct b ltys).toSmtSort? = some s ),
+    -- also have n ≠ 0
+    (Σ' ss', List.mapM prim_toSmtSort? ltys.data = some ss' ∧ s = NTuple.make ss') := by
+      have H: (struct b ltys).toSmtSort? = ( NTuple.make <$> List.mapM prim_toSmtSort? ltys.data) := rfl
+      rw H
+      match List.mapM prim_toSmtSort? ltys.data with
+      | none => intros pf; injection pf
+      | some ss => intros pf; injection pf with H'; exists ss; rw H'; simp; decide!
 
 section
 open Smt (SmtSort.bitvec SmtSort.tuple SmtSort.bool)
@@ -126,11 +174,11 @@ def split_word (n m : Nat) (pf_n : n > 0) (w : Smt.Term (SmtSort.bitvec (n + m))
 -- We use xucc to avoid creating 0 size bitvecs, which smtlib doesn't support
 def unpackVecWord (w : Nat) (pf : w > 0) 
   : forall (n : Nat) (sw : Smt.Term (SmtSort.bitvec ((Nat.succ n) * w))),
-    Smt.Term (LLVM.LLVMType.mkNTuple (List.replicate (Nat.succ n) (SmtSort.bitvec w)))
+    Smt.Term (NTuple.make (List.replicate (Nat.succ n) (SmtSort.bitvec w)))
 | Nat.zero,   sw   => 
   -- FIXME: should be rfl?
   let pf : SmtSort.tuple (SmtSort.bitvec ((Nat.succ Nat.zero) * w)) SmtSort.bool = 
-           LLVM.LLVMType.mkNTuple (List.replicate (Nat.succ Nat.zero) (Smt.bitvec w)) := sorryAx _ 
+           NTuple.make (List.replicate (Nat.succ Nat.zero) (Smt.bitvec w)) := sorryAx _ 
   -- add the terminating bool
   cast (congrArg _ pf) (Smt.mkTuple _ _ sw Smt.false)
 
@@ -138,7 +186,7 @@ def unpackVecWord (w : Nat) (pf : w > 0)
   let pf' : SmtSort.bitvec (Nat.succ (Nat.succ n) * w) = SmtSort.bitvec (w + (Nat.succ n) * w) := sorryAx _
   let (low, high) := split_word w ((Nat.succ n) * w) pf (cast (congrArg _ pf') sw)
   let rest        := unpackVecWord w pf n high
-  let IH : Smt.tuple (Smt.bitvec w) (LLVM.LLVMType.mkNTuple (List.replicate (Nat.succ n) (Smt.bitvec w))) = (LLVM.LLVMType.mkNTuple (List.replicate (Nat.succ (Nat.succ n)) (Smt.bitvec w))) := sorryAx _
+  let IH : Smt.tuple (Smt.bitvec w) (NTuple.make (List.replicate (Nat.succ n) (Smt.bitvec w))) = (NTuple.make (List.replicate (Nat.succ (Nat.succ n)) (Smt.bitvec w))) := sorryAx _
   cast (congrArg _ IH) (Smt.mkTuple _ _ low rest)
 
 end

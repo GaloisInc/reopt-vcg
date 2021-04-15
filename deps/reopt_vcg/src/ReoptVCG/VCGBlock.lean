@@ -11,8 +11,6 @@ import ReoptVCG.MCStdLib
 import ReoptVCG.Smt
 import ReoptVCG.ABI
 
-
-
 namespace ReoptVCG
 
 open LLVM (LLVMType FloatType Typed PrimType Value)
@@ -758,15 +756,6 @@ def bvSortedTerm {n : Nat} (tm : Smt.Term (SmtSort.bitvec n)) :
  if H : n > 0 then some (SortedTerm.mk _ (bitvec_toSmtSort? H) tm) else none
 
 
--- FIXME: move
-def indexNTuple : forall (n : Nat) {ss : List SmtSort} (pf : n < ss.length),
-                  Smt.Term (mkNTuple ss) -> Smt.Term (ss.get n pf)
-| n, [], pf, _            => absurd pf (Nat.notLtZero n)
-| Nat.zero, s :: _, _, tm => Smt.fst _ _ tm
-| Nat.succ n, s :: ss, pf, tm => 
-  let pf' := cast (congrArg _ (List.lengthConsEq s ss)) pf;
-  indexNTuple n (Nat.ltOfSuccLtSucc pf') (Smt.snd _ _ tm)
-
 theorem some_inj {t : Type} {x y : t} (h : some x = some y) : x = y := by injection h; assumption
 
 def convOpFunc (stdLib : x86.vcg.MCStdLib) : forall (fromTy toTy : LLVMType) {s : SmtSort} 
@@ -790,7 +779,7 @@ def convOpFunc (stdLib : x86.vcg.MCStdLib) : forall (fromTy toTy : LLVMType) {s 
 | LLVM.LLVMType.vector 8 (prim (LLVM.PrimType.floatType LLVM.FloatType.double))
 , prim (LLVM.PrimType.integer 512), _, rfl, bit_cast, l => 
   -- FIXME: generalise
-  let ix (n : Nat) (pf : n < 8) := @indexNTuple n (List.replicate 8 (SmtSort.bitvec 64)) pf l
+  let ix (n : Nat) (pf : n < 8) := @NTuple.index n (List.replicate 8 (SmtSort.bitvec 64)) pf l
   let tm := x86.vcg.bitvec.concat_list [ ix 7 rfl, ix 6 rfl, ix 5 rfl, ix 4 rfl
                                        , ix 3 rfl, ix 2 rfl, ix 1 rfl, ix 0 rfl]
   some (SortedTerm.mk _ (bitvec_toSmtSort? rfl) tm) 
@@ -798,7 +787,7 @@ def convOpFunc (stdLib : x86.vcg.MCStdLib) : forall (fromTy toTy : LLVMType) {s 
 , LLVM.LLVMType.vector 8 (prim (LLVM.PrimType.floatType LLVM.FloatType.double))
 , _, rfl, bit_cast, l => 
   -- FIXME: generalise
-  let tm : Smt.Term (mkNTuple (List.replicate 8 (SmtSort.bitvec 64))) := 
+  let tm : Smt.Term (NTuple.make (List.replicate 8 (SmtSort.bitvec 64))) := 
     LLVM.LLVMType.unpackVecWord 64 rfl 7 l
   some (SortedTerm.mk _ rfl tm)
 
@@ -811,22 +800,18 @@ def convOpFunc (stdLib : x86.vcg.MCStdLib) : forall (fromTy toTy : LLVMType) {s 
   let tm := stdLib.fpOps.fp_convert_to_int mc_semantics.float_class.fp64 false x86.RoundingMode.Truncate l
   some (SortedTerm.mk _ rfl tm)
   
+  -- FIXME: rounding mode
+| prim (LLVM.PrimType.integer 32)
+, prim (LLVM.PrimType.floatType LLVM.FloatType.float)
+, _, rfl, fp_to_si, l => 
+  let tm := stdLib.fpOps.int_convert_to_fp mc_semantics.float_class.fp32 true l
+  some (SortedTerm.mk _ rfl tm)
 
--- | SmtSort.bitvec 32, SmtSort.bitvec 32, fp_to_si, l => do
---         let stdLib <- BlockVCGContext.mcStdLib <$> read
---         assignTerm (stdLib.fpOps.fp_convert_to_int fp32 true x86.RoundingMode.Truncate l)
---       | SmtSort.bitvec 64, SmtSort.bitvec 64, fp_to_si, l => do
---         let stdLib <- BlockVCGContext.mcStdLib <$> read
---         assignTerm (stdLib.fpOps.fp_convert_to_int fp64 false x86.RoundingMode.Truncate l)
-
---       -- FIXME: rounding mode
---       | SmtSort.bitvec 32, SmtSort.bitvec 32, si_to_fp, l => do
---         let stdLib <- BlockVCGContext.mcStdLib <$> read
---         assignTerm (stdLib.fpOps.int_convert_to_fp fp32 true l)
---       | SmtSort.bitvec 64, SmtSort.bitvec 64, si_to_fp, l => do
---         let stdLib <- BlockVCGContext.mcStdLib <$> read
---         assignTerm (stdLib.fpOps.int_convert_to_fp fp64 false l)
-
+| prim (LLVM.PrimType.integer 64)
+, prim (LLVM.PrimType.floatType LLVM.FloatType.double)
+, _, rfl, fp_to_si, l => 
+  let tm := stdLib.fpOps.int_convert_to_fp mc_semantics.float_class.fp64 false l
+  some (SortedTerm.mk _ rfl tm)
   
 | _, _, _, _, _, _ => none
 
@@ -935,8 +920,69 @@ end BlockVCG
 section
 open LLVM.Instruction
 open BlockVCG (verifyPreconditions)
-open LLVM.ConvOp
 open mc_semantics.float_class
+open LLVM.LLVMType
+    
+-- FIXME: move
+axiom get_replicate { α : Type } (x : α) : forall (n m : Nat) 
+      (pf : m < List.length (List.replicate n x)), -- not m < n to aid in unification
+      (List.replicate n x).get m pf = x
+
+
+section
+open List (nil cons)
+
+axiom invert_mapM_Option_cons {α β : Type} {f : α -> Option β} {x : α} {xs : List α}  :
+  forall {ys : List β} (pf : List.mapM f (x :: xs) = some ys),
+  ∃ y ys', ys = y :: ys' ∧ f x = some y ∧ List.mapM f xs = some ys'--  := by
+  -- induction xs with
+  -- | nil => intros pf; simp at pf
+  -- | cons y ys' ih => intros pf
+
+
+-- FIXME: move
+axiom mapM_Option_length {α β : Type} {f : α -> Option β} {xs : List α} :
+  forall  {ys : List β} (pf : List.mapM f xs = some ys),
+  ys.length = xs.length -- := by
+  -- induction xs with 
+  -- | nil => intros pf; injection pf with H; rw <- H; exact rfl
+  -- | cons x xs' ih => intros pf; injection pf with H
+
+end  
+
+def insertValue : forall (lty : LLVM.LLVMType) (s s' : SmtSort) (pf : lty.toSmtSort? = some s) 
+                  (tm : Smt.Term s) (elt : Smt.Term s') (ns : List Nat), BlockVCG (Smt.Term s)
+| _, _, _, _, tm, _, [] => pure tm -- shouldn't happen, maybe we should check?
+| vector n ty, s, s', pf, tm, elt, [n'] => 
+  -- s is 'NTuple.make (List.replicate n s)', with n > 0 and prim_toSmtSort? ty = some s
+  let ⟨s'', H⟩ := LLVM.LLVMType.invert_vector_toSmtSort? pf
+  if Hn : n' < n
+  then if Hs' : s' = s''
+       then let Hn' : n' < List.length (List.replicate n s'') :=
+                  cast (congrArg _ (List.lengthReplicateEq n s'').symm) Hn;
+            let pf : s' = (List.replicate n s'').get n' Hn' :=
+                Eq.trans Hs' (get_replicate s'' _ _ Hn').symm;
+            let f := fun _old => ((), cast (congrArg _ pf) elt);
+            let tm' : Smt.Term (NTuple.make (List.replicate n s'')) := 
+                (NTuple.lens n' Hn' f (cast (congrArg _ H.right) tm)).snd
+            pure (cast (congrArg _ H.right).symm tm')
+
+       else localBlockError BlockErrorTag.unexpectedSort ("Expecting " ++ toString s'' ++ " got " ++ toString s')
+                       
+  else localBlockError BlockErrorTag.unimplementedFeature ("Index out of range")
+
+| struct _ tys, s, s', pf, tm, elt, [n] => 
+  let ⟨ss, H⟩ := LLVM.LLVMType.invert_struct_toSmtSort? pf
+  if Hn : n < ss.length
+  then if Hs' : s' = ss.get n Hn 
+       then let f := fun _old => ((), cast (congrArg _ Hs') elt);
+            let tm' : Smt.Term (NTuple.make ss) := 
+              (NTuple.lens n Hn f (cast (congrArg _ H.right) tm)).snd
+            pure (cast (congrArg _ H.right).symm tm')
+       else localBlockError BlockErrorTag.unexpectedSort ("Expecting " ++ toString (ss.get n Hn) ++ " got " ++ toString s')
+  else localBlockError BlockErrorTag.unimplementedFeature ("Index out of range")
+
+| lty, _, _, _, _, _, _ => localBlockError BlockErrorTag.unimplementedFeature ("Unimplemented insert into " ++ ppLLVM lty)
 
 def stepNextStmt (stmt : LLVM.Stmt) : BlockVCG Bool := do
   let unimplemented {t : Type} : BlockVCG t :=
@@ -1040,6 +1086,13 @@ def stepNextStmt (stmt : LLVM.Stmt) : BlockVCG Bool := do
       let v3 <- primEval' (SmtSort.bitvec m) e3
       assignTerm (Smt.smtIte (Smt.eq v1 (Smt.bvimm _ 0)) v3 v2')
     | _, _, _ => BlockVCG.localBlockError BlockErrorTag.unexpectedSort ("select with selty "++(ppLLVM t1))
+    pure true
+
+  | insertvalue { type := t1, value := e1 } { type := t2, value := e2 } idxs => do
+    let ⟨s1, H, v1⟩  <- primEval t1 e1
+    let ⟨s2, _H, v2⟩ <- primEval t2 e2
+    let r <- insertValue t1 s1 s2 H v1 v2 idxs.data
+    assignTerm r
     pure true
 
   | _ => unimplemented
