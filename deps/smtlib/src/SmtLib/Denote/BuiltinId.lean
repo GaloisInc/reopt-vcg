@@ -99,6 +99,12 @@ def denoteBuiltinIdent : forall cs, BuiltinIdent cs → cs.denote
                                 | false => y
 | _, BuiltinIdent.distinct s n => mkDistinct s n
 
+| _, BuiltinIdent.fst _ _ => fun pair => pair.fst  
+| _, BuiltinIdent.snd _ _ => fun pair => pair.snd
+| _, BuiltinIdent.mkTuple _ _ => fun a b => (a, b)
+
+
+
 | _, BuiltinIdent.select k v           => Array.select
 | _, BuiltinIdent.store  k v           => Array.store
 | _, BuiltinIdent.eqrange k _          => Array.eqRange k
