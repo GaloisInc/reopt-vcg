@@ -20,6 +20,10 @@ inductive SmtSort : Type
 | bool : SmtSort
 | bitvec : Nat -> SmtSort
 | array  : SmtSort -> SmtSort -> SmtSort
+-- cvc4 supports n-ary tuples, but lists in types are a pain in lean
+-- at the moment
+| tuple  : SmtSort -> SmtSort -> SmtSort 
+  deriving BEq, DecidableEq
 
 namespace SmtSort
 
@@ -27,7 +31,6 @@ def bv8  := bitvec 8
 def bv16 := bitvec 16
 def bv32 := bitvec 32
 def bv64 := bitvec 64
-
 
 -- protected def hasDecEq : ∀(a b : SmtSort), Decidable (a = b)
 -- | bool, bitvec _ => isFalse (λ h => SmtSort.noConfusion h)
@@ -51,42 +54,45 @@ def bv64 := bitvec 64
 
 -- instance : DecidableEq SmtSort := SmtSort.hasDecEq
 
-protected def beq : SmtSort → SmtSort → Bool
-| bool, bool => true
-| bitvec n, bitvec m => n == m
-| array a b, array c d => SmtSort.beq a c && SmtSort.beq b d
-| _, _ => false
+-- protected
+-- def beq : SmtSort → SmtSort → Bool
+-- | bool, bool => true
+-- | bitvec n, bitvec m => n == m
+-- | array a b, array c d => SmtSort.beq a c && SmtSort.beq b d
+-- | tuple a1 a2, tuple b1 b2 => SmtSort.beq a1 b1 && SmtSort.beq a2 b2
+-- | _, _ => false
 
-instance : BEq SmtSort := ⟨SmtSort.beq⟩
+-- instance : BEq SmtSort := ⟨SmtSort.beq⟩
 
 protected
 def toSExpr : SmtSort -> SExpr
 | bool => atom "Bool"
 | bitvec n => indexed (atom "BitVec") [atom n.repr]
 | array k v => list [atom "Array", SmtSort.toSExpr k, SmtSort.toSExpr v]
+| tuple a b => list [atom "Tuple", SmtSort.toSExpr a, SmtSort.toSExpr b]
 
 instance : ToSExpr SmtSort := ⟨SmtSort.toSExpr⟩
 
--- *MkDecEq> putStrLn $ mkDecEq "SmtSort" [("bool", []), ("bitvec", [False]), ("array", [True, True])] "decEq"
-protected def decEq : ∀(e e' : SmtSort), Decidable (e = e')
-| bool, bool => isTrue rfl
-| (bitvec c1), (bitvec c1') => 
- (match Nat.decEq c1 c1' with 
-  | (isTrue h1) => isTrue (h1 ▸ rfl)
-  | (isFalse nh) => isFalse (fun h => SmtSort.noConfusion h $ fun h1' => absurd h1' nh))
-| (array c1 c2), (array c1' c2') => 
- (match SmtSort.decEq c1 c1', SmtSort.decEq c2 c2' with 
-  | (isTrue h1), (isTrue h2) => isTrue (h1 ▸ h2 ▸ rfl)
-  | (isFalse nh), _ => isFalse (fun h => SmtSort.noConfusion h $ fun h1' h2' => absurd h1' nh)
-  | (isTrue _), (isFalse nh) => isFalse (fun h => SmtSort.noConfusion h $ fun h1' h2' => absurd h2' nh))
-| bool, (bitvec _) => isFalse (fun h => SmtSort.noConfusion h)
-| bool, (array _ _) => isFalse (fun h => SmtSort.noConfusion h)
-| (bitvec _), bool => isFalse (fun h => SmtSort.noConfusion h)
-| (bitvec _), (array _ _) => isFalse (fun h => SmtSort.noConfusion h)
-| (array _ _), bool => isFalse (fun h => SmtSort.noConfusion h)
-| (array _ _), (bitvec _) => isFalse (fun h => SmtSort.noConfusion h)
+-- -- *MkDecEq> putStrLn $ mkDecEq "SmtSort" [("bool", []), ("bitvec", [False]), ("array", [True, True])] "decEq"
+-- protected def decEq : ∀(e e' : SmtSort), Decidable (e = e')
+-- | bool, bool => isTrue rfl
+-- | (bitvec c1), (bitvec c1') => 
+--  (match Nat.decEq c1 c1' with 
+--   | (isTrue h1) => isTrue (h1 ▸ rfl)
+--   | (isFalse nh) => isFalse (fun h => SmtSort.noConfusion h $ fun h1' => absurd h1' nh))
+-- | (array c1 c2), (array c1' c2') => 
+--  (match SmtSort.decEq c1 c1', SmtSort.decEq c2 c2' with 
+--   | (isTrue h1), (isTrue h2) => isTrue (h1 ▸ h2 ▸ rfl)
+--   | (isFalse nh), _ => isFalse (fun h => SmtSort.noConfusion h $ fun h1' h2' => absurd h1' nh)
+--   | (isTrue _), (isFalse nh) => isFalse (fun h => SmtSort.noConfusion h $ fun h1' h2' => absurd h2' nh))
+-- | bool, (bitvec _) => isFalse (fun h => SmtSort.noConfusion h)
+-- | bool, (array _ _) => isFalse (fun h => SmtSort.noConfusion h)
+-- | (bitvec _), bool => isFalse (fun h => SmtSort.noConfusion h)
+-- | (bitvec _), (array _ _) => isFalse (fun h => SmtSort.noConfusion h)
+-- | (array _ _), bool => isFalse (fun h => SmtSort.noConfusion h)
+-- | (array _ _), (bitvec _) => isFalse (fun h => SmtSort.noConfusion h)
 
-instance : DecidableEq SmtSort := SmtSort.decEq
+-- instance : DecidableEq SmtSort := SmtSort.decEq
 
 def toString (s:SmtSort) : String := (SmtSort.toSExpr s).toString
 instance : ToString SmtSort := ⟨SmtSort.toString⟩
@@ -236,6 +242,12 @@ inductive BuiltinIdent : ConstSort -> Type
 | distinct (s : SmtSort) (arity : Nat)
                       : BuiltinIdent (nary s bool arity)
 
+
+-- * Tuples
+| fst (a b : SmtSort) : BuiltinIdent (unop (tuple a b) a)
+| snd (a b : SmtSort) : BuiltinIdent (unop (tuple a b) b)
+| mkTuple (a b : SmtSort) : BuiltinIdent (binop a b (tuple a b))
+
 -- * Arrays
 | select (k v : SmtSort) : BuiltinIdent (ConstSort.fsort (array k v) (ConstSort.fsort k (ConstSort.base v)))--(binop (array k v) k v)
 | store  (k v : SmtSort) : BuiltinIdent (ternop (array k v) k v (array k v))
@@ -309,6 +321,10 @@ def toSExpr : forall {cs : ConstSort}, BuiltinIdent cs -> SExpr
 | _, eq _                 => atom "="
 | _, smtIte _             => atom "ite"
 | _, distinct _ _         => atom "distinct"
+
+| _, fst _ _              => indexed (atom "tupSel") [Nat.toSExpr 0]
+| _, snd _ _              => indexed (atom "tupSel") [Nat.toSExpr 1]
+| _, mkTuple _ _          => atom "mkTuple"
 
 | _, select _ _           => atom "select"
 | _, store  _ _           => atom "store"

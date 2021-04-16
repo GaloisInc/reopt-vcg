@@ -90,6 +90,26 @@ instance {n} : DecidableLessOrder (bitvec n) :=
 
 end bitvec
 
+------------------------------------------------------------
+-- Prod (ordering and class instances)
+
+namespace Prod
+
+axiom HasLess.transitivity {a b} [LessOrder a] [LessOrder b] : ∀ (x y z : a × b), x < y → y < z → x < z
+axiom HasLess.asymmetry {a b} [LessOrder a] [LessOrder b] : ∀ (x y : a × b), x < y → ¬(y < x)
+axiom HasLess.totality {a b} [LessOrder a] [LessOrder b] : ∀ (x y : a × b), x < y ∨ x = y ∨ y < x
+
+instance {a b} [LessOrder a] [LessOrder b] : LessOrder (a × b) :=
+{transitive := HasLess.transitivity,
+ asymmetric := HasLess.asymmetry,
+ total := HasLess.totality}
+
+instance {a b} [DecidableLessOrder a] [DecidableLessOrder b] : DecidableLessOrder (a × b) :=
+{ltDec := inferInstance,
+ eqDec := inferInstance}
+
+end Prod
+
 
 
 ------------------------------------------------------------
@@ -113,6 +133,12 @@ def denoteSmtSort : SmtSort → OrderedType
   let v' := denoteSmtSort v;
   let vOrd := v'.order;
   ⟨Array k'.type v'.type, inferInstance⟩
+| SmtSort.tuple a b =>
+  let a' := denoteSmtSort a;
+  let aOrd := a'.order;
+  let b' := denoteSmtSort b;
+  let bOrd := b'.order;
+  ⟨a'.type × b'.type, inferInstance⟩
 
 
 @[reducible]

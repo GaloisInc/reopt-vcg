@@ -196,8 +196,6 @@ def getDefineByName (lMod:LLVM.Module) (name:String) : Option LLVM.Define :=
 
 /- Define LLVM arguments in terms of the function start value of
    machine code registers. -/
-open LLVM.LLVMType (HasBVRepr)
-
 def parseLLVMArgs
   (fnm:FnName)   -- ^ Name of function for error purposes.
   (args : List (LLVM.Typed LLVM.Ident))  -- ^ Arguments to be parsed.
@@ -206,9 +204,9 @@ def parseLLVMArgs
   -- let err := moduleThrow {fnName := some fnm, blockLbl := none}
   --                       ModuleErrorTag.maxFnArgCntSurpassed
 
-  let mkBinding (lty : LLVMType) (H : HasBVRepr lty) 
-            (nm : LLVM.Ident ) 
-            (rv : x86.vcg.RegState -> Smt.Term (SmtSort.bitvec (lty.nbits H)))
+  let mkBinding (lty : LLVMType) (s : SmtSort) (H : lty.toSmtSort? = some s)
+            (nm : LLVM.Ident) 
+            (rv : x86.vcg.RegState -> Smt.Term s)
             : ModuleVCG LLVMMCArgBinding := 
       LLVMMCArgBinding.mk nm (fun (rs : x86.vcg.RegState) => (Sigma.mk _ (rv rs)))
 

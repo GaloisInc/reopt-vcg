@@ -19,6 +19,7 @@ open SmtSort
 
 export SmtSort ( bool
                  bitvec
+                 tuple
                  array
                  bv8
                  bv16
@@ -173,6 +174,17 @@ private def anyAux : Term bool → List (Term bool) → Term bool
 def any : List (Term bool) → Term bool
 | [] => Smt.false
 | p::ps => anyAux p ps
+
+-- Tuples
+
+protected
+def fst (a b : SmtSort) : Term (tuple a b) -> Term a := unop (fst a b)
+
+protected
+def snd (a b : SmtSort) : Term (tuple a b) -> Term b := unop (snd a b)
+
+protected
+def mkTuple (a b : SmtSort) : Term a -> Term b -> Term (tuple a b) := binop (mkTuple a b)
 
 
 -- Arrays
