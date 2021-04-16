@@ -41,6 +41,16 @@ def leaveq : instruction :=
  definst "leaveq" $ instr_pat leaveImpl
 
 ------------------------------------------------------------------------
+-- endbr64 definition (ignore cfi features)
+
+def endbr64 : instruction :=
+ definst "endbr64" $ 
+   instr_pat $
+     let action : semantics Unit := do
+       (pure () : semantics Unit)
+     action
+
+------------------------------------------------------------------------
 -- push definition
 -- Push Word => doubleword or Quadword Onto the Stack
  
@@ -296,6 +306,7 @@ def manual_instructions : List instruction :=
     , pushw
     , retq
     , syscall
+    , endbr64
     ] ++ jcc_instructions
 
 
