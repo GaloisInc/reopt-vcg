@@ -951,9 +951,9 @@ def of_lhs : ∀{tp:type}, lhs tp → expression tp
 | _, (lhs.write_arg idx tp) => expression.read_arg idx tp
 | _, (lhs.streg idx) => expression.streg idx
 
-instance all_lhs_is_expression {tp:type} : Coe (lhs tp) (expression tp) := 
+instance all_lhs_is_expression {tp:type} : Coe (lhs tp) (expression tp) :=
   ⟨expression.of_lhs⟩
-instance all_lhs_is_expression' : has_coe1 lhs expression := 
+instance all_lhs_is_expression' : has_coe1 lhs expression :=
   ⟨expression.of_lhs⟩
 
 end expression

@@ -103,7 +103,7 @@ private def hexCharToNat : Char → Option Nat
 
 private def fromHexStringAux : Nat → List Char → Option Nat
   | n, [] => Option.some n
-  | n, (c::cs) => do
+  | n, (c::cs) => OptionM.run do
     let cn ← hexCharToNat c
     fromHexStringAux ((n * 16) + cn) cs
 

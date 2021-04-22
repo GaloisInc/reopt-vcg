@@ -148,7 +148,7 @@ def intP : OpParser Int :=
       (Int.ofNat <$> natP)
 
 def exactStrP (s : String) : OpParser Unit :=
-  List.forM exact s.toList
+  s.toList.forM exact
 
 -- def stringP (f : Char -> Bool) : OpParser String := List.asString <$> many (token f)
 -- def string1P (f : Char -> Bool) : OpParser String := List.asString <$> many1 (token f)

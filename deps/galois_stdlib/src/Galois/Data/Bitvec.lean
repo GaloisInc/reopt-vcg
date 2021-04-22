@@ -107,7 +107,7 @@ protected def cong {a b : Nat} (h : a = b) : bitvec a → bitvec b
 -- protected def of_nat (n : Nat) (x:Nat) : bitvec n := ⟨ x % (Nat.shiftl 1 n), power_hack _ _⟩
 
 protected def of_nat (width : Nat) (x:Nat) : bitvec width :=
-  ⟨ x % 2^width, Nat.modLt _ (Nat.posPowOfPos width (zero_lt_pow 1))⟩
+  ⟨ x % 2^width, Nat.mod_lt _ (Nat.posPowOfPos width (zero_lt_pow 1))⟩
 
 instance {w : Nat} (n : Nat) : OfNat (bitvec w) n := ⟨bitvec.of_nat w n⟩
 
@@ -270,7 +270,7 @@ section listlike
   | Nat.succ m => 
     let rst : bitvec (m * n) := repeat x m;
     let res : bitvec (m * n + n) := @append (m * n) n rst x;
-    have hEq : (m * n + n) = (Nat.succ m * n) from Eq.symm $ Nat.succMul m n;
+    have hEq : (m * n + n) = (Nat.succ m * n) from Eq.symm $ Nat.succ_mul m n;
     have tEq : bitvec (m * n + n) = bitvec (Nat.succ m * n) from congrArg bitvec hEq;
     cast tEq res 
 

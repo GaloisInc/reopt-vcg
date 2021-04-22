@@ -1,6 +1,3 @@
-[submodule "lean4/deps/lean4"]
-	path = deps/lean4
-	url = git@github.com:leanprover/lean4.git
 [submodule "submodules/k"]
 	path = submodules/k
 	url = git@github.com:GaloisInc/k.git

@@ -314,8 +314,8 @@ def setupWithConfig (cfg : VCGConfig) : IO (ModuleAnnotations × VerificationSes
   let annContents ← IO.FS.readFile cfg.annFile;
   let modAnn ← elseThrowPrefixed (Lean.Json.parse annContents >>= parseAnnotations)
            $ "Encountered an error while parsing the Json in `"++ cfg.annFile ++"`: ";
-  when cfg.verbose $
-    IO.println $ "Parsed the JSON annotation file `"++cfg.annFile++"` successfully!";
+  if cfg.verbose then
+    IO.println $ "Parsed the JSON annotation file `"++cfg.annFile++"` successfully!"
   -- Dispatch on the user-requested mode to setup the prover sesstion generator.
   match cfg.mode with
   -- Solver mode - generates VCs and runs them against SMT
@@ -417,15 +417,15 @@ def joinPath (name root p : String) : IO String :=
 
 /- Run a ReoptVCG instance w.r.t. the given configuration. -/
 def runVCG (cfg : VCGConfig) : IO UInt32 := do
-  let annDir := System.FilePath.dirName cfg.annFile
+  let annDir := (System.FilePath.parent cfg.annFile).getD "."
   let (ann, verificationSession) ← setupWithConfig cfg;
   let binPath  ← joinPath "binary filepath" annDir ann.binFilePath
   let llvmPath ← joinPath "llvm filepath"   annDir ann.llvmFilePath
   -- Load Elf file and emit warnings
   -- FIXME: cleanup
-  when cfg.verbose $ IO.println $ s!"Loading Elf file at `{binPath}`...";
+  if cfg.verbose then IO.println $ s!"Loading Elf file at `{binPath}`...";
   let (elfHdr, prgmHdrs, elfMem, fnSymAddrMap) ← loadElf binPath;
-  when cfg.verbose $ IO.println $ "Elf file loaded!";
+  if cfg.verbose then IO.println $ "Elf file loaded!";
   let text_phdr <- (match get_text_segment elfHdr prgmHdrs with
                 | none     => throw $ IO.userError $ "No executable segment"
                 | (some p) => pure p);
@@ -436,11 +436,11 @@ def runVCG (cfg : VCGConfig) : IO UInt32 := do
   let sem := match cfg.semanticsBackend with
              | SemanticsBackend.KSemantics      => x86.mcinst.mkSemantics text_bytes text_phdr.vaddr.toNat
              | SemanticsBackend.ManualSemantics => x86.manual_semantics.mkSemantics text_bytes text_phdr.vaddr.toNat;
-  when cfg.verbose $ IO.println $ "x86 decoder built...";
+  if cfg.verbose then IO.println $ "x86 decoder built...";
   -- Get LLVM module
-  when cfg.verbose $ IO.println $ s!"Loading LLVM module at `{llvmPath}`";
+  if cfg.verbose then IO.println $ s!"Loading LLVM module at `{llvmPath}`";
   let lMod ← loadLLVMModule llvmPath;
-  when cfg.verbose $ IO.println $ "LLVM module loaded!";
+  if cfg.verbose then IO.println $ "LLVM module loaded!";
   -- Create verification coontext for module.
   let modCtx : ModuleVCGContext :=
     { annotations := ann

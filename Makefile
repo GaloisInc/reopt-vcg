@@ -25,6 +25,7 @@
 # The full path is required so we can depend on it
 LEAN ?= $(shell which lean)
 LEANC ?= leanc
+LEAN_C_FLAGS=$(shell ${LEANC} -print-cflags)
 
 BUILDDIR    ?= build
 
@@ -44,11 +45,11 @@ BUILDDIR    ?= build
 # LLVM_BUILD_ROOT ?= ${HOME}/galois/vadds/llvm-stuff/llvm-build
 # LLVM_CONFIG = ${LLVM_BUILD_ROOT}/bin/llvm-config
 LLVM_CONFIG ?= llvm-config
-LLVM_INCLUDE = $(shell $(LLVM_CONFIG) --includedir)
+LLVM_INCLUDE = $(shell ${LLVM_CONFIG} --includedir)
 
 # Up one directory from the executable we should be able to find
 # the `lib` directory with Lean files in it
-LEANDIR := ${realpath ${dir ${shell which ${LEAN}}}/..}
+# LEANDIR := ${realpath ${dir ${shell which ${LEAN}}}/..}
 
 # Determine the root directory for the source files (e.g., `.../reopt-vcg/lean4`)
 
@@ -148,13 +149,13 @@ $(OBJDIR)/%.c $(OLEANDIR)/%.olean: %.lean $(LEAN) | ${OLEANDIRS} $(CLEANDIRS)
 $(EXTRAOBJDIR)/%.o: %.cpp | ${EXTRAOBJDIRS}
 	$(call cmd,CXX)
 
-$(EXTRAOBJDIR)/deps/galois_stdlib/src/Galois/Init/%: CXXFLAGS += -I${LEANDIR}/include -std=c++14
+$(EXTRAOBJDIR)/deps/galois_stdlib/src/Galois/Init/%: CXXFLAGS += ${LEAN_C_FLAGS} -std=c++14
 
-$(EXTRAOBJDIR)/deps/llvm-tablegen-support/src/%: CXXFLAGS += -g -O3 -I deps/llvm-tablegen-support/src/ -I deps/llvm-tablegen-support/llvm-files/ `${LLVM_CONFIG} --cflags` -I${LEANDIR}/include/ -I${LEANDIR}/include/runtime -std=c++14 -fexceptions
+$(EXTRAOBJDIR)/deps/llvm-tablegen-support/src/%: CXXFLAGS += -g -O3 -I deps/llvm-tablegen-support/src/ -I deps/llvm-tablegen-support/llvm-files/ `${LLVM_CONFIG} --cflags` ${LEAN_C_FLAGS} -std=c++14 -fexceptions
 
-$(EXTRAOBJDIR)/deps/llvm-mcinst-support/src/%: CXXFLAGS += -g -O3 `${LLVM_CONFIG} --cflags` -I${LEANDIR}/include/ -I${LEANDIR}/include/runtime -std=c++14 -fexceptions
+$(EXTRAOBJDIR)/deps/llvm-mcinst-support/src/%: CXXFLAGS += -g -O3 `${LLVM_CONFIG} --cflags` ${LEAN_C_FLAGS} -std=c++14 -fexceptions
 
-$(EXTRAOBJDIR)/deps/lean-llvm/src/%: CXXFLAGS += -g -O3 `${LLVM_CONFIG} --cxxflags` -I ${LEANDIR}/include/ -std=c++14 -fexceptions
+$(EXTRAOBJDIR)/deps/lean-llvm/src/%: CXXFLAGS += -g -O3 `${LLVM_CONFIG} --cxxflags` ${LEAN_C_FLAGS} -std=c++14 -fexceptions
 
 clean:
 	rm -f ${DEPFILES} ${OLEANFILES}

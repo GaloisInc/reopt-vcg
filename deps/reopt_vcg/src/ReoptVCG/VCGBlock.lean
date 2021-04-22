@@ -76,7 +76,7 @@ def runSmtM {a : Type} (m : SmtM a) : BlockVCG a := do
                        ((r.fst, r.snd.snd.reverse)
                        , {s with idGen := r.snd.fst}));
   let (r, cmds) <- modifyGet run';
-  List.forM addCommand cmds;
+  cmds.forM addCommand
   pure r
 
 -- | Add assertion that the propositon is true without requiring it to be proven.
@@ -188,7 +188,7 @@ def getNextEvents : BlockVCG Unit := do
   let ctx <- read;
   let s <- get;
   let addr := mcNextAddr s;
-  when (not (addr < ctx.mcBlockEndAddr)) $ 
+  if not (addr < ctx.mcBlockEndAddr) then
     localBlockError BlockErrorTag.mcRanOutOfEvents "";
   -- FIXMEL df, x87Top
   -- BlockVCG.liftIO $ IO.println ("Decoding at " ++ addr.ppHex);
@@ -305,7 +305,8 @@ def execMCOnlyEvents : MemAddr -> BlockVCG Unit
     -- and if so it runs it.
   | FetchAndExecuteEvent regs :: mevs => do
       -- BlockVCG.liftIO $ IO.println ("execMCOnlyEvents: fetch and exec case");
-      when (not mevs.isEmpty) $ localBlockError BlockErrorTag.mcEventAfterFetchAndExe ""
+      if not mevs.isEmpty then
+        localBlockError BlockErrorTag.mcEventAfterFetchAndExe ""
       modify $ fun s => { s with mcEvents := [] };
       -- Update registers
       setMCRegs regs;
@@ -323,8 +324,8 @@ def execMCOnlyEvents : MemAddr -> BlockVCG Unit
   | [] => do
       -- BlockVCG.liftIO $ IO.println ("execMCOnlyEvents: empty case");      
       let nextAddr <- mcNextAddr <$> get;
-      when (nextAddr < endAddr) $ do
-        getNextEvents;
+      if nextAddr < endAddr then do
+        getNextEvents
         execMCOnlyEvents endAddr
   |  e :: _ => do -- BlockVCG.liftIO $ IO.println ("execMCOnlyEvents: done at " ++ repr e);
                   pure ()
@@ -462,7 +463,7 @@ def llvmLoad (ident : LLVM.Ident) (addr:Typed Value) (mAlign:Option Nat) : Block
     else if ((Nat.land (a0 - 1) a0) ≠ 0)
     then localBlockError BlockErrorTag.invalidAlignment (reprStr a0)
     else pure a0);
-  when (llvmAlign > 1) $
+  if llvmAlign > 1 then
     BlockVCG.logWarning $ "LLVM alignment of " ++ (toString llvmAlign) ++ "  is unchecked.";
   -- Get the next machine code event.
   let mevt ← popMCEvent;
@@ -639,7 +640,8 @@ def assignLLVMReturn (newRegs : x86.vcg.RegState) (ri : Typed LLVM.Ident) : Bloc
 
 def llvmInvoke (isTailCall : Bool) (fsym : LLVM.Symbol) (args : Array (Typed Value))
     (lRet : Option (Typed LLVM.Ident)) : BlockVCG Unit := do
-  when isTailCall $ localBlockError BlockErrorTag.unimplementedFeature "tail call"
+  if isTailCall then
+    localBlockError BlockErrorTag.unimplementedFeature "tail call"
 
   BlockVCGContext.mcBlockEndAddr <$> read >>= execMCOnlyEvents;
 
@@ -885,7 +887,8 @@ def verifyPreconditions
   | some (BlockAnn.reachable tgtBlockAnn, varMap) => do
     let firstLabel ← BlockVCGContext.firstBlockLabel <$> read;
     -- Ensure we're not in the first block
-    when (lbl == firstLabel) $ localBlockError BlockErrorTag.invalidLLVMInstr "cannot jump to first label in function"
+    if lbl == firstLabel then
+      localBlockError BlockErrorTag.invalidLLVMInstr "cannot jump to first label in function"
 
     -- Check initialial register values (IP, DF, and x87Top)
     checkInitBlockRegValues prefixDescr tgtBlockAnn goalFn
@@ -929,26 +932,26 @@ axiom get_replicate { α : Type } (x : α) : forall (n m : Nat)
       (List.replicate n x).get m pf = x
 
 
-section
-open List (nil cons)
+-- section
+-- open List (nil cons)
 
-axiom invert_mapM_Option_cons {α β : Type} {f : α -> Option β} {x : α} {xs : List α}  :
-  forall {ys : List β} (pf : List.mapM f (x :: xs) = some ys),
-  ∃ y ys', ys = y :: ys' ∧ f x = some y ∧ List.mapM f xs = some ys'--  := by
+-- axiom invert_mapM_Option_cons {α β : Type} {f : α -> Option β} {x : α} {xs : List α}  :
+--   forall {ys : List β} (pf : List.mapM f (x :: xs) = some ys),
+--   ∃ y ys', ys = y :: ys' ∧ f x = some y ∧ List.mapM f xs = some ys'--  := by
   -- induction xs with
   -- | nil => intros pf; simp at pf
   -- | cons y ys' ih => intros pf
 
 
 -- FIXME: move
-axiom mapM_Option_length {α β : Type} {f : α -> Option β} {xs : List α} :
-  forall  {ys : List β} (pf : List.mapM f xs = some ys),
-  ys.length = xs.length -- := by
+-- axiom mapM_Option_length {α β : Type} {f : α -> Option β} {xs : List α} :
+--   forall  {ys : List β} (pf : List.mapM f xs = some ys),
+--   ys.length = xs.length -- := by
   -- induction xs with 
   -- | nil => intros pf; injection pf with H; rw <- H; exact rfl
   -- | cons x xs' ih => intros pf; injection pf with H
 
-end  
+-- end  
 
 def insertValue : forall (lty : LLVM.LLVMType) (s s' : SmtSort) (pf : lty.toSmtSort? = some s) 
                   (tm : Smt.Term s) (elt : Smt.Term s') (ns : List Nat), BlockVCG (Smt.Term s)
@@ -959,7 +962,7 @@ def insertValue : forall (lty : LLVM.LLVMType) (s s' : SmtSort) (pf : lty.toSmtS
   if Hn : n' < n
   then if Hs' : s' = s''
        then let Hn' : n' < List.length (List.replicate n s'') :=
-                  cast (congrArg _ (List.lengthReplicateEq n s'').symm) Hn;
+                  cast (congrArg _ (List.length_replicate n s'').symm) Hn;
             let pf : s' = (List.replicate n s'').get n' Hn' :=
                 Eq.trans Hs' (get_replicate s'' _ _ Hn').symm;
             let f := fun _old => ((), cast (congrArg _ pf) elt);
@@ -992,7 +995,7 @@ def extractValue : forall (lty : LLVM.LLVMType) (s : SmtSort) (pf : lty.toSmtSor
   let ⟨s'', H⟩ := LLVM.LLVMType.invert_vector_toSmtSort? pf
   if Hn : n' < n
   then let Hn' : n' < List.length (List.replicate n s'') :=
-         cast (congrArg _ (List.lengthReplicateEq n s'').symm) Hn;
+         cast (congrArg _ (List.length_replicate n s'').symm) Hn;
        let tm' : Smt.Term ((List.replicate n s'').get n' Hn') := 
           NTuple.index n' Hn' (cast (congrArg _ H.right) tm)
        pure (Sigma.mk _ tm')
@@ -1174,7 +1177,8 @@ def allocaDeclarations (a : AllocaAnn) : BlockVCG Unit := do
   -- Get used allocas
   let used ← BlockVCGState.activeAllocaMap <$> get;
   -- Check that alloca name is not in use.
-  when (used.contains nm) $ localBlockError BlockErrorTag.allocNameCollision nm.name
+  if used.contains nm then
+    localBlockError BlockErrorTag.allocNameCollision nm.name
   -- Identifies the LLVM base address of an allocation.
   let baseNm : LLVM.Ident := LLVM.Ident.named $ "alloca_" ++ nm.name ++ "_llvm_base";
   -- Identifies the LLVM end address of an allocation.

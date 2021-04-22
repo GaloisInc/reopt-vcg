@@ -412,14 +412,14 @@ def concreteBackend : Backend :=
                   pure v
                
   , get_gpreg  := fun i => (fun s => machine_state.get_gpreg s i) <$> get
-  , s_cond_set_gpreg := fun c i v =>
-    when c $ modify (machine_state.update_gpreg i (fun _ => v))
+  , s_cond_set_gpreg := fun c i v => do
+    if c then modify (machine_state.update_gpreg i (fun _ => v))
   , get_flag  :=  fun i => (fun s => machine_state.get_flag s i) <$> get
-  , s_cond_set_flag := fun c i v => 
-    when c $ modify (machine_state.update_flag i (fun _ => v))
+  , s_cond_set_flag := fun c i v => do
+    if c then modify (machine_state.update_flag i (fun _ => v))
   , get_avxreg := fun i => (fun s => machine_state.get_avxreg s i) <$> get
-  , s_cond_set_avxreg := fun c i v => 
-    when c $ modify (machine_state.update_avxreg i (fun _ => v))
+  , s_cond_set_avxreg := fun c i v => do
+    if c then modify (machine_state.update_avxreg i (fun _ => v))
 
   , s_mux_bool := fun (b : Bool) (x y : Bool) => if b then x else y
   , s_mux_bv   := fun {n : Nat} (b : Bool) (x y : bitvec n) => if b then x else y
@@ -490,7 +490,7 @@ def concreteBackend : Backend :=
   , s_os_transition := linux.x86_64.syscall_handler
   , s_get_ip        := (fun (s : machine_state) => s.ip) <$> get
   , s_set_ip        := fun x => modify (fun s => { s with ip := x })
-  , s_cond_set_ip   := fun b x => when b $ modify (fun s => { s with ip := x })
+  , s_cond_set_ip   := fun b x => do if b then modify (fun s => { s with ip := x })
 
   -- FP, all currently stubbed out
   , s_fp_literal := fun (_fc : float_class) (_m : Nat) (_esign : Bool) (_e : Nat) => 

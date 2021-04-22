@@ -13,13 +13,6 @@ COMMAND="$1"
 shift
 
 case $COMMAND in
-    lean4-sha) git submodule status deps/lean4 | awk '{print "::set-output name=lean4-sha::"$1}' ;;
-    lean4-build)
-        ./scripts/build-lean4.sh deps/lean4 deps/lean4/build opt/lean llvm-config-8 -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++
-        ;;
-    build)
-        make -C . LEAN_CXX=clang-8 LEAN=$PWD/opt/lean/bin/lean LEANC=$PWD/opt/lean/bin/leanc LLVM_CONFIG=llvm-config-8 CXX=clang-8 -j4
-        ;;
     run-tests)
         pushd tests/unit-tests/src/Test/ > /dev/null
         bash test.sh
@@ -38,4 +31,4 @@ case $COMMAND in
         popd > /dev/null
         ;;
     *) echo "unknown command"; exit 1;;
-esac    
+esac
