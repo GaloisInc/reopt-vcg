@@ -34,9 +34,9 @@ def lens {a : Type} : forall (n : Nat) {ss : List SmtSort} (pf : n < ss.length)
   let (r, new) := f old
   (r, Smt.mkTuple _ _ new rest) 
 | Nat.succ n, s :: ss, pf, f, tm => 
-  let pf' := cast (congrArg _ (List.lengthConsEq s ss)) pf;
+  let pf' := cast (congrArg _ (List.length_cons s ss)) pf;
   let hd  := Smt.fst _ _ tm 
-  let (r, rest) := lens n (Nat.ltOfSuccLtSucc pf') f (Smt.snd _ _ tm)
+  let (r, rest) := lens n (Nat.lt_of_succ_lt_succ pf') f (Smt.snd _ _ tm)
   (r, Smt.mkTuple _ _ hd rest)
 
 def index (n : Nat) {ss : List SmtSort} (pf : n < ss.length)
@@ -114,25 +114,32 @@ namespace LLVMType
 
 -- FIXME: gets around lean bug/missing feature with inductive datatypes containing others.
 @[reducible]
-def prim_toSmtSort? : LLVMType -> Option SmtSort 
+def prim_toSmtSort? : LLVMType -> Option SmtSort
 | prim pt => pt.toSmtSort?
-| vector n (prim pt) => 
+| vector n (prim pt) =>
   (NTuple.make ∘ List.replicate n) <$> pt.toSmtSort?
 | _       => none
+
+-- N.B., Option is no longer a monad
+@[reducible]
+def prims_toSmtSort? : List LLVMType -> Option (List SmtSort)
+| [] => some []
+| t::ts => match prim_toSmtSort? t, prims_toSmtSort? ts with
+           | some s, some ss => some $ s::ss
+           | _, _ => none
 
 @[reducible]
 def toSmtSort? : LLVMType -> Option SmtSort
 | ptr _   => some (bitvec 64)
 | prim pt => pt.toSmtSort?
-| vector n ty => 
-  if n = 0 
+| vector n ty =>
+  if n = 0
   then none -- FIXME
   else match prim_toSmtSort? ty with
        | none   => none
        | some s => some (NTuple.make (List.replicate n s))
 | struct _ tys =>
-  NTuple.make <$> List.mapM prim_toSmtSort? tys.data
-
+  NTuple.make <$> (OptionM.run $ tys.data.mapM prim_toSmtSort?)
 -- FIXME: lean bug/missing feature
 | _ => none
 
@@ -153,17 +160,19 @@ def invert_vector_toSmtSort? {n : Nat} {lty : LLVMType} : forall {s : SmtSort}
       rw H
       match prim_toSmtSort? lty with
       | none => intros pf; injection pf
-      | some s' => intros pf; injection pf with H'; exists s'; simp [H']; decide!
+      | some s' => intros pf; injection pf with H'; exists s'; simp [H']
+
 
 def invert_struct_toSmtSort? {b : Bool} {ltys : Array LLVMType} : forall {s : SmtSort} 
     ( pf : (struct b ltys).toSmtSort? = some s ),
     -- also have n ≠ 0
-    (Σ' ss', List.mapM prim_toSmtSort? ltys.data = some ss' ∧ s = NTuple.make ss') := by
-      have H: (struct b ltys).toSmtSort? = ( NTuple.make <$> List.mapM prim_toSmtSort? ltys.data) := rfl
+    (Σ' ss', OptionM.run (ltys.data.mapM prim_toSmtSort?) = some ss' ∧ s = NTuple.make ss') := by
+      intros s
+      have H: (struct b ltys).toSmtSort? = ( NTuple.make <$> (OptionM.run (ltys.data.mapM prim_toSmtSort?))) := rfl
       rw H
-      match List.mapM prim_toSmtSort? ltys.data with
+      match OptionM.run (ltys.data.mapM prim_toSmtSort?) with
       | none => intros pf; injection pf
-      | some ss => intros pf; injection pf with H'; exists ss; rw H'; simp; decide!
+      | some ss => intros pf; injection pf with H'; exists ss; rw H'; simp
 
 section
 open Smt (SmtSort.bitvec SmtSort.tuple SmtSort.bool)

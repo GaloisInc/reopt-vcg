@@ -79,10 +79,10 @@ def parseAnnotations (js:Json) : Except String ModuleAnnotations := do
   let llvmFile ← parseObjValAsString js "llvm_path"
   let binFile ← parseObjValAsString js "binary_path"
   let pgSize ← parseObjValAsNatD js "page_size" ModuleAnnotations.defaultPageSize
-  when (Nat.land pgSize (pgSize - 1) > 0) $
+  if Nat.land pgSize (pgSize - 1) > 0 then
     throw $ "`page_size` value must be a power of 2, but got `"++pgSize.repr++"`."
   let guardCount ← parseObjValAsNat js "stack_guard_pages";
-  when (guardCount == 0) $
+  if guardCount == 0 then
     throw "There must be at least one guard page."
   let fnsArr ← parseObjValAsArrWith parseFunctionAnn js "functions"
   pure $ { llvmFilePath := llvmFile,
@@ -191,7 +191,7 @@ def parseAllocaAnn (js:Json) : Except String AllocaAnn := do
   let off ← parseObjValAsNat js "offset";
   let sz ← parseObjValAsNat js "size";
   let ex ← parseObjValAsBoolD js "existing" true;
-  when (sz > off) $
+  if sz > off then
     throw $ "Allocation size "
           ++sz.repr
           ++" must not be greater than offset "
@@ -452,7 +452,8 @@ def parseReachableBlockAnn (llvmMap: LLVMTyEnv) (js:Json) : Except String Reacha
                                       ++ " the block annotation."
   let addrNat := addr.addr.toNat
   let size ← parseObjValAsNat js "size"
-  when (addrNat + size < addrNat) $ throw "Expected end of block computation to not overflow."
+  if addrNat + size < addrNat then
+    throw "Expected end of block computation to not overflow."
   let x87Top ← parseObjValAsNatD js "x87_top" ReachableBlockAnn.x87TopDefault
   let dfFlag ← parseObjValAsBoolD js "df_flag" ReachableBlockAnn.dfFlagDefault
   let preconds ← parseObjValAsArrWithD (parsePrecondition llvmMap) js "preconditions" ReachableBlockAnn.precondsDefault

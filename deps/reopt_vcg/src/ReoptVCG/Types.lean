@@ -783,7 +783,7 @@ structure AnnotatedBlock :=
 def ReachableBlockAnnMap := Std.RBMap LLVM.BlockLabel AnnotatedBlock (λ x y => x<y)
 
 -- | Find a block with the given label in the config.
-def findBlock (m : ReachableBlockAnnMap) (lbl: LLVM.BlockLabel) : Option (BlockAnn × PhiVarMap) := do
+def findBlock (m : ReachableBlockAnnMap) (lbl: LLVM.BlockLabel) : OptionM (BlockAnn × PhiVarMap) := do
   let ab ← m.find? lbl;
   pure (ab.annotation, ab.phiVarMap)
 

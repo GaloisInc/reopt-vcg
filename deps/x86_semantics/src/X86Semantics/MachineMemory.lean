@@ -84,7 +84,7 @@ def UInt8.to_bitvec (v : UInt8) : bitvec 8 := bitvec.of_nat 8 v.toNat
 def read_byte (m : memory) (addr : memaddr) : Option byte :=
   m.mem.find? addr <|> m.init.lookup addr
 
-def read_bytes (m : memory) (addr : memaddr) (n : Nat) : Option (List byte) :=
+def read_bytes (m : memory) (addr : memaddr) (n : Nat) : OptionM (List byte) :=
    List.mapM (fun n => read_byte m (addr + bitvec.of_nat 64 n)) (Nat.upto0_lt n)
 
 -- lemma read_bytes_length {mem : memory} {addr : memaddr} {n : Nat} {bs : list (bitvec 8)}

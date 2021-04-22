@@ -215,10 +215,10 @@ def M.write_memory_at : ∀{tp : type} (addr : backend.machine_word) (bytes : @v
 namespace evaluator
 
 protected
-def run {a : Type} (m : evaluator a) (s : evaluator_state) : M backend (Except String (a × @evaluator_state backend)) :=
+def run {a : Type} (m : @evaluator backend a) (s : @evaluator_state backend) : M backend (Except String (a × @evaluator_state backend)) :=
   (m.run s).run
 
-def run' {a : Type} (m : evaluator a) (e : environment) : M backend a := do 
+def run' {a : Type} (m : @evaluator backend a) (e : @environment backend) : M backend a := do
   let r ← evaluator.run m { environment := e, locals := {} }
   match r with
   | Except.ok v    => pure v.fst
@@ -233,7 +233,7 @@ def run_M {a : Type} (m : M backend a) : @evaluator backend a :=
 def read_memory_at (addr : backend.machine_word) (n : Nat) 
   : @evaluator backend (backend.s_bv n) := evaluator.run_M (M.read_memory_at addr n)
 
-def write_memory_at {tp : type} (addr : backend.machine_word) (bytes : value tp) :
+def write_memory_at {tp : type} (addr : backend.machine_word) (bytes : @value backend tp) :
   @evaluator backend Unit :=  evaluator.run_M (M.write_memory_at addr bytes)
 
 def arg_at_idx (idx : Nat) : @evaluator backend (@arg_value backend) := do
@@ -718,7 +718,7 @@ def lhs.read : ∀{tp : type}, lhs tp -> @evaluator backend (@value backend tp)
     arg_value.to_value av tp
   | _, (lhs.streg idx) => throw "lhs.set: unsupported FP write"
 
-def evaluator.push64 (v : value (bv 64)) : @evaluator backend Unit := do
+def evaluator.push64 (v : @value backend (bv 64)) : @evaluator backend Unit := do
   let sp ← lhs.read rsp
   let sp' := backend.s_bvsub _ sp (backend.s_bv_imm _ 8)
   lhs.set rsp sp'
@@ -820,7 +820,7 @@ def action.eval : action -> @evaluator backend Unit
   | (action.event e) => event.eval e
 
 -- FIXME: check pattern.context |- environment
-def pattern.eval (p : pattern) (e : environment) : M backend Unit :=
+def pattern.eval (p : pattern) (e : @environment backend) : M backend Unit :=
     evaluator.run' (discard (List.mapM action.eval p.actions)) e
     -- pure ((fun (v : Unit × evaluator_state) => v.snd.system_state) <$> r)
 

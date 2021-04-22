@@ -61,14 +61,16 @@ namespace reader
 
 protected
 def read_bytes (n:Nat) : reader (List UInt8) := do
-  let s ← get;
-  when (s.fst.size < s.snd + n) (throw "read_bytes eof");
-  set { s with snd := s.snd + n };
+  let s ← get
+  if s.fst.size < s.snd + n then
+    throw "read_bytes eof"
+  set { s with snd := s.snd + n }
   pure (s.fst.toBytesPartial s.snd n)
 
 def skip (n:Nat) : reader Unit := do
-  let s ← get;
-  when (s.fst.size < s.snd + n) (throw "skip eof");
+  let s ← get
+  if s.fst.size < s.snd + n then
+    throw "skip eof"
   set { s with snd := s.snd + n }
 
 def read_UInt8 : reader UInt8 := do
@@ -223,7 +225,8 @@ open buffer
 
 def read : reader info := do
   let b ← reader.read_bytes 4
-  when (b ≠ magic) $ throw "Not an elf file."
+  if b ≠ magic then
+    throw "Not an elf file."
   let cl_val ← reader.read_UInt8
   let cl ←
     match cl_val.toNat with
@@ -237,7 +240,8 @@ def read : reader info := do
     | 2 => pure ELFDATA2MSB
     | _ => throw "Invalid elf data."
   let elf_version ← reader.read_UInt8
-  when (elf_version ≠ 1) $ throw "Mismatched elf version."
+  if elf_version ≠ 1 then
+    throw "Mismatched elf version."
   let osabi ← reader.read_UInt8
   let osabi_ver ← reader.read_UInt8
   pure { elf_class := cl
@@ -931,7 +935,8 @@ def read_ehdr_remainder (i : info) : file_reader (ehdr i.elf_class) := do
   let tp ← elf_file_data.read _
   let mach ← elf_file_data.read _
   let ver ← file_reader.read_u32
-  when (ver ≠ 1) $ throw $ "Unexpected version: " ++ reprStr ver.toNat
+  if ver ≠ 1 then
+    throw $ "Unexpected version: " ++ reprStr ver.toNat
   let entry ← elf_file_data.read _
   let phoff ← elf_file_data.read _
   let shoff ← elf_file_data.read _

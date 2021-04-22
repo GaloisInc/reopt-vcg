@@ -70,8 +70,8 @@ partial def parseArgs : List String → VCGArgs → Except String VCGCmd
         mode := some $ VerificationMode.solverMode {solverCfg with jsonOut := some s'}
       parseArgs ss' $ {args with mode := mode}
   else do 
-    when (String.isPrefixOf "--" s) $ throw $ "Unexpected flag " ++ s;
-    when (Option.isSome args.annFile) $ throw "Multiple VCG files specified.";
+    if (String.isPrefixOf "--" s) then throw $ "Unexpected flag " ++ s
+    if (Option.isSome args.annFile) then throw "Multiple VCG files specified."
     parseArgs ss $ {args with annFile := (Option.some s)}
 
 
