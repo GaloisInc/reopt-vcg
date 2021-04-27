@@ -12,6 +12,7 @@ BINDIR      := ${BUILDDIR}/bin
 
 # These are exported by the Makefile.includes (see add-package)
 LEAN_PATH :=
+LEAN_SRC_PATH :=
 LEANFILES :=
 # Mainly for dependencies
 APPLEANFILES :=
@@ -40,9 +41,12 @@ add-dirs   = $(sort $(1) $(2))
 define add-package
 # Get the (absolute) directory of the current Makefile.include and
 # make it relative to SRCROOT, contains any trailing /
+ABS_HERE    := $$(call makefile-directory)
 HERE    := $$(call relsrcpath,$$(call makefile-directory))
 
-# Add the package root to the LEAN_PATH
+# Add the source package root to the LEAN_SRC_PATH
+LEAN_SRC_PATH :=${LEAN_SRC_PATH}:$$(ABS_HERE)/$(1)
+# Add the olean package root to the LEAN_PATH
 LEAN_PATH :=${LEAN_PATH}:${OLEANDIR}/$$(HERE)/$(1)
 
 LOCAL_LEANFILES := $$(addprefix $${HERE}/,$(2))
