@@ -14,7 +14,7 @@ WORKDIR /home/vadd/reopt-vcg
 
 
 # Clone the git submodules (first replacing `git@` with `https://` for simplicity)
-RUN sed -r -i 's:git@([^/]+)\:(.*\.git):https\://\1/\2:g' .gitmodules
+# RUN sed -r -i 's:git@([^/]+)\:(.*\.git):https\://\1/\2:g' .gitmodules
 RUN git submodule update --init --depth 50
 # Build reopt-vcg
 RUN ./build.sh
