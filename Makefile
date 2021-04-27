@@ -27,7 +27,6 @@ LEAN ?= $(shell which lean)
 LEANC ?= leanc
 LEAN_C_FLAGS=$(shell ${LEANC} -print-cflags)
 
-BUILDDIR    ?= build
 
 # This is ugly, as it as the side effect of creating the build
 # directory if it doesn't exist, but doing it here (as oppposeed to as
@@ -56,6 +55,8 @@ LLVM_INCLUDE = $(shell ${LLVM_CONFIG} --includedir)
 makefile-directory = $(abspath $(dir $(realpath $(lastword $(MAKEFILE_LIST)))))
 
 SRCROOT := $(call makefile-directory)
+BUILDDIR ?= build
+BUILDDIR := $(abspath $(BUILDDIR))
 
 include scripts/Makefile.include
 
@@ -107,8 +108,10 @@ include tests/unit-tests/app/Makefile.include
 # include test-symbolic/Makefile.include
 
 export LEAN_PATH
-$(shell echo "#!/bin/bash" > set_LEAN_PATH.sh)
-$(shell echo "export LEAN_PATH=${LEAN_PATH}" >> set_LEAN_PATH.sh)
+export LEAN_SRC_PATH
+$(shell echo "#!/bin/bash" > set_lean_env_vars.sh)
+$(shell echo "export LEAN_PATH=${LEAN_PATH}" >> set_lean_env_vars.sh)
+$(shell echo "export LEAN_SRC_PATH=${LEAN_SRC_PATH}" >> set_lean_env_vars.sh)
 
 realall: $(TARGETS) $(CLEANFILES)
 
