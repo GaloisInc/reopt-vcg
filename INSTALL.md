@@ -1,17 +1,17 @@
 # `reopt-vcg` setup and usage
 
-`reopt-vcg` is developed using the [Lean 4](https://github.com/leanprover/lean4) programming language (which is currently in-development as well). The `Dockerfile` in the root of this repository contains the minimal steps to build both `lean` and the `reopt-vcg` tool.
+`reopt-vcg` is developed using the [Lean 4](https://github.com/leanprover/lean4) programming language (which is currently in-development as well).
 
 ## Dependencies
 
-`lean` and `reopt-vcg` can be easily installed on Linux or MacOS provided the following dependencies have already been installed:
+The following dependencies should be installed before installing `reopt-vcg`:
 
 ```
-cmake
-ccache
+curl
+git
 gcc
 g++
-git
+make
 libgmp-dev
 zlib1g-dev
 lib32z1-dev
@@ -19,7 +19,60 @@ clang-8
 llvm-8
 ```
 
-On MacOS dependencies such as `llvm-8` can be installed via a package manager such as [homebrew](https://brew.sh/), e.g. `brew install llvm@8`.
+On MacOS dependencies such as `llvm-8` can be installed via a package manager
+such as [homebrew](https://brew.sh/), e.g. `brew install llvm@8`.
+
+## Cloning and Building
+
+First, `git clone` the repository and run `git submodule update --init` within it
+to acquire the necessary submodules.
+
+Once the dependencies are installed and repository/submodules are cloned, running the
+`build.sh` script from the root directory will do the following:
+
+1. ensure an appropriate version of `lean` is installed (using
+[elan](https://github.com/leanprover/elan)),
+
+2. ensure an `llvm-config` for LLVM version 8.0.* is available (set
+the `LLVM_CONFIG` environment variable if necessary), and
+
+3. build `reopt-vcg` and place the executable at `build/bin/reopt-vcg`.
+
+## Development
+
+In addition to building the project, the `Makefile` will generate a script
+`set_lean_env_vars.sh` which can be used to set the `LEAN_PATH` and
+`LEAN_SRC_PATH` environment variables. This will allow Lean 4's language server
+to provide live feedback and information while perusing/editing `*.lean` files in
+the project.
+
+The editor modes listed below rely on the aforementioned Lean environment
+variables being populated. (In the future, this project may be restructured to
+use `leanpkg.toml`s at which point `set_lean_env_vars.sh` would be unnecessary.)
+
+### VSCode
+
+The [lean4](https://marketplace.visualstudio.com/items?itemName=leanprover.lean4) extension for
+VSCode is a convenient way to edit and browse the lean code in this project.
+
+E.g.,
+```
+$ ./build.sh
+...
+$ source ./set_lean_env_vars.sh
+$ code .
+```
+
+and then open any `*.lean` file.
+
+### Emacs
+
+An Emacs
+[lean4-mode](https://github.com/leanprover/lean4/tree/master/lean4-mode) is also
+available, and should work after building and setting the environment variables
+(as described in the VSCode extension section).
+
+
 
 
 ## Usage
