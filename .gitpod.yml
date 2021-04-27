@@ -1,0 +1,7 @@
+image:
+  file: Dockerfile
+tasks:
+  - command: source ./set_lean_env_vars.sh
+vscode:
+  extensions:
+    - leanprover.lean4
