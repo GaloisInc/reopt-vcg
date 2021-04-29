@@ -8,6 +8,7 @@ sudo apt-get update
 sudo apt-get install -y binutils
 
 # For repo build
+sudo apt install -y g++
 sudo apt install -y make cmake libgmp-dev zlib1g-dev
 sudo apt install -y llvm-8
 sudo apt install -y llvm-8-dev
