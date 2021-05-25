@@ -148,7 +148,6 @@ builtinWords =
 generalReservedWords :: [String]
 generalReservedWords = 
   [ "!"
-  , "_"
   , "as"
   , "BINARY"
   , "DECIMAL"
@@ -173,6 +172,7 @@ commandNames =
   , "declare-fun"
   , "declare-sort"
   , "define-fun-rec"
+  , "define-funs-rec"
   , "define-fun"
   , "define-sort"
   , "echo"
