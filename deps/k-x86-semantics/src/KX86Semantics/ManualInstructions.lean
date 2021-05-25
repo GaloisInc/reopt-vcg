@@ -278,10 +278,15 @@ def movsbw : instruction :=
     action
 
 def movsbl : instruction :=
- definst "movsbl" $
+ definst "movsbl" $ do
     instr_pat $ fun (src : expression (bv 8)) (dest : lhs (bv 32)) =>
     let action : semantics Unit := do
       dest .= sext src 32
+    action
+    ; -- single operand targets eax
+    instr_pat $ fun (src : expression (bv 8)) =>
+    let action : semantics Unit := do
+      eax .= sext src 32
     action
 
 ------------------------------------------------------------------------
