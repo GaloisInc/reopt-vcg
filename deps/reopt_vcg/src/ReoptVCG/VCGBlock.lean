@@ -389,6 +389,61 @@ def primEvalTypedValueAsBV64 (tyVal:Typed Value) : BlockVCG (Smt.Term SmtSort.bv
 
 end
 
+--------------------------------------------------------------------------------
+-- Intrinsics
+
+-- c.f. llvmInvoke
+-- This is parameterized by the width of the operation, it has the type
+--
+-- iN -> iN -> (iN, i1) 
+-- 
+-- for the width N
+def intrinsic_llvm_ssub_with_overflow (n : Nat) : forall
+   -- width of operation
+  (args : List (Typed Value))
+  (lRet : Option LLVM.Ident), BlockVCG Unit
+  | [ { type := t1, value := e1} , { type := t2, value := e2 }] , some i  => do
+    match t1, t2 with
+      | LLVM.LLVMType.prim (LLVM.PrimType.integer n1), LLVM.LLVMType.prim (LLVM.PrimType.integer n2) =>
+        if (n1 = n ∧ n2 = n) 
+        then pure ()
+        else BlockVCG.localBlockError BlockErrorTag.unexpectedSort ("unexpected width: expected " ++ n.repr ++ " , got " ++ n1.repr ++ " and " ++ n2.repr)
+      | _, _ => BlockVCG.localBlockError BlockErrorTag.unexpectedSort ("expected integer type, got " ++ (ppLLVM t1) ++ " and " ++ (ppLLVM t2))
+    let e1' <- primEval' (SmtSort.bitvec n) e1
+    let e2' <- primEval' (SmtSort.bitvec n) e2
+
+    let r := Smt.bvsub e1' e2'
+    -- FIXME: I _think_ this is correct?
+    -- c.f. https://www.doc.ic.ac.uk/~eedwards/compsys/arithmetic/#:~:text=Overflow%20Rule%20for%20Subtraction,same%20sign%20as%20the%20subtrahend.
+    --  
+    -- To summarise: overflow occurred when the sign of e1 and e2
+    -- differ, and the sign of the result is the same as the sign of
+    -- e2. We could be cute about this --- (msb e1 != msb e2) && (msb
+    -- r == msb) but then we would need to know n > 0 (which is true,
+    -- just annoying to carry around).
+    -- FIXME: we should name r here
+    let e1_pos := Smt.bvsle (Smt.bvimm _ 0) e1'         
+    let e2_pos := Smt.bvsle (Smt.bvimm _ 0) e2'        
+    let er_pos := Smt.bvsle (Smt.bvimm _ 0) r
+    let o_b    := Smt.and (Smt.xor e1_pos e2_pos) (Smt.eq er_pos e2_pos)
+    let o      := Smt.smtIte o_b (Smt.bvimm 1 1) (Smt.bvimm 1 0)
+
+    discard $ defineTerm i (NTuple.value [Sigma.mk _ r, Sigma.mk _ o])
+
+  | es, some _         => 
+    BlockVCG.localBlockError BlockErrorTag.unexpectedSort ("expected two operands, got " ++ es.length.repr)
+  | _, none           => pure () -- no result assignment, so we do nothing
+
+structure LLVMIntrinsic :=
+  ( name      : String )
+  ( semantics : List (Typed Value) -> Option LLVM.Ident -> BlockVCG Unit)
+
+def llvmIntrinsics : List LLVMIntrinsic := 
+  List.map (fun n => LLVMIntrinsic.mk ("llvm.ssub.with.overflow.i" ++ n.repr) (intrinsic_llvm_ssub_with_overflow n)) [8,16,32,64]
+
+
+def isLLVMIntrinsic? (n : LLVM.Symbol) : Option LLVMIntrinsic :=
+  List.find? (fun i => i.name = n.symbol) llvmIntrinsics
 
 --------------------------------------------------------------------------------
 -- Function calls
@@ -1049,9 +1104,11 @@ def stepNextStmt (stmt : LLVM.Stmt) : BlockVCG Bool := do
   | call tailcall o_ty f args => do
     match f with 
     | LLVM.Value.symbol s =>
-      llvmInvoke tailcall s args (match o_ty, stmt.assign with 
-                                  | some ty, some i => some ⟨ty, i⟩
-                                  | _, _ => none)
+      match isLLVMIntrinsic? s with
+      | some li => li.semantics args.toList stmt.assign
+      | none    => llvmInvoke tailcall s args (match o_ty, stmt.assign with 
+                                              | some ty, some i => some ⟨ty, i⟩
+                                              | _, _ => none)
     | _ => localBlockError BlockErrorTag.unimplementedFeature "indirect function call"
     pure true
 

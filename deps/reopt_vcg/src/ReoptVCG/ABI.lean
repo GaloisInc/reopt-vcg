@@ -14,8 +14,9 @@ namespace NTuple
 open Smt (SmtM SmtSort IdGen.empty RangeSort.bitvec SmtSort.bitvec)
 open Smt.SmtSort -- (bool bitvec array bv64 tuple)
 
--- We always get a bool terminator, unit would also work.  This could
--- be nicer
+-- We always get a bool terminator, unit would also work, except
+-- SMTLIB doesn't have one.  By convention we use 'false' if
+-- constructing explicitly.  This could be nicer.
 @[reducible]
 def make ( ss : List SmtSort ) : SmtSort := List.foldr tuple bool ss 
 
@@ -42,8 +43,6 @@ def lens {a : Type} : forall (n : Nat) {ss : List SmtSort} (pf : n < ss.length)
 def index (n : Nat) {ss : List SmtSort} (pf : n < ss.length)
           (tm : Smt.Term (NTuple.make ss)) : Smt.Term (ss.get n pf) :=
  (lens n pf (fun tm' => (tm', tm')) tm).fst
-
-
 
 end NTuple
 
