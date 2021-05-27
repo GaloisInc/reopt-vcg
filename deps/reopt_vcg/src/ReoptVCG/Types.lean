@@ -188,7 +188,7 @@ namespace ReoptVCG
 -- to the What4.Protocol.SMTLib2.Syntax module in Haskell, but...
 -- it's the "Raw" interface which feels a little off...
 
-open Smt
+open Smt hiding Array
 
 
 @[reducible]

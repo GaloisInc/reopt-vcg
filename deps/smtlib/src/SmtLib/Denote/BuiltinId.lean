@@ -104,7 +104,7 @@ def denoteBuiltinIdent : forall cs, BuiltinIdent cs → cs.denote
 | _, BuiltinIdent.mkTuple _ _ => fun a b => (a, b)
 
 
-
+| _, BuiltinIdent.arrayConst k v       => λdefault => Array.const k.denote.type default
 | _, BuiltinIdent.select k v           => Array.select
 | _, BuiltinIdent.store  k v           => Array.store
 | _, BuiltinIdent.eqrange k _          => Array.eqRange k

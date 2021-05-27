@@ -249,7 +249,10 @@ inductive BuiltinIdent : ConstSort -> Type
 | mkTuple (a b : SmtSort) : BuiltinIdent (binop a b (tuple a b))
 
 -- * Arrays
-| select (k v : SmtSort) : BuiltinIdent (ConstSort.fsort (array k v) (ConstSort.fsort k (ConstSort.base v)))--(binop (array k v) k v)
+
+-- Constant arrays, not part of smt-lib, but supported by both z3 and cvc4
+| arrayConst (k v : SmtSort) : BuiltinIdent (unop v (array k v))
+| select (k v : SmtSort) : BuiltinIdent (binop (array k v) k v) -- (ConstSort.fsort (array k v) (ConstSort.fsort k (ConstSort.base v)))
 | store  (k v : SmtSort) : BuiltinIdent (ternop (array k v) k v (array k v))
 
 -- CVC4 specific
@@ -326,6 +329,7 @@ def toSExpr : forall {cs : ConstSort}, BuiltinIdent cs -> SExpr
 | _, snd _ _              => indexed (atom "tupSel") [Nat.toSExpr 1]
 | _, mkTuple _ _          => atom "mkTuple"
 
+| _, arrayConst k v       => list [atom "as", atom "const", (SmtSort.array k v).toSExpr]
 | _, select _ _           => atom "select"
 | _, store  _ _           => atom "store"
 | _, eqrange _ _          => atom "eqrange"

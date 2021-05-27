@@ -6,7 +6,9 @@ import Galois.Data.SExp
 import SmtLib.Syntax
 import SmtLib.IdGen
 
-
+-- For smart constuctors
+import SmtLib.Denote.BuiltinId
+import SmtLib.Denote.Term
 
 export SExpr.ToSExpr (toSExpr)
 export Smt (IdGen)
@@ -123,22 +125,23 @@ def expandIdent {cs : ConstSort} (i : Raw.Ident cs) : ConstSortToType cs :=
 
 end Raw.Ident
 
+-- Non-simplifying constructors
 private
-def unop {s t : SmtSort} (i : Raw.BuiltinIdent (Raw.BuiltinIdent.unop s t)) (a : Term s)
-  : Term t := app (ident (builtin i)) a
+def unop' {s t : SmtSort} (i : Raw.BuiltinIdent (Raw.BuiltinIdent.unop s t)) (a : Term s)
+          :  Term t  := app (ident (builtin i)) a
 
 private
-def binop {a b c : SmtSort} (i : Raw.BuiltinIdent (Raw.BuiltinIdent.binop a b c)) 
+def binop' {a b c : SmtSort} (i : Raw.BuiltinIdent (Raw.BuiltinIdent.binop a b c)) 
           (x : Term a) (y : Term b) : Term c := app (app (ident (builtin i)) x) y
 
 private
-def ternop {a b c d : SmtSort} 
+def ternop' {a b c d : SmtSort} 
            (i : Raw.BuiltinIdent (Raw.BuiltinIdent.ternop a b c d))
            (x : Term a) (y : Term b) (z : Term c) : Term d 
            := app (app (app (ident (builtin i)) x) y) z
 
 private
-def quadop {a b c d e : SmtSort} 
+def quadop' {a b c d e : SmtSort} 
            (i : Raw.BuiltinIdent (Raw.BuiltinIdent.quadop a b c d e))
            (w : Term a) (x : Term b) (y : Term c) (z : Term d) : Term e
            := app (app (app (app (ident (builtin i)) w) x) y) z
@@ -146,6 +149,53 @@ def quadop {a b c d e : SmtSort}
 -- Builtin terms
 protected def true  : Term bool := ident (builtin true)
 protected def false : Term bool := ident (builtin false)
+
+namespace SmtSort
+
+-- def default : forall (s : SmtSort), Term s
+--   | bool        => Smt.false
+--   | bitvec n    => const _ (binary n 0)
+--   | array k v   => app (ident (builtin (arrayConst k v))) v.default
+--   | tuple s1 s2 => app (app (ident (builtin (mkTuple s1 s2))) s1.default) s2.default
+
+def undenote : forall (s : SmtSort), s.denote.type -> Term s 
+  | bool, b        => if b then Smt.true else Smt.false
+  | bitvec n, bv   => const _ (binary n (bitvec.to_nat bv))
+  | array k v, arr => List.foldl (fun t el => ternop' (store k v) t (undenote k el.fst) (undenote v el.snd))
+                                 (unop' (arrayConst k v) (undenote v arr.val.default))
+                                 arr.val.entries
+  | tuple s1 s2, p => binop' (mkTuple s1 s2) (undenote s1 p.fst) (undenote s2 p.snd)
+
+end SmtSort
+
+private
+def unop : forall {s t : SmtSort} (i : Raw.BuiltinIdent (Raw.BuiltinIdent.unop s t)) (a : Term s)
+         ,  Term t
+  | s, t, i, const _ sc => t.undenote (Raw.BuiltinIdent.denote _ i sc.semantics)
+  | s, t, i, a          => unop' i a
+
+private
+def binop : forall {a b c : SmtSort} (i : Raw.BuiltinIdent (Raw.BuiltinIdent.binop a b c)) 
+            (x : Term a) (y : Term b) , Term c
+  | _, _, c, i, const _ cx, const _ cy => c.undenote (Raw.BuiltinIdent.denote _ i cx.semantics cy.semantics)
+  | _, _, _, i, x, y => binop' i x y
+
+private
+def ternop : forall {a b c d : SmtSort} 
+             (i : Raw.BuiltinIdent (Raw.BuiltinIdent.ternop a b c d))
+             (x : Term a) (y : Term b) (z : Term c), Term d 
+  | _, _, _, c, i, const _ cx, const _ cy, const _ cz => 
+    c.undenote (Raw.BuiltinIdent.denote _ i cx.semantics cy.semantics cz.semantics)
+  | _, _, _, _, i, x, y, z => ternop' i x y z
+
+private
+def quadop : forall {a b c d e : SmtSort} 
+             (i : Raw.BuiltinIdent (Raw.BuiltinIdent.quadop a b c d e))
+             (w : Term a) (x : Term b) (y : Term c) (z : Term d), Term e
+  | _, _, _, _, c, i, const _ cw, const _ cx, const _ cy, const _ cz => 
+    c.undenote (Raw.BuiltinIdent.denote _ i cw.semantics cx.semantics cy.semantics cz.semantics)
+  | _, _, _, _, _, i, w, x, y, z => quadop' i w x y z
+
 protected def not   : Term bool -> Term bool := unop not
 protected def impl  : Term bool -> Term bool -> Term bool := binop impl
 protected def and   : Term bool -> Term bool -> Term bool := binop and
@@ -186,8 +236,10 @@ def snd (a b : SmtSort) : Term (tuple a b) -> Term b := unop (snd a b)
 protected
 def mkTuple (a b : SmtSort) : Term a -> Term b -> Term (tuple a b) := binop (mkTuple a b)
 
-
 -- Arrays
+protected
+def arrayConst (k v : SmtSort) : Term v -> Term (array k v) := unop (arrayConst k v) 
+
 protected
 def select (k v : SmtSort) : Term (array k v) -> Term k -> Term v :=
   binop (select k v)

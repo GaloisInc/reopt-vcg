@@ -16,7 +16,7 @@ import X86Semantics.Common
 
 open Std (RBMap)
 
-open Smt
+open Smt hiding Array
 
 namespace LLVM
 namespace ident
