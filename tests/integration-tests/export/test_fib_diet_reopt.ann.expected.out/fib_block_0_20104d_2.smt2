@@ -229,13 +229,13 @@
 ; LLVM:     %t14 = add i64 %t13, %t12
 (define-fun %t14 () (_ BitVec 64) (bvadd %t13 %t12))
 ; LLVM:     jump label %block_0_201058
-(define-fun addr () (_ BitVec 64) (bvadd a0x20104d_rbp (bvadd (bvmul #x0000000000000001 #x0000000000000000) #xffffffffffffffe8)))
+(define-fun addr () (_ BitVec 64) (bvadd a0x20104d_rbp #xffffffffffffffe8))
 (declare-fun readv () (_ BitVec 64))
 (assert (on_stack addr #x0000000000000008))
 (assert (= readv (mem_readbv64 init_mem addr)))
-(define-fun rcx () (_ BitVec 64) (bvadd (ite true readv a0x20104d_rcx) a0x20104d_rax))
-(define-fun addr0 () (_ BitVec 64) (bvadd a0x20104d_rbp (bvadd (bvmul #x0000000000000001 #x0000000000000000) #xfffffffffffffff8)))
+(define-fun rcx () (_ BitVec 64) (bvadd readv a0x20104d_rax))
+(define-fun addr0 () (_ BitVec 64) (bvadd a0x20104d_rbp #xfffffffffffffff8))
 (assert (is_in_mc_only_stack_range addr0 #x0000000000000008))
-(define-fun mem () (Array (_ BitVec 64) (_ BitVec 8)) (mem_writebv64 init_mem addr0 (ite true rcx (ite true readv a0x20104d_rcx))))
-(check-sat-assuming ((not (= #x0000000000201058 #x0000000000201058))))
+(define-fun mem () (Array (_ BitVec 64) (_ BitVec 8)) (mem_writebv64 init_mem addr0 rcx))
+(check-sat-assuming (false))
 (exit)

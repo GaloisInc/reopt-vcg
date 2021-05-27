@@ -223,6 +223,6 @@
 (assert (= (mem_readbv64 init_mem (bvsub fnstart_rsp #x0000000000000008)) fnstart_rbp))
 ; LLVM:     ret i64 0
 (define-fun rcx () (_ BitVec 64) ((_ zero_extend 32) (bvxor ((_ extract 31 0) a0x20109d_rcx) ((_ sign_extend 0) ((_ extract 31 0) a0x20109d_rcx)))))
-(define-fun addr () (_ BitVec 64) (bvadd a0x20109d_rbp (bvadd (bvmul #x0000000000000001 #x0000000000000000) #xfffffffffffffff8)))
+(define-fun addr () (_ BitVec 64) (bvadd a0x20109d_rbp #xfffffffffffffff8))
 (check-sat-assuming ((not (is_in_mc_only_stack_range addr #x0000000000000004))))
 (exit)
