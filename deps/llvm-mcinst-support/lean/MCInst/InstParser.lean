@@ -165,14 +165,14 @@ def registerP : OpParser register :=
 def memlocP : OpParser operand :=
   (do let disp <- intP <|> pure 0;
       let _ <- exact '(';
-      let base <- registerP;
+      let base <- (some <$> registerP) <|> pure none -- sometimes the base isn't there
       let (idx, scale) <- (do let _ <- exact ',';
                               let idx <- registerP;
                               let scale <- (exact ',' *> natP) <|> pure 1;
                               pure (some idx, scale))
                       <|> pure (none, 1);
       let _ <- exact ')';
-      pure (operand.memloc disp none (some base) scale idx))
+      pure (operand.memloc disp none base scale idx))
   <|>  -- Absolute address
   do let disp <- intP; pure (operand.memloc disp none none 0 none)
 
