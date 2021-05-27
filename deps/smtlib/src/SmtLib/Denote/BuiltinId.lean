@@ -85,8 +85,6 @@ VarArgs.distinct s n []
 @[reducible]
 def denoteBuiltinIdent : forall cs, BuiltinIdent cs → cs.denote
 -- * Core theory
-| _, BuiltinIdent.true => true
-| _, BuiltinIdent.false => false
 | _, BuiltinIdent.not => not
 | _, BuiltinIdent.impl => λ p q => !p || q
 | _, BuiltinIdent.and => and

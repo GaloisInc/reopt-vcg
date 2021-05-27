@@ -43,7 +43,7 @@ namespace Term
 
 -- Well sorted term definition.
 inductive WS : forall {cs : ConstSort}, Env → Term cs → Prop
-| const : ∀ (e : Env) {s : SmtSort} (sc : SpecConst s), WS e (Term.const s sc)
+| const : ∀ (e : Env) {s : SmtSort} (sc : Literal s), WS e (Term.const s sc)
 | ident : ∀ {e : Env} {cs : ConstSort} {x : Ident cs}, Ident.WS e x → WS e (Term.ident x)
 | app   : ∀ {e : Env} {s : SmtSort} {cs : ConstSort}
          {t1 : Term (ConstSort.fsort s cs)}
@@ -172,13 +172,13 @@ end WSTerm
 --   ( wsDom  : forall sym s, e.find? sym = some s -> Exists (fun v => values.findEq? sym = some v))
 
 
+namespace Literal
 
-namespace SpecConst
-
-def semantics : forall {s : SmtSort}, SpecConst s -> s.denote.type
+def semantics : forall {s : SmtSort}, Literal s -> s.denote.type
   | _, binary n v => bitvec.of_nat n v
+  | _, boolean b  => b
 
-end SpecConst
+end Literal
 
 instance : DecidableEq Symbol := inferInstanceAs (DecidableEq String)
 
@@ -202,7 +202,7 @@ namespace Term
 
 inductive Interp : forall (e:Env) (m:Model e) {cs:ConstSort}, WSTerm e cs → cs.denote → Prop
 -- const
-| const : ∀ (e:Env) (m:Model e) {s : SmtSort} (sc : SpecConst s),
+| const : ∀ (e:Env) (m:Model e) {s : SmtSort} (sc : Literal s),
   Interp e m ⟨Term.const s sc, WS.const e sc⟩ sc.semantics
 -- ident
 | ident : ∀ (e:Env) (m:Model e) {cs : ConstSort} (x : Ident cs) (xWS : Ident.WS e x),

@@ -153,15 +153,14 @@ end Symbol
 -- | string  : String -> SpecConst
 
 
-inductive SpecConst : SmtSort -> Type 
+inductive Literal : SmtSort -> Type 
 -- | numeral : Nat -> SpecConst
 -- | decimal : Nat -> Nat -> SpecConst
-| binary (n : Nat): Nat -> SpecConst (SmtSort.bitvec n) -- nbits and value, subsumes hex (FIXME?)
+| binary (n : Nat) : Nat  -> Literal (SmtSort.bitvec n) -- nbits and value, subsumes hex (FIXME?)
+| boolean          : Bool -> Literal SmtSort.bool
 -- | string  : String -> SpecConst
 
-
-
-namespace SpecConst 
+namespace Literal
 
 -- FIXME: copied from bitvec!
 section toHex
@@ -171,12 +170,12 @@ protected def toHexWithLeadingZeros : List Char → Nat → Nat → String
 | prev, 0, _ => prev.asString
 | prev, (Nat.succ w), x =>
   let c := (Nat.land x 0xf).digitChar;
-  SpecConst.toHexWithLeadingZeros (c::prev) w (Nat.shiftr x 4)
+  Literal.toHexWithLeadingZeros (c::prev) w (Nat.shiftr x 4)
 
 --- Print word as hex
 def ppBin (n : Nat) (v : Nat) : String :=
   if n % 4 = 0
-  then "#x" ++ SpecConst.toHexWithLeadingZeros [] (n / 4) v
+  then "#x" ++ Literal.toHexWithLeadingZeros [] (n / 4) v
   else do
     let mut digits := []
     for i in [:n] do
@@ -186,15 +185,16 @@ def ppBin (n : Nat) (v : Nat) : String :=
 end toHex
 
 protected
-def toSExpr : forall {s : SmtSort}, SpecConst s -> SExpr
+def toSExpr : forall {s : SmtSort}, Literal s -> SExpr
 -- | numeral n   => Nat.toSExpr n
 -- | decimal n f => atom (toString n ++ "." ++ toString f)
 | _, binary n v  => atom (ppBin n v)
+| _, boolean b   => atom (if b then "true" else "false")
 -- | string s    => String.toSExpr s
 
-instance {s : SmtSort} : ToSExpr (SpecConst s) := ⟨SpecConst.toSExpr⟩
+instance {s : SmtSort} : ToSExpr (Literal s) := ⟨Literal.toSExpr⟩
 
-end SpecConst
+end Literal
 
 
 namespace BuiltinIdent
@@ -230,8 +230,6 @@ def nary (s : SmtSort) (t : SmtSort) : Nat -> ConstSort
 -- distinct is a term as it has arbitrary arity
 inductive BuiltinIdent : ConstSort -> Type
 -- * Core theory
-| true                : BuiltinIdent ConstSort.bool
-| false               : BuiltinIdent ConstSort.bool
 | not                 : BuiltinIdent (unop bool bool)
 | impl                : BuiltinIdent (binop bool bool bool)
 | and                 : BuiltinIdent (binop bool bool bool)
@@ -314,8 +312,6 @@ namespace BuiltinIdent
 protected 
 def toSExpr : forall {cs : ConstSort}, BuiltinIdent cs -> SExpr
 -- * Core theory
-| _, true                 => atom "true"
-| _, false                => atom "false"
 | _, not                  => atom "not"
 | _, impl                 => atom "=>"
 | _, and                  => atom "and"
@@ -414,7 +410,7 @@ end SortedVar
 -- S3.6
 -- Use typed terms?
 inductive Term : ConstSort -> Type
-| const (s : SmtSort) : SpecConst s -> Term (ConstSort.base s)
+| const (s : SmtSort) : Literal s -> Term (ConstSort.base s)
 | ident {cs : ConstSort} : Ident cs -> Term cs
 | app {s : SmtSort} {cs : ConstSort} : Term (ConstSort.fsort s cs)
                                     -> Term (ConstSort.base s) -> Term cs

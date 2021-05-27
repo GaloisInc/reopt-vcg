@@ -97,8 +97,8 @@ open Raw.Ident
 open Raw.Command
 open Raw (ConstSort)
 open Raw.ConstSort (fsort base)
-open Raw (SpecConst)
-open Raw.SpecConst
+open Raw (Literal)
+open Raw.Literal
 
 def ConstSortToType : ConstSort -> Type 
 | base s    => Term s
@@ -147,8 +147,8 @@ def quadop' {a b c d e : SmtSort}
            := app (app (app (app (ident (builtin i)) w) x) y) z
 
 -- Builtin terms
-protected def true  : Term bool := ident (builtin true)
-protected def false : Term bool := ident (builtin false)
+protected def true  : Term bool := const _ (boolean true)
+protected def false : Term bool := const _ (boolean false)
 
 namespace SmtSort
 
@@ -205,8 +205,10 @@ protected def eq {a : SmtSort} : Term a -> Term a -> Term bool       := binop (e
 -- FIXME
 -- def distinct {a : SmtSort} : List (Term a) -> Term bool := Raw.Term.distinct
 
-protected def smtIte  {a : SmtSort} : Term bool -> Term a -> Term a -> Term a := 
-  ternop (smtIte a)
+protected def smtIte  {a : SmtSort} : Term bool -> Term a -> Term a -> Term a 
+  -- FIXME: verify that this is OK
+  | const _ (boolean b), t, f => if b then t else f
+  | c, t, f                   => ternop (smtIte a) c t f
 
 -- Derived helpers
 private def allAux : Term bool → List (Term bool) → Term bool
