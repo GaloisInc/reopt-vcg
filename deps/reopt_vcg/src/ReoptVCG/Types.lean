@@ -266,6 +266,7 @@ structure ModuleVCGContext :=
 -- ^ Maps bytes to the symbol name
 (moduleTypeMap : LLVMTypeMap)
 -- ^ type map for module.
+(phdrRanges : List (Nat × Nat))
 
 -------------------------------------------------------
 -- Error/Exception Data

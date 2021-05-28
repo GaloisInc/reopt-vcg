@@ -205,6 +205,15 @@ def defineRangeCheck (name : String) (low : memaddr) (high : memaddr)
          (Smt.and (Smt.bvule addr e)
                   (Smt.bvule e high))
 
+
+-- | @defineOverlapCheck nm l h sl sh@ introduces the definition for a
+-- function named @nm@ that takes two pairs of addresses, and asserts
+-- that the ranges to NOT overlap.
+def defineOverlapCheck (name : String) (sl : memaddr) (sh : memaddr)
+  : SmtM (bitvec 64 -> bitvec 64 -> s_bool) := do
+  Smt.defineFun name [SmtSort.bitvec 64, SmtSort.bitvec 64] SmtSort.bool $ fun l h => 
+    Smt.or (Smt.bvule h sl) (Smt.bvule sh l)
+
 -- | Defines a predicate @(not_in_stack_range a sz)@ that holds if @a + sz@
 -- does not overflow and @[a..a+sz)@ does not overlap with the
 -- range @[stack_alloc_min..stack_max)@.
@@ -270,7 +279,9 @@ def make
     (pageSize : Nat)
     (guardPageCount : Nat)
     (allocas : AllocaAnnMap)
-    (dfFlag : Bool) : SmtM MCStdLib := do
+    (dfFlag : Bool) 
+    (memRanges : List (Nat × Nat))
+    : SmtM MCStdLib := do
   -- FIXME: add checks (which?)
   let memOps ← mkMemOps
   let fpOps <- SupportedFPOps.make
@@ -296,6 +307,12 @@ def make
 
   -- Assert stack_alloc_min < stack_max
   Smt.assert $ Smt.bvult stack_alloc_min stack_max
+
+  -- Assert the stack is disjoint from all static memory ranges
+  let overlapCheck <- defineOverlapCheck "disjointRegions" stack_guard_min stack_max
+
+  for mr in memRanges do
+    Smt.assert (overlapCheck (Smt.bvimm _ mr.fst) (Smt.bvimm _ mr.snd))
 
   -- Assert RSP is between stack_alloc_min and stack_max - return address size
   Smt.assert $ Smt.bvule stack_alloc_min stackHighTerm
