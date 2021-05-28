@@ -229,7 +229,7 @@
 ; LLVM:     %t6 = add i64 %t5, 18446744073709551615
 (define-fun %t6 () (_ BitVec 64) (bvadd %t5 #xffffffffffffffff))
 ; LLVM:     %t7 = call i64 @fib (i64 %t6)
-(define-fun addr () (_ BitVec 64) (bvadd a0x201024_rbp (bvadd (bvmul #x0000000000000001 #x0000000000000000) (bvnot #x000000000000000f))))
+(define-fun addr () (_ BitVec 64) (bvadd a0x201024_rbp #xfffffffffffffff0))
 (declare-fun readv () (_ BitVec 64))
 (check-sat-assuming ((not (on_stack addr #x0000000000000008))))
 (exit)

@@ -227,10 +227,10 @@
 (assert (= a0x201017_rdi (mem_readbv64 init_mem (bvsub fnstart_rsp #x0000000000000018))))
 (assert (= (mem_readbv64 init_mem (bvsub fnstart_rsp #x0000000000000008)) fnstart_rbp))
 ; LLVM:     jump label %block_0_201058
-(define-fun addr () (_ BitVec 64) (bvadd a0x201017_rbp (bvadd (bvmul #x0000000000000001 #x0000000000000000) (bvnot #x000000000000000f))))
+(define-fun addr () (_ BitVec 64) (bvadd a0x201017_rbp #xfffffffffffffff0))
 (declare-fun readv () (_ BitVec 64))
 (assert (on_stack addr #x0000000000000008))
 (assert (= readv (mem_readbv64 init_mem addr)))
-(define-fun addr0 () (_ BitVec 64) (bvadd a0x201017_rbp (bvadd (bvmul #x0000000000000001 #x0000000000000000) (bvnot #x0000000000000007))))
+(define-fun addr0 () (_ BitVec 64) (bvadd a0x201017_rbp #xfffffffffffffff8))
 (check-sat-assuming ((not (is_in_mc_only_stack_range addr0 #x0000000000000008))))
 (exit)

@@ -85,8 +85,6 @@ VarArgs.distinct s n []
 @[reducible]
 def denoteBuiltinIdent : forall cs, BuiltinIdent cs → cs.denote
 -- * Core theory
-| _, BuiltinIdent.true => true
-| _, BuiltinIdent.false => false
 | _, BuiltinIdent.not => not
 | _, BuiltinIdent.impl => λ p q => !p || q
 | _, BuiltinIdent.and => and
@@ -104,7 +102,7 @@ def denoteBuiltinIdent : forall cs, BuiltinIdent cs → cs.denote
 | _, BuiltinIdent.mkTuple _ _ => fun a b => (a, b)
 
 
-
+| _, BuiltinIdent.arrayConst k v       => λdefault => Array.const k.denote.type default
 | _, BuiltinIdent.select k v           => Array.select
 | _, BuiltinIdent.store  k v           => Array.store
 | _, BuiltinIdent.eqrange k _          => Array.eqRange k

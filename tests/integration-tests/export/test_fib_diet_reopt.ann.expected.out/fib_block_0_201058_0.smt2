@@ -225,7 +225,7 @@
 (assert (= a0x201058_r15 fnstart_r15))
 (assert (= (mem_readbv64 init_mem (bvsub fnstart_rsp #x0000000000000008)) fnstart_rbp))
 ; LLVM:     ret i64 %t15
-(define-fun addr () (_ BitVec 64) (bvadd a0x201058_rbp (bvadd (bvmul #x0000000000000001 #x0000000000000000) #xfffffffffffffff8)))
+(define-fun addr () (_ BitVec 64) (bvadd a0x201058_rbp #xfffffffffffffff8))
 (declare-fun readv () (_ BitVec 64))
 (check-sat-assuming ((not (on_stack addr #x0000000000000008))))
 (exit)

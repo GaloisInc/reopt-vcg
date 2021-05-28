@@ -11,7 +11,7 @@ import X86Semantics.Common
 
 namespace ReoptVCG
 open Std (RBMap)
-open Smt
+open Smt hiding Array
 universe u
 
 abbrev GoalName := String
