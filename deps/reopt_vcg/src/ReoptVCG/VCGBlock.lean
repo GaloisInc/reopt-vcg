@@ -1293,6 +1293,7 @@ def run (mctx : ModuleVCGContext)
                     (guardPageCount := ann.stackGuardPageCount)
                     (allocas := blockAnn.allocas)
                     (dfFlag := blockAnn.dfFlag)
+                    (memRanges := mctx.phdrRanges)
     let blockRegs <-
       if thisBlock = firstBlock
       then pure stdLib.funStartRegs

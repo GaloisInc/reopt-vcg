@@ -441,12 +441,18 @@ def runVCG (cfg : VCGConfig) : IO UInt32 := do
   if cfg.verbose then IO.println $ s!"Loading LLVM module at `{llvmPath}`";
   let lMod ← loadLLVMModule llvmPath;
   if cfg.verbose then IO.println $ "LLVM module loaded!";
+
+  -- FIXME: should we check that the upper bound is < 2 ^ 64
+  let phdrRanges := List.map (fun phdr => (phdr.vaddr.toNat, phdr.vaddr.toNat + phdr.memsz.toNat)) 
+                    (List.filter (fun phdr => phdr.phdr_type = elf.phdr_type.PT_LOAD) prgmHdrs)
+  
   -- Create verification coontext for module.
   let modCtx : ModuleVCGContext :=
     { annotations := ann
     , mkBackendFuns := x86.vcg.mkBackendFuns sem
     , symbolAddrMap := fnSymAddrMap
     , moduleTypeMap := mkLLVMTypeMap lMod
+    , phdrRanges    := phdrRanges
     };
   -- Run verification.
   IO.println $ "Generating verification conditions for LLVM module..."
