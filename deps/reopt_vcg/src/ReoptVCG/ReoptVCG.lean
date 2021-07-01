@@ -91,7 +91,7 @@ def verifyBlock
   -- ^ Annotations on blocks.
   (firstLabel : LLVM.BlockLabel)
    -- ^ Label of first block.
-  (firstAddr : MCAddr)
+  (firstAddr : Nat)
    -- ^ Address of first block.
   (aBlock : AnnotatedBlock)
   : ModuleVCG (Except BlockError BlockVerification) := do
@@ -250,7 +250,8 @@ def verifyFunction (lMod:LLVM.Module) (fAnn: FunctionAnn): ModuleVCG FnVerificat
     Std.RBMap.fromList (blocks.toList.map (λ ab => (ab.label, ab))) (λ x y => x<y);
   -- Verify the first block is where the annotation indicated it should be, and return
   -- the label for the first block
-  let (entryBlockLbl, entryBlockAddr) ← match lFun.body.toList with
+  let entryBlockAddr := fAnn.startAddr
+  let entryBlockLbl ← match lFun.body.toList with
     | [] => moduleThrow {fnName := fnm, blockLbl := none}
                         ModuleErrorTag.missingEntryBlock
                         ""
@@ -265,24 +266,17 @@ def verifyFunction (lMod:LLVM.Module) (fAnn: FunctionAnn): ModuleVCG FnVerificat
                       ModuleErrorTag.entryUnreachable
                       ""
         | BlockAnn.reachable firstBlockAnn =>
-          match getMCAddrOfLLVMFunction modCtx.symbolAddrMap fnm with
-          | Except.error errMsg =>
-            -- TODO(AMK) once we actually parse the addresses from the ELF file
-            -- we can raise an error if the two addresses don't match
-            pure (ab.label, MCAddr.mk (UInt64.ofNat 0))
-            -- functionError fnm $ FnError.custom $
-            --   "Unable to find function machine code address: " ++ errMsg
-          | Except.ok addr =>
-            if (addr == firstBlockAnn.startAddr)
-            then pure (ab.label, addr)
+          if (entryBlockAddr == firstBlockAnn.startAddr)
+            then pure ab.label
             else moduleThrow {fnName := fnm, blockLbl := ab.label}
                              ModuleErrorTag.fnAnnAddrWrong
                              ("annotation address "++ firstBlockAnn.startAddr.addr.pp_hex
-                              ++", symbol table address "++addr.addr.pp_hex)
+                              ++", first block annotation address "++ entryBlockAddr.toNat.ppHex)
+
   let mut blockVCs : Array BlockVerification := #[]
   let mut blockErrors : Array BlockError := #[]
   for b in blocks.toList do -- FIXME remove .toList next bump
-    match (← verifyBlock fAnn argBindings blockMap entryBlockLbl entryBlockAddr b) with
+    match (← verifyBlock fAnn argBindings blockMap entryBlockLbl entryBlockAddr.toNat b) with
     | Except.ok vc => do
       blockVCs := blockVCs.push vc
     | Except.error err => do
