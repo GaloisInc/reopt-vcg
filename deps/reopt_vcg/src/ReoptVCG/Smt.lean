@@ -1,6 +1,7 @@
 
 import Galois.Data.SExp
 import Galois.Init.Io
+import ReoptVCG.ExitFlag
 import ReoptVCG.SmtParser
 import ReoptVCG.MCStdLib
 import ReoptVCG.Types
@@ -23,21 +24,21 @@ structure VerificationSession :=
 -- Data structure for registering verification goal info
 -- (for interactive only, since export doesn't really do anything
 --  with goals during execution except emit files).
-structure GoalStats :=
-  -- How many of each kind of goal failed
-  (okGoalCnt : RBMap GoalTag Nat (·<·))
-  -- How many of each kind of goal failed to verify
-  (failGoalCnt : RBMap GoalTag Nat (·<·))
-  -- For each kind of goal, what were the counts for each extra info seen for failures?
-  (failExtraInfoCnt : RBMap GoalTag (RBMap String Nat (·<·)) (·<·))
-  -- How many goals errored/failed for a given LLVM function name?
-  (fnBadGoalCnt : RBMap String Nat (·<·))
-  -- How many of each kind of goal had an error during verification
-  (errorGoalCnt : RBMap GoalTag Nat (·<·))
-  -- For each kind of goal, what were the counts for each extra info seen for errors?
-  (errorExtraInfoCnt : RBMap GoalTag (RBMap String Nat (·<·)) (·<·))
-  -- A terse description of what happened for mass data dumps of all activity
-  (results : Array VerificationResult)
+structure GoalStats where
+  /-- How many of each kind of goal failed -/
+  okGoalCnt : RBMap GoalTag Nat (·<·)
+  /-- How many of each kind of goal failed to verify -/
+  failGoalCnt : RBMap GoalTag Nat (·<·)
+  /-- For each kind of goal, what were the counts for each extra info seen for failures? -/
+  failExtraInfoCnt : RBMap GoalTag (RBMap String Nat (·<·)) (·<·)
+  /-- How many goals errored/failed for a given LLVM function name? -/
+  fnBadGoalCnt : RBMap String Nat (·<·)
+  /-- How many of each kind of goal had an error during verification -/
+  errorGoalCnt : RBMap GoalTag Nat (·<·)
+  /-- For each kind of goal, what were the counts for each extra info seen for errors? -/
+  errorExtraInfoCnt : RBMap GoalTag (RBMap String Nat (·<·)) (·<·)
+  /-- A terse description of what happened for mass data dumps of all activity -/
+  results : Array VerificationResult
 
 namespace GoalStats
 
@@ -103,27 +104,27 @@ def addResult (gs : GoalStats) (vr : VerificationResult) : GoalStats :=
 end GoalStats
 
 -- Data for counting function/block level errors that occur during VC generation
-structure VCStats :=
-   -- How many functions did we analyze for VC gen?
-  (fnCnt : Nat)
-  -- How many errors were encoutered during VC gen?
-  (errCnt : Nat)
-   -- How many (module or block) errors did each function have during VC gen?
-  (fnErrCnt : RBMap String Nat (·<·))
-  -- What warnings were raised during VC gen?
-  (warnings : Array VerificationWarning)
-  -- Module errors that were encountered during VC
-  (moduleErrs : Array ModuleError)
-  -- How many errors of each kind of ModuleError did we encounter?
-  (moduleErrCnt : RBMap ModuleErrorTag Nat (·<·))
-  -- For each ModuleError kind and additional info, how many times did we see that combination?
-  (moduleErrExtraInfoCnt : RBMap ModuleErrorTag (RBMap String Nat (·<·)) (·<·))
-  -- Block errors that were encountered during VC
-  (blockErrs : Array BlockError)
-  -- How many errors of each kind of BlockError did we encounter?
-  (blockErrCnt : RBMap BlockErrorTag Nat (·<·))
-  -- For each BlockError kind and additional info, how many times did we see that combination?
-  (blockErrExtraInfoCnt : RBMap BlockErrorTag (RBMap String Nat (·<·)) (·<·))
+structure VCStats where
+  /-- How many functions did we analyze for VC gen? -/
+  fnCnt : Nat
+  /-- How many errors were encoutered during VC gen?  -/
+  errCnt : Nat
+  /-- How many (module or block) errors did each function have during VC gen?  -/
+  fnErrCnt : RBMap String Nat (·<·)
+  /-- What warnings were raised during VC gen?  -/
+  warnings : Array VerificationWarning
+  /-- Module errors that were encountered during VC  -/
+  moduleErrs : Array ModuleError
+  /-- How many errors of each kind of ModuleError did we encounter?  -/
+  moduleErrCnt : RBMap ModuleErrorTag Nat (·<·)
+  /-- For each ModuleError kind and additional info, how many times did we see that combination?  -/
+  moduleErrExtraInfoCnt : RBMap ModuleErrorTag (RBMap String Nat (·<·)) (·<·)
+  /-- Block errors that were encountered during VC  -/
+  blockErrs : Array BlockError
+  /-- How many errors of each kind of BlockError did we encounter?  -/
+  blockErrCnt : RBMap BlockErrorTag Nat (·<·)
+  /-- For each BlockError kind and additional info, how many times did we see that combination? -/
+  blockErrExtraInfoCnt : RBMap BlockErrorTag (RBMap String Nat (·<·)) (·<·)
 
 
 namespace VCStats
@@ -675,9 +676,11 @@ def interactiveVerificationSession (annFile solverPath : String) (solverArgs : L
       | none => pure ()
       | some jsonOutFile =>
         outputGoalsAsJson jsonOutFile vrs
-      pure (if vcStats.errCnt > 0 || gStats.failGoalCnt.size > 0 || gStats.errorGoalCnt.size > 0
-            then 1
-            else 0)
+      let exitStatus : UInt32 :=
+        (if vcStats.errCnt > 0 then ExitFlag.generationError else 0b0)
+        ||| (if gStats.failGoalCnt.size > 0 then ExitFlag.verificationFailure else 0b0)
+        ||| (if gStats.errorGoalCnt.size > 0 then ExitFlag.verificationError else 0b0)
+      pure exitStatus
   pure { verifyModule := λ cfg => verifyModule' (interactiveDoGoal ictx cfg) (interactiveReportSummary cfg) }
 
 def exportVerificationSession (outDir : String) : IO VerificationSession := do
@@ -688,7 +691,7 @@ def exportVerificationSession (outDir : String) : IO VerificationSession := do
       let fileCnt ← fileCntRef.get
       IO.println $ (repr fileCnt)++" verification condition .smt2 files generated in directory `" ++ outDir ++ "`."
       pure (if vcStats.errCnt > 0
-            then 1
+            then ExitFlag.generationError
             else 0)
   pure { verifyModule := λ cfg => verifyModule' (exportDoGoal outDir fileCntRef cfg) (interactiveReportSummary cfg)}
 
