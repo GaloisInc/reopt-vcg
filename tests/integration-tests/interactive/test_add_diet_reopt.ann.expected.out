@@ -28,6 +28,8 @@ Generating verification conditions for LLVM module...
   Verifying main.block_0_201340.0 @ 0x201354: argument matches register (42)... OK
   Verifying main.block_0_201340.0 @ 0x201354: direction flag is expected value (function call)... OK
   Verifying main.block_0_201340.0 @ 0x201354: return address is next instruction... OK
+  Verifying main.block_0_201340.0 @ 0x201354: LLVM and machine code branch to the same function address (function call)... OK
+  Verifying main.block_0_201340.1 @ 0x201354: return address preserved (jump)... OK
   Verifying main.block_0_201340.1 @ 0x201354: instruction pointer is expected value (jump)... OK
   Verifying main.block_0_201340.1 @ 0x201354: direction flag is expected value (jump)... OK
   Verifying main.block_0_201340.1 @ 0x201354: precondition ((= rbx (fnstart rbx)), for jump)... OK
@@ -55,4 +57,4 @@ Generating verification conditions for LLVM module...
 All 2 functions were assigned verification conditions without error.
 
 ====================== GOAL VERIFICATION SUMMARY =======================
-All 46 generated verification goals successfully proven.
+All 48 generated verification goals successfully proven.

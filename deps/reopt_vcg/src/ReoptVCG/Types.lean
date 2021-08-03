@@ -328,6 +328,7 @@ inductive BlockErrorTag
   | llvmRanOutOfEvents : BlockErrorTag
   | llvmMissingReturn : BlockErrorTag
   | missingAnnotations : BlockErrorTag
+ 
 
 namespace BlockErrorTag
 
@@ -551,6 +552,7 @@ inductive GoalTag
   | llvmAndMCLoadAddrsMatch : GoalTag
   | llvmAndMCStoreAddrsMatch : GoalTag
   | llvmAndMCStoreEq : GoalTag
+  | llvmAndMCCallEq : GoalTag
   | stackHeightPreserved : GoalTag
   | returnAddressPreserved : GoalTag
   | registerPreserved : GoalTag
@@ -581,6 +583,7 @@ def index : GoalTag → UInt32
   | llvmAndMCReturnValuesEq => 16
   | argAndRegEq => 17
   | expectedDirectionFlagVal => 18
+  | llvmAndMCCallEq => 19
 
 instance hasLess : HasLess GoalTag :=
   ⟨λ x y => x.index < y.index⟩
@@ -614,6 +617,8 @@ def description : GoalTag → String
     "LLVM and machine code store to same heap address"
   | llvmAndMCStoreEq =>
     "LLVM and machine code store the same value to the heap"
+  | llvmAndMCCallEq => 
+    "LLVM and machine code branch to the same function address"
   | stackHeightPreserved =>
     "stack height preserved"
   | returnAddressPreserved =>

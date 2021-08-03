@@ -33,10 +33,73 @@ open Lean.ToJson (toJson)
 open Lean.Json
 open WellFormedSExp
 
+------------------------------------------------------------------------
+-- MCAddr
+
+-- | This represents the address of code.
+--
+-- For non-position independent executables, it is an absolute address.
+--
+-- For position independent executables and libraries, it is relative
+-- to the base address.
+--
+-- For object files, it is the offset into the .text section.
+structure MCAddr := (addr : elf.word ELF64)
+
+def MCAddr.decEq : ∀ (a b : MCAddr), Decidable (a = b)
+| ⟨addr1⟩, ⟨addr2⟩ =>
+  if h : addr1 = addr2
+  then isTrue (h ▸ rfl)
+  else isFalse (fun h' => MCAddr.noConfusion h' (fun h' => absurd h' h))
+
+def MCAddr.toNat (a : MCAddr) : Nat := a.addr.toNat
+
+instance MCAddr.hasDecidableEq : DecidableEq MCAddr := MCAddr.decEq
+
+
+def parseMCAddr (js : Json) : Except String MCAddr := do
+match js.getStr? with
+| Option.some addrStr => match Nat.fromHexString addrStr with
+  | Option.some n => match elf.word.fromNat ELF64 n with
+    | Option.some w => pure $ MCAddr.mk w
+    | Option.none =>
+      throw $ "Expected the hexadecimal number to be a valid machine code address, but got: " ++ js.pretty
+  | Option.none =>
+    throw $ "Expected the string to contain a hexadecimal machine code address, but got: " ++ js.pretty
+| Option.none => match js.getNat? with
+  | Option.some n => match elf.word.fromNat ELF64 n with
+    | Option.some w => pure $ MCAddr.mk w
+    | Option.none =>
+      throw $ "Expected the natural number to be a valid machine code address, but got: " ++ js.pretty
+  | Option.none =>
+    throw $ "Expected a string or natural number for the machine code address, but got: " ++ js.pretty
+
+def MCAddr.fromJson? (js:Json) : Option MCAddr :=
+  (parseMCAddr js).toOption
+
+protected
+def MCAddr.toJson (m:MCAddr) : Json :=
+  toJson $ Nat.ppHex $ UInt64.toNat m.addr
+
+instance MCAddr.hasFromJson : FromJson MCAddr :=
+  ⟨MCAddr.fromJson?⟩
+instance MCAddr.hasToJson : ToJson MCAddr :=
+  ⟨MCAddr.toJson⟩
+
+def parseObjValAsMCAddr (js:Json) (key:String) : Except String MCAddr :=
+  match js.getObjVal? key with
+  | Option.some o => parseMCAddr o
+  | Option.none => throw $ "Missing a `" ++ key ++ "` entry"
+
+------------------------------------------------------------------------
+-- FucntionAnn
 
 structure FunctionAnn :=
 (llvmFnName : String)
 -- ^ LLVM function name
+(startAddr  : MCAddr) 
+-- ^ Address of start of block in machine code.  Here so we don't
+-- rely on the order of blocks.  This needs to be checked.
 (blocks : Array Json)
 -- ^ Maps LLVM labels to an JSON object describing information associated with
 -- that block.
@@ -44,8 +107,9 @@ structure FunctionAnn :=
 -- Like FunctionAnn.fromJson but with human-friendly error messages.
 def parseFunctionAnn (js:Json) : Except String FunctionAnn := do
   let name ←  parseObjValAsString js "llvm_name"
+  let startAddr ←  parseObjValAsMCAddr js "start_addr"
   let blocks ← parseObjValAsArr js "blocks"
-  pure $ FunctionAnn.mk name blocks
+  pure $ FunctionAnn.mk name startAddr blocks
 
 protected
 def FunctionAnn.fromJson? (js : Json) : Option FunctionAnn := (parseFunctionAnn js).toOption
@@ -53,12 +117,40 @@ def FunctionAnn.fromJson? (js : Json) : Option FunctionAnn := (parseFunctionAnn 
 protected
 def FunctionAnn.toJson (fnAnn : FunctionAnn) : Json :=
   toJson $ Std.RBMap.fromList [ ("llvm_name", toJson fnAnn.llvmFnName)
+                              , ("start_addr", toJson fnAnn.startAddr)
                               , ("blocks", toJson fnAnn.blocks)]
                               Lean.strLt
 
 instance FunctionAnn.hasFromJson : FromJson FunctionAnn := ⟨FunctionAnn.fromJson?⟩
 instance FunctionAnn.hasToJson : ToJson FunctionAnn := ⟨FunctionAnn.toJson⟩
 
+-- External functions (i.e. axiomatic)
+
+structure ExternalFunctionAnn :=
+(llvmFnName : String)
+(startAddr  : MCAddr) 
+ -- ^ Address of start of block in machine code
+(isNoReturn : Bool)
+
+-- Like FunctionAnn.fromJson but with human-friendly error messages.
+def parseExternalFunctionAnn (js:Json) : Except String ExternalFunctionAnn := do
+  let name ←  parseObjValAsString js "llvm_name"
+  let startAddr ← parseObjValAsMCAddr js "start_addr"
+  let isNoReturn <- parseObjValAsBool js "is_no_return"
+  pure $ ExternalFunctionAnn.mk name startAddr isNoReturn
+
+protected
+def ExternalFunctionAnn.fromJson? (js : Json) : Option ExternalFunctionAnn := (parseExternalFunctionAnn js).toOption
+
+protected
+def ExternalFunctionAnn.toJson (fnAnn : ExternalFunctionAnn) : Json :=
+    toJson $ Std.RBMap.fromList [ ("llvm_name", toJson fnAnn.llvmFnName)
+                              , ("start_addr", toJson fnAnn.startAddr)
+                              , ("is_no_return", toJson fnAnn.isNoReturn)]
+                              Lean.strLt
+
+instance ExternalFunctionAnn.hasFromJson : FromJson ExternalFunctionAnn := ⟨ExternalFunctionAnn.fromJson?⟩
+instance ExternalFunctionAnn.hasToJson : ToJson ExternalFunctionAnn := ⟨ExternalFunctionAnn.toJson⟩
 
 
 structure ModuleAnnotations :=
@@ -71,6 +163,7 @@ structure ModuleAnnotations :=
 (stackGuardPageCount : Nat)
   -- ^ The number of unallocated pages beneath the stack.
 (functions : List FunctionAnn)
+(extFunctions : List ExternalFunctionAnn)
 
 def ModuleAnnotations.defaultPageSize : Nat := 4096
 
@@ -85,11 +178,14 @@ def parseAnnotations (js:Json) : Except String ModuleAnnotations := do
   if guardCount == 0 then
     throw "There must be at least one guard page."
   let fnsArr ← parseObjValAsArrWith parseFunctionAnn js "functions"
+  let extFnsArr ← parseObjValAsArrWith parseExternalFunctionAnn js "extfunctions"
+
   pure $ { llvmFilePath := llvmFile,
            binFilePath := binFile,
            pageSize := pgSize,
            stackGuardPageCount := guardCount,
-           functions := fnsArr.toList
+           functions := fnsArr.toList,
+           extFunctions := extFnsArr.toList
          }
 
 
@@ -103,6 +199,7 @@ toJson $ Std.RBMap.fromList [ ("llvm_path", toJson ann.llvmFilePath)
                             , ("page_size", toJson ann.pageSize)
                             , ("stack_guard_pages", toJson ann.stackGuardPageCount)
                             , ("functions", toJson ann.functions.toArray)
+                            , ("extfunctions", toJson ann.extFunctions.toArray)
                             ]
                         Lean.strLt
 
@@ -259,58 +356,6 @@ def renderMemoryAnn : MemoryAnn → List (String × Json)
 | MemoryAnn.heapAccess =>
   [("type", toJson "heap_access")]
 
-------------------------------------------------------------------------
--- MCAddr
-
--- | This represents the address of code.
---
--- For non-position independent executables, it is an absolute address.
---
--- For position independent executables and libraries, it is relative
--- to the base address.
---
--- For object files, it is the offset into the .text section.
-structure MCAddr := (addr : elf.word ELF64)
-
-def MCAddr.decEq : ∀ (a b : MCAddr), Decidable (a = b)
-| ⟨addr1⟩, ⟨addr2⟩ =>
-  if h : addr1 = addr2
-  then isTrue (h ▸ rfl)
-  else isFalse (fun h' => MCAddr.noConfusion h' (fun h' => absurd h' h))
-
-def MCAddr.toNat (a : MCAddr) : Nat := a.addr.toNat
-
-instance MCAddr.hasDecidableEq : DecidableEq MCAddr := MCAddr.decEq
-
-
-def parseMCAddr (js : Json) : Except String MCAddr := do
-match js.getStr? with
-| Option.some addrStr => match Nat.fromHexString addrStr with
-  | Option.some n => match elf.word.fromNat ELF64 n with
-    | Option.some w => pure $ MCAddr.mk w
-    | Option.none =>
-      throw $ "Expected the hexadecimal number to be a valid machine code address, but got: " ++ js.pretty
-  | Option.none =>
-    throw $ "Expected the string to contain a hexadecimal machine code address, but got: " ++ js.pretty
-| Option.none => match js.getNat? with
-  | Option.some n => match elf.word.fromNat ELF64 n with
-    | Option.some w => pure $ MCAddr.mk w
-    | Option.none =>
-      throw $ "Expected the natural number to be a valid machine code address, but got: " ++ js.pretty
-  | Option.none =>
-    throw $ "Expected a string or natural number for the machine code address, but got: " ++ js.pretty
-
-def MCAddr.fromJson? (js:Json) : Option MCAddr :=
-  (parseMCAddr js).toOption
-
-protected
-def MCAddr.toJson (m:MCAddr) : Json :=
-  toJson $ Nat.ppHex $ UInt64.toNat m.addr
-
-instance MCAddr.hasFromJson : FromJson MCAddr :=
-  ⟨MCAddr.fromJson?⟩
-instance MCAddr.hasToJson : ToJson MCAddr :=
-  ⟨MCAddr.toJson⟩
 
 
 structure MCMemoryEvent :=
@@ -320,9 +365,7 @@ structure MCMemoryEvent :=
 
 
 def parseMCMemoryEvent (js : Json) : Except String MCMemoryEvent := do
-  let addr ← match js.getObjVal? "addr" with
-             | Option.some o => parseMCAddr o
-             | Option.none => throw "Missing an `addr` entry for a memory event."
+  let addr ← parseObjValAsMCAddr js "addr"
   let info ← parseMemoryAnn js
   pure $ MCMemoryEvent.mk addr info
 
@@ -428,6 +471,10 @@ structure ReachableBlockAnn :=
 -- some block may not have been initialized.
 (memoryEvents : Array MCMemoryEvent)
 -- ^ Annotates events within the block.
+(isTailCall : Bool)
+-- ^ If this block ends in a tail call (some false), and if that tail call is a
+-- noreturn (some true). 
+
 
 namespace ReachableBlockAnn
 
@@ -446,10 +493,7 @@ inductive BlockAnn
 
 
 def parseReachableBlockAnn (llvmMap: LLVMTyEnv) (js:Json) : Except String ReachableBlockAnn := do
-  let addr ← match js.getObjVal? "addr" with
-             | Option.some rawJson => parseMCAddr rawJson
-             | Option.none => throw $ "Expected a `addr` field with a machine code address in"
-                                      ++ " the block annotation."
+  let addr ← parseObjValAsMCAddr js "addr"
   let addrNat := addr.addr.toNat
   let size ← parseObjValAsNat js "size"
   if addrNat + size < addrNat then
@@ -460,15 +504,24 @@ def parseReachableBlockAnn (llvmMap: LLVMTyEnv) (js:Json) : Except String Reacha
   let allocas ← parseObjValAsArrWithD parseAllocaAnn js "allocas" ReachableBlockAnn.allocasArrayDefault
   let allocaMap := Std.RBMap.fromList (allocas.toList.map (λ a => (a.ident, a))) (λ x y => x<y)
   let memoryEvents ← parseObjValAsArrWithD parseMCMemoryEvent js "mem_events" ReachableBlockAnn.memoryEventsDefault
+  let isTailCall <- parseObjValAsBool js "is_tail_call"
+
+    -- match js.getObjVal? "tailCallStatus" with
+    -- | Option.some rawJson => 
+    --   match fromJson? rawJson with 
+    --   | Option.none   => Except.error "Expected a boolean value"
+    --   | Option.some b => pure (some b)
+    -- | Option.none => pure none
+
   pure $ {startAddr := addr,
           codeSize := size,
           x87Top := x87Top,
           dfFlag := dfFlag,
           preconds := preconds,
           allocas := allocaMap,
-          memoryEvents := memoryEvents
+          memoryEvents := memoryEvents,
+          isTailCall   := isTailCall
          }
-
 
 def parseBlockAnn (llvmMap: LLVMTyEnv) (js:Json) : Except String BlockAnn := do
   let isReachable ← parseObjValAsBoolD js "reachable" true
@@ -491,10 +544,10 @@ def BlockAnn.toJson (block_label:String) : BlockAnn → Json
             ("df_flag", toJson ann.dfFlag),
             ("preconditions", arr (ann.preconds.map toJson)),
             ("allocas", arr $ (ann.allocas.revFold (λ as _ a => (toJson a)::as) []).toArray),
-            ("mem_events", arr $ (ann.memoryEvents.map toJson))
+            ("mem_events", arr $ (ann.memoryEvents.map toJson)),
+            ("is_tail_call", toJson ann.isTailCall)
            ]
            Lean.strLt
-
 
 
 end ReoptVCG

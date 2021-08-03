@@ -453,13 +453,12 @@ def stackHighTerm : BlockVCG x86.vcg.memaddr := do
   let stdLib <- BlockVCGContext.mcStdLib <$> read;
   pure (stdLib.funStartRegs.get_reg64 x86.reg64.rsp)
 
--- In initial state
-def returnAddrTerm : BlockVCG x86.vcg.memaddr := do
+def returnAddrTerm (mem : x86.vcg.memory): BlockVCG x86.vcg.memaddr := do
   let stdLib <- BlockVCGContext.mcStdLib <$> read;
   -- FIXME
   let sht <- stackHighTerm;
   let addrOp := stdLib.memOps WordSize.word64;
-  pure (addrOp.readMem stdLib.blockStartMem sht)
+  pure (addrOp.readMem mem sht)
 
 section
 
@@ -653,14 +652,15 @@ def proveLLVMReturn (rv : Typed Value) : BlockVCG Unit := do
 def llvmReturn (mlret : Option (Typed Value)) : BlockVCG Unit := do
   mcExecuteToEnd;
   let regs <- BlockVCGState.mcCurRegs <$> get;
+  let stdLib <- BlockVCGContext.mcStdLib <$> read;        
   do let sht  <- stackHighTerm;
      proveEq GoalTag.stackHeightPreserved "after return" (regs.get_reg64 x86.reg64.rsp) (Smt.bvadd sht (Smt.bvimm _ 8))
-  do let ra <- returnAddrTerm;
+  -- FIXME: should be function start memory
+  do let ra <- returnAddrTerm stdLib.blockStartMem;
      proveEq GoalTag.returnAddressPreserved "after return" regs.ip ra
   
   checkDirectionFlagClear "function return"
 
-  let stdLib ← BlockVCGContext.mcStdLib <$> read;
   let rEq := λ r => proveEq GoalTag.registerPreserved (r.name ++ ", after return") (regs.get_reg64 r) (stdLib.funStartRegs.get_reg64 r)
   x86CalleeSavedGPRegs.forM rEq;
   match mlret with
@@ -693,10 +693,57 @@ def assignLLVMReturn (newRegs : x86.vcg.RegState) (ri : Typed LLVM.Ident) : Bloc
 
   discard $ forReturnVal (localBlockError BlockErrorTag.unexpectedSort) prove ri
 
-def llvmInvoke (isTailCall : Bool) (fsym : LLVM.Symbol) (args : Array (Typed Value))
+-- This returns the start address for a LLVM symbol using the function annotations.
+def startAddrForSymbol (fsym : LLVM.Symbol) : BlockVCG (Option Nat) := do
+  let mannot ← (ModuleVCGContext.annotations ∘ BlockVCGContext.mcModuleVCGContext) <$> read;
+  let m_mcaddr := (FunctionAnn.startAddr <$> mannot.functions.find? (fun ann => ann.llvmFnName = fsym.symbol))
+                  <|> (ExternalFunctionAnn.startAddr <$> mannot.extFunctions.find? (fun ann => ann.llvmFnName = fsym.symbol))
+  pure (Option.map MCAddr.toNat m_mcaddr)
+
+-- Ensures that the target of the LLVM call and x86 branch are equivalent
+def checkCallTarget (msg : String) (fsym : LLVM.Symbol) (callTarget : Smt.Term SmtSort.bv64) : BlockVCG Unit := do
+  match (<- startAddrForSymbol fsym) with
+  | Option.none      => localBlockError BlockErrorTag.missingAnnotations ("Could not get start address at " ++ msg ++ " for " ++ fsym.symbol)
+  | Option.some addr => proveEq GoalTag.llvmAndMCCallEq msg callTarget (Smt.bvimm 64 addr)
+
+-- Similar to llvm invoke, but we don't return.
+def llvmInvokeTail (fsym : LLVM.Symbol) (args : Array (Typed Value))
+    (isNoRet : Bool) : BlockVCG Unit := do
+  mcExecuteToEnd;
+  let regs <- BlockVCGState.mcCurRegs <$> get;
+
+  --------------------
+  -- Pre call
+
+  checkLLVMArgs args.toList
+  checkDirectionFlagClear "tailcall"
+
+  --------------------
+  -- Check targets are the same.
+
+  checkCallTarget "tailcall" fsym regs.ip 
+
+  -- If we are doing a tail call (as opposed to a noreturn) then we
+  -- need to check that rsp is 
+  unless isNoRet do
+    let stdLib <- BlockVCGContext.mcStdLib <$> read;
+
+    -- Check the stack points to the function initial sp
+    do let sht  <- stackHighTerm;
+       proveEq GoalTag.stackHeightPreserved "before tailcall" (regs.get_reg64 x86.reg64.rsp) sht
+    -- Check return address is unchanged from function start
+    do 
+       -- FIXME: this should be in fun start mem, but we don't track that.
+       let initRA <- returnAddrTerm stdLib.blockStartMem;
+       let mem <- BlockVCGState.mcCurMem <$> get;
+       let ra     <- returnAddrTerm mem;
+       proveEq GoalTag.returnAddressPreserved "before tailcall" initRA ra
+  
+    let rEq := λ r => proveEq GoalTag.registerPreserved (r.name ++ ", before tailcall") (regs.get_reg64 r) (stdLib.funStartRegs.get_reg64 r)
+    x86CalleeSavedGPRegs.forM rEq;
+
+def llvmInvoke (fsym : LLVM.Symbol) (args : Array (Typed Value))
     (lRet : Option (Typed LLVM.Ident)) : BlockVCG Unit := do
-  if isTailCall then
-    localBlockError BlockErrorTag.unimplementedFeature "tail call"
 
   BlockVCGContext.mcBlockEndAddr <$> read >>= execMCOnlyEvents;
 
@@ -709,12 +756,18 @@ def llvmInvoke (isTailCall : Bool) (fsym : LLVM.Symbol) (args : Array (Typed Val
   checkLLVMArgs args.toList
   checkDirectionFlagClear "function call"
 
+
   let postCallRIP  <- mcNextAddr <$> get;
 
   -- FIXME: generalise returnAddrTerm?
   -- Check stored return value matches next instruction
   do let addrOnStack <- mcRead (regs.get_reg64 x86.reg64.rsp) _
      proveEq GoalTag.returnAddrNextInstr "" addrOnStack (Smt.bvimm 64 postCallRIP)
+
+  --------------------
+  -- Check targets are the same.
+
+  checkCallTarget "function call" fsym regs.ip   
         
   --------------------
   -- Post call
@@ -971,6 +1024,18 @@ def verifyPreconditions
 end BlockVCG
 
 
+--------------------------------------------------------------------------------
+-- Preservation of the return addres
+--
+
+def checkRAPreserved (w : String) : BlockVCG Unit := do
+  let stdLib <- BlockVCGContext.mcStdLib <$> read;
+  
+  let ra  <- returnAddrTerm stdLib.blockStartMem;
+  let mem <- BlockVCGState.mcCurMem <$> get;
+  let ra' <- returnAddrTerm mem;
+
+  proveEq GoalTag.returnAddressPreserved w ra ra'
 
 --------------------------------------------------------------------------------
 -- stepNextStmt
@@ -1067,10 +1132,16 @@ def extractValue : forall (lty : LLVM.LLVMType) (s : SmtSort) (pf : lty.toSmtSor
 
 | lty, _, _, _, _ => localBlockError BlockErrorTag.unimplementedFeature ("Unimplemented insert into " ++ ppLLVM lty)
 
+-- FIXME: for now, only external functions can be noreturn.  We can add a flag to FunctionAnn
+def isNoReturn (s : LLVM.Symbol) : BlockVCG Bool := do
+  let extFns ← (ModuleAnnotations.extFunctions ∘ ModuleVCGContext.annotations ∘ BlockVCGContext.mcModuleVCGContext) <$> read;
 
+  match extFns.find? (fun efa => efa.llvmFnName = s.symbol) with
+  | none => pure false
+  | some efa => pure efa.isNoReturn
 
-
-def stepNextStmt (stmt : LLVM.Stmt) : BlockVCG Bool := do
+def stepNextStmt (stmt : LLVM.Stmt) (tailCallContext : Bool) 
+  : BlockVCG Bool := do
   let unimplemented {t : Type} : BlockVCG t :=
     BlockVCG.localBlockError BlockErrorTag.unimplementedFeature ("stepNextStmt, " ++ ppLLVM stmt)
   let assignTerm {s : SmtSort} (tm : Smt.Term s) : BlockVCG Unit :=
@@ -1101,16 +1172,27 @@ def stepNextStmt (stmt : LLVM.Stmt) : BlockVCG Bool := do
     | _, _, _ => BlockVCG.localBlockError BlockErrorTag.unexpectedSort "bit in stepNextStmt"
     pure true
 
-  | call tailcall o_ty f args => do
+    -- tailcall here is an llvm hint, which we can ignore.
+  | call _tailcall o_ty f args => do
     match f with 
     | LLVM.Value.symbol s =>
-      match isLLVMIntrinsic? s with
-      | some li => li.semantics args.toList stmt.assign
-      | none    => llvmInvoke tailcall s args (match o_ty, stmt.assign with 
-                                              | some ty, some i => some ⟨ty, i⟩
-                                              | _, _ => none)
+      let isNoRet <- isNoReturn s
+      match isLLVMIntrinsic? s, isNoRet, tailCallContext with
+      | some li, _    , _ => do li.semantics args.toList stmt.assign; pure true
+      | none   , false, false => do
+        llvmInvoke s args (match o_ty, stmt.assign with 
+                           | some ty, some i => some ⟨ty, i⟩
+                           | _, _ => none)
+        pure true
+      | none, _, true => do
+        llvmInvokeTail s args isNoRet
+        pure false
+      | none, true, false => do -- Maybe this shouldn't be emitted?
+        llvmInvokeTail s args true
+        pure false
+
     | _ => localBlockError BlockErrorTag.unimplementedFeature "indirect function call"
-    pure true
+
 
   | icmp bop { type := lty, value := lhs } rhs => do
     let ⟨s, _, lhsv⟩ <- primEval lty lhs;
@@ -1132,12 +1214,14 @@ def stepNextStmt (stmt : LLVM.Stmt) : BlockVCG Bool := do
     mcExecuteToEnd;
     let cndTerm <- primEval' (SmtSort.bitvec 1) cnd;
     let c := Smt.eq cndTerm (Smt.bvimm _ 1);
+    checkRAPreserved "conditional branch"
     verifyPreconditions "true branch"  (Smt.impl c)           tlbl;
     verifyPreconditions "false branch" (Smt.impl (Smt.not c)) flbl;
     pure false
   
   | jump lbl => do
     mcExecuteToEnd;
+    checkRAPreserved "jump"
     verifyPreconditions "jump"  (fun x => x) lbl;
     pure false
 
@@ -1276,7 +1360,7 @@ def run (mctx : ModuleVCGContext)
         (funAnn : FunctionAnn)
         (bmap : ReachableBlockAnnMap)
         (firstBlock : LLVM.BlockLabel)
-        (firstAddr  : MCAddr) -- FIXME: maybe not strictly required
+        (firstAddr  : Nat) -- FIXME: maybe not strictly required
         (thisBlock  : LLVM.BlockLabel)
         (blockAnn   : ReachableBlockAnn)
         (m : BlockVCG Unit) : Except BlockVCGError ((Array VerificationGoal) × (Array VerificationWarning)) := do
@@ -1288,7 +1372,7 @@ def run (mctx : ModuleVCGContext)
   let ((stdLib, blockRegs), (idGen', script)) := Smt.runSmtM IdGen.empty (do
     let ann := mctx.annotations;
     let stdLib <- x86.vcg.MCStdLib.make
-                    (ip := firstAddr.addr.toNat)
+                    (ip := firstAddr)
                     (pageSize := ann.pageSize)
                     (guardPageCount := ann.stackGuardPageCount)
                     (allocas := blockAnn.allocas)
@@ -1338,18 +1422,32 @@ def run (mctx : ModuleVCGContext)
 
 end BlockVCG
 
--- | Verify c over LLVM stmts
+section
+open LLVM.Instruction (ret retVoid)
+
+-- | Verify LLVM stmts
 --
--- Note. This is written to take a function rather than directly call
--- @stepNextStmtg@ so that the call stack is cleaner.
-def checkEachStmt : List LLVM.Stmt → BlockVCG Unit
+-- The blockTailCalls denotes whether the block ends in a tail call or
+-- not, and whether the tail call is a noreturn.
+def checkEachStmt (isTailCall : Bool) : List LLVM.Stmt → BlockVCG Unit
 | [] => BlockVCG.localBlockError BlockErrorTag.llvmRanOutOfEvents "no block terminator"
 | (stmt::stmts) => do
   BlockVCG.addComment $ "LLVM: " ++ (ppLLVM stmt);
-  let keepGoing ← stepNextStmt stmt;
+  -- Required for processing tail calls.  We only allow a tail call if
+  -- it is followed (in the llvm) by a return (FIXME: may not be
+  -- required for noreturn?)
+  let tailCallContext := 
+    match stmts with
+    | nxt :: _ => match nxt.instr with 
+      | ret _   => isTailCall
+      | retVoid => isTailCall
+      | _ => false
+    | _        => false
+
+  let keepGoing ← stepNextStmt stmt tailCallContext;
   modify (λ s => {s with llvmInstrIndex := s.llvmInstrIndex + 1 });
-  if keepGoing then checkEachStmt stmts
-  else if stmts.isEmpty then pure ()
+  if keepGoing then checkEachStmt isTailCall stmts
+  else if stmts.isEmpty || tailCallContext then pure ()
   else BlockVCG.localBlockError BlockErrorTag.llvmMissingReturn ""
 
 def defineArgBinding (b : LLVMMCArgBinding) : BlockVCG Unit := do
@@ -1357,6 +1455,8 @@ let funStartRegs ← (x86.vcg.MCStdLib.funStartRegs ∘ BlockVCGContext.mcStdLib
 match b.value funStartRegs with
   | Sigma.mk _n v => discard $ defineTerm b.llvmArgName v
 pure ()
+
+end
 
 def definePhiVar (nm : LLVM.Ident) (entry : LLVM.LLVMType × BlockLabelValMap) : BlockVCG Unit := do
 let (tp, _) := entry;
@@ -1382,8 +1482,13 @@ def verifyReachableBlock
   blockAnn.preconds.forM (λ pExpr => do
                             let pTerm ← evalPrecondition llvmIdentTermMap.find? pExpr;
                             addAssert pTerm);
+
+  -- match blockAnn.tailCallStatus with
+  -- | Option.none   => pure ()
+  -- | Option.some b => fatalThrow "saw a tailcall"
+
   -- Start processing LLVM statements
-  checkEachStmt stmts
+  checkEachStmt blockAnn.isTailCall stmts
 
 
 end ReoptVCG

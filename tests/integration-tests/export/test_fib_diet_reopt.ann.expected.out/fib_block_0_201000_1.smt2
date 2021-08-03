@@ -1,4 +1,4 @@
-; fib.block_0_201000.4 @ 0x201008: machine code writes to unreserve stack space
+; fib.block_0_201000.1 @ 0x201008: machine code writes to unreserve stack space
 (set-logic ALL)
 (set-option :produce-models true)
 (define-fun mem_readbv8 ((arg (Array (_ BitVec 64) (_ BitVec 8))) (arg0 (_ BitVec 64))) (_ BitVec 8) (select arg (bvadd arg0 #x0000000000000000)))
@@ -161,15 +161,9 @@
 (assert (= fnstart_r13 fnstart_r13))
 (assert (= fnstart_r14 fnstart_r14))
 (assert (= fnstart_r15 fnstart_r15))
-; LLVM:     %t0 = icmp eq i64 %arg0, 1
-(define-fun %t0 () (_ BitVec 1) (ite (= %arg0 #x0000000000000001) #b1 #b0))
-; LLVM:     %t1 = icmp ule i64 1, %arg0
-(define-fun %t1 () (_ BitVec 1) (ite (bvule #x0000000000000001 %arg0) #b1 #b0))
-; LLVM:     %t2 = icmp eq i1 %t0, 0
-(define-fun %t2 () (_ BitVec 1) (ite (= %t0 #b0) #b1 #b0))
-; LLVM:     %t3 = and i1 %t1, %t2
-(define-fun %t3 () (_ BitVec 1) (bvand %t1 %t2))
-; LLVM:     br i1 %t3, label %block_0_201024, label %block_0_201017
+; LLVM:     %t0 = icmp ult i64 1, %arg0
+(define-fun %t0 () (_ BitVec 1) (ite (bvult #x0000000000000001 %arg0) #b1 #b0))
+; LLVM:     br i1 %t0, label %block_0_201024, label %block_0_201017
 (define-fun rsp () (_ BitVec 64) (bvsub fnstart_rsp #x0000000000000008))
 (assert (is_in_mc_only_stack_range rsp #x0000000000000008))
 (define-fun mem () (Array (_ BitVec 64) (_ BitVec 8)) (mem_writebv64 init_mem rsp fnstart_rbp))
