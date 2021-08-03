@@ -1,4 +1,4 @@
-; main.block_0_201340.1 @ 0x201354: direction flag is expected value (jump)
+; main.block_0_201340.1 @ 0x201354: return address preserved (jump)
 (set-logic ALL)
 (set-option :produce-models true)
 (define-fun mem_readbv8 ((arg (Array (_ BitVec 64) (_ BitVec 8))) (arg0 (_ BitVec 64))) (_ BitVec 8) (select arg (bvadd arg0 #x0000000000000000)))
@@ -175,6 +175,7 @@
 (assert true)
 (assert (not fnstart_df))
 (assert (= (mem_readbv64 mem1 rsp1) #x0000000000201359))
+(assert true)
 (declare-fun a0x201359_xmm15 () (_ BitVec 512))
 (declare-fun a0x201359_xmm14 () (_ BitVec 512))
 (declare-fun a0x201359_xmm13 () (_ BitVec 512))
@@ -243,6 +244,5 @@
 (assert (eqrange mem2 mem1 (bvadd rsp1 #x0000000000000008) (bvadd fnstart_rsp #x0000000000000007)))
 (define-fun %t0 () (_ BitVec 64) a0x201359_rax)
 ; LLVM:     jump label %block_0_201359
-(assert true)
-(check-sat-assuming ((not (= a0x201359_df false))))
+(check-sat-assuming ((not (= (mem_readbv64 init_mem fnstart_rsp) (mem_readbv64 mem2 fnstart_rsp)))))
 (exit)

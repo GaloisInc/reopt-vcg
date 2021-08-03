@@ -227,7 +227,7 @@
 (assert (= a0x201089_r14 fnstart_r14))
 (assert (= a0x201089_r15 fnstart_r15))
 (assert (= (mem_readbv64 init_mem (bvsub fnstart_rsp #x0000000000000008)) fnstart_rbp))
-; LLVM:     %t2 = call i64 @printf (i64 2097618,i64 %t1)
+; LLVM:     %t2 = call i64 @reopt_printf_0_0x2014aa (i64 2097618,i64 %t1)
 (define-fun rax () (_ BitVec 64) (bvor (bvand a0x201089_rax #xffffffffffffff00) #x0000000000000000))
 (define-fun rsp () (_ BitVec 64) (bvsub a0x201089_rsp #x0000000000000008))
 (define-fun addr () (_ BitVec 64) (bvsub a0x201089_rsp #x0000000000000008))

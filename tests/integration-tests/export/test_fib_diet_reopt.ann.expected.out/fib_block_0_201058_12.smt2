@@ -1,4 +1,4 @@
-; fib.block_0_201058.0 @ 0x201061: LLVM and machine code return values match (%t15)
+; fib.block_0_201058.0 @ 0x201061: LLVM and machine code return values match (%t12)
 (set-logic ALL)
 (set-option :produce-models true)
 (define-fun mem_readbv8 ((arg (Array (_ BitVec 64) (_ BitVec 8))) (arg0 (_ BitVec 64))) (_ BitVec 8) (select arg (bvadd arg0 #x0000000000000000)))
@@ -218,8 +218,8 @@
 (declare-fun a0x201058_xmm14 () (_ BitVec 512))
 (declare-fun a0x201058_xmm15 () (_ BitVec 512))
 (define-fun %arg0 () (_ BitVec 64) fnstart_rdi)
-(declare-fun %t15 () (_ BitVec 64))
-(assert (= %t15 (mem_readbv64 init_mem (bvsub fnstart_rsp #x0000000000000010))))
+(declare-fun %t12 () (_ BitVec 64))
+(assert (= %t12 (mem_readbv64 init_mem (bvsub fnstart_rsp #x0000000000000010))))
 (assert (= a0x201058_rbx fnstart_rbx))
 (assert (= a0x201058_rsp (bvsub fnstart_rsp #x0000000000000028)))
 (assert (= a0x201058_rbp (bvsub fnstart_rsp #x0000000000000008)))
@@ -228,7 +228,7 @@
 (assert (= a0x201058_r14 fnstart_r14))
 (assert (= a0x201058_r15 fnstart_r15))
 (assert (= (mem_readbv64 init_mem (bvsub fnstart_rsp #x0000000000000008)) fnstart_rbp))
-; LLVM:     ret i64 %t15
+; LLVM:     ret i64 %t12
 (define-fun addr () (_ BitVec 64) (bvadd a0x201058_rbp #xfffffffffffffff8))
 (declare-fun readv () (_ BitVec 64))
 (assert (on_stack addr #x0000000000000008))
@@ -251,5 +251,5 @@
 (assert (= a0x201058_r13 fnstart_r13))
 (assert (= a0x201058_r14 fnstart_r14))
 (assert (= a0x201058_r15 fnstart_r15))
-(check-sat-assuming ((not (= %t15 readv))))
+(check-sat-assuming ((not (= %t12 readv))))
 (exit)
