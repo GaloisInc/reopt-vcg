@@ -5,13 +5,14 @@ import LeanLLVM.AST
 import X86Semantics.Common
 import ReoptVCG.WordSize
 
+import ReoptVCG.SExpParser
+
 open Std (RBMap)
 
 namespace ReoptVCG
 
 section
 universes u v
-
 
 open WellFormedSExp
 open Smt
@@ -22,6 +23,7 @@ open Smt
 inductive Atom : Type u
 | nat : Nat → Atom
 | ident : String → Atom 
+  deriving DecidableEq
 
 def Atom.toString : Atom → String
 | Atom.nat n => n.repr
@@ -44,8 +46,6 @@ def readSExp (str:String) : Except String (SExp Atom) := do
   | [] => Except.error "no s-expressions were found in the string"
   | [s] => pure s
   | _ => Except.error $ "multiple s-expressions were found in the string: " ++ str
-
-
 
 /- An expression in the SMT bitvector theory with 
     variables/constants which may appear in 
@@ -78,114 +78,168 @@ inductive BlockExpr : SmtSort → Type u
 | llvmVar (nm : LLVM.Ident) (tp : SmtSort) : BlockExpr tp
   -- ^ This denotes the value of an LLVM Phi variable when the
   -- block starts.
-| eq    {tp : SmtSort} : BlockExpr tp → BlockExpr tp → BlockExpr SmtSort.bool
-| bvAdd {n : Nat} : BlockExpr (SmtSort.bitvec n) → BlockExpr (SmtSort.bitvec n) → BlockExpr (SmtSort.bitvec n)
-| bvSub {n : Nat} : BlockExpr (SmtSort.bitvec n) → BlockExpr (SmtSort.bitvec n) → BlockExpr (SmtSort.bitvec n)
+
+-- A bit gross, but this allows us a bit more flexibility 
+| smtBinOp {tp tp' tp'' : SmtSort} : Smt.Raw.BuiltinIdent (Smt.Raw.BuiltinIdent.binop tp tp' tp'') -> 
+           BlockExpr tp → BlockExpr tp' → BlockExpr tp''
+
   -- | @BVDecimal v w@ denotes the @w@-bit value @v@ which should
   -- satisfy the property that @v < 2^w@.
 | bvDecimal (v w : Nat) : BlockExpr (SmtSort.bitvec w)
 
+
 /- Map from LLVM ident names to their sorts -/
 abbrev LLVMTyEnv := RBMap LLVM.Ident SmtSort (λ x y => x<y)
 
+end
+
 namespace BlockExpr
+
+open Smt (SmtSort)
+open WellFormedSExp (SExp)
 
 private def ppLLVMIdent : LLVM.Ident → String
 | LLVM.Ident.named nm => nm
 | LLVM.Ident.anon n => n.repr
 
--- was `evalExpr`
-partial def fromSExp
-  (llvmTyEnv : LLVMTyEnv)
-  : (SExp Atom) → Except String (Sigma BlockExpr)
-| SExp.list [SExp.atom (Atom.ident "="), x, y] => do
-  let ⟨xtp, xe⟩ ← fromSExp llvmTyEnv x;
-  let ⟨ytp, ye⟩ ← fromSExp llvmTyEnv y;
-  if h : (xtp = ytp)
-  then 
-    let hEq : BlockExpr xtp = BlockExpr ytp := h ▸ rfl
-    Except.ok ⟨SmtSort.bool, eq (cast hEq xe) ye⟩
-  else Except.error $ 
-       "The two operands in the term `"
-       ++ (SExp.list [SExp.atom (Atom.ident "="), x, y]).toString
-       ++ "` must have the same type, but the first"
-       ++ " was of type " ++ xtp.toString
-       ++ " and the second was of type " ++ ytp.toString
-| SExp.list [SExp.atom (Atom.ident "bvsub"), x, y] => do
-  let xRes ← fromSExp llvmTyEnv x;
-  let yRes ← fromSExp llvmTyEnv y;
-  match xRes, yRes with
-  | ⟨SmtSort.bitvec xw, xe⟩, ⟨SmtSort.bitvec yw, ye⟩ =>
-    if h : xw = yw
-    then 
-      let hEq : BlockExpr (SmtSort.bitvec xw) = BlockExpr (SmtSort.bitvec yw) := h ▸ rfl;
-      Except.ok ⟨SmtSort.bitvec yw, bvSub (cast hEq xe) ye⟩
-    else Except.error $ 
-         "The two operands in the term `"
-          ++ (SExp.list [SExp.atom (Atom.ident "bvsub"), x, y]).toString
-          ++ "` must both be bitvectors of the same length, but the first"
-          ++ " was of length " ++ xw.repr
-          ++ " and the second was of length " ++ yw.repr
-  | ⟨xtp, xe⟩, ⟨ytp, ye⟩ => 
-    Except.error $ "The two operands in the term `"
-    ++ (SExp.list [SExp.atom (Atom.ident "bvsub"), x, y]).toString
-    ++ "` must both be bitvectors of the same length, but the first"
-    ++ " was of type " ++ xtp.toString
-    ++ " and the second was of type " ++ ytp.toString
-| (SExp.list [SExp.atom (Atom.ident "_"), SExp.atom (Atom.ident bvLit), SExp.atom (Atom.nat width)]) =>
+-- private def binop {tp tp' tp'' : SmtSort} (ident : Smt.Raw.BuiltinIdent (Smt.Raw.BuiltinIdent.binop tp tp tp')) 
+--                   (e1 : BlockExpr tp) (e2 : BlockExpr tp') : BlockExpr tp'' :=
+--   smtBinOp ident e1 e2
+
+section
+
+open Smt.Raw (BuiltinIdent)
+open Smt.Raw.BuiltinIdent
+open SExpParser
+
+private def identP : SExpParser Atom String := do
+  let a <- atom
+  match a with 
+  | Atom.ident i => pure i
+  | _ => throw ()
+
+private def natP : SExpParser Atom Nat := do
+  let a <- atom
+  match a with 
+  | Atom.nat n => pure n
+  | _ => throw ()
+
+private def exactIdentP (s : String) := exact (Atom.ident s)
+
+instance : Inhabited (Sigma BlockExpr) := { default := Sigma.mk _ stackHigh }
+
+private def gprP : SExpParser Atom x86.reg64 := do
+  let nm <- identP
+  match x86.reg64.fromName nm with
+  | some r  => pure r
+  | none    => throw ()
+
+private def flagP : SExpParser Atom x86.flag := do
+  let nm <- identP
+  match x86.flag.fromName nm with
+  | some r  => pure r
+  | none    => throw ()
+  
+
+private def bvLitP : SExpParser Atom (Sigma BlockExpr) := list $ do
+  exactIdentP "_"
+  let bvLit <- identP
+  let width <- natP
   match bvLit.data with
   | 'b'::'v'::nChars =>
     let nStr := nChars.asString;
     match nStr.toSubstring.toNat? with
     | some n => 
       let val : Nat := Nat.land n $ (Nat.pow 2 width) - 1;
-      Except.ok ⟨SmtSort.bitvec width, bvDecimal val width⟩
-    | none => Except.error $ "a bitvector literal should have a natural number adjacent to `bv`"
-              ++ " but found " ++ bvLit
-  | _ => Except.error $ "unrecognized SMT expression: " ++ bvLit
-| SExp.list [SExp.atom (Atom.ident "mcstack"), sa, sw] => do
-  let ⟨tp, a⟩ ← fromSExp llvmTyEnv sa;
-  if h : tp = SmtSort.bv64
-  then do
-    let hEq : BlockExpr tp = BlockExpr SmtSort.bv64 := h ▸ rfl;
-    let w ← match sw with
-             | SExp.list [SExp.atom (Atom.ident "_"),
-                          SExp.atom (Atom.ident "BitVec"),
-                          SExp.atom (Atom.nat w)] =>
-               match WordSize.fromNat w with
-               | some width => Except.ok width
-               | none => Except.error "mcstack could not interpret memory type."
-             | _ => Except.error "mcstack could not interpret memory type"
-    Except.ok ⟨w.sort, BlockExpr.mcStack (cast hEq a) w⟩
-  else
-    Except.error $ "Expected 64-bit address as first argument to mcstack"
-                   ++ " but found a " ++ tp.toString
-| SExp.list [SExp.atom (Atom.ident "fnstart"), regExpr] =>
-  match regExpr with
-  | SExp.atom (Atom.ident regName) =>
-    match x86.reg64.fromName regName with
-    | some r => Except.ok ⟨SmtSort.bv64, BlockExpr.fnStartGPReg64 r⟩
-    | none => Except.error $ "could not interpret register name " ++ regName
-  | _ => Except.error $ "could not interpret register name " ++ regExpr.toString
-| SExp.list [SExp.atom (Atom.ident "llvm"), llvmExpr] =>
-  match llvmExpr with
-  | SExp.atom (Atom.ident llvmName) =>
-    let nm := LLVM.Ident.named llvmName;
-    match llvmTyEnv.find? nm with
-    | some tp => Except.ok ⟨tp, BlockExpr.llvmVar nm tp⟩
-    | none => Except.error $ "Could not interpret llvm variable " ++ llvmExpr.toString
-                           ++ "\nKnown variables: " ++ (llvmTyEnv.keys.map ppLLVMIdent).toString
-  | _ => Except.error $ "Could not interpret llvm variable " ++ llvmExpr.toString
-                      ++ "\nKnown variables: " ++ (llvmTyEnv.keys.map ppLLVMIdent).toString
-| SExp.atom (Atom.ident "stack_high") =>
-  Except.ok ⟨SmtSort.bv64, BlockExpr.stackHigh⟩
-| SExp.atom (Atom.ident nm) =>
-  match x86.reg64.fromName nm, x86.flag.fromName nm with
-  | some r, _ => Except.ok ⟨SmtSort.bv64, BlockExpr.initGPReg64 r⟩
-  | _, some r => Except.ok ⟨SmtSort.bool, BlockExpr.initFlag r⟩
-  | none, none => Except.error $ "Could not interpret identifier as a variable: " ++ nm
-| sexpr => Except.error $ "Could not interpret expression: " ++ sexpr.toString
+      pure (Sigma.mk _ $ bvDecimal val width)
+    | none => throw ()
+  | _ => throw ()
 
+private def llvmVarP (llvmTyEnv : LLVMTyEnv)
+  : SExpParser Atom (Sigma BlockExpr) := list $ do
+  exactIdentP "llvm"
+  let llvmName <- identP
+  let nm := LLVM.Ident.named llvmName
+  match llvmTyEnv.find? nm with
+  | some tp => pure (Sigma.mk _ $ BlockExpr.llvmVar nm tp)
+  | _ => throw ()
+
+partial
+def parser (llvmTyEnv : LLVMTyEnv) : SExpParser Atom (Sigma BlockExpr) := do
+  let go := parser llvmTyEnv
+  let mkBvBinOp (tp) (op : forall n, BuiltinIdent (binop (SmtSort.bitvec n) (SmtSort.bitvec n) (tp n)))
+              (i : String) :=
+      list (do exactIdentP i;
+               let xRes ← go
+               let yRes ← go
+               match xRes, yRes with
+               | ⟨SmtSort.bitvec xw, xe⟩, ⟨SmtSort.bitvec yw, ye⟩ =>
+                 if h : xw = yw
+                 then 
+                   let hEq : BlockExpr (SmtSort.bitvec xw) = BlockExpr (SmtSort.bitvec yw) := h ▸ rfl;
+                   pure (Sigma.mk _ (smtBinOp (op yw) (cast hEq xe) ye))
+                 else throw ()
+               | _, _ => throw ())
+  let bvBinOp  := mkBvBinOp SmtSort.bitvec
+  let bvBoolOp := mkBvBinOp (fun _ => SmtSort.bool)
+
+  let eqOp := list (do 
+      exactIdentP "="
+      let ⟨xtp, xe⟩ ← go
+      let ⟨ytp, ye⟩ ← go
+      if h : (xtp = ytp)
+      then 
+        let hEq : BlockExpr xtp = BlockExpr ytp := h ▸ rfl
+        pure ⟨SmtSort.bool, smtBinOp (eq ytp) (cast hEq xe) ye⟩
+      else throw ())
+
+  let initReg := 
+    first [ (fun r => Sigma.mk _ (BlockExpr.initGPReg64 r)) <$> gprP
+          , (fun r => Sigma.mk _ (BlockExpr.initFlag    r)) <$> flagP
+          ]
+
+  let mcstackP := list $ do
+    exactIdentP "mcstack"    
+    let ⟨tp, a⟩ ← go
+    if h : tp = SmtSort.bv64
+    then do
+      let hEq : BlockExpr tp = BlockExpr SmtSort.bv64 := h ▸ rfl;
+      let w <- list $ do
+        exactIdentP "_"
+        exactIdentP "BitVec"
+        let w <- natP
+        match WordSize.fromNat w with
+        | some width => pure width        
+        | none       => throw ()
+      pure (Sigma.mk _ $ BlockExpr.mcStack (cast hEq a) w)
+    else throw ()
+
+  first [ eqOp
+        , bvBoolOp bvslt "bvslt" 
+        , bvBoolOp bvult "bvult" 
+        , bvBoolOp bvsle "bvsle" 
+        , bvBoolOp bvule "bvule" 
+        , bvBinOp  bvadd "bvadd"
+        , bvBinOp  bvsub "bvsub"
+        , do exactIdentP "stack_high"; pure (Sigma.mk _ stackHigh)
+        , bvLitP
+        , initReg
+        , llvmVarP llvmTyEnv
+        , mcstackP
+        , list (do exactIdentP "fnstart"; 
+                   let r <- gprP
+                   pure (Sigma.mk _ (BlockExpr.fnStartGPReg64 r)))
+        ]
+
+partial def fromSExp
+  (llvmTyEnv : LLVMTyEnv)
+  (input : String) : Except String (Sigma BlockExpr) := do
+  let sexp <- readSExp input 
+  match runSExpParser (parser llvmTyEnv) [sexp] with
+  | some (r, []) => Except.ok r
+  | _            => Except.error ("parse failed for " ++ input)
+
+end
 
 -- was simply `fromText` in Haskell, was a moment ago in lean4 `Expr.fromString`
 def parseAs
@@ -193,7 +247,7 @@ def parseAs
 (llvmTyEnv : LLVMTyEnv)
 (input : String)
 : Except String (BlockExpr tp) := do
-  let ⟨tp', e⟩ ← readSExp input >>= fromSExp llvmTyEnv;
+  let ⟨tp', e⟩ <- fromSExp llvmTyEnv input;
   if h : tp' = tp
   then 
     let hEq : BlockExpr tp' = BlockExpr tp := h ▸ rfl;
@@ -201,9 +255,8 @@ def parseAs
   else Except.error $ "expected " ++ input ++ " to be of type " ++ tp.toString
                     ++ ", but it is of type " ++ tp'.toString
 
+-- #eval (match readSExp "(= rbx (fnstart rbx))" >>= fromSExp RBMap.empty with | Except.ok _ => "ok" | _ => "not ok")
 
 end BlockExpr
-
-end
 
 end ReoptVCG

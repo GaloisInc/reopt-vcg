@@ -261,13 +261,17 @@ def toSExp : ∀ {tp : SmtSort}, BlockExpr tp → SExp String
              SExp.list [SExp.atom "_", SExp.atom "BitVec", SExp.atom (reprStr w.bits)]
             ]
 | _, llvmVar nm tp => SExp.list [SExp.atom "llvm", SExp.atom (ppLLVMIdent nm)]
-| _, eq e1 e2 => SExp.list [SExp.atom "=", toSExp e1, toSExp e2]
-| _, bvAdd e1 e2 => SExp.list [SExp.atom "bvadd", toSExp e1, toSExp e2]
-| _, bvSub e1 e2 => SExp.list [SExp.atom "bvsub", toSExp e1, toSExp e2]
+| _, smtBinOp ident e1 e2 => SExp.list [ toSExpr ident, toSExp e1, toSExp e2]
 | _, bvDecimal n width => SExp.list [SExp.atom "_", SExp.atom ("bv"++(reprStr n)), SExp.atom (reprStr width)]
 
 def toString : ∀ {tp : SmtSort}, BlockExpr tp → String
 | _, e => (BlockExpr.toSExp e).toString
+
+section
+
+
+open Smt.Raw.Term (app ident)
+open Smt.Raw.Ident (builtin)
 
 -- Converts an Expr into an SMT term given an environment. AMK: it's currently in IO
 -- to handle some partiality (doh!) and because we want to use it in an IO context
@@ -296,19 +300,14 @@ def toSmt {α : Type u} [BlockExprEnv α] (env: α) : ∀ {tp : SmtSort}, BlockE
   | none => Except.error $ BlockVCGError.globalErr $
     "Error while translating precondition to SMT! LLVM variable `"
     ++ nm.asString ++ "` had no entry in the phi variable map!"
-| _, eq e1 e2 => do
+| _, smtBinOp i e1 e2 => do
   let t1 ← toSmt env e1
   let t2 ← toSmt env e2
-  pure $ Smt.eq t1 t2
-| _, bvAdd e1 e2 => do
-  let t1 ← toSmt env e1
-  let t2 ← toSmt env e2
-  pure $ Smt.bvadd t1 t2
-| _, bvSub e1 e2 => do
-  let t1 ← toSmt env e1
-  let t2 ← toSmt env e2
-  pure $ Smt.bvsub t1 t2
+  -- FIXME
+  pure $ app (app (ident (builtin i)) t1) t2
 | _, bvDecimal n width => pure $ Smt.bvimm width n
+
+end
 
 end BlockExpr
 
