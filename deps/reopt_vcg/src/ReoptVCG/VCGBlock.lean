@@ -574,7 +574,6 @@ def llvmLoad (ident : LLVM.Ident) (addr:Typed Value) (mAlign:Option Nat) : Block
       -- Assert addresses are the same
       proveEq GoalTag.llvmAndMCLoadAddrsMatch "" mcAddr llvmAddr
       -- Add that macaw points to the heap
-      let mcCurAddr ← BlockVCGState.mcCurAddr <$> get;
       let notInStack ← (x86.vcg.MCStdLib.notInStack ∘ BlockVCGContext.mcStdLib) <$> read;
       let sz : Smt.Term SmtSort.bv64 := Smt.bvimm 64 readWidth;
       proveTrue GoalTag.nonStackReadAddrValid "" (notInStack mcAddr sz)
@@ -620,6 +619,11 @@ def llvmStore (llvmAddr : Smt.Term SmtSort.bv64) {s : SmtSort} (llvmVal : Smt.Te
     localBlockError BlockErrorTag.unimplementedFeature "llvmStore JointStackWriteEvent"
   | NonStackWriteEvent mcAddr mcValWidth mcVal => do
     proveEq GoalTag.llvmAndMCStoreAddrsMatch "" llvmAddr mcAddr
+
+    let notInStack ← (x86.vcg.MCStdLib.notInStack ∘ BlockVCGContext.mcStdLib) <$> read;
+    let sz : Smt.Term SmtSort.bv64 := Smt.bvimm 64 mcValWidth;
+    proveTrue GoalTag.nonStackReadAddrValid "" (notInStack mcAddr sz)
+
     let s' : SmtSort := SmtSort.bitvec mcValWidth;
     if hEq : s' = s
     then do
