@@ -622,7 +622,7 @@ def llvmStore (llvmAddr : Smt.Term SmtSort.bv64) {s : SmtSort} (llvmVal : Smt.Te
 
     let notInStack ← (x86.vcg.MCStdLib.notInStack ∘ BlockVCGContext.mcStdLib) <$> read;
     let sz : Smt.Term SmtSort.bv64 := Smt.bvimm 64 mcValWidth;
-    proveTrue GoalTag.nonStackReadAddrValid "" (notInStack mcAddr sz)
+    proveTrue GoalTag.nonStackWriteAddrValid "" (notInStack mcAddr sz)
 
     let s' : SmtSort := SmtSort.bitvec mcValWidth;
     if hEq : s' = s

@@ -413,8 +413,6 @@ structure InteractiveContext :=
 -- ^ Command line contents, which when followed up a file name, can be executed
 --   to see if the resulting script is satisfiable or not.
 
-
-
 -- | Function to verify an SMT proposition is provable in the given
 --   context and print the result to the user.
 def verifyGoal
@@ -426,17 +424,19 @@ def verifyGoal
 : BlockVCG Unit := do
   let ctx ← read
   let st ← get
-  let newGoal : VerificationGoal :=
-    { loc := {fnName := ctx.llvmFnName,
-              blockLbl := ctx.currentBlock,
-              llvmInstrIdx := st.llvmInstrIndex,
-              mcAddr := st.mcCurAddr},
-      index := st.goals.size,
-      tag := tag,
-      extraInfo := extraInfo,
-      goal := do st.smtContext; pure goal}
-  modify (λ s => {s with
-                  goals := s.goals.push newGoal})
+  unless List.elem tag ctx.mcModuleVCGContext.ignoredGoalTags do
+    let newGoal : VerificationGoal :=
+      { loc := {fnName := ctx.llvmFnName,
+                blockLbl := ctx.currentBlock,
+                llvmInstrIdx := st.llvmInstrIndex,
+                mcAddr := st.mcCurAddr},
+        index := st.goals.size,
+        tag := tag,
+        extraInfo := extraInfo,
+        goal := do st.smtContext; pure goal}
+    modify (λ s => {s with
+                    goals := s.goals.push newGoal})
+
   pure ()
 
 

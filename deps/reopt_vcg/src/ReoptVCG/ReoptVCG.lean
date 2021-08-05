@@ -447,6 +447,7 @@ def runVCG (cfg : VCGConfig) : IO UInt32 := do
     , symbolAddrMap := fnSymAddrMap
     , moduleTypeMap := mkLLVMTypeMap lMod
     , phdrRanges    := phdrRanges
+    , ignoredGoalTags := cfg.ignoredGoalTags
     };
   -- Run verification.
   IO.println $ "Generating verification conditions for LLVM module..."
