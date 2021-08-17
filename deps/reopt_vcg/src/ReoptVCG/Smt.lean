@@ -388,17 +388,16 @@ def exportDoGoal
 
 def outputGoalsAsJson (outputFile : String) (vrs : Array VerificationResult) : IO Unit := do
   let file ← IO.FS.Handle.mk outputFile IO.FS.Mode.write
-  file.putStr "[\n"
-  match vrs.get? 0 with
-  | none => pure ()
-  | some fst =>
-    file.putStr $ toString $ Lean.toJson fst
-    for vr in vrs[1:vrs.size] do
-      file.putStr ",\n"
-      file.putStr $ toString $ Lean.toJson vr
-  file.putStr "\n]\n"
+  -- render each goal as a single line of JSON
+  let resToString := λ (vr : VerificationResult) => " ".intercalate $ (toString $ Lean.toJson vr).splitOn "\n"
+  for vr in vrs[0:vrs.size - 1] do
+    file.putStr (resToString vr)
+    file.putStr "\n"
+  match vrs.back? with
+  | some vr => file.putStr (resToString vr)
+  | _ => pure ()
   IO.println $ ""
-  IO.println $ "Verification results stored as JSON in `" ++outputFile++"`."
+  IO.println $ "Verification results stored in `" ++outputFile++"` (one JSON object for each goal, one per line)."
 
 
 ------------------------------------------------------------------------
