@@ -216,7 +216,7 @@ def operand_value_to_String : operand_value -> String
 -- FIXME: behave wrt prec
 instance operand_value_has_repr : Repr operand_value := ⟨fun ov _n => operand_value_to_String ov⟩
 
-structure operand := 
+structure operand :=
   (type  : operand_type)
   (value : operand_value)
 
@@ -232,7 +232,7 @@ structure instruction :=
   (operands : List operand)
 
 -- FIXME: behave wrt prec
-instance instruction_has_repr : Repr instruction := 
+instance instruction_has_repr : Repr instruction :=
   ⟨fun i _n => i.mnemonic ++ " " ++ repr i.operands⟩
 
 structure unknown_byte :=
@@ -242,48 +242,48 @@ structure unknown_byte :=
 -- FIXME: behave wrt prec
 instance unknown_bytes_has_repr : Repr unknown_byte := ⟨fun i _n => coe ("???" ++ reprStr i.byte ++ "(" ++ reprStr i.bytes_tried ++ ")")⟩
 
-def operand_memtyp_map : RBMap String Nat (fun s1 s2 => decide (s1 < s2)) :=
-  List.foldl (fun m (v : String × Nat) => m.insert v.fst v.snd) 
+def operand_memtyp_map : RBMap String Nat Ord.compare :=
+  List.foldl (fun m (v : String × Nat) => m.insert v.fst v.snd)
        Std.RBMap.empty
        [("anymem"       , 0  )   -- ??
-       ,("f128mem"      , 128) 
-       ,("f256mem"      , 256) 
-       ,("f32mem"       , 32 ) 
-       ,("f512mem"      , 512) 
-       ,("f64mem"       , 64 ) 
-       ,("f80mem"       , 80 )    --??
-       ,("i128mem"      , 128) 
-       ,("i16mem"       , 16 ) 
-       ,("i256mem"      , 256) 
-       ,("i32mem"       , 32 ) 
-       ,("i32mem_TC"    , 32 ) 
-       ,("i512mem"      , 512) 
-       ,("i64mem"       , 64 ) 
-       ,("i64mem_TC"    , 64 ) 
-       ,("i8mem"        , 8  ) 
-       ,("i8mem_NOREX"  , 8  ) 
-       ,("lea64mem"     , 64 ) 
-       ,("lea64_32mem"  , 64 ) 
-       ,("sdmem"        , 64 ) 
-       ,("ssmem"        , 32 ) 
-       ,("v512mem"      , 512) 
-       ,("vx128mem"     , 128) 
-       ,("vx128xmem"    , 128) 
-       ,("vx256mem"     , 256) 
-       ,("vx256xmem"    , 256) 
-       ,("vx64mem"      , 64 ) 
-       ,("vx64xmem"     , 64 ) 
-       ,("vy128mem"     , 128) 
-       ,("vy128xmem"    , 128) 
-       ,("vy256mem"     , 256) 
-       ,("vy256xmem"    , 256) 
-       ,("vy512xmem"    , 512) 
-       ,("vz256mem"     , 256) 
-       ,("vz512mem"     , 512) 
+       ,("f128mem"      , 128)
+       ,("f256mem"      , 256)
+       ,("f32mem"       , 32 )
+       ,("f512mem"      , 512)
+       ,("f64mem"       , 64 )
+       ,("f80mem"       , 80 )   --??
+       ,("i128mem"      , 128)
+       ,("i16mem"       , 16 )
+       ,("i256mem"      , 256)
+       ,("i32mem"       , 32 )
+       ,("i32mem_TC"    , 32 )
+       ,("i512mem"      , 512)
+       ,("i64mem"       , 64 )
+       ,("i64mem_TC"    , 64 )
+       ,("i8mem"        , 8  )
+       ,("i8mem_NOREX"  , 8  )
+       ,("lea64mem"     , 64 )
+       ,("lea64_32mem"  , 64 )
+       ,("sdmem"        , 64 )
+       ,("ssmem"        , 32 )
+       ,("v512mem"      , 512)
+       ,("vx128mem"     , 128)
+       ,("vx128xmem"    , 128)
+       ,("vx256mem"     , 256)
+       ,("vx256xmem"    , 256)
+       ,("vx64mem"      , 64 )
+       ,("vx64xmem"     , 64 )
+       ,("vy128mem"     , 128)
+       ,("vy128xmem"    , 128)
+       ,("vy256mem"     , 256)
+       ,("vy256xmem"    , 256)
+       ,("vy512xmem"    , 512)
+       ,("vz256mem"     , 256)
+       ,("vz512mem"     , 512)
        ]
 
 def operand_memtyp (tp : String) : operand_type :=
-  match operand_memtyp_map.find? tp with 
+  match operand_memtyp_map.find? tp with
   | (some n) => operand_type.mem n
   | none     => operand_type.other
 

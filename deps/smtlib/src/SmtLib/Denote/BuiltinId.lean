@@ -12,7 +12,7 @@ namespace Smt
 
 namespace Array
 section
-variable {α β : Type} [DecidableLessOrder α] [DecidableLessOrder β]
+variable {α β : Type} [DecidableLTOrder α] [DecidableLTOrder β]
 
 
 private def bvEqRangeAux {n} (a1 a2 : Array (bitvec n) β) (low : bitvec n) : Nat → Bool
@@ -24,7 +24,7 @@ private def bvEqRangeAux {n} (a1 a2 : Array (bitvec n) β) (low : bitvec n) : Na
 end
 
 section
-variable {β : Type} [DecidableLessOrder β]
+variable {β : Type} [DecidableLTOrder β]
 
 
 def bvEqRange {n} (a1 a2 : Array (bitvec n) β) (low high : bitvec n) : Bool :=

@@ -9,11 +9,20 @@ open Std (RBMap)
 @[reducible]
 def memaddr  := bitvec 64
 
+namespace memaddr
+
+instance : Ord memaddr where
+  compare x y := if bitvec.ult x y then Ordering.lt
+                 else if bitvec.ult y x then Ordering.gt
+                 else Ordering.eq
+
+end memaddr
+
 @[reducible]
 def byte := UInt8
 
 -- -- FIXME: maybe Nat is more efficient here?
--- inductive region 
+-- inductive region
 --   | has_contents : buffer byte -> region
 --   | all_zeroes   : Nat -> region
 
@@ -21,15 +30,15 @@ def byte := UInt8
 def init_memory := buffer_map memaddr (fun k k' => Int.ofNat (bitvec.to_nat k) - Int.ofNat (bitvec.to_nat k'))
 
 @[reducible]
-def mutable_memory := RBMap memaddr byte (fun x y => decide (bitvec.ult x y)) -- FIXME: byte?
+def mutable_memory := RBMap memaddr byte Ord.compare -- FIXME: byte?
 
 structure memory :=
   ( init : init_memory )
-  ( mem  : mutable_memory ) 
+  ( mem  : mutable_memory )
 
 -- namespace array
 
--- universes u v
+-- universe u v
 
 -- -- FIXME: Maybe make buffer a functor?
 -- def map' {a : Type u} {b : Type v} {n : Nat} (f : a -> b) (a : array n a) : array n b
@@ -42,21 +51,21 @@ namespace memory
 @[reducible]
 def region := ByteArray
 
--- FIXME: buffer/array don't have the usual map 
+-- FIXME: buffer/array don't have the usual map
 -- def char_buffer_to_region (b : char_buffer) : region :=
 --   -- There doesn't seem to be a nicer way of doing this?
 --   array.to_buffer (array.map' (fun (c : char) => bitvec.of_nat _ c.val) b.to_array)
 
 /- Construction -/
-def empty : memory := memory.mk buffer_map.empty (Std.mkRBMap _ _ (fun x y => decide (bitvec.ult x y)))
+def empty : memory := memory.mk buffer_map.empty (Std.mkRBMap _ _ Ord.compare)
 
 def from_init (i : init_memory) : memory := { empty with init := i }
 
 /- Reading and writing -/
 
-def store_bytes (m : memory) (addr : memaddr) (bs : List byte) : memory := 
+def store_bytes (m : memory) (addr : memaddr) (bs : List byte) : memory :=
   { m with mem := (List.foldl (fun (v : mutable_memory × memaddr) b => (Std.RBMap.insert v.fst v.snd b, v.snd + 1)) (m.mem, addr) bs).fst }
- 
+
 -- lemma {u v} option.bind.is_some {a : Type u} {b : Type v} {v : option a} {f : a -> option b} {x : b}:
 --   option.bind v f = some x -> (∃v', v = some v' ∧ f v' = some x) :=
 -- begin

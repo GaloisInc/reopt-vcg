@@ -9,7 +9,7 @@ import Test.SExp
 
 namespace Test
 
-def tests : Std.RBMap String (IO UInt32) (λ x y => x < y) :=
+def tests : Std.RBMap String (IO UInt32) Ord.compare :=
   Std.RBMap.fromList 
   [("AnnotationParsing.lean", AnnotationParsing.test),
    ("Hex.lean", Hex.test),
@@ -17,7 +17,7 @@ def tests : Std.RBMap String (IO UInt32) (λ x y => x < y) :=
    ("LoadElf.lean", LoadElf.test),
    ("SExp.lean", SExp.test)
   ]
-  (λ x y => x < y)
+  Ord.compare
 
 end Test
 

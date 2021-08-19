@@ -20,43 +20,43 @@ namespace Smt
 namespace Bool
 
 protected
-inductive Less : Bool → Bool → Prop
-| lt : Bool.Less true false
+inductive LT : Bool → Bool → Prop
+| lt : Bool.LT true false
 
-private def lessLeftTrue : forall {b1 b2 : Bool}, Bool.Less b1 b2 → b1 = true
+private def lessLeftTrue : forall {b1 b2 : Bool}, Bool.LT b1 b2 → b1 = true
 | true, _, _ => rfl
 
-private def lessRightFalse : forall {b1 b2 : Bool}, Bool.Less b1 b2 → b2 = false
+private def lessRightFalse : forall {b1 b2 : Bool}, Bool.LT b1 b2 → b2 = false
 | _, false, _ => rfl
 
 
-private def boolDecidableLt (x y : Bool) : Decidable (Bool.Less x y) :=
+private def boolDecidableLT (x y : Bool) : Decidable (Bool.LT x y) :=
 @Bool.casesOn
-  (λ b => Decidable (Bool.Less b y))
+  (λ b => Decidable (Bool.LT b y))
   x
-  (isFalse (λ (h : Bool.Less false y) => Bool.noConfusion (lessLeftTrue h)))
+  (isFalse (λ (h : Bool.LT false y) => Bool.noConfusion (lessLeftTrue h)))
   (@Bool.casesOn
-    (λ b => Decidable (Bool.Less true b))
+    (λ b => Decidable (Bool.LT true b))
     y
-    (isTrue Bool.Less.lt)
-    (isFalse (λ (h : Bool.Less true true) => Bool.noConfusion (lessRightFalse h))))
+    (isTrue Bool.LT.lt)
+    (isFalse (λ (h : Bool.LT true true) => Bool.noConfusion (lessRightFalse h))))
 
 
-instance : HasLess Bool := ⟨Bool.Less⟩
-instance : DecidableLess Bool := boolDecidableLt
+instance : LT Bool := ⟨Bool.LT⟩
+instance : DecidableLT Bool := boolDecidableLT
 
-axiom HasLess.transitivity :∀ (x y z : Bool), x < y → y < z → x < z
-axiom HasLess.asymmetry : ∀ (x y : Bool), x < y → ¬(y < x)
-axiom HasLess.totality : ∀ (x y : Bool), x < y ∨ x = y ∨ y < x
+axiom LT.transitivity :∀ (x y z : Bool), x < y → y < z → x < z
+axiom LT.asymmetry : ∀ (x y : Bool), x < y → ¬(y < x)
+axiom LT.totality : ∀ (x y : Bool), x < y ∨ x = y ∨ y < x
 
-instance : LessOrder Bool :=
-{transitive := HasLess.transitivity,
- asymmetric := HasLess.asymmetry,
- total := HasLess.totality}
+instance : LTOrder Bool :=
+{transitive := LT.transitivity,
+ asymmetric := LT.asymmetry,
+ total := LT.totality}
 
 
-instance : DecidableLessOrder Bool :=
-  { ltDec := boolDecidableLt
+instance : DecidableLTOrder Bool :=
+  { ltDec := boolDecidableLT
   , eqDec := inferInstance
   }
 
@@ -69,23 +69,23 @@ end Bool
 namespace bitvec
 
 protected
-def Less {n : Nat} : bitvec n → bitvec n → Prop := bitvec.ult
+def LT {n : Nat} : bitvec n → bitvec n → Prop := bitvec.ult
 
-instance less (n:Nat) : HasLess (bitvec n) := ⟨bitvec.Less⟩
-instance decidableLess (n:Nat) : DecidableLess (bitvec n) := @bitvec.decidable_ult n 
+instance less (n:Nat) : LT (bitvec n) := ⟨bitvec.LT⟩
+instance decidableLT (n:Nat) : DecidableLT (bitvec n) := @bitvec.decidable_ult n
 
-axiom HasLess.transitivity {n} : ∀ (x y z : bitvec n), x < y → y < z → x < z
-axiom HasLess.asymmetry {n} : ∀ (x y : bitvec n), x < y → ¬(y < x)
-axiom HasLess.totality {n} : ∀ (x y : bitvec n), x < y ∨ x = y ∨ y < x
+axiom LT.transitivity {n} : ∀ (x y z : bitvec n), x < y → y < z → x < z
+axiom LT.asymmetry {n} : ∀ (x y : bitvec n), x < y → ¬(y < x)
+axiom LT.totality {n} : ∀ (x y : bitvec n), x < y ∨ x = y ∨ y < x
 
-instance {n} : LessOrder (bitvec n) :=
-{transitive := HasLess.transitivity,
- asymmetric := HasLess.asymmetry,
- total := HasLess.totality}
+instance {n} : LTOrder (bitvec n) :=
+{transitive := LT.transitivity,
+ asymmetric := LT.asymmetry,
+ total := LT.totality}
 
 
-instance {n} : DecidableLessOrder (bitvec n) :=
-{ltDec := decidableLess n,
+instance {n} : DecidableLTOrder (bitvec n) :=
+{ltDec := decidableLT n,
  eqDec := @bitvec_DecidableEq n}
 
 end bitvec
@@ -95,16 +95,16 @@ end bitvec
 
 namespace Prod
 
-axiom HasLess.transitivity {a b} [LessOrder a] [LessOrder b] : ∀ (x y z : a × b), x < y → y < z → x < z
-axiom HasLess.asymmetry {a b} [LessOrder a] [LessOrder b] : ∀ (x y : a × b), x < y → ¬(y < x)
-axiom HasLess.totality {a b} [LessOrder a] [LessOrder b] : ∀ (x y : a × b), x < y ∨ x = y ∨ y < x
+axiom LT.transitivity {a b} [LTOrder a] [LTOrder b] : ∀ (x y z : a × b), x < y → y < z → x < z
+axiom LT.asymmetry {a b} [LTOrder a] [LTOrder b] : ∀ (x y : a × b), x < y → ¬(y < x)
+axiom LT.totality {a b} [LTOrder a] [LTOrder b] : ∀ (x y : a × b), x < y ∨ x = y ∨ y < x
 
-instance {a b} [LessOrder a] [LessOrder b] : LessOrder (a × b) :=
-{transitive := HasLess.transitivity,
- asymmetric := HasLess.asymmetry,
- total := HasLess.totality}
+instance {a b} [LTOrder a] [LTOrder b] : LTOrder (a × b) :=
+{transitive := LT.transitivity,
+ asymmetric := LT.asymmetry,
+ total := LT.totality}
 
-instance {a b} [DecidableLessOrder a] [DecidableLessOrder b] : DecidableLessOrder (a × b) :=
+instance {a b} [DecidableLTOrder a] [DecidableLTOrder b] : DecidableLTOrder (a × b) :=
 {ltDec := inferInstance,
  eqDec := inferInstance}
 
@@ -119,7 +119,7 @@ end Prod
 /-- A type and a corresponding decidable total ordering. -/
 structure OrderedType :=
 (type : Type)
-(order : DecidableLessOrder type)
+(order : DecidableLTOrder type)
 
 
 /--  Denotation of SMT sorts. -/
@@ -144,11 +144,11 @@ def denoteSmtSort : SmtSort → OrderedType
 @[reducible]
 def SmtSort.denote (s : SmtSort) : OrderedType := denoteSmtSort s
 
-instance SmtSort.denote.HasLess : ∀ (s:SmtSort), HasLess s.denote.type
-| s => ⟨s.denote.order.Less⟩
+instance SmtSort.denote.LT : ∀ (s:SmtSort), LT s.denote.type
+| s => ⟨s.denote.order.lt⟩
 
 
-instance SmtSort.denote.DecidableLess : ∀ (s:SmtSort), DecidableLess s.denote.type
+instance SmtSort.denote.DecidableLT : ∀ (s:SmtSort), DecidableLT s.denote.type
 | s => s.denote.order.ltDec
 
 
@@ -156,7 +156,7 @@ instance SmtSort.denote.DecidableEq : ∀ (s:SmtSort), DecidableEq s.denote.type
 | s => s.denote.order.eqDec
 
 
-instance SmtSort.denote.DecidableLessOrder : ∀ (s:SmtSort), DecidableLessOrder s.denote.type
+instance SmtSort.denote.DecidableLTOrder : ∀ (s:SmtSort), DecidableLTOrder s.denote.type
 | s => s.denote.order
 
 end Smt

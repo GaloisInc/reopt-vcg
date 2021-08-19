@@ -13,7 +13,7 @@ open mc_semantics
 open mc_semantics.type
 open Std (RBMap RBMap.fromList)
 
-axiom I_am_really_sorry2 : ∀(P : Prop),  P 
+axiom I_am_really_sorry2 : ∀(P : Prop),  P
 
 @[reducible]
 def machine_word := bitvec 64
@@ -23,7 +23,7 @@ def avx_word := bitvec avx_width
 
 def bitvec.uext {n} (m : Nat) (p: n ≤ m) (x:bitvec n) : bitvec m :=
   bitvec.set_bits 0 0 x (I_am_really_sorry2 _) -- (begin simp, exact p end)
-  
+
 def bitvec.sext {n} (m : Nat) (p: n ≤ m) (x:bitvec n) : bitvec m :=
   bitvec.set_bits (if x.msb then (bitvec.zero m).not else 0) 0 x (I_am_really_sorry2 _)-- (begin simp, exact p end)
 
@@ -37,7 +37,7 @@ def bitvec.parity {n : Nat} (b : bitvec n) : Bool :=
 def bitvec.trunc {n} (m : Nat) (p: m ≤ n) (x:bitvec n) : bitvec m :=
   bitvec.get_bits x 0 m (I_am_really_sorry2 _) --(begin simp, exact p end)
 
-def bit_to_bitvec (n : Nat) (b : Bool) : bitvec n := 
+def bit_to_bitvec (n : Nat) (b : Bool) : bitvec n :=
   if b then 1 else 0
 
 
@@ -52,7 +52,7 @@ structure machine_state : Type :=
 namespace machine_state
 
 -- Constructs an empty machine state, with 0 where we need a value.
-def empty : machine_state := 
+def empty : machine_state :=
   { mem    := memory.empty
   , gpregs := mkArray 16 0
   , flags  := mkArray 32 false
@@ -321,14 +321,14 @@ def sys_write : syscall_t :=
                               else throw ("sys_write: unable to write to filedes " ++ filedes.to_nat.repr)
            )
 
-def syscalls : RBMap Nat syscall_t (fun x y => decide (x < y)) := 
+def syscalls : RBMap Nat syscall_t Ord.compare :=
   RBMap.fromList [  (0x01, sys_write)
                   , (0x3c, sys_exit)
                   , (0x66, sys_geteuid)
                   , (0x6b, sys_geteuid)
                   , (0x68, sys_getgid)
                   , (0x6c, sys_getegid)
-                  ] (fun x y => decide (x < y))
+                 ] Ord.compare
 
 def syscall_handler : system_m Unit := do
   let s ← get
@@ -344,8 +344,8 @@ def set_reg32 (idx : Fin 16) (x : bitvec 32) : system_m Unit :=
 -- FIXME: a hack
 def read_cpuid : system_m Unit := do
   -- Copied from the cpuid results from my macbook
-  -- Note: CPUID is allowed to return 0s 
-  let cpuid_values : RBMap Nat (Nat × Nat × Nat × Nat) (fun x y => decide (x < y)) :=
+  -- Note: CPUID is allowed to return 0s
+  let cpuid_values : RBMap Nat (Nat × Nat × Nat × Nat) Ord.compare :=
     RBMap.fromList [ (0, (0xd, 0x756e6547, 0x6c65746e, 0x49656e69))
                     , (1, (0x40661, 0x2100800, 0x7ffafbff, 0xbfebfbff))
                     , (2, (0x76036301, 0xf0b5ff, 0x0, 0xc10000))
@@ -369,7 +369,7 @@ def read_cpuid : system_m Unit := do
                     , (2147483654, (0x0, 0x0, 0x1006040, 0x0))
                     , (2147483655, (0x0, 0x0, 0x0, 0x100))
                     , (2147483656, (0x3027, 0x0, 0x0, 0x0))
-                    ] (fun x y => decide (x < y)) -- FIXME: we need to look at rcx sometimes as well
+                   ] Ord.compare -- FIXME: we need to look at rcx sometimes as well
   let cpuid_fn (n : Nat) : (Nat × Nat × Nat × Nat) :=
       match cpuid_values.find? n with
       | none     => (0, 0, 0, 0)
@@ -454,12 +454,12 @@ def concreteBackend : Backend :=
   , s_sext    := fun (n m : Nat) (x : bitvec n) =>
                  if H : n ≤ m 
                  then bitvec.sext m H x
-                 else bitvec.trunc m (Nat.leOfLt (Nat.gtOfNotLe H)) x
+                 else bitvec.trunc m (Nat.le_of_lt (Nat.gt_of_not_le H)) x
 
   , s_uext    := fun (n m : Nat) (x : bitvec n) =>
                  if H : n ≤ m 
                  then bitvec.sext m H x
-                 else bitvec.trunc m (Nat.leOfLt (Nat.gtOfNotLe H)) x
+                 else bitvec.trunc m (Nat.le_of_lt (Nat.gt_of_not_le H)) x
 
   , s_trunc   := fun (n m : Nat) (x : bitvec n) =>
                  if H : m ≤ n
@@ -467,7 +467,7 @@ def concreteBackend : Backend :=
                  else bitvec.of_nat _ 0 -- FIXME
   , s_bvappend := @bitvec.append
   , s_bvgetbits  := fun {n : Nat} (off m : Nat) (x : bitvec n) => 
-                    bitvec.get_bits (bitvec.uresize x (off + m)) off m (Nat.leRefl _)
+                    bitvec.get_bits (bitvec.uresize x (off + m)) off m (Nat.le_refl _)
 
   , s_bvsetbits  := fun {n m : Nat} (off : Nat) (x : bitvec n) (bs : bitvec m) =>
                     if H : off + m ≤ n 

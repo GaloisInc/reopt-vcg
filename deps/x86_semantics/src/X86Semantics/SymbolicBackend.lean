@@ -63,13 +63,13 @@ def uresize (n m : Nat) (x : bitvec n) : bitvec m :=
   if H : n ≤ m 
   then (let pf : n + (m - n) = m := I_am_really_sorry3 _; 
        bitvec.cong pf (Smt.zeroExtend (m - n) x))
-  else bitvec.trunc m (Nat.leOfLt (Nat.gtOfNotLe H)) x
+  else bitvec.trunc m (Nat.le_of_lt (Nat.gt_of_not_le H)) x
 
 def sresize (n m : Nat) (x : bitvec n) : bitvec m :=
   if H : n ≤ m 
   then (let pf : n + (m - n) = m := I_am_really_sorry3 _; 
        bitvec.cong pf (Smt.signExtend (m - n) x))
-  else bitvec.trunc m (Nat.leOfLt (Nat.gtOfNotLe H)) x
+  else bitvec.trunc m (Nat.le_of_lt (Nat.gt_of_not_le H)) x
 
 -- There may be a more efficient way of doing this (e.g. slicing and concat)
 def set_bits {n} (x:bitvec n) (i:Nat) {m} (y:bitvec m) (p:i+m ≤ n) : bitvec n :=

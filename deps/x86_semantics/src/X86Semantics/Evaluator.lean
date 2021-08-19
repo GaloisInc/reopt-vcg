@@ -118,7 +118,7 @@ def environment := List (@arg_value backend)
 -- machine state is stored in the underlying monad
 structure evaluator_state : Type :=
   (environment   : @environment backend) -- read only, but reading can fail
-  (locals        : RBMap Nat (Sigma (@value backend)) (fun (n n' : Nat) => decide (n < n')))
+  (locals        : RBMap Nat (Sigma (@value backend)) Ord.compare)
 
 namespace evaluator_state
 
@@ -172,7 +172,7 @@ instance Alternative_ExceptT (ε) (m) [Inhabited ε] [Monad m] : Alternative (Ex
 namespace value 
 
 def eval_cong {tp tp' : type} (v : @value backend tp)  (pf : tp = tp') : @value backend tp' := 
-  have h : @value backend tp = @value backend tp' from congrArg (@value backend) pf
+  have h : @value backend tp = @value backend tp' := congrArg (@value backend) pf
   cast h v
 
 -- This allows us to resolve arith in nat_exprs
@@ -397,32 +397,32 @@ def has_mux : type -> Prop
 @[reducible]
 def has_eq_dec : ∀(tp : type), Decidable (has_eq tp) 
   | (bv _)     => isTrue True.intro
-  | int        => isFalse notFalse
+  | int        => isFalse not_false
   | bit        => isTrue True.intro  
   | float _    => isTrue True.intro  
   | x86_80     => isTrue True.intro  
   | (vec _ tp) => has_eq_dec tp
   | (pair tp tp') =>
-    have hL : Decidable (has_eq tp)  from has_eq_dec tp
-    have hR : Decidable (has_eq tp') from has_eq_dec tp'
-    have h  : Decidable (has_eq tp ∧ has_eq tp') from inferInstance
+    have hL : Decidable (has_eq tp)  := has_eq_dec tp
+    have hR : Decidable (has_eq tp') := has_eq_dec tp'
+    have h  : Decidable (has_eq tp ∧ has_eq tp') := inferInstance
     h
-  | (fn _ _)   => isFalse notFalse
+  | (fn _ _)   => isFalse not_false
 
 @[reducible]
 def has_mux_dec : ∀(tp : type), Decidable (has_mux tp) 
   | (bv _)     => isTrue True.intro
-  | int        => isFalse notFalse
+  | int        => isFalse not_false
   | bit        => isTrue True.intro  
   | float _    => isTrue True.intro  
   | x86_80     => isTrue True.intro  
   | (vec _ tp) => has_mux_dec tp
   | (pair tp tp') =>
-    have hL : Decidable (has_mux tp)  from has_mux_dec tp
-    have hR : Decidable (has_mux tp') from has_mux_dec tp'
-    have h  : Decidable (has_mux tp ∧ has_mux tp') from inferInstance
+    have hL : Decidable (has_mux tp)  := has_mux_dec tp
+    have hR : Decidable (has_mux tp') := has_mux_dec tp'
+    have h  : Decidable (has_mux tp ∧ has_mux tp') := inferInstance
     h
-  | (fn _ _)   => isFalse notFalse
+  | (fn _ _)   => isFalse not_false
 
 instance decidable_pred_type_has_eq  :  DecidablePred has_eq := has_eq_dec
 instance decidable_pred_type_has_mux :  DecidablePred has_mux := has_mux_dec
