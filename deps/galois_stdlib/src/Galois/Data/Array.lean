@@ -2,7 +2,7 @@ namespace Array
 
 section
 universe u
-variable {α : Type u} [HasLess α] [DecidableRel (HasLess.Less : α → α → Prop)]
+variable {α : Type u} [LT α] [DecidableRel (LT.lt : α → α → Prop)]
 
 partial def ltAux (xs ys : Array α) : Nat → Bool
 | n =>

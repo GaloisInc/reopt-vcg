@@ -6,7 +6,7 @@ namespace LoadElf
 
 open elf
 
-def loadElfTest (filePath : String) : IO String := do
+def loadElfTest (filePath : System.FilePath) : IO String := do
   let (hdr, phdrs, elfMem) ← ReoptVCG.loadElf filePath;
   pure "pass"
 
@@ -35,7 +35,7 @@ ELF Header:
   Section header string table index: 15
 -/
 def loadAndCheckAddElfHdr (homeDir : String) : IO String := do
-  let (hdr, phdrs, elfMem) ← ReoptVCG.loadElf (homeDir ++ "/test-programs/test_add_diet_lld.exe");
+  let (hdr, phdrs, elfMem) ← ReoptVCG.loadElf (System.mkFilePath [homeDir, "test-programs", "test_add_diet_lld.exe"]);
   unless (hdr.elf_data.repr == "ELFDATA2LSB") do
     IO.println $ "Incorrect elf_data: " ++ hdr.elf_data.repr;
   unless (hdr.osabi.val.toNat == 0) do
@@ -67,8 +67,8 @@ def test : IO UInt32 := do
   let homeDir ← (do
     let maybeVal ← IO.getEnv "REOPTVCGHOME";
     pure $ maybeVal.getD (panic "REOPTVCGHOME environment variable not set"));
-  loadElfTest (homeDir ++ "/test-programs/test_add_diet_lld.exe") >>= IO.println;
-  loadElfTest (homeDir ++ "/test-programs/test_fib_diet_lld.exe") >>= IO.println;
+  loadElfTest (System.mkFilePath [homeDir, "test-programs","test_add_diet_lld.exe"]) >>= IO.println;
+  loadElfTest (System.mkFilePath [homeDir, "test-programs","test_fib_diet_lld.exe"]) >>= IO.println;
   loadAndCheckAddElfHdr homeDir >>= IO.println;
   pure 0
 

@@ -26,17 +26,17 @@ structure VerificationSession :=
 --  with goals during execution except emit files).
 structure GoalStats where
   /-- How many of each kind of goal failed -/
-  okGoalCnt : RBMap GoalTag Nat (·<·)
+  okGoalCnt : RBMap GoalTag Nat Ord.compare
   /-- How many of each kind of goal failed to verify -/
-  failGoalCnt : RBMap GoalTag Nat (·<·)
+  failGoalCnt : RBMap GoalTag Nat Ord.compare
   /-- For each kind of goal, what were the counts for each extra info seen for failures? -/
-  failExtraInfoCnt : RBMap GoalTag (RBMap String Nat (·<·)) (·<·)
+  failExtraInfoCnt : RBMap GoalTag (RBMap String Nat Ord.compare) Ord.compare
   /-- How many goals errored/failed for a given LLVM function name? -/
-  fnBadGoalCnt : RBMap String Nat (·<·)
+  fnBadGoalCnt : RBMap String Nat Ord.compare
   /-- How many of each kind of goal had an error during verification -/
-  errorGoalCnt : RBMap GoalTag Nat (·<·)
+  errorGoalCnt : RBMap GoalTag Nat Ord.compare
   /-- For each kind of goal, what were the counts for each extra info seen for errors? -/
-  errorExtraInfoCnt : RBMap GoalTag (RBMap String Nat (·<·)) (·<·)
+  errorExtraInfoCnt : RBMap GoalTag (RBMap String Nat Ord.compare) Ord.compare
   /-- A terse description of what happened for mass data dumps of all activity -/
   results : Array VerificationResult
 
@@ -110,21 +110,21 @@ structure VCStats where
   /-- How many errors were encoutered during VC gen?  -/
   errCnt : Nat
   /-- How many (module or block) errors did each function have during VC gen?  -/
-  fnErrCnt : RBMap String Nat (·<·)
+  fnErrCnt : RBMap String Nat Ord.compare
   /-- What warnings were raised during VC gen?  -/
   warnings : Array VerificationWarning
   /-- Module errors that were encountered during VC  -/
   moduleErrs : Array ModuleError
   /-- How many errors of each kind of ModuleError did we encounter?  -/
-  moduleErrCnt : RBMap ModuleErrorTag Nat (·<·)
+  moduleErrCnt : RBMap ModuleErrorTag Nat Ord.compare
   /-- For each ModuleError kind and additional info, how many times did we see that combination?  -/
-  moduleErrExtraInfoCnt : RBMap ModuleErrorTag (RBMap String Nat (·<·)) (·<·)
+  moduleErrExtraInfoCnt : RBMap ModuleErrorTag (RBMap String Nat Ord.compare) Ord.compare
   /-- Block errors that were encountered during VC  -/
   blockErrs : Array BlockError
   /-- How many errors of each kind of BlockError did we encounter?  -/
-  blockErrCnt : RBMap BlockErrorTag Nat (·<·)
+  blockErrCnt : RBMap BlockErrorTag Nat Ord.compare
   /-- For each BlockError kind and additional info, how many times did we see that combination? -/
-  blockErrExtraInfoCnt : RBMap BlockErrorTag (RBMap String Nat (·<·)) (·<·)
+  blockErrExtraInfoCnt : RBMap BlockErrorTag (RBMap String Nat Ord.compare) Ord.compare
 
 
 namespace VCStats
@@ -332,8 +332,7 @@ def getTemporaryDirectory : IO String := do
   then pure "/tmp"
   else do
     let validateDir : String → String → IO String := (λ envVar dir => do
-      let isValid ← IO.isDir dir
-      if isValid
+      if (← System.FilePath.isDir dir)
       then pure dir
       else throw $ IO.userError $ "Temporary directory specified by `"++envVar
                                 ++"` environment variable (i.e., `"++dir++"`) does not exist.")
@@ -346,7 +345,7 @@ def getTemporaryDirectory : IO String := do
                                      ++ "must be specified in the environment variable `TEMP` (or `TMP`)."
 
 /- Like `standaloneGoalFilename`, but gives an absolute path to a filename in the OS's temporary directory.-/
-def temporaryStandaloneGoalFilepath (vg : VerificationGoal) : IO String := do
+def temporaryStandaloneGoalFilepath (vg : VerificationGoal) : IO System.FilePath := do
   let tempDir ← getTemporaryDirectory
   pure $ System.mkFilePath [tempDir, standaloneGoalFilename vg]
 
@@ -449,7 +448,7 @@ def interactiveDoGoal
 (vg : VerificationGoal)
 : IO Unit := do
   let smtFilePath ← temporaryStandaloneGoalFilepath vg
-  let resultFilePath := smtFilePath ++ ".result"
+  let resultFilePath := smtFilePath.withExtension "result"
   -- FIXME was stderr, fix with next Lean4 bump
   if cfg.verbose then do
     let stdout ← IO.getStdout
@@ -467,7 +466,7 @@ def interactiveDoGoal
     preludeCmds.forM (λ c => file.putStr c.toLine)
     cmds.forM (λ c => file.putStr c.toLine)
     file.flush)
-  Galois.IO.system $ ictx.solverCommand++" "++smtFilePath++" > " ++resultFilePath
+  Galois.IO.system $ ictx.solverCommand++" "++smtFilePath.toString++" > " ++resultFilePath.toString
   let smtResult ← IO.FS.lines resultFilePath
   -- FIXME, this assumes the file has a single word in it essentially... might want to
   -- make it slightly more complicated if
@@ -635,7 +634,7 @@ private def printGoalStats (stats : GoalStats) : IO Unit := do
       else if info == ""
       then IO.println $ indent++"- ("++(repr n)++") no additional information"
       else IO.println $ indent++"- ("++(repr n)++") "++info
-  let printGoalMaps : RBMap GoalTag Nat (·<·) → RBMap GoalTag (RBMap String Nat (·<·)) (·<·) → IO Unit :=
+  let printGoalMaps : RBMap GoalTag Nat Ord.compare → RBMap GoalTag (RBMap String Nat Ord.compare) Ord.compare → IO Unit :=
     λ cntMap extraInfoMap => do
       for (tag, tagCnt) in cntMap.toList do -- FIXME remote .toList after Lean4 bump
       IO.println $ "* ("++(repr tagCnt)++") "++tag.description

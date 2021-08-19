@@ -258,8 +258,9 @@ def instruction_family (inst : decodex86.instruction) : String :=
   let (pfx, rest) := List.span Char.isUpper inst.mnemonic.toList
   (List.map Char.toLower pfx).asString
 
-def instruction_map : Std.RBMap String instruction (fun x y => decide (x < y)) :=
-  Std.RBMap.fromList (List.map (fun (i : instruction) => (i.mnemonic, i)) all_instructions) (fun x y => decide (x < y))
+def instruction_map : Std.RBMap String instruction Ord.compare :=
+  Std.RBMap.fromList (all_instructions.map (λ i => (i.mnemonic, i)))
+                     Ord.compare
 
 def eval_instruction (i : decodex86.instruction) : M backend Unit :=
   match instruction_map.find? (instruction_family i) with               

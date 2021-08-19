@@ -145,6 +145,11 @@ instance : BEq osabi := ⟨λ x y => x.val == y.val⟩
 
 def lt (o1 o2 : osabi) : Bool := o1.val < o2.val
 
+def compare (o1 o2 : osabi) : Ordering := Ord.compare o1.val o2.val
+
+instance : Ord osabi where
+  compare o1 o2 := Ord.compare o1.val o2.val
+
 /- Elf OSABI constants -/
 -- | No extensions or unspecified
 def ELFOSABI_SYSV := osabi.mk 0
@@ -180,7 +185,7 @@ def ELFOSABI_ARM := osabi.mk 97
 def ELFOSABI_STANDALONE := osabi.mk 255
 
 
-private def nameMap : RBMap osabi String osabi.lt :=
+private def nameMap : RBMap osabi String Ord.compare :=
 Std.RBMap.fromList
   [ (ELFOSABI_SYSV, "SYSV")
   , (ELFOSABI_HPUX, "HPUX")
@@ -199,7 +204,7 @@ Std.RBMap.fromList
   , (ELFOSABI_ARM, "ARM")
   , (ELFOSABI_STANDALONE, "STANDALONE")
   ]
-  osabi.lt
+  osabi.compare
 
 def name (o:osabi) : String := nameMap.findD o ("UNKNOWN("++o.val.toNat.repr++")")
 
@@ -563,6 +568,9 @@ instance : BEq machine := ⟨λ x y => x.val == y.val⟩
 
 def lt (m1 m2 : machine) : Bool := m1.val < m2.val
 
+instance : Ord machine where
+  compare x y := Ord.compare x.val y.val
+
 def EM_NONE  := machine.mk 0
 -- ^ No machine
 def EM_M32  := machine.mk 1
@@ -766,7 +774,7 @@ def EM_STM8        := machine.mk 186
 def EM_RISCV       := machine.mk 243
 -- ^ RISC-V
 
-private def nameMap : RBMap machine String machine.lt :=
+private def nameMap : RBMap machine String Ord.compare :=
 Std.RBMap.fromList 
   [ (EM_NONE, "EM_NONE") 
   , (EM_M32, "EM_M32")
@@ -870,7 +878,7 @@ Std.RBMap.fromList
   , (EM_STM8, "EM_STM8")
   , (EM_RISCV, "EM_RISCV")
   ]
-  machine.lt
+  Ord.compare
 
 def name (m:machine) : String := nameMap.findD m ("UNKNOWN("++m.val.toNat.repr++")")
 

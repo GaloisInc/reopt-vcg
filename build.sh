@@ -12,8 +12,8 @@ if [ ! -x $(which elan) ] ; then
   exit 1
 fi
 
-elan install leanprover/lean4:nightly-2021-04-22
-elan default leanprover/lean4:nightly-2021-04-22
+elan install leanprover/lean4:nightly-2021-08-18
+elan default leanprover/lean4:nightly-2021-08-18
 
 
 
@@ -28,6 +28,6 @@ else
   exit 1
 fi
 
-CLANG_8="$($LLVM_CONFIG_8 --bindir)/clang"
+CLANG=${CLANG:-"$($LLVM_CONFIG_8 --bindir)/clang"}
 
-make -C . LEAN_CXX=$CLANG_8 CXX=$CLANG_8 LLVM_CONFIG=$LLVM_CONFIG_8 -j4
+make -C . LEAN_CXX=$CLANG CXX=$CLANG LLVM_CONFIG=$LLVM_CONFIG_8 -j4

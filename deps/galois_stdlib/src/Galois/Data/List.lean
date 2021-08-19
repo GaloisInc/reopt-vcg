@@ -3,7 +3,7 @@ import Galois.Init.Order
 
 namespace List
 
-universes u v
+universe u v
 
 def qsort {α : Type} [Inhabited α] (as : List α) (lt : α → α → Bool) : List α :=
   let arr := as.toArray;
@@ -50,12 +50,12 @@ end Forall
 
 
 
-inductive SortedMap {α : Type u} {β : Type v} [LessOrder α] : List (α × β) → Prop
+inductive SortedMap {α : Type u} {β : Type v} [LTOrder α] : List (α × β) → Prop
   | nil : SortedMap []
   | cons : ∀ (k : α) (v : β) (l : List (α × β)),
            SortedMap l →
            l.Forall (λ (kv : (α × β)) => k < kv.fst) →
-           -- N.B., HasLessOrder combined with this Forall implies
+           -- N.B., HasLTOrder combined with this Forall implies
            -- no duplicate keys.
            SortedMap ((k,v)::l)
 
@@ -63,7 +63,7 @@ inductive SortedMap {α : Type u} {β : Type v} [LessOrder α] : List (α × β)
 namespace SortedMap
 variable {α : Type u} {β : Type v}
 
-protected def insert [DecidableLessOrder α] (k : α) (v : β) : List (α × β) →  List (α × β)
+protected def insert [DecidableLTOrder α] (k : α) (v : β) : List (α × β) →  List (α × β)
 | [] => [(k,v)]
 | (k0, v0)::rst =>
   if k < k0
@@ -73,17 +73,17 @@ protected def insert [DecidableLessOrder α] (k : α) (v : β) : List (α × β)
   else (k,v)::rst
 
 -- FIXME prove
-axiom insert.wellFormed [DecidableLessOrder α] (k : α) (v : β) {l : List (α × β)} :
+axiom insert.wellFormed [DecidableLTOrder α] (k : α) (v : β) {l : List (α × β)} :
 List.SortedMap l →
 List.SortedMap (SortedMap.insert k v l)
 
 -- FIXME prove
-axiom insert.stillNotIn [DecidableLessOrder α] (k : α) {v v' : β} (pf : v ≠ v') {l : List (α × β)} :
+axiom insert.stillNotIn [DecidableLTOrder α] (k : α) {v v' : β} (pf : v ≠ v') {l : List (α × β)} :
 l.Forall (λ (kv : α × β) => kv.snd ≠ v') →
 (SortedMap.insert k v l).Forall (λ (kv : α × β) => kv.snd ≠ v')
 
 
-protected def erase [DecidableLessOrder α] (k : α) : List (α × β) →  List (α × β)
+protected def erase [DecidableLTOrder α] (k : α) : List (α × β) →  List (α × β)
 | [] => []
 | l@((k0, v0)::rst) =>
   if k = k0
@@ -93,12 +93,12 @@ protected def erase [DecidableLessOrder α] (k : α) : List (α × β) →  List
   else (k0,v0)::(SortedMap.erase k rst)
 
 -- FIXME prove
-axiom erase.wellFormed [DecidableLessOrder α] (k : α) {l : List (α × β)} :
+axiom erase.wellFormed [DecidableLTOrder α] (k : α) {l : List (α × β)} :
 List.SortedMap l →
 List.SortedMap (SortedMap.erase k l)
 
 -- FIXME prove
-axiom erase.stillNotIn [DecidableLessOrder α] (k : α) {v : β} {l : List (α × β)} :
+axiom erase.stillNotIn [DecidableLTOrder α] (k : α) {v : β} {l : List (α × β)} :
 l.Forall (λ (kv : α × β) => kv.snd ≠ v) →
 (SortedMap.erase k l).Forall (λ (kv : α × β) => kv.snd ≠ v)
 

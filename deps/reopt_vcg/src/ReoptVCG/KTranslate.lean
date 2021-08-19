@@ -63,8 +63,8 @@ def reg_names : List (String × some_reg) :=
   ++ mk (fun i => Sigma.mk _ (concrete_reg.gpreg i gpreg_type.reg64)) reg.r64_names
   ++ mkxMM avxreg_type.xmm "xmm" ++ mkxMM avxreg_type.ymm "ymm"
 
-def reg_name_map : RBMap String some_reg (fun x y => decide (x < y)) :=
-  Std.RBMap.fromList reg_names (fun x y => decide (x < y))
+def reg_name_map : RBMap String some_reg Ord.compare :=
+  Std.RBMap.fromList reg_names Ord.compare
 
 def register_to_reg (r : mcinst.register) : Option some_reg :=
   reg_name_map.find? r
@@ -216,9 +216,10 @@ def instantiate_pattern (inst : x86.instruction) (i : mcinst.instruction)
                   pure (e, p)) 
               inst.patterns)
 
-def instruction_map : RBMap String x86.instruction (fun x y => decide (x < y)) :=
+def instruction_map : RBMap String x86.instruction Ord.compare :=
   Std.RBMap.fromList (List.map (fun (i : x86.instruction) => (i.mnemonic, i)) 
-                     (k_x86_semantics.all_instructions ++ k_x86_semantics.manual_instructions)) (fun x y => decide (x < y))
+                     (k_x86_semantics.all_instructions ++ k_x86_semantics.manual_instructions))
+                     Ord.compare
 
 def eval_instruction (i : mcinst.instruction) : M backend Unit :=
   match instruction_map.find? i.mnemonic with               

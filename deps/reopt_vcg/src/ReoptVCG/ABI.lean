@@ -28,7 +28,7 @@ def value : forall (xs : List (Σs, Smt.Term s)), Smt.Term (make (List.map Sigma
 def lens {a : Type} : forall (n : Nat) {ss : List SmtSort} (pf : n < ss.length)
                       (f : Smt.Term (ss.get n pf) -> a × Smt.Term (ss.get n pf)),
                       Smt.Term (NTuple.make ss) -> a × Smt.Term (NTuple.make ss) 
-| n, [], pf, _, _            => absurd pf (Nat.notLtZero n)
+| n, [], pf, _, _            => absurd pf (Nat.not_lt_zero n)
 | Nat.zero, s :: _, _, f, tm => 
   let old      := Smt.fst _ _ tm 
   let rest     := Smt.snd _ _ tm 
@@ -144,7 +144,7 @@ def toSmtSort? : LLVMType -> Option SmtSort
 
 def bitvec_toSmtSort? {n : Nat} (pf : n > 0) : 
     toSmtSort? (prim (PrimType.integer n)) = some (SmtSort.bitvec n) :=
-    ifPos pf
+    if_pos pf
 
 def invert_vector_toSmtSort? {n : Nat} {lty : LLVMType} : forall {s : SmtSort} 
     ( pf : (vector n lty).toSmtSort? = some s ),
@@ -153,10 +153,13 @@ def invert_vector_toSmtSort? {n : Nat} {lty : LLVMType} : forall {s : SmtSort}
     match n with
     | 0 => intros pf; injection pf
     | Nat.succ m => 
-      have H: (vector (Nat.succ m) lty).toSmtSort? = (match prim_toSmtSort? lty with
+      have H: (vector (Nat.succ m) lty).toSmtSort?
+              =
+              (match prim_toSmtSort? lty with
               | none   => none
-              | some s => some (NTuple.make (List.replicate (Nat.succ m) s))) by rfl
-      rw H
+              | some s => some (NTuple.make (List.replicate (Nat.succ m) s)))
+        := rfl
+      rw [H]
       match prim_toSmtSort? lty with
       | none => intros pf; injection pf
       | some s' => intros pf; injection pf with H'; exists s'; simp [H']
@@ -168,10 +171,10 @@ def invert_struct_toSmtSort? {b : Bool} {ltys : Array LLVMType} : forall {s : Sm
     (Σ' ss', OptionM.run (ltys.data.mapM prim_toSmtSort?) = some ss' ∧ s = NTuple.make ss') := by
       intros s
       have H: (struct b ltys).toSmtSort? = ( NTuple.make <$> (OptionM.run (ltys.data.mapM prim_toSmtSort?))) := rfl
-      rw H
+      rw [H]
       match OptionM.run (ltys.data.mapM prim_toSmtSort?) with
       | none => intros pf; injection pf
-      | some ss => intros pf; injection pf with H'; exists ss; rw H'; simp
+      | some ss => intros pf; injection pf with H'; exists ss; rw [H']; simp
 
 section
 open Smt (SmtSort.bitvec SmtSort.tuple SmtSort.bool)
@@ -378,7 +381,7 @@ theorem map_map {α β γ : Type} (f : α -> β) (g : β -> γ) (xs : List α) :
   | nil => exact rfl
   | cons x xs' ih => 
     have rl : g (f x) :: List.map g (List.map f xs') = (g ∘ f) x :: List.map (g ∘ f) xs'
-      := by rw ih
+      := by rw [ih]
     exact rl
 
 theorem map_ext {α β : Type} (f g : α -> β) (pf : forall x, f x = g x) (xs : List α) :
@@ -386,7 +389,7 @@ theorem map_ext {α β : Type} (f g : α -> β) (pf : forall x, f x = g x) (xs :
   induction xs with
   | nil => exact rfl
   | cons x xs' ih => 
-    have rl : f x :: List.map f xs' = g x :: List.map g xs' := by rw ih; rw (pf x)
+    have rl : f x :: List.map f xs' = g x :: List.map g xs' := by rw [ih, (pf x)]
     exact rl
 
 -- set_option pp.raw true
@@ -421,8 +424,7 @@ def forReturnVal {a b : Type} {m : Type -> Type} [Monad m] (err : forall {c}, St
       --   congrArg (Smt.Term ∘ NTuple.make) pf
   
       let pf' := by 
-         rw (map_map _ _ mks)
-         rw map_ext
+         rw [(map_map _ _ mks), map_ext]
          intros x
          cases x
          exact rfl

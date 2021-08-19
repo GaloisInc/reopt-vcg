@@ -89,7 +89,7 @@ def updMapWSBinder
   : WS (updMap (updMap e x xCS) y yCS) t :=
 if h : x = y
 then
-  have hWS : WS (updMap (updMap e y xCS) y yCS) t from envShadowWS y xCS yCS ws;
+  have hWS : WS (updMap (updMap e y xCS) y yCS) t := envShadowWS y xCS yCS ws;
   h.symm ▸ hWS
 else
   envNonEqSubWS x y xCS yCS pf h ws
@@ -287,13 +287,13 @@ structure WS (e : Env) (fn : NamedFunDef) : Prop :=
 
 def updMapWS {e : Env} (x : Symbol) (xCS : ConstSort) (pf : e x = none)
   {f : NamedFunDef} (ws : WS e f) : WS (updMap e x xCS) f :=
-have h : x ≠ f.name from updMap.noneSomeNEqKey e x f.name pf ws.funInEnv;
+have h : x ≠ f.name := updMap.noneSomeNEqKey e x f.name pf ws.funInEnv;
 -- have inEnv : (updMap e x xCS) f.name = e f.name
---   from upd.atOtherKey e (some f.funSort) h;
+--   := upd.atOtherKey e (some f.funSort) h;
 have inEnv : (updMap e x xCS) f.name = some f.funSort
-  from Eq.trans (upd.atOtherKey e (some xCS) h) ws.funInEnv;
+  := Eq.trans (upd.atOtherKey e (some xCS) h) ws.funInEnv;
 have defWS : FunDef.WS (updMap e x xCS) f.funDef
-  from FunDef.updMapWS x xCS pf ws.funDefWS;
+  := FunDef.updMapWS x xCS pf ws.funDefWS;
 ⟨inEnv, defWS⟩
 
 
@@ -346,11 +346,11 @@ def defineFun
   let f : NamedFunDef := ⟨fNm, ⟨dom, cdom, body⟩⟩;
   let env' := ctx.env.extend f.name f.funSort;
   let defines' := f::ctx.defines;
-  have bodyWS : Term.WS (ctx.env.extendMany f.funDef.domain) f.funDef.body from wsPf
-  have fDefWS : FunDef.WS ctx.env f.funDef from ⟨bodyWS⟩
-  have fWS : NamedFunDef.WS env' f from 
+  have bodyWS : Term.WS (ctx.env.extendMany f.funDef.domain) f.funDef.body := wsPf
+  have fDefWS : FunDef.WS ctx.env f.funDef := ⟨bodyWS⟩
+  have fWS : NamedFunDef.WS env' f :=
     ⟨upd.atKey ctx.env f.name (some f.funSort), FunDef.updMapWS f.name f.funSort pf fDefWS⟩
-  have wsDefines' : defines'.Forall (NamedFunDef.WS env') from
+  have wsDefines' : defines'.Forall (NamedFunDef.WS env') :=
     List.Forall.cons fWS (ctx.wsDefines.map (@NamedFunDef.updMapWS ctx.env f.name f.funSort pf))
   {ctx with
     env := env',

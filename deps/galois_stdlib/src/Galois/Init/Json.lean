@@ -1,7 +1,7 @@
 
 import Lean.Data.Json
 import Std.Data.RBMap
-universes u
+universe u
 
 open Std (RBMap)
 
@@ -11,7 +11,7 @@ namespace Lean.Json
 open Lean (Json FromJson ToJson)
 open Lean.Json
 
-instance rbmapToJson : ToJson (RBMap String Json Lean.strLt) :=
+instance rbmapToJson : ToJson (RBMap String Json Ord.compare) :=
 -- N.B., we manually have to extract the RBNode from the RBMap and have no
 -- static guarantee they also used Lean.strLt =\ See
 -- https://github.com/leanprover/lean4/blob/f3976fc53a883ac7606fc59357d43f4b51016ca7
@@ -29,15 +29,15 @@ variable  (α : Type u) [FromJson α]
 -- type (which has a HasFromJson instance).
 private def parseObjValAsDescrAux (descr : String) (js:Json) (key : String) (dflt : Option α) : Except String α :=
   match js.getObjVal? key with
-  | Option.some js' => match fromJson? js' with
-    | Option.some a => Except.ok a
-    | Option.none => 
+  | Except.ok js' => match fromJson? js' with
+    | Except.ok a => Except.ok a
+    | Except.error _ =>
       Except.error $ "Excepted key `"++key++"` to have a "++ descr ++" value but got `"++js'.pretty++"`."
-  | Option.none => match js with
+  | Except.error msg => match js with
     | obj _ => match dflt with
       | Option.some a => Except.ok a
       | Option.none =>
-        Except.error $ "Expected a Json object with key `"++key++"` but got `"++js.pretty++"`."
+        Except.error $ "Error parsing Json object: "++msg
     | _ => Except.error $ "Expected a Json object but got `"++js.pretty++"`."
 
 
@@ -72,14 +72,14 @@ private def parseObjValAsArrWithAux
 (dflt : Option (Array α))
 : Except String (Array α) :=
   match js.getObjVal? key with
-  | Option.none => match dflt with
+  | Except.error _ => match dflt with
     | Option.some as => pure as
     | Option.none => Except.error $ "Expected a Json object with key `"++key++"`."
-  | Option.some rawJson => match rawJson.getArr? with
-    | Option.some xs => do
+  | Except.ok rawJson => match rawJson.getArr? with
+    | Except.ok xs => do
       let vals ← Array.mapM parser xs;
       pure vals
-    | Option.none =>
+    | Except.error _ =>
       Except.error $ "Expected a Json object's `"++key
                      ++"` field to contain an array, but got `"
                      ++rawJson.pretty++"`."
@@ -113,10 +113,10 @@ partial def isEqv : Json → Json → Bool
     | Option.none, Option.none => true
     | Option.some ⟨k1,v1⟩, Option.some ⟨k2,v2⟩ =>
       if k1 = k2 && isEqv v1 v2 then
-        let o1 := obj $ Std.RBNode.erase Lean.strLt k1 kvs1;
-        let o2 := obj $ Std.RBNode.erase Lean.strLt k2 kvs2;
+        let o1 := obj $ Std.RBNode.erase Ord.compare k1 kvs1;
+        let o2 := obj $ Std.RBNode.erase Ord.compare k2 kvs2;
         isEqv o1 o2
-      else 
+      else
         false
     | _,_ => false
   | _, _ => false

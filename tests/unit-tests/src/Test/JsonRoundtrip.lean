@@ -18,7 +18,7 @@ def roundtripTest (annFile : String) : IO String := do
   match Lean.Json.parse fileContents with
   | Except.error errMsg => pure $ "Failed to parse json in `"++annFile++"`: " ++ errMsg
   | Except.ok js =>
-    match ReoptVCG.parseAnnotations js with
+    match ReoptVCG.ModuleAnnotations.fromJson js with
     | Except.error errMsg => pure $ "Failed to parse json as a module annotation: " ++ errMsg
     | Except.ok modAnn =>
       let str := toString $ modAnn.toJson;

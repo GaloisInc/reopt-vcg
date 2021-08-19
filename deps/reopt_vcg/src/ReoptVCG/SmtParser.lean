@@ -10,7 +10,7 @@ open Std (RBMap)
 namespace ReoptVCG
 
 section
-universes u v
+universe u v
 
 
 open WellFormedSExp
@@ -21,7 +21,7 @@ open Smt
 
 inductive Atom : Type u
 | nat : Nat → Atom
-| ident : String → Atom 
+| ident : String → Atom
 
 def Atom.toString : Atom → String
 | Atom.nat n => n.repr
@@ -86,7 +86,7 @@ inductive BlockExpr : SmtSort → Type u
 | bvDecimal (v w : Nat) : BlockExpr (SmtSort.bitvec w)
 
 /- Map from LLVM ident names to their sorts -/
-abbrev LLVMTyEnv := RBMap LLVM.Ident SmtSort (λ x y => x<y)
+abbrev LLVMTyEnv := RBMap LLVM.Ident SmtSort Ord.compare
 
 namespace BlockExpr
 
