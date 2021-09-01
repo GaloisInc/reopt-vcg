@@ -385,20 +385,6 @@ def exportDoGoal
   fileCnt.modify Nat.succ
 
 
-def outputGoalsAsJson (outputFile : String) (vrs : Array VerificationResult) : IO Unit := do
-  let file ← IO.FS.Handle.mk outputFile IO.FS.Mode.write
-  -- render each goal as a single line of JSON
-  let resToString := λ (vr : VerificationResult) => " ".intercalate $ (toString $ Lean.toJson vr).splitOn "\n"
-  for vr in vrs[0:vrs.size - 1] do
-    file.putStr (resToString vr)
-    file.putStr "\n"
-  match vrs.back? with
-  | some vr => file.putStr (resToString vr)
-  | _ => pure ()
-  IO.println $ ""
-  IO.println $ "Verification results stored in `" ++outputFile++"` (one JSON object for each goal, one per line)."
-
-
 ------------------------------------------------------------------------
 -- Interactive session
 
@@ -406,6 +392,8 @@ def outputGoalsAsJson (outputFile : String) (vrs : Array VerificationResult) : I
 structure InteractiveContext :=
 (annFile : String)
 -- ^ Annotation file (for error-reporting purposes)
+(onResult : (res : VerificationResult) → IO Unit)
+-- ^ Action to run when a goal is completed
 (results : IO.Ref (Array VerificationResult))
 -- ^ Results from trying to verify goals.
 (solverCommand : String)
@@ -437,7 +425,6 @@ def verifyGoal
   modify (λ s => {s with
                   goals := s.goals.push newGoal})
   pure ()
-
 
 
 -- | Function to verify an SMT proposition is provable in the given
@@ -488,10 +475,10 @@ def interactiveDoGoal
     IO.println "ERROR"
     IO.print extraInfo
     IO.println "    Verification failed: no response from the SMT solver was detected."
-    ictx.results.modify (λ rs => rs.push ⟨vg, none⟩)
+    ictx.onResult ⟨vg, none⟩
   | some checkSatRes =>
     let res ← parseCheckSatResult checkSatRes
-    ictx.results.modify (λ rs => rs.push ⟨vg, some res⟩)
+    ictx.onResult ⟨vg, some res⟩
     match res with
     | CheckSatResult.unsat => do
       if cfg.verbose then do
@@ -581,7 +568,7 @@ private def printVCStats (stats : VCStats) : IO Unit := do
     for bErr in stats.blockErrs do
       IO.println $ bErr.pp
   let printExtraInfo : Bool → Nat → String → IO Unit :=
-    λ oneCategory n info => 
+    λ oneCategory n info =>
       if oneCategory && info == ""
       then pure () -- if there's one empty category, don't print it as a subcategory... that looks silly
       else if info == ""
@@ -628,7 +615,7 @@ private def printGoalStats (stats : GoalStats) : IO Unit := do
     IO.println $ (repr successes)++" out of "++(repr (successes + failsAndErrs))
                  ++" generated verification goals successfully proven."
   let printExtraInfo : Bool → Nat → String → IO Unit :=
-    λ oneCategory n info => 
+    λ oneCategory n info =>
       if oneCategory && info == ""
       then pure () -- if there's one empty category, don't print it as a subcategory... that looks silly
       else if info == ""
@@ -649,37 +636,66 @@ private def printGoalStats (stats : GoalStats) : IO Unit := do
     IO.println $ ""
     IO.println $ (repr fails)++" goals resulted in errors during verification:"
     printGoalMaps stats.errorGoalCnt stats.errorExtraInfoCnt
- 
+
 def mkGoalStats (results : Array VerificationResult) : IO GoalStats := do
   let mut stats : GoalStats := GoalStats.init
   for r in results do
     stats := stats.addResult r
   pure stats
 
+
+/--
+Based on whether a JSON output is specified in the configuration, returns an
+action to run when a verification result is known.
+
+`logStrategy` itself is an `IO` as it may need to set up a file handle or some
+such output.
+
+Currently we use the `IO.FS.Handle` API, which automatically closes the handle
+when it leaves scope, so there is no need for a final action, though it could be
+configured here if needed.
+-/
+def logStrategy (cfg : VCGConfig) : IO (VerificationResult → IO Unit) := do
+  match cfg.getJsonOut? with
+  | none => pure (λ res => pure ())
+  | some jsonOutFile => do
+    let file ← IO.FS.Handle.mk jsonOutFile IO.FS.Mode.write
+    -- render each goal as a single line of JSON
+    let resToString := λ (vr : VerificationResult) => " ".intercalate $ (toString $ Lean.toJson vr).splitOn "\n"
+    IO.println $ "Verification results stored in `" ++ jsonOutFile ++"` (one JSON object for each goal, one per line)."
+    return (λ res => do
+      file.putStrLn (resToString res)
+      file.flush
+    )
+
+
 def interactiveVerificationSession (annFile solverPath : String) (solverArgs : List String) : IO VerificationSession := do
   let results : IO.Ref (Array VerificationResult) ← IO.mkRef #[]
   -- -- Counter for errors
-  let ictx : InteractiveContext := {
-        annFile := annFile,
-        results := results,
-        solverCommand := String.intercalate " " (solverPath::solverArgs)
-      }
   let interactiveReportSummary : VCGConfig → VCStats → IO UInt32 :=
     λ cfg vcStats => do
       printVCStats vcStats
       let vrs ← results.get
       let gStats ← mkGoalStats vrs
       printGoalStats gStats
-      match cfg.getJsonOut? with
-      | none => pure ()
-      | some jsonOutFile =>
-        outputGoalsAsJson jsonOutFile vrs
       let exitStatus : UInt32 :=
         (if vcStats.errCnt > 0 then ExitFlag.generationError else 0b0)
         ||| (if gStats.failGoalCnt.size > 0 then ExitFlag.verificationFailure else 0b0)
         ||| (if gStats.errorGoalCnt.size > 0 then ExitFlag.verificationError else 0b0)
       pure exitStatus
-  pure { verifyModule := λ cfg => verifyModule' (interactiveDoGoal ictx cfg) (interactiveReportSummary cfg) }
+  pure { verifyModule := λ cfg modv => do
+    let applyLogStrategy ← logStrategy cfg
+    let ictx : InteractiveContext := {
+      annFile := annFile,
+      onResult := λ v => do
+        results.modify (λ rs => rs.push v)
+        applyLogStrategy v,
+      results := results,
+      solverCommand := String.intercalate " " (solverPath::solverArgs)
+    }
+    verifyModule' (interactiveDoGoal ictx cfg) (interactiveReportSummary cfg) modv
+  }
+
 
 def exportVerificationSession (outDir : String) : IO VerificationSession := do
   let fileCntRef ← IO.mkRef 0
