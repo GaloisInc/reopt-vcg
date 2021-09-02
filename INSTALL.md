@@ -22,6 +22,11 @@ llvm-8
 On MacOS dependencies such as `llvm-8` can be installed via a package manager
 such as [homebrew](https://brew.sh/), e.g. `brew install llvm@8`.
 
+### CVC4
+
+A compatible version of CVC4 (> v1.8) is also required. For Linux, such a binary
+is located at `deps/cvc4-2020-09-16-x86_64-linux-opt` in this repository.
+
 ## Cloning and Building
 
 First, `git clone` the repository and run `git submodule update --init` within it
