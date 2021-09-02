@@ -67,6 +67,11 @@ inductive BlockExpr : SmtSort → Type u
   --
   -- Note. We do not support all registers here, only the registers
   -- in `calleeSavedGPRegs`
+
+| beforeCallGPReg64 : x86.reg64 → BlockExpr SmtSort.bv64
+  -- ^ Used to refer to the value of a register before a function call
+  -- (used for function post conditions)
+
 | mcStack (a : BlockExpr SmtSort.bv64) (w:WordSize) : BlockExpr w.sort
   -- ^ @MCStack a w@ denotes @w@-bit value stored at the address @a@.
   --
@@ -82,6 +87,11 @@ inductive BlockExpr : SmtSort → Type u
 -- A bit gross, but this allows us a bit more flexibility 
 | smtBinOp {tp tp' tp'' : SmtSort} : Smt.Raw.BuiltinIdent (Smt.Raw.BuiltinIdent.binop tp tp' tp'') -> 
            BlockExpr tp → BlockExpr tp' → BlockExpr tp''
+
+-- | smtUnOp {tp tp' : SmtSort} : Smt.Raw.BuiltinIdent (Smt.Raw.BuiltinIdent.unop tp tp') -> 
+--            BlockExpr tp → BlockExpr tp'
+
+| smtBool : Bool -> BlockExpr SmtSort.bool
 
   -- | @BVDecimal v w@ denotes the @w@-bit value @v@ which should
   -- satisfy the property that @v < 2^w@.
@@ -167,6 +177,15 @@ private def llvmVarP (llvmTyEnv : LLVMTyEnv)
 partial
 def parser (llvmTyEnv : LLVMTyEnv) : SExpParser Atom (Sigma BlockExpr) := do
   let go := parser llvmTyEnv
+
+  let checked : forall tp, SExpParser Atom (BlockExpr tp) := fun tp => do
+      let ⟨tp', e⟩ <- parser llvmTyEnv -- go
+      if h : tp' = tp
+      then 
+        let hEq : BlockExpr tp' = BlockExpr tp := h ▸ rfl;
+        pure (cast hEq e)
+      else throw ()
+  
   let mkBvBinOp (tp) (op : forall n, BuiltinIdent (binop (SmtSort.bitvec n) (SmtSort.bitvec n) (tp n)))
               (i : String) :=
       list (do exactIdentP i;
@@ -182,6 +201,27 @@ def parser (llvmTyEnv : LLVMTyEnv) : SExpParser Atom (Sigma BlockExpr) := do
                | _, _ => throw ())
   let bvBinOp  := mkBvBinOp SmtSort.bitvec
   let bvBoolOp := mkBvBinOp (fun _ => SmtSort.bool)
+
+  -- Binary version, n-ary causes an infinite loop :/
+  let mkLAssocBoolOp (op : BuiltinIdent (binop SmtSort.bool SmtSort.bool SmtSort.bool)) (i : String) :=
+      list (do exactIdentP i; 
+               let tm <- smtBinOp op <$> checked _ <*> checked _;
+               pure (Sigma.mk _ tm))
+
+  let mkRAssocBoolOp := mkLAssocBoolOp
+
+  -- let mkLAssocBoolOp (op : BuiltinIdent (binop SmtSort.bool SmtSort.bool SmtSort.bool)) (i : String) :=
+  --     list (do exactIdentP i; 
+  --              let hd <- checked SmtSort.bool;
+  --              let rest <- many (checked SmtSort.bool);
+  --              pure (Sigma.mk _ (List.foldl (smtBinOp op) hd rest)))
+
+  -- let mkRAssocBoolOp (op : BuiltinIdent (binop SmtSort.bool SmtSort.bool SmtSort.bool)) (i : String) :=
+  --     list (do exactIdentP i; 
+  --              let els <- many1 (checked SmtSort.bool);
+  --              match List.rotateRight els with
+  --              | [] => throw ()
+  --              | x :: rest => pure (Sigma.mk _ (List.foldr (smtBinOp op) x rest)))
 
   let eqOp := list (do 
       exactIdentP "="
@@ -221,14 +261,22 @@ def parser (llvmTyEnv : LLVMTyEnv) : SExpParser Atom (Sigma BlockExpr) := do
         , bvBoolOp bvule "bvule" 
         , bvBinOp  bvadd "bvadd"
         , bvBinOp  bvsub "bvsub"
+        , mkLAssocBoolOp or "or"
+        , mkLAssocBoolOp and "and"
+        , mkRAssocBoolOp impl "=>"
         , do exactIdentP "stack_high"; pure (Sigma.mk _ stackHigh)
         , bvLitP
         , initReg
         , llvmVarP llvmTyEnv
         , mcstackP
+        , exactIdentP "true" *> pure (Sigma.mk _ (BlockExpr.smtBool true))
+        , exactIdentP "false" *> pure (Sigma.mk _ (BlockExpr.smtBool false))
         , list (do exactIdentP "fnstart"; 
                    let r <- gprP
                    pure (Sigma.mk _ (BlockExpr.fnStartGPReg64 r)))
+        , list (do exactIdentP "before_call"; 
+                   let r <- gprP
+                   pure (Sigma.mk _ (BlockExpr.beforeCallGPReg64 r)))
         ]
 
 partial def fromSExp

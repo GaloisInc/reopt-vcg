@@ -209,6 +209,7 @@ class BlockExprEnv (α : Type u) :=
 (initGPReg64 : α → x86.reg64 → Term SmtSort.bv64)
 (initFlag : α → x86.flag → Term SmtSort.bool)
 (fnStartRegState : α → x86.reg64 → Term SmtSort.bv64)
+(beforeCallRegState : α → x86.reg64 → Term SmtSort.bv64)
 (evalVar : α → LLVM.Ident → Option (Sigma Term))
 (readMem : α → ∀(w : WordSize), x86.vcg.memaddr →  Term w.sort)
 
@@ -229,6 +230,9 @@ e.state.mcCurRegs.get_flag' r
 def fnStartRegState (r : x86.reg64) : Term SmtSort.bv64 :=
 e.context.mcStdLib.funStartRegs.get_reg64 r
 
+def beforeCallRegState (r : x86.reg64) : Term SmtSort.bv64 :=
+e.state.mcPreCallRegs.get_reg64 r
+
 def readMem (w:WordSize) (addr : x86.vcg.memaddr) : Term w.sort :=
 (e.context.mcStdLib.memOps w).readMem e.state.mcCurMem addr
 
@@ -238,6 +242,7 @@ instance BlockVCGExprEnv.isBlockExprEnv : BlockExprEnv BlockVCGExprEnv :=
 {initGPReg64 := BlockVCGExprEnv.initGPReg64,
  initFlag    := BlockVCGExprEnv.initFlag,
  fnStartRegState := BlockVCGExprEnv.fnStartRegState,
+ beforeCallRegState := BlockVCGExprEnv.beforeCallRegState,
  evalVar := BlockVCGExprEnv.evalVar,
  readMem := BlockVCGExprEnv.readMem
 }
@@ -255,6 +260,7 @@ def toSExp : ∀ {tp : SmtSort}, BlockExpr tp → SExp String
 | _, initGPReg64 r => SExp.atom r.name
 | _, initFlag r    => SExp.atom r.name
 | _, fnStartGPReg64 r => SExp.list [SExp.atom "fnstart", SExp.atom r.name]
+| _, beforeCallGPReg64 r => SExp.list [SExp.atom "before_call", SExp.atom r.name]
 | _, mcStack a w =>
   SExp.list [SExp.atom "mcstack",
              toSExp a,
@@ -262,6 +268,7 @@ def toSExp : ∀ {tp : SmtSort}, BlockExpr tp → SExp String
             ]
 | _, llvmVar nm tp => SExp.list [SExp.atom "llvm", SExp.atom (ppLLVMIdent nm)]
 | _, smtBinOp ident e1 e2 => SExp.list [ toSExpr ident, toSExp e1, toSExp e2]
+| _, smtBool b => SExp.atom (if b then "true" else "false")
 | _, bvDecimal n width => SExp.list [SExp.atom "_", SExp.atom ("bv"++(reprStr n)), SExp.atom (reprStr width)]
 
 def toString : ∀ {tp : SmtSort}, BlockExpr tp → String
@@ -283,6 +290,7 @@ def toSmt {α : Type u} [BlockExprEnv α] (env: α) : ∀ {tp : SmtSort}, BlockE
 | _, initGPReg64 r => pure $ BlockExprEnv.initGPReg64 env r
 | _, initFlag r    => pure $ BlockExprEnv.initFlag env r
 | _, fnStartGPReg64 r => pure $ BlockExprEnv.fnStartRegState env r
+| _, beforeCallGPReg64 r => pure $ BlockExprEnv.beforeCallRegState env r
 | _, mcStack a w => do
   let t ← toSmt env a
   pure $ BlockExprEnv.readMem env w t
@@ -305,6 +313,8 @@ def toSmt {α : Type u} [BlockExprEnv α] (env: α) : ∀ {tp : SmtSort}, BlockE
   let t2 ← toSmt env e2
   -- FIXME
   pure $ app (app (ident (builtin i)) t1) t2
+| _, smtBool b => do
+  pure $ if b then Smt.true else Smt.false
 | _, bvDecimal n width => pure $ Smt.bvimm width n
 
 end
@@ -312,7 +322,7 @@ end
 end BlockExpr
 
 /- Converts a BlockExpr into an SMT term in the BlockVCG context. -/
-def evalPrecondition {tp : SmtSort} (evalVar : LLVM.Ident → Option (Sigma Term)) (expr : BlockExpr tp) : BlockVCG (Term tp) := do
+def evalBlockExpr {tp : SmtSort} (evalVar : LLVM.Ident → Option (Sigma Term)) (expr : BlockExpr tp) : BlockVCG (Term tp) := do
   let ctx ← read
   let state ← get
   let env := BlockVCGExprEnv.mk evalVar ctx state

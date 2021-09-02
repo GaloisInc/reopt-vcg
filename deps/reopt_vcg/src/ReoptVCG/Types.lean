@@ -864,6 +864,8 @@ structure BlockVCGState :=
   -- ^ Map registers to the SMT term.
 (mcCurMem : x86.vcg.memory)
   -- ^ Current memory object
+(mcPreCallRegs : x86.vcg.RegState)
+  -- ^ Map registers to the SMT term for just before a call (nonsense otherwise).
 (mcEvents : List x86.vcg.Event)
   -- ^ Unprocessed events from last instruction.
 (idGen : IdGen)

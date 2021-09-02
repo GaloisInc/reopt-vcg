@@ -42,8 +42,11 @@ instance : MonadExcept Unit (SExpParser tok) :=
   }
 
 protected
-partial def many0 (p : SExpParser tok a) : Unit -> SExpParser tok (List a)
-  | _ => (do let v ← p; let vs ← SExpParser.many0 p (); pure (v :: vs)) <|> pure []
+partial def many0 (p : SExpParser tok a) (acc : List a) : SExpParser tok (List a) :=
+   do let v ← (Option.some <$> p) <|> pure none;
+      match v with 
+       | Option.none    => pure acc.reverse
+       | Option.some vv => SExpParser.many0 p (vv :: acc)
 
 def optional {a : Type} (f : SExp tok -> Option a) : SExpParser tok a :=
   do let tks ← get;
@@ -60,7 +63,7 @@ def token (f : SExp tok -> Bool) : SExpParser tok (SExp tok) :=
 -- def exact [DecidableEq tok] (t : SExp tok) : SExpParser tok Unit :=
 --   do _ <- token (fun x => x = t); pure ()
 
-def many (p : SExpParser tok a) : SExpParser tok (List a) := SExpParser.many0 p ()
+def many (p : SExpParser tok a) : SExpParser tok (List a) := SExpParser.many0 p []
 
 def many1 (p : SExpParser tok a) : SExpParser tok (List a) := 
   do let v ← p; 

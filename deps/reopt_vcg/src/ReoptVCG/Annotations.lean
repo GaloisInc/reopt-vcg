@@ -92,7 +92,16 @@ def parseObjValAsMCAddr (js:Json) (key:String) : Except String MCAddr :=
   | Option.none => throw $ "Missing a `" ++ key ++ "` entry"
 
 ------------------------------------------------------------------------
--- FucntionAnn
+-- Helper
+
+def parseBlockExpr (llvmMap: LLVMTyEnv) (js:Json) : Except String (BlockExpr SmtSort.bool) := do
+  let rawStr ← match js.getStr? with
+               | none => Except.error $ "Expected block expression to be a string but got: " ++ js.pretty ++ "."
+               | some s => Except.ok s;
+  BlockExpr.parseAs SmtSort.bool llvmMap rawStr
+
+------------------------------------------------------------------------
+-- FunctionAnn
 
 structure FunctionAnn :=
 (llvmFnName : String)
@@ -131,16 +140,23 @@ structure ExternalFunctionAnn :=
 (startAddr  : MCAddr) 
  -- ^ Address of start of block in machine code
 (isNoReturn : Bool)
+(postcondition : Option (BlockExpr SmtSort.bool))
 
 -- Like FunctionAnn.fromJson but with human-friendly error messages.
 def parseExternalFunctionAnn (js:Json) : Except String ExternalFunctionAnn := do
   let name ←  parseObjValAsString js "llvm_name"
   let startAddr ← parseObjValAsMCAddr js "start_addr"
   let isNoReturn <- parseObjValAsBool js "is_no_return"
-  pure $ ExternalFunctionAnn.mk name startAddr isNoReturn
+  let postcond <- 
+    match js.getObjVal? "postcondition" with
+    | Option.some rawJson => Except.map Option.some (parseBlockExpr RBMap.empty rawJson)
+    | Option.none => pure Option.none
+  
+  pure $ ExternalFunctionAnn.mk name startAddr isNoReturn postcond
 
 protected
-def ExternalFunctionAnn.fromJson? (js : Json) : Option ExternalFunctionAnn := (parseExternalFunctionAnn js).toOption
+def ExternalFunctionAnn.fromJson? (js : Json) : Option ExternalFunctionAnn := 
+  (parseExternalFunctionAnn js).toOption
 
 protected
 def ExternalFunctionAnn.toJson (fnAnn : ExternalFunctionAnn) : Json :=
@@ -438,11 +454,6 @@ def x86ResultFPRegs : List (x86.concrete_reg (bv 512)) :=
 
 end
 
-def parsePrecondition (llvmMap: LLVMTyEnv) (js:Json) : Except String (BlockExpr SmtSort.bool) := do
-  let rawStr ← match js.getStr? with
-               | none => Except.error $ "Expected precondition to be a string but got: " ++ js.pretty ++ "."
-               | some s => Except.ok s;
-  BlockExpr.parseAs SmtSort.bool llvmMap rawStr
 
 
 def blockExprToJson : ∀{tp:SmtSort}, BlockExpr tp → Json :=
@@ -500,7 +511,7 @@ def parseReachableBlockAnn (llvmMap: LLVMTyEnv) (js:Json) : Except String Reacha
     throw "Expected end of block computation to not overflow."
   let x87Top ← parseObjValAsNatD js "x87_top" ReachableBlockAnn.x87TopDefault
   let dfFlag ← parseObjValAsBoolD js "df_flag" ReachableBlockAnn.dfFlagDefault
-  let preconds ← parseObjValAsArrWithD (parsePrecondition llvmMap) js "preconditions" ReachableBlockAnn.precondsDefault
+  let preconds ← parseObjValAsArrWithD (parseBlockExpr llvmMap) js "preconditions" ReachableBlockAnn.precondsDefault
   let allocas ← parseObjValAsArrWithD parseAllocaAnn js "allocas" ReachableBlockAnn.allocasArrayDefault
   let allocaMap := Std.RBMap.fromList (allocas.toList.map (λ a => (a.ident, a))) (λ x y => x<y)
   let memoryEvents ← parseObjValAsArrWithD parseMCMemoryEvent js "mem_events" ReachableBlockAnn.memoryEventsDefault
