@@ -69,20 +69,30 @@ partial def parseArgs : List String → VCGArgs → Except String VCGCmd
           throw "Cannot specify `--json-goals` multiple times."
         mode := some $ VerificationMode.solverMode {solverCfg with jsonOut := some s'}
       parseArgs ss' $ {args with mode := mode}
-  else do 
+  else do
     if (String.isPrefixOf "--" s) then throw $ "Unexpected flag " ++ s
     if (Option.isSome args.annFile) then throw "Multiple VCG files specified."
     parseArgs ss $ {args with annFile := (Option.some s)}
 
 
+def usage : String :=
+  "Usage: reopt-vcg FILE [-v|--verbose] [--alt-backend] [--export DIR] [--solver PATH] [--json-goals FILE]"
 def showUsage : IO Unit := do
-  IO.println "Usage: reopt-vcg [-v|--verbose] <input.json> [--alt-backend] {--export <export-dir> | --solver <solver-path>} [--json-goals <json-path>]"
-  
+  IO.println usage
+  IO.println "  Use --help for more details."
 def showHelp : IO Unit := do
-  showUsage;
-  IO.println
-    $  "reopt-vcg generates verification conditions to prove that reopt generated\n"
-    ++ "   LLVM is faithful to the input binary.\n"
+  IO.println usage
+  IO.println "reopt-vcg generates verification conditions to prove the reopt-generated"
+  IO.println "   LLVM is faithful to the input binary based on given annotations FILE."
+  IO.println ""
+  IO.println "Available options:"
+  IO.println "  --help            Display this message."
+  IO.println "  -v,--verbose      Enable verbose logging."
+  IO.println "  --alt-backend     Use custom x86 semantics (default is K-based)."
+  IO.println "  --export DIR      Emit SMT queries as files in DIR rather than"
+  IO.println "                    solving them online via CVC4 (useful for debugging)."
+  IO.println "  --solver PATH     Specify CVC4 is located at PATH (incompatible with --export)."
+  IO.println "  --json-goals FILE Emit summary of verification queries in FILE as JSON."
 
 
 def main (args:List String) : IO UInt32 :=
