@@ -220,18 +220,11 @@ def VerificationMode.isExportMode : VerificationMode → Bool
 
 end VerificationMode
 
-
-inductive SemanticsBackend 
-| KSemantics : SemanticsBackend
-| ManualSemantics : SemanticsBackend
-
-
 -- Like VCGArgs in Main but with all mandatory fields no longer as Options.
 structure VCGConfig :=
 (annFile : String)
 (mode : VerificationMode)
 (verbose : Bool)
-(semanticsBackend : SemanticsBackend)
 
 namespace VCGConfig
 

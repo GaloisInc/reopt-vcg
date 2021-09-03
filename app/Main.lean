@@ -12,16 +12,15 @@ inductive VCGCmd
 
 -- A container to accumulate user-provided command line arguments in
 -- while the are being processed.
-structure VCGArgs := 
+structure VCGArgs :=
   (annFile : Option String)
   (mode : Option VerificationMode)
   (verbose : Bool)
-  (semanticsBackend : SemanticsBackend)
 
 -- | State of argument parsing before any user arguments have actually
 -- been processed.
 
-def initVCGArgs := VCGArgs.mk none none false SemanticsBackend.KSemantics
+def initVCGArgs := VCGArgs.mk none none false
 
 -- Function for parsing command line arguments to reopt-vcg.
 partial def parseArgs : List String → VCGArgs → Except String VCGCmd
@@ -30,7 +29,7 @@ partial def parseArgs : List String → VCGArgs → Except String VCGCmd
   let mut mode := match args.mode with
                   | none => VerificationMode.default
                   | some m => m
-  pure $ VCGCmd.runVCG $ VCGConfig.mk annPath mode args.verbose args.semanticsBackend
+  pure $ VCGCmd.runVCG $ VCGConfig.mk annPath mode args.verbose
 | (s::ss), args =>
   if s == "--help" then
     pure $ VCGCmd.showHelp
@@ -52,8 +51,6 @@ partial def parseArgs : List String → VCGArgs → Except String VCGCmd
     | (solver::solverArgs) =>
       let vm := VerificationMode.solverMode {SolverConfig.default with solverPathAndArgs := some (solver, solverArgs)}
       parseArgs ss' $ {args with mode := some vm}
-    else if s == "--alt-backend" then
-    parseArgs ss $ {args with semanticsBackend := SemanticsBackend.ManualSemantics}
   else if s == "--json-goals" then do
     match ss with
     | [] => throw "missing argument for `--json-goals` flag"
@@ -76,7 +73,7 @@ partial def parseArgs : List String → VCGArgs → Except String VCGCmd
 
 
 def usage : String :=
-  "Usage: reopt-vcg FILE [-v|--verbose] [--alt-backend] [--export DIR] [--solver PATH] [--json-goals FILE]"
+  "Usage: reopt-vcg FILE [-v|--verbose] [--export DIR] [--solver PATH] [--json-goals FILE]"
 def showUsage : IO Unit := do
   IO.println usage
   IO.println "  Use --help for more details."
@@ -88,7 +85,6 @@ def showHelp : IO Unit := do
   IO.println "Available options:"
   IO.println "  --help            Display this message."
   IO.println "  -v,--verbose      Enable verbose logging."
-  IO.println "  --alt-backend     Use custom x86 semantics (default is K-based)."
   IO.println "  --export DIR      Emit SMT queries as files in DIR rather than"
   IO.println "                    solving them online via CVC4 (useful for debugging)."
   IO.println "  --solver PATH     Specify CVC4 is located at PATH (incompatible with --export)."

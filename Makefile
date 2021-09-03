@@ -70,7 +70,7 @@ all: realall
 include deps/galois_stdlib/Makefile.include
 include deps/smtlib/Makefile.include
 include deps/lean-llvm/Makefile.include
-include deps/llvm-tablegen-support/Makefile.include
+#include deps/llvm-tablegen-support/Makefile.include
 include deps/llvm-mcinst-support/Makefile.include
 include deps/x86_semantics/Makefile.include
 include deps/k-x86-semantics/Makefile.include

@@ -8,30 +8,12 @@ import ReoptVCG.Smt
 import ReoptVCG.Types
 import SmtLib.Smt
 import X86Semantics.Common
-import DecodeX86.DecodeX86
 
 import ReoptVCG.ABI
-import ReoptVCG.Translate
 import ReoptVCG.InstructionEvents
 
 import MCInst.Basic
 import ReoptVCG.KTranslate
-
--- FIXME: move
-namespace x86
-namespace manual_semantics
-
-def mkSemantics (text_bytes : ByteArray) (vaddr : Nat) : x86.vcg.Semantics :=
-  let d := decodex86.mk_decoder text_bytes vaddr;
-  { instruction := decodex86.instruction,
-    instruction_size := fun i => i.nbytes,
-    decode           := fun n => match decodex86.decode d n with
-                                 | Sum.inl _ => Sum.inl "Unknown"
-                                 | Sum.inr r => Sum.inr r,
-    eval             := eval_instruction
-  }
-end manual_semantics
-end x86
 
 namespace x86
 namespace mcinst
@@ -427,9 +409,7 @@ def runVCG (cfg : VCGConfig) : IO UInt32 := do
                 | none        => throw $ IO.userError $ "No text region"
                 | some (_, b) => pure b);
   let entry := elfHdr.entry.toNat;
-  let sem := match cfg.semanticsBackend with
-             | SemanticsBackend.KSemantics      => x86.mcinst.mkSemantics text_bytes text_phdr.vaddr.toNat
-             | SemanticsBackend.ManualSemantics => x86.manual_semantics.mkSemantics text_bytes text_phdr.vaddr.toNat;
+  let sem := x86.mcinst.mkSemantics text_bytes text_phdr.vaddr.toNat
   if cfg.verbose then IO.println $ "x86 decoder built...";
   -- Get LLVM module
   if cfg.verbose then IO.println $ s!"Loading LLVM module at `{llvmPath}`";
@@ -437,9 +417,8 @@ def runVCG (cfg : VCGConfig) : IO UInt32 := do
   if cfg.verbose then IO.println $ "LLVM module loaded!";
 
   -- FIXME: should we check that the upper bound is < 2 ^ 64
-  let phdrRanges := List.map (fun phdr => (phdr.vaddr.toNat, phdr.vaddr.toNat + phdr.memsz.toNat)) 
+  let phdrRanges := List.map (fun phdr => (phdr.vaddr.toNat, phdr.vaddr.toNat + phdr.memsz.toNat))
                     (List.filter (fun phdr => phdr.phdr_type = elf.phdr_type.PT_LOAD) prgmHdrs)
-  
   -- Create verification coontext for module.
   let modCtx : ModuleVCGContext :=
     { annotations := ann

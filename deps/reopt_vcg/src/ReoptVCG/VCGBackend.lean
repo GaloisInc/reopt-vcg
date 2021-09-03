@@ -9,9 +9,8 @@ import SmtLib.Smt
 import X86Semantics.Common
 import X86Semantics.BackendAPI
 
-import DecodeX86.DecodeX86
+
 import ReoptVCG.Types
-import ReoptVCG.Translate -- FIXME: this should be moved elsewhere
 
 import ReoptVCG.Annotations
 
