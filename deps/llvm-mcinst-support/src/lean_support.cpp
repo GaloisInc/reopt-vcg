@@ -39,55 +39,56 @@ public:
     llvm::MCInstrInfo *mii;
     llvm::MCDisassembler *mcdis;
     llvm::MCInstPrinter *mcp;
-    
+
     LLVMMCInstMeta() {
         /* Lots of boilerplate to create the disassembler */
         llvm::Triple triple(llvm::Twine(llvm::Triple::normalize("x86_64-generic-linux-elf")));
         const std::string triple_name = triple.getTriple();
-    
+
         LLVMInitializeX86TargetInfo();
         LLVMInitializeX86Target();
         LLVMInitializeX86TargetMC();
         LLVMInitializeX86Disassembler();
         std::string Error;
-    
+
         auto target = llvm::TargetRegistry::lookupTarget(triple_name, Error);
         assert(target);
-        
+
         mii = target->createMCInstrInfo();
         assert(mii);
 
         auto reginfo = target->createMCRegInfo(triple_name);
         assert(reginfo);
 
-        auto asminfo = target->createMCAsmInfo(*reginfo, triple_name);
+        const llvm::MCTargetOptions mcOptions;
+        auto asminfo = target->createMCAsmInfo(*reginfo, triple_name, mcOptions);
         assert(asminfo);
-        
+
         mcp = target->createMCInstPrinter(triple, 0, *asminfo, *mii, *reginfo);
         assert(mcp);
 
-        auto sti = target->createMCSubtargetInfo(triple_name, "", "");    
+        auto sti = target->createMCSubtargetInfo(triple_name, "", "");
         assert(sti);
-        auto ctxt = new llvm::MCContext(asminfo, reginfo, /* MOFI, obj file info */ NULL); 
+        auto ctxt = new llvm::MCContext(asminfo, reginfo, /* MOFI, obj file info */ NULL);
         assert(ctxt);
         mcdis = target->createMCDisassembler(*sti, *ctxt);
         assert(mcdis);
     }
 
     int decode(std::string &out,
-               uint64_t &nbytes,               
+               uint64_t &nbytes,
                llvm::ArrayRef<uint8_t> buffer,
                uint64_t base_address) {
         llvm::MCInst insn;
-        
-        if (mcdis->getInstruction(insn, nbytes, buffer, base_address
-                                  , llvm::nulls(), llvm::nulls()) == llvm::MCDisassembler::Fail) {
+
+        if (mcdis->getInstruction(insn, nbytes, buffer, base_address, llvm::nulls())
+            == llvm::MCDisassembler::Fail) {
             // std::cerr << "Could not decode" << std::endl;
             return 1;
-        } 
+        }
 
         llvm::raw_string_ostream out_stream(out);
-        mcp->printInst(&insn, out_stream, "", mcdis->getSubtargetInfo());
+        mcp->printInst(&insn, 0, "", mcdis->getSubtargetInfo(), out_stream);
         out_stream.flush();
         return 0;
     }
