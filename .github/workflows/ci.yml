@@ -24,7 +24,7 @@ jobs:
         run: sudo apt-get install clang
 
       - shell: bash
-        run: ./build.sh
+        run: LLVM_CONFIG=$(which llvm-config) ./build.sh
 
       - shell: bash
         run: .github/ci.sh run-tests
