@@ -21,10 +21,10 @@ jobs:
           submodules: recursive
 
       - shell: bash
-        run: sudo apt-get install clang
+        run: sudo apt-get install clang-10
 
       - shell: bash
-        run: LLVM_CONFIG=$(which llvm-config) ./build.sh
+        run: ./build.sh
 
       - shell: bash
         run: .github/ci.sh run-tests
