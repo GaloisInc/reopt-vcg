@@ -88,7 +88,7 @@ public:
         }
 
         llvm::raw_string_ostream out_stream(out);
-        mcp->printInst(&insn, 0, "", mcdis->getSubtargetInfo(), out_stream);
+        mcp->printInst(&insn, base_address, "", mcdis->getSubtargetInfo(), out_stream);
         out_stream.flush();
         return 0;
     }
