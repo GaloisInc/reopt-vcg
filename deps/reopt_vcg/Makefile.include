@@ -5,7 +5,7 @@ LOCAL_LEAN := src/ReoptVCG/Annotations.lean src/ReoptVCG/LoadLLVM.lean\
               src/ReoptVCG/Types.lean src/ReoptVCG/VCGBlock.lean\
               src/ReoptVCG/Elf.lean src/ReoptVCG/ExitFlag.lean src/ReoptVCG/MCStdLib.lean\
               src/ReoptVCG/Smt.lean \
-              src/ReoptVCG/Translate.lean src/ReoptVCG/KTranslate.lean\
+              src/ReoptVCG/KTranslate.lean\
               src/ReoptVCG/VCGBackend.lean src/ReoptVCG/WordSize.lean\
               src/ReoptVCG/InstructionEvents.lean src/ReoptVCG/ABI.lean
 

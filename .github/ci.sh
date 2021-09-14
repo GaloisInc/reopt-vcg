@@ -17,12 +17,6 @@ case $COMMAND in
         pushd tests/unit-tests/src/Test/ > /dev/null
         bash test.sh
         popd > /dev/null
-        pushd tests/integration-tests/interactive/ > /dev/null
-        bash test.sh
-        popd > /dev/null
-        pushd tests/integration-tests/export/ > /dev/null
-        bash test.sh
-        popd > /dev/null
         pushd tests/integration-tests/k-interactive/ > /dev/null
         bash test.sh
         popd > /dev/null

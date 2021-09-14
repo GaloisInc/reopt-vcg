@@ -21,7 +21,7 @@ jobs:
           submodules: recursive
 
       - shell: bash
-        run: sudo apt-get install clang-8
+        run: sudo apt-get install clang-10
 
       - shell: bash
         run: ./build.sh

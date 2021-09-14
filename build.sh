@@ -17,17 +17,17 @@ elan default leanprover/lean4:nightly-2021-08-18
 
 
 
-if [[ -x "$LLVM_CONFIG" && $($LLVM_CONFIG --version) == 8.0.* ]] ; then
-  LLVM_CONFIG_8=$LLVM_CONFIG
-elif [[ -x $(which llvm-config) && $($(which llvm-config) --version) == 8.0.* ]] ; then
-  LLVM_CONFIG_8=$(which llvm-config)
-elif [[ -x $(which llvm-config-8) && $($(which llvm-config-8) --version) == 8.0.* ]] ; then
-  LLVM_CONFIG_8=$(which llvm-config-8)
+if [[ -x "$LLVM_CONFIG" && $($LLVM_CONFIG --version) == 10.0.* ]] ; then
+  LLVM_CONFIG_10=$LLVM_CONFIG
+elif [[ -x $(which llvm-config) && $($(which llvm-config) --version) == 10.0.* ]] ; then
+  LLVM_CONFIG_10=$(which llvm-config)
+elif [[ -x $(which llvm-config-10) && $($(which llvm-config-10) --version) == 10.0.* ]] ; then
+  LLVM_CONFIG_10=$(which llvm-config-10)
 else
-  echo "could not find LLVM 8.0.* -- please update LLVM_CONFIG environment variable"
+  echo "could not find LLVM 10.0.* -- please update LLVM_CONFIG environment variable"
   exit 1
 fi
 
-CLANG=${CLANG:-"$($LLVM_CONFIG_8 --bindir)/clang"}
+CLANG=${CLANG:-"$($LLVM_CONFIG_10 --bindir)/clang"}
 
-make -C . LEAN_CXX=$CLANG CXX=$CLANG LLVM_CONFIG=$LLVM_CONFIG_8 -j4
+make -C . LEAN_CXX=$CLANG CXX=$CLANG LLVM_CONFIG=$LLVM_CONFIG_10 -j4
