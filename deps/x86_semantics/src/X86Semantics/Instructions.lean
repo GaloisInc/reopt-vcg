@@ -142,23 +142,23 @@ def imul : instruction :=
      action
    instr_pat $ fun (w : one_of [8,16,32,64]) (dest : lhs (bv w)) (src : expression (bv w)) =>
      let action : semantics Unit := do
-       let tmp     ← eval $ sext dest.expr (2*w) * sext src (2*w)
+       let tmp     ← eval $ sext dest.expr (2*w.val) * sext src (2*w.val)
        let tmp_low ← eval $ trunc tmp w
        dest .= tmp_low
-       set_overflow $ sext tmp_low (2*w) ≠ tmp
+       set_overflow $ sext tmp_low (2*w.val) ≠ tmp
      action
    instr_pat $ fun (w : one_of [16,32,64]) (dest : lhs (bv w)) (src1 src2 : expression (bv w)) =>
      let action : semantics Unit := do
-       let tmp     ← eval $ sext src1 (2*w) * sext src2 (2*w)
+       let tmp     ← eval $ sext src1 (2*w.val) * sext src2 (2*w.val)
        let tmp_low ← eval $ trunc tmp w
        dest .= tmp_low
-       set_overflow $ sext tmp_low (2*w) ≠ tmp
+       set_overflow $ sext tmp_low (2*w.val) ≠ tmp
      action
 
 
-def mul : instruction := do
+def mul : instruction :=
  definst "mul" $ do
-   instr_pat $ fun (src : expression (bv 8)) =>
+   instr_pat $ fun (src : expression (bv 8)) => 
      let action : semantics Unit := do
        let tmp ← eval $ uext al.expr 16 * uext src 16
        ax .= tmp
@@ -189,7 +189,7 @@ def mul : instruction := do
 -- ------------------------------------------------------------------------
 -- -- mov definition
 
-def mov : instruction := do
+def mov : instruction :=
  definst "mov" $ do
    instr_pat $ fun (w : one_of [8,16,32,64]) (dest : lhs (bv w)) (src : expression (bv w)) =>
      let action : semantics Unit := do
@@ -200,14 +200,14 @@ def mov : instruction := do
 -- -- mov definition
 -- -- Move Data from String to String
 
--- def movs : instruction := do
+-- def movs : instruction :=
 --  definst "movs" $ do sorry
 
 ------------------------------------------------------------------------
 -- movsx definition
 -- Move with Sign-Extension
 
-def movsx : instruction := do
+def movsx : instruction :=
  definst "movsx" $ do
    instr_pat $ fun (w : one_of [16,32,64]) (u : one_of [8, 16, 32]) (dest : lhs (bv w)) (src : expression (bv u)) =>
      let action : semantics Unit := do
@@ -218,7 +218,7 @@ def movsx : instruction := do
 -- movsxd definition
 -- Move with Sign-Extension
 /-
-def movsxd : instruction := do
+def movsxd : instruction :=
  definst "movsxd" $ do
    pattern fun (w : one_of [16 =>32,64]) (u : one_of [16, 32]) (dest : lhs (bv w)) (src : bv u), do
      dest .= sext src w
@@ -227,7 +227,7 @@ def movsxd : instruction := do
 -- movzx definition
 -- Move with Zero-Extend
 
-def movzx : instruction := do
+def movzx : instruction :=
  definst "movzx" $ do
    instr_pat $ fun (w : one_of [16,32,64]) (u : one_of [8, 16]) (dest : lhs (bv w)) (src : expression (bv u)) =>
      let action : semantics Unit := do
@@ -238,7 +238,7 @@ def movzx : instruction := do
 -- movdqa definition
 -- Move Aligned Packed Integer Values
 
-def movdqa : instruction := do
+def movdqa : instruction :=
  definst "movdqa" $ do
    instr_pat $ fun (n : one_of [4, 8, 16]) (dest : lhs (vec n (bv 32))) (src : expression (vec n (bv 32))) =>
      let action : semantics Unit := do
@@ -249,7 +249,7 @@ def movdqa : instruction := do
 -- movaps definition
 -- Move Aligned Packed Single-Precision Floating-Point Values
 
-def movaps : instruction := do
+def movaps : instruction :=
  definst "movaps" $ do
    instr_pat $ fun (n : one_of [4, 8, 16]) (dest : lhs (vec n (bv 32))) (src : expression (vec n (bv 32))) =>
      let action : semantics Unit := do
@@ -260,7 +260,7 @@ def movaps : instruction := do
 -- movups definition
 -- Move Aligned Packed Single-Precision Floating-Point Values
 
-def movups : instruction := do
+def movups : instruction :=
  definst "movups" $ do
    instr_pat $ fun (n : one_of [4, 8, 16]) (dest : lhs (vec n (bv 32))) (src : expression (vec n (bv 32))) =>
      let action : semantics Unit := do
@@ -270,7 +270,7 @@ def movups : instruction := do
 ------------------------------------------------------------------------
 -- xchg definition
 -- Exchange Register/Memory with Register
-def xchg : instruction := do
+def xchg : instruction :=
  definst "xchg" $ do
    instr_pat $ fun (w : one_of [8,16,32,64]) (dest : lhs (bv w)) (src : lhs (bv w)) =>
      let action : semantics Unit := do
@@ -288,7 +288,7 @@ def do_cmp {u v : Nat} (x : expression (bv u)) (src2 : expression (bv v)) : sema
   cf .= usub_overflows x y
   set_result_flags (x - y)
 
-def cmp : instruction := do
+def cmp : instruction :=
   definst "cmp" $ do
     instr_pat $ fun (u v : one_of [8,16,32,64]) (x : expression (bv u)) (src2 : expression (bv v)) => do_cmp x src2
     instr_pat $ fun (x : imm (bv 8))  => do_cmp (⇑ al)  (expression.imm x)
@@ -310,7 +310,7 @@ This instruction should be fairly straigth forward in the register-only
 case, but requires more care for the memory case. We will probably also
 need a notion of muxing on a bit.
 
-def cmpxchg : instruction := do
+def cmpxchg : instruction :=
  definst "cmpxchg" $ do
    pattern fun (dest : lhs (bv 8)) (src : bv 8) => do
      temp ← eval $ ⇑dest,
@@ -323,7 +323,7 @@ def cmpxchg : instruction := do
 -- dec definition
 -- Decrement by 1
 
-def dec : instruction := do
+def dec : instruction :=
  definst "dec" $ do
    instr_pat $ fun (w : one_of [8, 16,32,64]) (value : lhs (bv w)) =>
      let action : semantics Unit := do
@@ -338,7 +338,7 @@ def dec : instruction := do
 -- inc definition
 -- Increment by 1
 
-def inc : instruction := do
+def inc : instruction :=
  definst "inc" $ do
    instr_pat $ fun (w : one_of [8, 16,32,64]) (value : lhs (bv w)) =>
      let action : semantics Unit := do
@@ -353,7 +353,7 @@ def inc : instruction := do
 -- neg definition
 -- Two's Complement Negation
 
-def neg : instruction := do
+def neg : instruction :=
  definst "neg" $ do
    instr_pat $ fun (w : one_of [8, 16,32,64]) (dest : lhs (bv w)) =>
      let action : semantics Unit := do
@@ -369,7 +369,7 @@ def neg : instruction := do
 -- nop definition
 -- No Operation
 
-def noop : instruction := do
+def noop : instruction :=
  definst "noop" $ do
    instr_pat $ 
      let action : semantics Unit := do
@@ -380,7 +380,7 @@ def noop : instruction := do
        (pure () : semantics Unit)
      action
 
-def noopl : instruction := do
+def noopl : instruction :=
  definst "noopl" $ do
    instr_pat $ fun (_ : lhs (bv 32)) =>
      let action : semantics Unit := do
@@ -392,7 +392,7 @@ def noopl : instruction := do
 -- pause definition
 -- Spin Loop Hint
 
-def pause : instruction := do
+def pause : instruction :=
  definst "pause" $ do
    instr_pat $
      let action : semantics Unit := do
@@ -410,7 +410,7 @@ def set_undef (l:List (lhs bit)) : semantics Unit := do
   _ <- l.mapM (fun r => r .= undef); pure ()
 
 
-def div : instruction := do
+def div : instruction := 
  definst "div" $ do
    -- TODO: would it be better to have a single div primitive?
    instr_pat $ fun (src : expression (bv 8)) =>
@@ -446,7 +446,7 @@ def div : instruction := do
 -- idiv definition
 -- Signed Divide
 
-def idiv : instruction := do
+def idiv : instruction :=
  definst "idiv" $ do
    -- TODO: would it be better to have a single div primitive?
    instr_pat $ fun (src : expression (bv 8)) =>
@@ -493,9 +493,9 @@ def bitwise_implicit_reg_op (name : String)
       action
   definst name $ do
     instr_pat sem
-    instr_pat (sem (one_of.elem _ 8) al)
-    instr_pat (sem (one_of.elem _ 16) ax)
-    instr_pat (sem (one_of.elem _ 32) eax)
+    instr_pat (sem (one_of.mk 8) al)
+    instr_pat (sem (one_of.mk 16) ax)
+    instr_pat (sem (one_of.mk 32) eax)
 
 ------------------------------------------------------------------------
 -- and definition
@@ -515,7 +515,7 @@ def and_def : instruction := bitwise_implicit_reg_op "and" and
 -- not definition
 -- One's Complement Negation
 
-def not : instruction := do
+def not : instruction :=
  definst "not" $ do
    instr_pat $ fun (w : one_of [8, 16, 32, 64]) (dest : lhs (bv w)) =>
      let action : semantics Unit := do
@@ -526,7 +526,7 @@ def not : instruction := do
 -- or definition
 -- Logical Inclusive OR
 
-def or_def : instruction := do
+def or_def : instruction :=
  definst "or" $ do
    instr_pat $ fun (u v : one_of [8, 16, 32, 64]) (dest : lhs (bv u)) (src : expression (bv v)) =>
      let action : semantics Unit := do
@@ -541,7 +541,7 @@ def or_def : instruction := do
 -- xor definition
 -- Logical Exclusive OR
 
-def xor_def : instruction := do
+def xor_def : instruction :=
  definst "xor" $ do
    instr_pat $ fun (u v : one_of [8, 16, 32, 64]) (dest : lhs (bv u)) (src : expression (bv v)) =>
      let action : semantics Unit := do
@@ -566,7 +566,7 @@ def test : instruction :=
 -- bt definition
 -- Bit Test
 
-def bt : instruction := do
+def bt : instruction :=
  definst "bt" $ do
    instr_pat $ fun (wr : one_of [16, 32, 64]) (wi : one_of [8,16, 32, 64]) (base : reg (bv wr)) (idx : expression (bv wi)) =>
      let action : semantics Unit := do
@@ -579,7 +579,7 @@ def bt : instruction := do
    instr_pat $ fun (w : one_of [16, 32, 64]) (base : addr (bv w)) (idx : reg (bv w)) =>
      let action : semantics Unit := do
        let i := sext (expression.of_reg idx : bv w) 64
-       let addr ← eval $ expression.of_addr base + expression.mulc (w/8) (expression.quotc w i)
+       let addr ← eval $ expression.of_addr base + expression.mulc (w.val/8) (expression.quotc w i)
        cf .= expression.bit_test (expression.read (bv w) addr) (expression.of_reg idx)
        of .= undef
        sf .= undef
@@ -602,7 +602,7 @@ def bt : instruction := do
 def bitf := ∀(w:one_of [16,32,64]) (j:ℕ), prim (fn (bv w) (fn (bv j) (bv w)))
 
 -- Common function  for btc,btr and bts.
-def btX (nm:String) (f: bitf) : instruction := do
+def btX (nm:String) (f: bitf) : instruction :=
  definst nm $ do
    instr_pat $ fun (wr : one_of [16, 32, 64]) (wi : one_of [8,16, 32, 64]) (base : reg (bv wr)) (idx : expression (bv wi)) =>
      let action : semantics Unit := do
@@ -616,7 +616,7 @@ def btX (nm:String) (f: bitf) : instruction := do
    instr_pat $ fun (w : one_of [16, 32, 64]) (base : addr (bv w)) (idx : reg (bv w)) =>
      let action : semantics Unit := do
        let i := sext (expression.of_reg idx : bv w) 64
-       let addr ← eval $ expression.of_addr base + expression.mulc (w/8) (expression.quotc w i)
+       let addr ← eval $ expression.of_addr base + expression.mulc (w.val/8) (expression.quotc w i)
        cf .= expression.bit_test (expression.read (bv w) addr) (expression.of_reg idx)
        of .= undef
        sf .= undef
@@ -646,7 +646,7 @@ def bts : instruction := btX "bts" prim.bts
 -- bsf definition
 -- Bit Scan Forward
 
-def bsf_def : instruction := do
+def bsf_def : instruction :=
  definst "bsf" $ do
    instr_pat $ fun (w : one_of [16, 32, 64]) (r : lhs (bv w)) (y : expression (bv w)) =>
      let action : semantics Unit := do
@@ -663,7 +663,7 @@ def bsf_def : instruction := do
 -- bsr definition
 -- Bit Scan Reverse
 
-def bsr_def : instruction := do
+def bsr_def : instruction :=
  definst "bsr" $ do
    instr_pat $ fun (w : one_of [16, 32, 64]) (r : lhs (bv w)) (y : expression (bv w)) =>
      let action : semantics Unit := do
@@ -680,7 +680,7 @@ def bsr_def : instruction := do
 -- bswap definition
 -- Byte Swap
 
-def bswap : instruction := do
+def bswap : instruction :=
  definst "bswap" $ do
    instr_pat $ fun (w : one_of [32, 64]) (dest : lhs (bv w)) =>
      let action : semantics Unit := do
@@ -690,7 +690,7 @@ def bswap : instruction := do
 ------------------------------------------------------------------------
 -- add definition
 
-def add : instruction := do
+def add : instruction :=
  definst "add" $ do
    instr_pat $ fun (w : one_of [8, 16, 32, 64]) (dest : lhs (bv w)) (src : expression (bv w)) =>
      let action : semantics Unit := do
@@ -716,7 +716,7 @@ def add : instruction := do
 -- adc definition
 -- Add with Carry
 
-def adc : instruction := do
+def adc : instruction :=
  definst "adc" $ do
    instr_pat $ fun (w : one_of [8, 16, 32, 64]) (dest : lhs (bv w)) (src : expression (bv w)) =>
      let action : semantics Unit := do
@@ -732,7 +732,7 @@ def adc : instruction := do
 -- xadd definition
 -- Exchange and Add
 
-def xadd : instruction := do
+def xadd : instruction :=
  definst "xadd" $ do
    instr_pat fun (w : one_of [8, 16, 32, 64]) (dest : lhs (bv w)) (src : lhs (bv w)) =>
      let action : semantics Unit := do
@@ -748,7 +748,7 @@ def xadd : instruction := do
 ------------------------------------------------------------------------
 -- fadd definition
 
-def fadd : instruction := do
+def fadd : instruction :=
  definst "fadd" $ do
    instr_pat $ fun (dest : lhs x86_80) (src : lhs x86_80) => 
      let action : semantics Unit := do
@@ -766,7 +766,7 @@ def fadd : instruction := do
 ------------------------------------------------------------------------
 -- faddp definition
 
-def faddp : instruction := do
+def faddp : instruction :=
  definst "faddp" $ do
    instr_pat $ fun (dest : lhs x86_80) (src : lhs x86_80) =>
      let action : semantics Unit := do
@@ -778,7 +778,7 @@ def faddp : instruction := do
 ------------------------------------------------------------------------
 -- fiadd definition
 
-def fiadd : instruction := do
+def fiadd : instruction :=
  definst "fiadd" $ do
    instr_pat $ fun (w : one_of [16, 32]) (src : lhs (bv w)) =>
      let action : semantics Unit := do
@@ -807,7 +807,7 @@ def hlt : instruction :=
 ------------------------------------------------------------------------
 -- sub definition
 
-def sub_def : instruction := do
+def sub_def : instruction :=
  definst "sub" $ do
    instr_pat $ fun (w : one_of [8, 16, 32, 64]) (dest : lhs (bv w)) (src : expression (bv w)) =>
      let action : semantics Unit := do
@@ -996,7 +996,7 @@ def pop_def : instruction :=
    instr_pat $ fun (w : one_of [16, 32, 64]) (dest: lhs (bv w)) =>
      let action : semantics Unit := do
        let v ← eval (expression.read (bv w) (⇑ rsp))
-       rsp  .= ⇑rsp + nat_to_bv (w/8)
+       rsp  .= ⇑rsp + nat_to_bv (w.val/8)
        dest .= v
      action
 
@@ -1008,7 +1008,7 @@ def push_def : instruction :=
  definst "push" $ do
    instr_pat $ fun (w : one_of [8, 16, 32, 64]) (value: expression (bv w)) =>
      let action : semantics Unit := do
-       rsp .= ⇑rsp - nat_to_bv (w/8)
+       rsp .= ⇑rsp - nat_to_bv (w.val/8)
        lhs.write_addr (⇑ rsp) _ .= value
      action
 

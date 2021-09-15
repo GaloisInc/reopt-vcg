@@ -12,7 +12,7 @@ open Std (RBMap)
 namespace ReoptVCG
 
 section
-universes u v
+universe u v
 
 open WellFormedSExp
 open Smt
@@ -99,7 +99,7 @@ inductive BlockExpr : SmtSort → Type u
 
 
 /- Map from LLVM ident names to their sorts -/
-abbrev LLVMTyEnv := RBMap LLVM.Ident SmtSort (λ x y => x<y)
+abbrev LLVMTyEnv := RBMap LLVM.Ident SmtSort Ord.compare
 
 end
 

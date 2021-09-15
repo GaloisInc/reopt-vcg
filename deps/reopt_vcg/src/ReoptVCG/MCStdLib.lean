@@ -232,7 +232,7 @@ def defineNotInStackRange (stack_alloc_min : memaddr) (stack_max : memaddr)
 
 def defineIsInMCOnlyStackRange
   (onStack : (memaddr -> bitvec 64 -> s_bool))
-  (allocas : Std.RBMap LocalIdent AllocaMC (λ x y => x < y))
+  (allocas : Std.RBMap LocalIdent AllocaMC Ord.compare)
   : SmtM (memaddr -> bitvec 64 -> s_bool) := do
   let eName ← Smt.freshSymbol "e"
   Smt.defineFun "is_in_mc_only_stack_range" [SmtSort.bitvec 64, SmtSort.bitvec 64] SmtSort.bool $
@@ -332,7 +332,7 @@ def make
   Smt.assert $ isAligned (Smt.bvadd stackHighTerm (Smt.bvimm _ 8)) 16
 
   let allocaMap ← allocas.foldM
-                  (λ (m : Std.RBMap LocalIdent AllocaMC (λ x y => x<y))
+                  (λ (m : Std.RBMap LocalIdent AllocaMC Ord.compare)
                     (ident : LocalIdent)
                     (alloc : AllocaAnn) => do
                     let mcAlloc ← allocaMCBaseEndDecls alloc stackHighTerm

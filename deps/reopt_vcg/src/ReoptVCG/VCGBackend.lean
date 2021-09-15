@@ -72,30 +72,30 @@ def update_flag (idx : Fin 32) (f : s_bool -> s_bool) (s : RegState) : RegState 
 --   | _, _, _ => λ_ => Smt.bvimm _ 0
 
 --   -- | _, pf, s, concrete_reg.avxreg _ avxreg_type.ymm =>
---   --   let pf' : ¬ (Eq 256 64) := Nat.neOfBeqEqFalse rfl; absurd pf pf'
+--   --   let pf' : ¬ (Eq 256 64) := Nat.ne_of_beq_eq_false rfl; absurd pf pf'
 --   -- | _, pf, s, concrete_reg.avxreg _ avxreg_type.xmm =>
---   --   let pf' : ¬ (Eq 128 64) := Nat.neOfBeqEqFalse rfl; absurd pf pf'
+--   --   let pf' : ¬ (Eq 128 64) := Nat.ne_of_beq_eq_false rfl; absurd pf pf'
 
 def get_reg64' (n : Nat) (pf : n = 64) (s : RegState) (r : concrete_reg (bv n)) : machine_word :=
   match n, r, pf with
   | _, concrete_reg.gpreg idx tp, _ => s.get_gpreg idx
   | _, concrete_reg.avxreg _ avxreg_type.ymm, pf => 
-    let pf' : ¬ (Eq 256 64) := Nat.neOfBeqEqFalse rfl; absurd pf pf'
+    let pf' : ¬ (Eq 256 64) := Nat.ne_of_beq_eq_false rfl; absurd pf pf'
   | _, concrete_reg.avxreg _ avxreg_type.xmm, pf => 
-    let pf' : ¬ (Eq 128 64) := Nat.neOfBeqEqFalse rfl; absurd pf pf'
+    let pf' : ¬ (Eq 128 64) := Nat.ne_of_beq_eq_false rfl; absurd pf pf'
   | _, concrete_reg.avxreg _ avxreg_type.zmm, pf => 
-    let pf' : ¬ (Eq 512 64) := Nat.neOfBeqEqFalse rfl; absurd pf pf'
+    let pf' : ¬ (Eq 512 64) := Nat.ne_of_beq_eq_false rfl; absurd pf pf'
 
 def update_reg64' (n : Nat) (pf : n = 64) (r : concrete_reg (bv n)) 
                   (f : machine_word -> machine_word) (s : RegState) : RegState :=
   match n, r, pf with
   | _, concrete_reg.gpreg idx tp, _ => update_gpreg idx f s
   | _, concrete_reg.avxreg _ avxreg_type.ymm, pf => 
-    let pf' : ¬ (Eq 256 64) := Nat.neOfBeqEqFalse rfl; absurd pf pf'
+    let pf' : ¬ (Eq 256 64) := Nat.ne_of_beq_eq_false rfl; absurd pf pf'
   | _, concrete_reg.avxreg _ avxreg_type.xmm, pf => 
-    let pf' : ¬ (Eq 128 64) := Nat.neOfBeqEqFalse rfl; absurd pf pf'
+    let pf' : ¬ (Eq 128 64) := Nat.ne_of_beq_eq_false rfl; absurd pf pf'
   | _, concrete_reg.avxreg _ avxreg_type.zmm, pf => 
-    let pf' : ¬ (Eq 512 64) := Nat.neOfBeqEqFalse rfl; absurd pf pf'
+    let pf' : ¬ (Eq 512 64) := Nat.ne_of_beq_eq_false rfl; absurd pf pf'
 
 def get_flag'  (s : RegState) (r : concrete_reg bit) : s_bool :=
   match r with
@@ -128,11 +128,11 @@ def get_avxreg  (s : RegState) (idx : Fin 16) : avx_word :=
 
 -- FIXME: move
 def reg_width_neq_avx_width : forall (tp : gpreg_type), Not (Eq tp.width 512)
-| gpreg_type.reg8l =>  Nat.neOfBeqEqFalse rfl
-| gpreg_type.reg8h =>  Nat.neOfBeqEqFalse rfl
-| gpreg_type.reg16 =>  Nat.neOfBeqEqFalse rfl
-| gpreg_type.reg32 =>  Nat.neOfBeqEqFalse rfl
-| gpreg_type.reg64 =>  Nat.neOfBeqEqFalse rfl
+| gpreg_type.reg8l =>  Nat.ne_of_beq_eq_false rfl
+| gpreg_type.reg8h =>  Nat.ne_of_beq_eq_false rfl
+| gpreg_type.reg16 =>  Nat.ne_of_beq_eq_false rfl
+| gpreg_type.reg32 =>  Nat.ne_of_beq_eq_false rfl
+| gpreg_type.reg64 =>  Nat.ne_of_beq_eq_false rfl
 
 
 -- FIXME
@@ -166,7 +166,7 @@ def declare_const_aux
   (pfx : String)
   (ns : List String)
   (sz : Nat)
-  (knownVals : RBMap Nat (Term s) (λ x y => x < y) := RBMap.empty) : SmtM (Array (Term s)) := do
+  (knownVals : RBMap Nat (Term s) Ord.compare := RBMap.empty) : SmtM (Array (Term s)) := do
   let mut terms : Array (Term s) := Array.mkEmpty sz
   for n in [:sz] do
     let val ← match knownVals.find? n with
@@ -180,7 +180,7 @@ def declare_const (pfx : String) (ip : Nat) (df : Bool) : SmtM RegState := do
   let gprs  <- RegState.declare_const_aux pfx reg.r64_names 16;
   let flags <- RegState.declare_const_aux pfx reg.flag_names 32 
                 (knownVals := (RBMap.fromList [(x86.flag.df.index.val, if df then Smt.true else Smt.false)])
-                                              (λ x y => x < y))
+                                              Ord.compare)
   let avxregs <- RegState.declare_const_aux pfx (List.map (fun i => "xmm" ++ reprStr i) (Nat.upto0_lt 16)) 16;
   let regs := { gpregs := gprs, flags := flags, avxregs := avxregs, ip := Smt.bvimm _ ip }
   pure regs
@@ -248,13 +248,13 @@ def uresize (n m : Nat) (x : bitvec n) : bitvec m :=
   if H : n ≤ m 
   then (let pf : n + (m - n) = m := sorryAx _; 
        bitvec.cong pf (Smt.zeroExtend (m - n) x))
-  else bitvec.trunc m (Nat.leOfLt (Nat.gtOfNotLe H)) x
+  else bitvec.trunc m (Nat.le_of_lt (Nat.gt_of_not_le H)) x
 
 def sresize (n m : Nat) (x : bitvec n) : bitvec m :=
   if H : n ≤ m 
   then (let pf : n + (m - n) = m := sorryAx _; 
        bitvec.cong pf (Smt.signExtend (m - n) x))
-  else bitvec.trunc m (Nat.leOfLt (Nat.gtOfNotLe H)) x
+  else bitvec.trunc m (Nat.le_of_lt (Nat.gt_of_not_le H)) x
 
 -- There may be a more efficient way of doing this (e.g. slicing and concat)
 def set_bits {n} (x:bitvec n) (i:Nat) {m} (y:bitvec m) (p:i+m ≤ n) : bitvec n :=

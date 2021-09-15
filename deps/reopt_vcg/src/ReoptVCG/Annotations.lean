@@ -44,60 +44,51 @@ open WellFormedSExp
 -- to the base address.
 --
 -- For object files, it is the offset into the .text section.
-structure MCAddr := (addr : elf.word ELF64)
-
-def MCAddr.decEq : ∀ (a b : MCAddr), Decidable (a = b)
-| ⟨addr1⟩, ⟨addr2⟩ =>
-  if h : addr1 = addr2
-  then isTrue (h ▸ rfl)
-  else isFalse (fun h' => MCAddr.noConfusion h' (fun h' => absurd h' h))
+structure MCAddr where
+  addr : elf.word ELF64
+  deriving DecidableEq
 
 def MCAddr.toNat (a : MCAddr) : Nat := a.addr.toNat
 
-instance MCAddr.hasDecidableEq : DecidableEq MCAddr := MCAddr.decEq
-
-
-def parseMCAddr (js : Json) : Except String MCAddr := do
+protected
+def MCAddr.fromJson (js : Json) : Except String MCAddr := do
 match js.getStr? with
-| Option.some addrStr => match Nat.fromHexString addrStr with
+| Except.ok addrStr => match Nat.fromHexString addrStr with
   | Option.some n => match elf.word.fromNat ELF64 n with
     | Option.some w => pure $ MCAddr.mk w
     | Option.none =>
       throw $ "Expected the hexadecimal number to be a valid machine code address, but got: " ++ js.pretty
   | Option.none =>
     throw $ "Expected the string to contain a hexadecimal machine code address, but got: " ++ js.pretty
-| Option.none => match js.getNat? with
-  | Option.some n => match elf.word.fromNat ELF64 n with
+| Except.error _ => match js.getNat? with
+  | Except.ok n => match elf.word.fromNat ELF64 n with
     | Option.some w => pure $ MCAddr.mk w
     | Option.none =>
       throw $ "Expected the natural number to be a valid machine code address, but got: " ++ js.pretty
-  | Option.none =>
+  | Except.error _ =>
     throw $ "Expected a string or natural number for the machine code address, but got: " ++ js.pretty
-
-def MCAddr.fromJson? (js:Json) : Option MCAddr :=
-  (parseMCAddr js).toOption
 
 protected
 def MCAddr.toJson (m:MCAddr) : Json :=
   toJson $ Nat.ppHex $ UInt64.toNat m.addr
 
 instance MCAddr.hasFromJson : FromJson MCAddr :=
-  ⟨MCAddr.fromJson?⟩
+  ⟨MCAddr.fromJson⟩
 instance MCAddr.hasToJson : ToJson MCAddr :=
   ⟨MCAddr.toJson⟩
 
 def parseObjValAsMCAddr (js:Json) (key:String) : Except String MCAddr :=
   match js.getObjVal? key with
-  | Option.some o => parseMCAddr o
-  | Option.none => throw $ "Missing a `" ++ key ++ "` entry"
+  | Except.ok o => MCAddr.fromJson o
+  | Except.error _ => throw $ "Missing a `" ++ key ++ "` entry"
 
 ------------------------------------------------------------------------
 -- Helper
 
 def parseBlockExpr (llvmMap: LLVMTyEnv) (js:Json) : Except String (BlockExpr SmtSort.bool) := do
   let rawStr ← match js.getStr? with
-               | none => Except.error $ "Expected block expression to be a string but got: " ++ js.pretty ++ "."
-               | some s => Except.ok s;
+               | Except.error e => Except.error $ "Expected block expression to be a string but got: " ++ js.pretty ++ ": " ++ e
+               | Except.ok    s => Except.ok s;
   BlockExpr.parseAs SmtSort.bool llvmMap rawStr
 
 ------------------------------------------------------------------------
@@ -114,23 +105,21 @@ structure FunctionAnn :=
 -- that block.
 
 -- Like FunctionAnn.fromJson but with human-friendly error messages.
-def parseFunctionAnn (js:Json) : Except String FunctionAnn := do
+protected
+def FunctionAnn.fromJson (js:Json) : Except String FunctionAnn := do
   let name ←  parseObjValAsString js "llvm_name"
   let startAddr ←  parseObjValAsMCAddr js "start_addr"
   let blocks ← parseObjValAsArr js "blocks"
   pure $ FunctionAnn.mk name startAddr blocks
 
 protected
-def FunctionAnn.fromJson? (js : Json) : Option FunctionAnn := (parseFunctionAnn js).toOption
-
-protected
 def FunctionAnn.toJson (fnAnn : FunctionAnn) : Json :=
   toJson $ Std.RBMap.fromList [ ("llvm_name", toJson fnAnn.llvmFnName)
                               , ("start_addr", toJson fnAnn.startAddr)
                               , ("blocks", toJson fnAnn.blocks)]
-                              Lean.strLt
+                              Ord.compare
 
-instance FunctionAnn.hasFromJson : FromJson FunctionAnn := ⟨FunctionAnn.fromJson?⟩
+instance FunctionAnn.hasFromJson : FromJson FunctionAnn := ⟨FunctionAnn.fromJson⟩
 instance FunctionAnn.hasToJson : ToJson FunctionAnn := ⟨FunctionAnn.toJson⟩
 
 -- External functions (i.e. axiomatic)
@@ -143,29 +132,29 @@ structure ExternalFunctionAnn :=
 (postcondition : Option (BlockExpr SmtSort.bool))
 
 -- Like FunctionAnn.fromJson but with human-friendly error messages.
-def parseExternalFunctionAnn (js:Json) : Except String ExternalFunctionAnn := do
+def ExternalFunctionAnn.fromJson (js:Json) : Except String ExternalFunctionAnn := do
   let name ←  parseObjValAsString js "llvm_name"
   let startAddr ← parseObjValAsMCAddr js "start_addr"
   let isNoReturn <- parseObjValAsBool js "is_no_return"
   let postcond <- 
     match js.getObjVal? "postcondition" with
-    | Option.some rawJson => Except.map Option.some (parseBlockExpr RBMap.empty rawJson)
-    | Option.none => pure Option.none
+    | Except.ok rawJson => Except.map Option.some (parseBlockExpr RBMap.empty rawJson)
+    | Except.error _ => pure Option.none
   
   pure $ ExternalFunctionAnn.mk name startAddr isNoReturn postcond
 
 protected
 def ExternalFunctionAnn.fromJson? (js : Json) : Option ExternalFunctionAnn := 
-  (parseExternalFunctionAnn js).toOption
+  (ExternalFunctionAnn.fromJson js).toOption
 
 protected
 def ExternalFunctionAnn.toJson (fnAnn : ExternalFunctionAnn) : Json :=
     toJson $ Std.RBMap.fromList [ ("llvm_name", toJson fnAnn.llvmFnName)
-                              , ("start_addr", toJson fnAnn.startAddr)
-                              , ("is_no_return", toJson fnAnn.isNoReturn)]
-                              Lean.strLt
+                                , ("start_addr", toJson fnAnn.startAddr)
+                                , ("is_no_return", toJson fnAnn.isNoReturn)]
+                                Ord.compare
 
-instance ExternalFunctionAnn.hasFromJson : FromJson ExternalFunctionAnn := ⟨ExternalFunctionAnn.fromJson?⟩
+instance ExternalFunctionAnn.hasFromJson : FromJson ExternalFunctionAnn := ⟨ExternalFunctionAnn.fromJson⟩
 instance ExternalFunctionAnn.hasToJson : ToJson ExternalFunctionAnn := ⟨ExternalFunctionAnn.toJson⟩
 
 
@@ -184,7 +173,8 @@ structure ModuleAnnotations :=
 def ModuleAnnotations.defaultPageSize : Nat := 4096
 
 -- Like ModuleAnnotaions.fromJson but with human-friendly error messages.
-def parseAnnotations (js:Json) : Except String ModuleAnnotations := do
+protected
+def ModuleAnnotations.fromJson (js:Json) : Except String ModuleAnnotations := do
   let llvmFile ← parseObjValAsString js "llvm_path"
   let binFile ← parseObjValAsString js "binary_path"
   let pgSize ← parseObjValAsNatD js "page_size" ModuleAnnotations.defaultPageSize
@@ -193,9 +183,8 @@ def parseAnnotations (js:Json) : Except String ModuleAnnotations := do
   let guardCount ← parseObjValAsNat js "stack_guard_pages";
   if guardCount == 0 then
     throw "There must be at least one guard page."
-  let fnsArr ← parseObjValAsArrWith parseFunctionAnn js "functions"
-  let extFnsArr ← parseObjValAsArrWith parseExternalFunctionAnn js "extfunctions"
-
+  let fnsArr ← parseObjValAsArrWith FunctionAnn.fromJson js "functions"
+  let extFnsArr ← parseObjValAsArrWith ExternalFunctionAnn.fromJson js "extfunctions"
   pure $ { llvmFilePath := llvmFile,
            binFilePath := binFile,
            pageSize := pgSize,
@@ -203,10 +192,6 @@ def parseAnnotations (js:Json) : Except String ModuleAnnotations := do
            functions := fnsArr.toList,
            extFunctions := extFnsArr.toList
          }
-
-
-def ModuleAnnotations.fromJson? (js : Json) : Option ModuleAnnotations :=
-(parseAnnotations js).toOption
 
 protected
 def ModuleAnnotations.toJson (ann : ModuleAnnotations) : Json :=
@@ -217,10 +202,10 @@ toJson $ Std.RBMap.fromList [ ("llvm_path", toJson ann.llvmFilePath)
                             , ("functions", toJson ann.functions.toArray)
                             , ("extfunctions", toJson ann.extFunctions.toArray)
                             ]
-                        Lean.strLt
+                            Ord.compare
 
 instance ModuleAnnotations.hasFromJson : FromJson ModuleAnnotations :=
-  ⟨ModuleAnnotations.fromJson?⟩
+  ⟨ModuleAnnotations.fromJson⟩
 instance ModuleAnnotations.hasToJson : ToJson ModuleAnnotations :=
   ⟨ModuleAnnotations.toJson⟩
 
@@ -233,26 +218,17 @@ structure LocalIdent := (name : String)
 
 namespace LocalIdent
 
-def lt : forall (x y : LocalIdent), Prop
-  | { name := x }, {name := y } => x < y
+instance : Ord LocalIdent where
+  compare x y := Ord.compare x.name y.name
 
-instance : HasLess LocalIdent := ⟨lt⟩
 
-instance decLt : ∀(x y:LocalIdent), Decidable (x < y)
-| { name := x }, { name := y } =>
-  (match String.decLt x y with
-   | Decidable.isTrue  p => Decidable.isTrue p
-   | Decidable.isFalse p => Decidable.isFalse p
-   )
-
-end LocalIdent
-
-def parseLocalIdent (js : Json) : Except String LocalIdent :=
+protected
+def fromJson (js : Json) : Except String LocalIdent :=
 match js.getStr? with
-| Option.some s => pure $ LocalIdent.mk s
+| Except.ok s => pure $ LocalIdent.mk s
 | _ => 
   match js.getNat? with
-  | Option.some n => 
+  | Except.ok n => 
     if h : n < UInt64.size 
     then pure $ LocalIdent.mk $ n.repr
     else Except.error $
@@ -263,14 +239,13 @@ match js.getStr? with
     "Allocation name expected a nonnegative integer or string, not "
     ++ (Lean.Json.pretty js)
 
-def LocalIdent.fromJson? (js : Json) : Option LocalIdent :=
-  (parseLocalIdent js).toOption
+end LocalIdent
 
 protected
 def LocalIdent.toJson (l : LocalIdent) : Json := toJson l.name
 
 instance LocalIdent.hasFromJson : FromJson LocalIdent :=
-  ⟨LocalIdent.fromJson?⟩
+  ⟨LocalIdent.fromJson⟩
 instance LocalIdent.hasToJson : ToJson LocalIdent :=
   ⟨LocalIdent.toJson⟩
 
@@ -296,11 +271,11 @@ structure AllocaAnn :=
 -- ^ Stores true if the allocation already exists at this block.
 -- The default is true, so we only need to assign this to false.
 
-def parseAllocaAnn (js:Json) : Except String AllocaAnn := do
+def AllocaAnn.fromJson (js:Json) : Except String AllocaAnn := do
   let ident ← 
     match js.getObjVal? "llvm_ident" with
-    | Option.some rawJson => parseLocalIdent rawJson
-    | Option.none => throw $ "`llvm_ident` field was missing from annotation.";
+    | Except.ok rawJson => LocalIdent.fromJson rawJson
+    | Except.error _ => throw $ "`llvm_ident` field was missing from annotation.";
   let off ← parseObjValAsNat js "offset";
   let sz ← parseObjValAsNat js "size";
   let ex ← parseObjValAsBoolD js "existing" true;
@@ -315,21 +290,17 @@ def parseAllocaAnn (js:Json) : Except String AllocaAnn := do
            existing := ex
          }
 
-
-def AllocaAnn.fromJson? (js : Json) : Option AllocaAnn :=
-  (parseAllocaAnn js).toOption
-
 protected
-def AllocaAnn.toJson (ann : AllocaAnn) : Json := 
+def AllocaAnn.toJson (ann : AllocaAnn) : Json :=
   toJson $ Std.RBMap.fromList [ ("llvm_ident", toJson ann.ident)
                               , ("offset", toJson ann.binOffset)
                               , ("size", toJson ann.size)
                               , ("existing", toJson ann.existing)
                               ]
-                              Lean.strLt
+                              Ord.compare
 
 instance AllocaAnn.hasFromJson : FromJson AllocaAnn :=
-  ⟨AllocaAnn.fromJson?⟩
+  ⟨AllocaAnn.fromJson⟩
 instance AllocaAnn.hasToJson : ToJson AllocaAnn :=
   ⟨AllocaAnn.toJson⟩
 
@@ -354,10 +325,10 @@ def parseMemoryAnn (js:Json) : Except String MemoryAnn := do
   match tp with
   | "binary_only_access" => pure MemoryAnn.binaryOnlyAccess
   | "joint_stack_access" => match js.getObjVal? "alloca" with
-    | Option.some rawAllocaJson => do
-      let lIdent ← parseLocalIdent rawAllocaJson
+    | Except.ok rawAllocaJson => do
+      let lIdent ← LocalIdent.fromJson rawAllocaJson
       pure $ MemoryAnn.jointStackAccess lIdent
-    | Option.none =>
+    | Except.error _ =>
       throw $ "Expected a local ident in the `alloca` field of a `joint_stack_access` memory annotation"
   | "heap_access" => pure MemoryAnn.heapAccess
   | _ => throw $ "Unexpected memory annotation type type: " ++ js.pretty
@@ -379,26 +350,22 @@ structure MCMemoryEvent :=
 -- ^ Address in machine code where event occurs.
 (info : MemoryAnn)
 
-
-def parseMCMemoryEvent (js : Json) : Except String MCMemoryEvent := do
+protected
+def MCMemoryEvent.fromJson (js : Json) : Except String MCMemoryEvent := do
   let addr ← parseObjValAsMCAddr js "addr"
   let info ← parseMemoryAnn js
   pure $ MCMemoryEvent.mk addr info
 
 
-
-def MCMemoryEvent.fromJson? (js : Json) : Option MCMemoryEvent :=
-  (parseMCMemoryEvent js).toOption
-
 protected
 def MCMemoryEvent.toJson (me : MCMemoryEvent) : Json := 
   let entries : List (String × Json) :=
     [ ("addr", toJson me.addr)] ++ (renderMemoryAnn me.info)
-  toJson $ Std.RBMap.fromList entries Lean.strLt
+  toJson $ Std.RBMap.fromList entries Ord.compare
 
 
 instance MCMemoryEvent.hasFromJson : FromJson MCMemoryEvent :=
-  ⟨MCMemoryEvent.fromJson?⟩
+  ⟨MCMemoryEvent.fromJson⟩
 
 instance MCMemoryEvent.hasToJson : ToJson MCMemoryEvent :=
   ⟨MCMemoryEvent.toJson⟩
@@ -454,7 +421,11 @@ def x86ResultFPRegs : List (x86.concrete_reg (bv 512)) :=
 
 end
 
-
+def parsePrecondition (llvmMap: LLVMTyEnv) (js:Json) : Except String (BlockExpr SmtSort.bool) := do
+  let rawStr ← match js.getStr? with
+               | Except.error _ => Except.error $ "Expected precondition to be a string but got: " ++ js.pretty ++ "."
+               | Except.ok s => Except.ok s;
+  BlockExpr.parseAs SmtSort.bool llvmMap rawStr
 
 def blockExprToJson : ∀{tp:SmtSort}, BlockExpr tp → Json :=
   λ _ => toJson "TODO: implement exprToJson"
@@ -462,7 +433,7 @@ def blockExprToJson : ∀{tp:SmtSort}, BlockExpr tp → Json :=
 instance BlockExprHasToJson {tp:SmtSort} : ToJson (BlockExpr tp) :=
   ⟨blockExprToJson⟩
 
-abbrev AllocaAnnMap : Type := RBMap LocalIdent AllocaAnn (λ x y => x<y)
+abbrev AllocaAnnMap : Type := RBMap LocalIdent AllocaAnn Ord.compare
 
 structure ReachableBlockAnn :=
 (startAddr : MCAddr) -- FIXME
@@ -503,7 +474,8 @@ inductive BlockAnn
 | unreachable : BlockAnn
 
 
-def parseReachableBlockAnn (llvmMap: LLVMTyEnv) (js:Json) : Except String ReachableBlockAnn := do
+protected
+def ReachableBlockAnn.fromJson (llvmMap: LLVMTyEnv) (js:Json) : Except String ReachableBlockAnn := do
   let addr ← parseObjValAsMCAddr js "addr"
   let addrNat := addr.addr.toNat
   let size ← parseObjValAsNat js "size"
@@ -511,19 +483,13 @@ def parseReachableBlockAnn (llvmMap: LLVMTyEnv) (js:Json) : Except String Reacha
     throw "Expected end of block computation to not overflow."
   let x87Top ← parseObjValAsNatD js "x87_top" ReachableBlockAnn.x87TopDefault
   let dfFlag ← parseObjValAsBoolD js "df_flag" ReachableBlockAnn.dfFlagDefault
+
   let preconds ← parseObjValAsArrWithD (parseBlockExpr llvmMap) js "preconditions" ReachableBlockAnn.precondsDefault
-  let allocas ← parseObjValAsArrWithD parseAllocaAnn js "allocas" ReachableBlockAnn.allocasArrayDefault
-  let allocaMap := Std.RBMap.fromList (allocas.toList.map (λ a => (a.ident, a))) (λ x y => x<y)
-  let memoryEvents ← parseObjValAsArrWithD parseMCMemoryEvent js "mem_events" ReachableBlockAnn.memoryEventsDefault
+  let allocas ← parseObjValAsArrWithD AllocaAnn.fromJson js "allocas" ReachableBlockAnn.allocasArrayDefault
+  let allocaMap := Std.RBMap.fromList (allocas.toList.map (λ a => (a.ident, a))) Ord.compare
+  let memoryEvents ← parseObjValAsArrWithD MCMemoryEvent.fromJson js "mem_events" ReachableBlockAnn.memoryEventsDefault
+
   let isTailCall <- parseObjValAsBool js "is_tail_call"
-
-    -- match js.getObjVal? "tailCallStatus" with
-    -- | Option.some rawJson => 
-    --   match fromJson? rawJson with 
-    --   | Option.none   => Except.error "Expected a boolean value"
-    --   | Option.some b => pure (some b)
-    -- | Option.none => pure none
-
   pure $ {startAddr := addr,
           codeSize := size,
           x87Top := x87Top,
@@ -537,7 +503,7 @@ def parseReachableBlockAnn (llvmMap: LLVMTyEnv) (js:Json) : Except String Reacha
 def parseBlockAnn (llvmMap: LLVMTyEnv) (js:Json) : Except String BlockAnn := do
   let isReachable ← parseObjValAsBoolD js "reachable" true
   if isReachable
-  then BlockAnn.reachable <$> parseReachableBlockAnn llvmMap js
+  then BlockAnn.reachable <$> ReachableBlockAnn.fromJson llvmMap js
   else pure BlockAnn.unreachable
 
 protected
@@ -545,7 +511,7 @@ def BlockAnn.toJson (block_label:String) : BlockAnn → Json
 | BlockAnn.unreachable =>
   toJson $ Std.RBMap.fromList [("label", toJson block_label),
                               ("reachable", toJson false)]
-                              Lean.strLt
+                              Ord.compare
 | BlockAnn.reachable ann =>
   toJson $ Std.RBMap.fromList 
            [("label", toJson block_label),
@@ -558,7 +524,7 @@ def BlockAnn.toJson (block_label:String) : BlockAnn → Json
             ("mem_events", arr $ (ann.memoryEvents.map toJson)),
             ("is_tail_call", toJson ann.isTailCall)
            ]
-           Lean.strLt
+           Ord.compare
 
 
 end ReoptVCG

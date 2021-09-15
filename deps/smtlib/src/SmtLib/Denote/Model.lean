@@ -14,8 +14,8 @@ namespace Smt
 
 namespace Raw
 
-def denoteDefault (cs : Option ConstSort) : Type := 
-   match cs with 
+def denoteDefault (cs : Option ConstSort) : Type :=
+   match cs with
    | none   => Unit
    | some v => ConstSort.denote v
 
@@ -25,13 +25,13 @@ structure Model ( e : Env ) :=
 
 namespace Model
 
-def extend {e : Env} {cs : ConstSort} (m : Model e) (k : Symbol) (v : cs.denote) 
+def extend {e : Env} {cs : ConstSort} (m : Model e) (k : Symbol) (v : cs.denote)
   : Model (e.extend k cs) :=
    let pf : forall {sym} (pf : k = sym), denoteDefault ((e.extend k cs) sym) = cs.denote :=
-     fun pf => congrArg denoteDefault (difPos pf);
-  { values := fun sym => 
-           if H : k = sym then cast (pf H).symm v 
-           else 
+     fun pf => congrArg denoteDefault (dif_pos pf);
+  { values := fun sym =>
+           if H : k = sym then cast (pf H).symm v
+           else
            let pf' : (e.extend k cs) sym = e sym := upd.atOtherKey e (some cs) H;
            cast (congrArg denoteDefault pf'.symm)
                 (m.values sym : denoteDefault (e sym))

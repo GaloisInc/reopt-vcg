@@ -27,26 +27,27 @@ def arg_index := Nat
 
 ------------------------------------------------------------------------
 -- one_of
-
-inductive one_of (l:List Nat) : Type
-| elem{} (v : Nat) : -- l.contains v
-                    one_of l
+structure one_of (l : List Nat) : Type where
+  val   : Nat
+--  isIn  : l.contains val == true
 
 namespace one_of
 
--- FIXME: fix this when we get tactics
-def to_nat {l:List Nat} : one_of l → Nat
-| (one_of.elem _ x) => x
+instance (l:List Nat) : Coe (one_of l) Nat where
+  coe x := x.val
 
-instance (l:List Nat) : Coe (one_of l) Nat :=
-⟨ one_of.to_nat ⟩
+instance {l : List Nat} : HMul Nat (one_of l) Nat where
+  hMul n x := n * x.val
+
+instance {l : List Nat} : HMul (one_of l) Nat Nat where
+  hMul x n :=  x.val * n
 
 end one_of
 
 ------------------------------------------------------------------------
 -- Type
 
-inductive float_class 
+inductive float_class
 | fp16   : float_class
 | fp32   : float_class
 | fp64   : float_class
@@ -1278,6 +1279,8 @@ protected
 def run (m:semantics Unit) : List action := do
   (m.monad.run semantics_state.init).snd.actions.reverse
 
+abbrev block (b : semantics Unit) : semantics Unit := b
+
 end semantics
 
 ------------------------------------------------------------------------
@@ -1320,14 +1323,18 @@ instance nil_one_of_pattern_def
 { list_define := fun _ => [] }
 
 instance cons_one_of_pattern_def
-  (ctx : context) (ls : List Nat) (v : Nat) (sls : List Nat) (tpc: one_of ls -> Type)
+  (ctx : context)
+  (ls : List Nat)
+  (v : Nat)
+  (sls : List Nat)
+  (tpc: one_of ls -> Type)
   [ h : one_of_pattern_def ctx ls sls tpc ]
-  [ pattern_def ctx (tpc (one_of.elem _ v)) ]
+  [ pattern_def ctx (tpc (@one_of.mk _ v)) ]
 : one_of_pattern_def ctx ls (v :: sls) tpc :=
 { list_define := fun f => 
               -- we reverse at the end, so this ensures order is preserved
               List.append (@one_of_pattern_def.list_define ctx ls sls tpc h f)
-                          (pattern_def.define ctx (f (one_of.elem _ v)))
+                          (pattern_def.define ctx (f (@one_of.mk _ v)))
                           
 }
 

@@ -808,8 +808,8 @@ def llvmInvoke (fsym : LLVM.Symbol) (args : Array (Typed Value))
   | Option.none => pure ()
   | Option.some e => do
     let p ← evalBlockExpr (fun _ => Option.none) e
-    dbgTrace ("Saw a postcondition for " ++ toString (ppLLVM fsym) ++ " " ++ toString p.toSExpr) pure
-    addComment ("Saw a postcondition for " ++ toString (ppLLVM fsym) ++ " " ++ toString p.toSExpr)
+    -- dbgTrace ("Saw a postcondition for " ++ toString (ppLLVM fsym) ++ " " ++ toString p.toSExpr) pure
+    -- addComment ("Saw a postcondition for " ++ toString (ppLLVM fsym) ++ " " ++ toString p.toSExpr)
     addAssert p
 
   -- Update machine code memory to post-call memory.

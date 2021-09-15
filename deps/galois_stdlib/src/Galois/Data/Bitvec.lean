@@ -70,7 +70,7 @@ section zero
 
 end zero
 
-axiom one_le_pow_2 {n: Nat} (h : n > 0) : 1 < 2^n 
+axiom one_le_pow_2 {n: Nat} (h : n > 0) : 1 < 2^n
 
 axiom Nat.zero_lt_succ (n : Nat) : 0 < Nat.succ n
 
@@ -107,7 +107,7 @@ protected def cong {a b : Nat} (h : a = b) : bitvec a → bitvec b
 -- protected def of_nat (n : Nat) (x:Nat) : bitvec n := ⟨ x % (Nat.shiftl 1 n), power_hack _ _⟩
 
 protected def of_nat (width : Nat) (x:Nat) : bitvec width :=
-  ⟨ x % 2^width, Nat.mod_lt _ (Nat.posPowOfPos width (zero_lt_pow 1))⟩
+  ⟨ x % 2^width, Nat.mod_lt _ (Nat.pos_pow_of_pos width (zero_lt_pow 1))⟩
 
 instance {w : Nat} (n : Nat) : OfNat (bitvec w) n := ⟨bitvec.of_nat w n⟩
 
@@ -260,19 +260,19 @@ section listlike
 
   -- Change number of bits result while preserving signed value modulo output width.
   def sresize {m:Nat} (x: bitvec m) (n:Nat) : bitvec n := bitvec.of_int _ x.to_int
- 
+
   -- bitvec specific version of vector.append
   def append {m n} (x: bitvec m) (y: bitvec n) : bitvec (m + n)
     := ⟨ x.to_nat * 2^n + y.to_nat, power_hack _ _  /- Nat.mul_pow_add_lt_pow x.property y.property -/ ⟩
 
   def repeat {n} (x: bitvec n) : forall (i : Nat), bitvec (i * n)
   | Nat.zero => 0
-  | Nat.succ m => 
+  | Nat.succ m =>
     let rst : bitvec (m * n) := repeat x m;
     let res : bitvec (m * n + n) := @append (m * n) n rst x;
-    have hEq : (m * n + n) = (Nat.succ m * n) from Eq.symm $ Nat.succ_mul m n;
-    have tEq : bitvec (m * n + n) = bitvec (Nat.succ m * n) from congrArg bitvec hEq;
-    cast tEq res 
+    have hEq : (m * n + n) = (Nat.succ m * n) := Eq.symm $ Nat.succ_mul m n;
+    have tEq : bitvec (m * n + n) = bitvec (Nat.succ m * n) := congrArg bitvec hEq;
+    cast tEq res
 
   protected
   def bsf' : ∀(n:Nat), Nat → Nat → Option Nat
@@ -336,7 +336,7 @@ section listlike
   def foldr' {α : Sort _} (f : Bool → α → α) (x : Nat) (init : α) (n : Nat) : Nat → α
     | Nat.zero       => init
     | (Nat.succ idx) => f  (x.test_bit (n - Nat.succ idx)) (bitvec.foldr' f x init n idx)
-    
+
   -- foldr follows nth's behaviour, so 
   -- foldr f i b = f b!0 (f b!1 ... (f b!(n-1) i))
   def foldr {α : Sort _} {n : Nat} (f : Bool → α → α) (init : α) (b : bitvec n) : α :=
@@ -447,5 +447,7 @@ def set_bits {n} (x:bitvec n) (i:Nat) {m} (y:bitvec m) (p:i+m ≤ n) : bitvec n 
 
 --#eval ((set_bits (0x01234567 : bitvec 32) 8 (0x5432 : bitvec 16) (of_as_true trivial) = 0x01543267) : Bool)
 
+instance {n : Nat} : Ord (bitvec n) where
+  compare x y := Ord.compare x.to_nat y.to_nat
 
 end bitvec

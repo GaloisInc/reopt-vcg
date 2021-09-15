@@ -131,7 +131,7 @@ structure SupportedFPOps :=
   (fp_ordered : forall (fc : float_class), SmtFloat fc -> SmtFloat fc -> Term SmtSort.bool)
 
 def InstructionEventsFun := 
-  forall ( evtMap : Std.RBMap Nat MemoryAnn (fun x y => decide (x < y)) )
+  forall ( evtMap : Std.RBMap Nat MemoryAnn Ord.compare )
     -- ^ Map from addresses to annotations of events on that address.
     ( s : RegState )
     -- ^ Initial values for registers
@@ -154,7 +154,7 @@ structure MCStdLib :=
   (funStartRegs  : RegState)
   (blockStartMem : memory)
   (onStack       : Term (SmtSort.bitvec 64) -> Term (SmtSort.bitvec 64) -> Term SmtSort.bool)
-  (allocaMap     : Std.RBMap LocalIdent AllocaMC (λ x y => x < y))
+  (allocaMap     : Std.RBMap LocalIdent AllocaMC Ord.compare)
   (notInStack    : Term (SmtSort.bitvec 64) -> Term (SmtSort.bitvec 64) -> Term SmtSort.bool)
   (isInMCOnlyStackRange : Term (SmtSort.bitvec 64) -> Term (SmtSort.bitvec 64) -> Term SmtSort.bool)
 
@@ -166,17 +166,9 @@ namespace LLVM
 
 namespace BlockLabel
 
-def lt : forall (x y : BlockLabel), Prop
-  | { label := x }, {label := y } => x < y
-
-instance : HasLess BlockLabel := ⟨lt⟩
- 
-instance decideableBlockLabelLt : ∀(x y:BlockLabel), Decidable (x < y)
-| { label := x }, { label := y } =>
-  (match Ident.decideLt x y with
-   | Decidable.isTrue  p => Decidable.isTrue p
-   | Decidable.isFalse p => Decidable.isFalse p
-   )
+instance : Ord BlockLabel where
+  compare l1 l2 := match l1, l2 with
+                  | { label := x }, {label := y } => Ord.compare x y
 
 end BlockLabel
 end LLVM
@@ -279,12 +271,8 @@ def index : GoalTag → UInt32
   | llvmAndMCCallEq => 19
   | nonStackWriteAddrValid => 20
 
-instance hasLess : HasLess GoalTag :=
-  ⟨λ x y => x.index < y.index⟩
-
-instance decLessGoalTag : (x y : GoalTag) → Decidable (x < y) :=
-  fun x y => inferInstanceAs (Decidable (x.index < y.index))
-
+instance : Ord GoalTag where
+  compare x y := Ord.compare x.index y.index
 
 def description : GoalTag → String
   | mcOnlyReadFromUnallocStack =>
@@ -381,17 +369,17 @@ def getJsonOut? (vc : VCGConfig) : Option String :=
 end VCGConfig
 
 abbrev MemAddr := Nat
-abbrev MCBlockAnnMap := Std.RBMap MemAddr MemoryAnn (λ x y => x < y)
+abbrev MCBlockAnnMap := Std.RBMap MemAddr MemoryAnn Ord.compare
 
 @[reducible]
-def LLVMTypeMap := Std.RBMap String (Option LLVM.LLVMType) Lean.strLt
+def LLVMTypeMap := Std.RBMap String (Option LLVM.LLVMType) Ord.compare
 
 structure ModuleVCGContext :=
 (annotations : ModuleAnnotations)
 -- ^ Annotations for module.
 (mkBackendFuns : x86.vcg.SupportedFPOps -> x86.vcg.InstructionEventsFun × x86.vcg.GetRegisterFun)
 -- ^ Machine code memory / decoder state
-(symbolAddrMap : Std.RBMap String (elf.word elf.elf_class.ELF64) Lean.strLt)
+(symbolAddrMap : Std.RBMap String (elf.word elf.elf_class.ELF64) Ord.compare)
 -- ^ Maps bytes to the symbol name
 (moduleTypeMap : LLVMTypeMap)
 -- ^ type map for module.
@@ -489,11 +477,9 @@ def index : BlockErrorTag → Nat
   | llvmMissingReturn => 22
   | missingAnnotations => 23
 
-instance hasLess : HasLess BlockErrorTag :=
-  ⟨λ x y => x.index < y.index⟩
+instance : Ord BlockErrorTag where
+  compare x y := Ord.compare x.index y.index
 
-instance decLessBlockErrorTag : (x y : BlockErrorTag) → Decidable (x < y) :=
-  fun x y => inferInstanceAs (Decidable (x.index < y.index))
 
 def description : BlockErrorTag → String
 | blockAddrInvalid =>
@@ -611,12 +597,8 @@ def index : ModuleErrorTag → Nat
   | fnAnnAddrWrong => 8
   | fatal => 9
 
-instance hasLess : HasLess ModuleErrorTag :=
-  ⟨λ x y => x.index < y.index⟩
-
-instance decLessModuleErrorTag : (x y : ModuleErrorTag) → Decidable (x < y) :=
-  fun x y => inferInstanceAs (Decidable (x.index < y.index))
-
+instance : Ord ModuleErrorTag where
+  compare x y := Ord.compare x.index y.index
 
 def description : ModuleErrorTag → String
   | fnNotFound => 
@@ -806,9 +788,9 @@ def moduleThrow {α} (loc : ModuleLocation) (tag : ModuleErrorTag) (extraInfo : 
 -------------------------------------------------------
 
 @[reducible]
-def BlockLabelValMap := Std.RBMap LLVM.BlockLabel LLVM.Value (λ x y => x < y)
+def BlockLabelValMap := Std.RBMap LLVM.BlockLabel LLVM.Value Ord.compare
 
-abbrev PhiVarMap := Std.RBMap LLVM.Ident (LLVM.LLVMType × BlockLabelValMap) (λ x y => x<y)
+abbrev PhiVarMap := Std.RBMap LLVM.Ident (LLVM.LLVMType × BlockLabelValMap) Ord.compare
 
 structure AnnotatedBlock :=
 (annotation: BlockAnn)
@@ -819,7 +801,7 @@ structure AnnotatedBlock :=
 
 /-  Maps LLM block labels to their associated annotations. -/
 @[reducible]
-def ReachableBlockAnnMap := Std.RBMap LLVM.BlockLabel AnnotatedBlock (λ x y => x<y)
+def ReachableBlockAnnMap := Std.RBMap LLVM.BlockLabel AnnotatedBlock Ord.compare
 
 -- | Find a block with the given label in the config.
 def findBlock (m : ReachableBlockAnnMap) (lbl: LLVM.BlockLabel) : OptionM (BlockAnn × PhiVarMap) := do
@@ -870,15 +852,15 @@ structure BlockVCGState :=
   -- ^ Unprocessed events from last instruction.
 (idGen : IdGen)
   -- ^ Used to generate unique/fresh local variables for machine code SMT terms.
-(mcPendingAllocaOffsetMap : Std.RBMap LocalIdent AllocaAnn (λ x y => x < y))
+(mcPendingAllocaOffsetMap : Std.RBMap LocalIdent AllocaAnn Ord.compare)
   -- ^ This is a map from allocation names to the annotations about their
   -- size and offset.
-(activeAllocaMap : Std.RBMap LocalIdent AllocaLlvm (fun x y => x < y))
+(activeAllocaMap : Std.RBMap LocalIdent AllocaLlvm Ord.compare)
  -- ^ Allocation names that are active in this block and their associated LLVM terms.
 (llvmInstrIndex : Nat)
   -- ^ Index of next LLVM instruction within block to execute
   -- Used for error reporting
-(llvmIdentMap : Std.RBMap LLVM.Ident (Sigma Smt.Term) (fun x y => x < y))
+(llvmIdentMap : Std.RBMap LLVM.Ident (Sigma Smt.Term) Ord.compare)
  -- ^ Mapping from llvm ident to their SMT equivalent.
 (smtContext : SmtM Unit)
 -- ^ Logical context defining the block.

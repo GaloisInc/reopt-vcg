@@ -58,7 +58,7 @@ end buffer_map
 
 section 
 
-universes u
+universe u
 variable {k : Type u} {distance : k -> k -> Int} [Repr k]
 
 -- FIXME: behave wrt prec

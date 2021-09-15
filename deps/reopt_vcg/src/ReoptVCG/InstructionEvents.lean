@@ -24,7 +24,7 @@ def mkBackendFuns ( sem : Semantics ) ( fpOps  : SupportedFPOps ) : InstructionE
   let backend := mkBackend fpOps
   let instructionEvents := fun
     -- ^ SMT operations over floating point
-    ( evtMap : Std.RBMap Nat MemoryAnn (fun x y => decide (x < y)) )
+    ( evtMap : Std.RBMap Nat MemoryAnn Ord.compare )
     -- ^ Map from addresses to annotations of events on that address.
     ( s : RegState )
     -- ^ Initial values for registers

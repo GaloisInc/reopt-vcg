@@ -52,7 +52,7 @@ end x86
 
 namespace ReoptVCG
 
-open Lean (Json strLt)
+open Lean (Json)
 open Lean.Json (parseObjValAsString)
 
 open elf.elf_class (ELF64)
@@ -63,7 +63,7 @@ open Smt (SmtSort SmtSort.bitvec SmtSort.bv64)
 
 -- | Use a map from symbol names to address to find address.
 def getMCAddrOfLLVMFunction
-(m : Std.RBMap String (elf.word ELF64) Lean.strLt)
+(m : Std.RBMap String (elf.word ELF64) Ord.compare)
 -- ^ Map from symbol names in machine code
 -- to the address in the binary.
 (fnm : String)
@@ -138,19 +138,19 @@ List LLVM.Stmt →
  × List LLVM.Stmt)
 | prev, (⟨Option.some nm, (LLVM.Instruction.phi lTy valLbs), _⟩::rest) =>
   let lblAndVals := valLbs.toList.map (λ p => (p.snd,p.fst));
-  let valMap := Std.RBMap.fromList lblAndVals (λ x y => x < y);
+  let valMap := Std.RBMap.fromList lblAndVals Ord.compare;
   extractPhiStmtVars ((nm, lTy, valMap)::prev) rest
 | prev, rest => (prev, rest)
 
 /- Builds an RBMap from a list with LLVM.Ident keys. -/
 def llvmIdentRBMap {α : Type} (entries: List (LLVM.Ident × α))
- : Std.RBMap LLVM.Ident α (λ (x y:LLVM.Ident)=> x<y) :=
-Std.RBMap.fromList entries (λ (x y:LLVM.Ident)=> x<y)
+ : Std.RBMap LLVM.Ident α Ord.compare :=
+Std.RBMap.fromList entries Ord.compare
 
 /- Used to parse a single basic block's annotation in a function annotation. -/
 def parseAnnotatedBlock
   (fnm:FnName) -- ^ Function whose block is being parsed.
-  (blockMap:Std.RBMap LLVM.Ident Json (λ x y => x<y)) -- ^ Block label to block annotation map.
+  (blockMap:Std.RBMap LLVM.Ident Json Ord.compare) -- ^ Block label to block annotation map.
   (b:LLVM.BasicBlock) -- ^ Basic block of `fnm`.
   : ModuleVCG AnnotatedBlock := do
   let lbl := b.label;
@@ -167,7 +167,7 @@ def parseAnnotatedBlock
                     ModuleErrorTag.unsupportedPhiVarType
                     (nm.asString ++ " : " ++ ppLLVM tp)
   let varTypes ← phiVarList.mapM parseLLVMVar;
-  let llvmTyEnv := Std.RBMap.ltMap varTypes;
+  let llvmTyEnv := Std.RBMap.ordMap varTypes;
   let blockJson ← match blockMap.find? lbl.label with
     | Option.some json => pure json
     | Option.none =>
@@ -182,7 +182,7 @@ def parseAnnotatedBlock
                 ModuleErrorTag.annParseFailure
                 errMsg
   | Except.ok ann => do
-    let phiMap := Std.RBMap.ltMap phiVarList;
+    let phiMap := Std.RBMap.ordMap phiVarList;
     pure $ {annotation := ann,
             label := lbl,
             phiVarMap := phiMap,
@@ -215,7 +215,7 @@ def parseLLVMArgs
              mkBinding args
 
 /- Builds a mapping from block labels to corresponding block annotation json objects. -/
-def buildBlockAnnMap (fAnn:FunctionAnn) : ModuleVCG (Std.RBMap LLVM.Ident Json (λ x y => x<y)) := do
+def buildBlockAnnMap (fAnn:FunctionAnn) : ModuleVCG (Std.RBMap LLVM.Ident Json Ord.compare) := do
 let mkEntry : List (LLVM.Ident × Json) → Json → ModuleVCG (List (LLVM.Ident × Json)) :=
   λ entries blockAnn =>
     match parseObjValAsString blockAnn "label" with
@@ -246,8 +246,8 @@ def verifyFunction (lMod:LLVM.Module) (fAnn: FunctionAnn): ModuleVCG FnVerificat
   -- Parse each block annotation in the JSON
   let blocks ← lFun.body.mapM (parseAnnotatedBlock fnm blockMap);
   -- Build a mapping from block labels to AnnotatedBlock
-  let blockMap : Std.RBMap LLVM.BlockLabel AnnotatedBlock (λ x y => x<y) :=
-    Std.RBMap.fromList (blocks.toList.map (λ ab => (ab.label, ab))) (λ x y => x<y);
+  let blockMap : Std.RBMap LLVM.BlockLabel AnnotatedBlock Ord.compare :=
+    Std.RBMap.fromList (blocks.toList.map (λ ab => (ab.label, ab))) Ord.compare;
   -- Verify the first block is where the annotation indicated it should be, and return
   -- the label for the first block
   let entryBlockAddr := fAnn.startAddr
@@ -306,7 +306,7 @@ def processFns (lMod:LLVM.Module) (anns: List FunctionAnn) : ModuleVCG ModuleVer
 def setupWithConfig (cfg : VCGConfig) : IO (ModuleAnnotations × VerificationSession) := do
   -- Read in the annotation file.
   let annContents ← IO.FS.readFile cfg.annFile;
-  let modAnn ← elseThrowPrefixed (Lean.Json.parse annContents >>= parseAnnotations)
+  let modAnn ← elseThrowPrefixed (Lean.Json.parse annContents >>= ModuleAnnotations.fromJson)
            $ "Encountered an error while parsing the Json in `"++ cfg.annFile ++"`: ";
   if cfg.verbose then
     IO.println $ "Parsed the JSON annotation file `"++cfg.annFile++"` successfully!"
@@ -321,7 +321,7 @@ def setupWithConfig (cfg : VCGConfig) : IO (ModuleAnnotations × VerificationSes
     pure (modAnn, vs)
   -- Output into the specified directory.
   | VerificationMode.exportMode outDir => do
-    let outDirExists ← IO.isDir outDir;
+    let outDirExists ← System.FilePath.isDir outDir;
     unless outDirExists do
       throw $ IO.userError $ "Output directory `"++outDir++"` does not exists.";
     -- FIXME create the directory if it's missing? (It's not clear there's a lean4 API for that yet)
@@ -329,9 +329,9 @@ def setupWithConfig (cfg : VCGConfig) : IO (ModuleAnnotations × VerificationSes
     pure (modAnn, vs)
 
 /- Load the elf binary file and check it is a linux x86_64 binary (erroring if not). -/
-def loadElf (filePath : String) :
-  IO (elf.ehdr ELF64 × List (elf.phdr ELF64) × elf.elfmem × (Std.RBMap String (elf.word ELF64) Lean.strLt)) := do
-  let fileContents ← elf.read_info_from_file filePath;
+def loadElf (filePath : System.FilePath) :
+  IO (elf.ehdr ELF64 × List (elf.phdr ELF64) × elf.elfmem × (Std.RBMap String (elf.word ELF64) Ord.compare)) := do
+  let fileContents ← elf.read_info_from_file filePath.toString;
   match fileContents with
   | (⟨ELF64, (hdr, phdrs)⟩, elfMem) => do
     -- Check the Elf file is for a x86_64
@@ -368,7 +368,7 @@ def reportErrors (bErrors : List BlockError) (mErrors : List ModuleError) (succe
   if !bErrors.isEmpty then do
     IO.println ""
     IO.println "======================= ERRORS ======================="
-    let mut bErrMap : Std.RBMap BlockErrorTag (Nat × (Std.RBMap String Nat (·<·))) (·<·) := Std.RBMap.empty
+    let mut bErrMap : Std.RBMap BlockErrorTag (Nat × (Std.RBMap String Nat Ord.compare)) Ord.compare := Std.RBMap.empty
     for err in bErrors do
       bErrCnt := bErrCnt + 1
       bErrMap := let (tagCnt, tagMap) := bErrMap.findD err.tag (0, Std.RBMap.empty)
@@ -384,7 +384,7 @@ def reportErrors (bErrors : List BlockError) (mErrors : List ModuleError) (succe
   -- summarize module errors
   let mut mErrCnt : Nat := 0
   if !mErrors.isEmpty then do
-    let mut mErrMap : Std.RBMap ModuleErrorTag (Nat × (Std.RBMap String Nat (·<·))) (·<·) := Std.RBMap.empty
+    let mut mErrMap : Std.RBMap ModuleErrorTag (Nat × (Std.RBMap String Nat Ord.compare)) Ord.compare := Std.RBMap.empty
     for err in mErrors do
       mErrCnt := mErrCnt + 1
       mErrMap := let (tagCnt, tagMap) := mErrMap.findD err.tag (0, Std.RBMap.empty)
@@ -401,13 +401,13 @@ def reportErrors (bErrors : List BlockError) (mErrors : List ModuleError) (succe
   else pure $ if bErrCnt > 0 then 1 else 0
 
 /- Combines a directory with a relative file path.-/
-def joinPath (name root p : String) : IO String :=
+def joinPath (name : String) (root p : System.FilePath) : IO System.FilePath :=
   if p == "" then
     throw $ IO.userError $ s!"Expected non-empty {name}."
-  else if root == "." then
+  else if root.toString == "." then
     pure p
   else
-   pure $ System.mkFilePath [root, p]
+   pure $ System.FilePath.join root p
 
 /- Run a ReoptVCG instance w.r.t. the given configuration. -/
 def runVCG (cfg : VCGConfig) : IO UInt32 := do

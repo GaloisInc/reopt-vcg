@@ -19,11 +19,12 @@ def parseAnnotationsFibTest : IO FunctionAnn := do
   let homeDir ← (do
     let maybeVal ← IO.getEnv "REOPTVCGHOME";
     pure $ maybeVal.getD (panic "REOPTVCGHOME environment variable not set"));
-  let fileContents ← IO.FS.readFile $ homeDir ++ "/test-programs/test_fib_diet_reopt.ann";
-  match Lean.Json.parse fileContents with
+  let fPath := System.mkFilePath [homeDir, "test-programs", "test_fib_diet_reopt.ann"]
+  let fContents ← IO.FS.readFile fPath
+  match Lean.Json.parse fContents with
   | Except.error errMsg => throw $ IO.userError $ "Failed to parse json string: " ++ errMsg
   | Except.ok js =>
-    match parseAnnotations js with
+    match ModuleAnnotations.fromJson js with
     | Except.error errMsg => throw $ IO.userError $ "Failed to parse json as a module annotation: " ++ errMsg
     | Except.ok modAnn => do
       unless (modAnn.llvmFilePath == "test_fib_diet_reopt.ll") do
@@ -48,8 +49,8 @@ def parseAnnotationsFibTest : IO FunctionAnn := do
 def fibLLVMTyEnvEntries : List (LLVM.Ident × SmtSort) :=
   ["t1", "t4", "t5", "t8", "t9", "t12", "t13", "t15"].map (λ nm => (LLVM.Ident.named nm, SmtSort.bv64))
 
-def fibLLVMTyEnv : Std.RBMap LLVM.Ident SmtSort (λ x y => x<y) :=
-  Std.RBMap.fromList fibLLVMTyEnvEntries (λ x y => x<y)
+def fibLLVMTyEnv : Std.RBMap LLVM.Ident SmtSort Ord.compare :=
+  Std.RBMap.fromList fibLLVMTyEnvEntries Ord.compare
 
 -- Parse and check a few very basic structural properties about the return block annotations
 -- just to sanity check how things are working at the moment.

@@ -25,7 +25,7 @@
 # The full path is required so we can depend on it
 LEAN ?= $(shell which lean)
 LEANC ?= leanc
-LEAN_C_FLAGS=$(shell ${LEANC} -print-cflags)
+LEAN_C_FLAGS=$(shell ${LEANC} --print-cflags)
 
 
 # This is ugly, as it as the side effect of creating the build

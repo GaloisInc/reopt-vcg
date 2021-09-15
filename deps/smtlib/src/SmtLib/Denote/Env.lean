@@ -9,21 +9,21 @@ import SmtLib.Syntax
 ------------------------------------------------------------
 -- Generic functional map helpers/theorems
 
-def upd.{u, v} {α : Type u} [DecidableEq α] {β: α -> Type v} (f : forall v, β v) (k : α) (v : β k) : forall v, β v :=       
+def upd.{u, v} {α : Type u} [DecidableEq α] {β: α -> Type v} (f : forall v, β v) (k : α) (v : β k) : forall v, β v :=
   fun k' => if H : k = k' then cast (congrArg β H) v else f k'
 
 namespace upd
 
 
-universes u v
+universe u v
 variable {α : Type u} [DecidableEq α] {β: α -> Type v}
 
 theorem atKey (f : forall v, β v) (k : α)  (v : β k) : (upd f k v) k = v :=
-  difPos rfl
+  dif_pos rfl
 
 
 theorem atOtherKey {k k'} (f : forall v, β v) (v : β k) (pf : k ≠ k') : (upd f k v) k' = f k' :=
-  difNeg pf       
+  dif_neg pf
 
 
 end upd
