@@ -7,7 +7,7 @@ LOCAL_LEAN := src/ReoptVCG/Annotations.lean src/ReoptVCG/LoadLLVM.lean\
               src/ReoptVCG/Smt.lean \
               src/ReoptVCG/Translate.lean src/ReoptVCG/KTranslate.lean\
               src/ReoptVCG/VCGBackend.lean src/ReoptVCG/WordSize.lean\
-              src/ReoptVCG/InstructionEvents.lean src/ReoptVCG/ABI.lean
+              src/ReoptVCG/InstructionEvents.lean src/ReoptVCG/ABI.lean src/ReoptVCG/SExpParser.lean
 
 
 $(eval $(call add-package,src,${LOCAL_LEAN},))

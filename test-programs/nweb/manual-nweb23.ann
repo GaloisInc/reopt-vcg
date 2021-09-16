@@ -1,0 +1,2348 @@
+{
+  "functions": [
+    {
+      "llvm_name": "_dl_relocate_static_pie",
+      "blocks": [
+        {
+          "preconditions": [
+            "(= rbx (fnstart rbx))",
+            "(= rsp stack_high)",
+            "(= rbp (fnstart rbp))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))"
+          ],
+          "addr": "0x401200",
+          "mem_events": [
+            {
+              "addr": "0x401204",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_401200",
+          "is_tail_call": false,
+          "size": 5
+        }
+      ],
+      "start_addr": "0x401200"
+    },
+    {
+      "llvm_name": "reopt_deregister_tm_clones_0_0x401210",
+      "blocks": [
+        {
+          "preconditions": [
+            "(= rbx (fnstart rbx))",
+            "(= rsp stack_high)",
+            "(= rbp (fnstart rbp))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))"
+          ],
+          "addr": "0x401210",
+          "label": "block_0_401210",
+          "is_tail_call": false,
+          "size": 13
+        },
+        {
+          "preconditions": [
+            "(= rbx (fnstart rbx))",
+            "(= rsp stack_high)",
+            "(= rbp (fnstart rbp))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= cf af)",
+            "(= cf sf)",
+            "(= cf df)"
+          ],
+          "addr": "0x401230",
+          "mem_events": [
+            {
+              "addr": "0x401230",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_401230",
+          "is_tail_call": false,
+          "size": 1
+        }
+      ],
+      "start_addr": "0x401210"
+    },
+    {
+      "llvm_name": "reopt_register_tm_clones_0_0x401240",
+      "blocks": [
+        {
+          "preconditions": [
+            "(= rbx (fnstart rbx))",
+            "(= rsp stack_high)",
+            "(= rbp (fnstart rbp))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))"
+          ],
+          "addr": "0x401240",
+          "label": "block_0_401240",
+          "is_tail_call": false,
+          "size": 31
+        },
+        {
+          "preconditions": [
+            "(= rbx (fnstart rbx))",
+            "(= rsp stack_high)",
+            "(= rbp (fnstart rbp))",
+            "(= rax rsi)",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= cf sf)",
+            "(= cf df)",
+            "(= cf of)"
+          ],
+          "addr": "0x401270",
+          "mem_events": [
+            {
+              "addr": "0x401270",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_401270",
+          "is_tail_call": false,
+          "size": 1
+        }
+      ],
+      "start_addr": "0x401240"
+    },
+    {
+      "llvm_name": "reopt___do_global_dtors_aux_0_0x401280",
+      "blocks": [
+        {
+          "preconditions": [
+            "(= rbx (fnstart rbx))",
+            "(= rsp stack_high)",
+            "(= rbp (fnstart rbp))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))"
+          ],
+          "addr": "0x401280",
+          "mem_events": [
+            {
+              "addr": "0x401284",
+              "type": "heap_access"
+            }
+          ],
+          "label": "block_0_401280",
+          "is_tail_call": false,
+          "size": 13
+        },
+        {
+          "preconditions": [
+            "(= rbx (fnstart rbx))",
+            "(= rsp stack_high)",
+            "(= rbp (fnstart rbp))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= cf af)",
+            "(= cf df)",
+            "(= cf of)"
+          ],
+          "addr": "0x40128d",
+          "mem_events": [
+            {
+              "addr": "0x40128d",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x401291",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_40128d",
+          "is_tail_call": false,
+          "size": 9
+        },
+        {
+          "preconditions": [
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv8 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))"
+          ],
+          "addr": "0x401296",
+          "mem_events": [
+            {
+              "addr": "0x401296",
+              "type": "heap_access"
+            },
+            {
+              "addr": "0x40129d",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x40129e",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_401296",
+          "is_tail_call": false,
+          "size": 9
+        },
+        {
+          "preconditions": [
+            "(= rbx (fnstart rbx))",
+            "(= rsp stack_high)",
+            "(= rbp (fnstart rbp))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= cf af)",
+            "(= cf df)",
+            "(= cf of)"
+          ],
+          "addr": "0x4012a0",
+          "mem_events": [
+            {
+              "addr": "0x4012a0",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_4012a0",
+          "is_tail_call": false,
+          "size": 1
+        }
+      ],
+      "start_addr": "0x401280"
+    },
+    {
+      "llvm_name": "reopt_frame_dummy_0_0x4012b0",
+      "blocks": [
+        {
+          "preconditions": [
+            "(= rbx (fnstart rbx))",
+            "(= rsp stack_high)",
+            "(= rbp (fnstart rbp))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))"
+          ],
+          "addr": "0x4012b0",
+          "label": "block_0_4012b0",
+          "is_tail_call": true,
+          "size": 6
+        }
+      ],
+      "start_addr": "0x4012b0"
+    },
+
+
+    {
+      "llvm_name": "web",
+      "blocks": [
+        {
+          "preconditions": [
+            "(= rbx (fnstart rbx))",
+            "(= rsp stack_high)",
+            "(= rbp (fnstart rbp))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))"
+          ],
+          "addr": "0x4014f0",
+          "mem_events": [
+            {
+              "addr": "0x4014f0",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x4014f8",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x4014fb",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x4014fe",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x401510",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_4014f0",
+          "is_tail_call": false,
+          "size": 37
+        },
+        {
+          "preconditions": [
+            "(= (llvm t4) rax)",
+            "(= (llvm t5) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t6) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))",
+
+	    "(bvslt rax (_ bv8096 64))",
+	    "(bvslt (_ bv18446744073709551615 64) rax)"
+          ],
+          "addr": "0x401515",
+          "mem_events": [
+            {
+              "addr": "0x401515",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x401519",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_401515",
+          "is_tail_call": false,
+          "size": 15
+        },
+        {
+          "preconditions": [
+            "(= (llvm t8) rax)",
+            "(= (llvm t8) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))",
+            "(= (llvm t9) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t10) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= cf af)",
+            "(= cf df)",
+            "(= cf of)",
+            "(= rax (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))",
+	    
+	    "(bvslt (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)) (_ bv8096 64))",
+	    "(bvslt (_ bv18446744073709551615 64) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))"
+          ],
+          "addr": "0x401524",
+          "mem_events": [
+            {
+              "addr": "0x401524",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_401524",
+          "is_tail_call": false,
+          "size": 11
+        },
+        {
+          "preconditions": [
+            "(= (llvm t12) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))",
+            "(= (llvm t13) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t14) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))",
+	    
+	    "(bvslt (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)) (_ bv8096 64))",
+	    "(bvslt (_ bv18446744073709551615 64) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))"
+          ],
+          "addr": "0x40152f",
+          "mem_events": [
+            {
+              "addr": "0x40152f",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x40154b",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_40152f",
+          "is_tail_call": false,
+          "size": 33
+        },
+        {
+          "preconditions": [
+            "(= (llvm t16) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))",
+            "(= (llvm t17) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t18) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))",
+	    
+	    "(bvslt (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)) (_ bv8096 64))",
+	    "(bvslt (_ bv18446744073709551615 64) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))"
+          ],
+          "addr": "0x401550",
+          "mem_events": [
+            {
+              "addr": "0x401550",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_401550",
+          "is_tail_call": false,
+          "size": 11
+        },
+        {
+          "preconditions": [
+            "(= (llvm t22) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))",
+            "(= (llvm t23) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t24) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= cf af)",
+            "(= cf df)",
+            "(= cf of)",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))",
+
+	    "(bvslt (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)) (_ bv8096 64))",
+	    "(bvslt (_ bv18446744073709551615 64) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))",
+	    
+	    "(bvslt (_ bv0 64) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))"	    
+          ],
+          "addr": "0x40155b",
+          "mem_events": [
+            {
+              "addr": "0x40155b",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_40155b",
+          "is_tail_call": false,
+          "size": 14
+        },
+        {
+          "preconditions": [
+            "(= (llvm t30) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))",
+            "(= (llvm t31) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t32) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= af df)",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))",
+
+	    "(bvslt (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)) (_ bv8096 64))",
+	    "(bvslt (_ bv18446744073709551615 64) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))"
+          ],
+          "addr": "0x401569",
+          "mem_events": [
+            {
+              "addr": "0x401569",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x40156d",
+              "type": "heap_access"
+            }
+          ],
+          "label": "block_0_401569",
+          "is_tail_call": false,
+          "size": 17
+        },
+        {
+          "preconditions": [
+            "(= (llvm t35) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))",
+            "(= (llvm t36) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t37) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= af df)",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))",
+
+	    "(bvslt (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)) (_ bv8096 64))",
+	    "(bvslt (_ bv18446744073709551615 64) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))"
+          ],
+          "addr": "0x40157a",
+          "mem_events": [
+            {
+              "addr": "0x40157a",
+              "type": "heap_access"
+            }
+          ],
+          "label": "block_0_40157a",
+          "is_tail_call": false,
+          "size": 8
+        },
+        {
+          "preconditions": [
+            "(= (llvm t39) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))",
+            "(= (llvm t40) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t41) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))",
+
+	    "(bvslt (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)) (_ bv8096 64))",
+	    "(bvslt (_ bv18446744073709551615 64) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))"
+          ],
+          "addr": "0x401582",
+          "mem_events": [
+            {
+              "addr": "0x401582",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_401582",
+          "is_tail_call": false,
+          "size": 8
+        },
+        {
+          "preconditions": [
+            "(= (llvm t42) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))",
+            "(= (llvm t43) (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)))",
+            "(= (llvm t44) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t45) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))",
+
+	    "(bvslt (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)) (_ bv8096 64))",
+	    "(bvslt (_ bv18446744073709551615 64) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))",
+	    "(bvsle (_ bv0 64) (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)))"
+
+          ],
+          "addr": "0x40158a",
+          "mem_events": [
+            {
+              "addr": "0x40158a",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x40158e",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_40158a",
+          "is_tail_call": false,
+          "size": 14
+        },
+        {
+          "preconditions": [
+            "(= (llvm t51) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))",
+            "(= (llvm t52) (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)))",
+            "(= (llvm t53) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t54) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))",
+
+	    "(bvslt (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)) (_ bv8096 64))",
+	    "(bvslt (_ bv18446744073709551615 64) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))",
+	    "(bvsle (_ bv0 64) (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)))",
+	    "(bvslt (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))"
+	    
+          ],
+          "addr": "0x401598",
+          "mem_events": [
+            {
+              "addr": "0x401598",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x40159c",
+              "type": "heap_access"
+            }
+          ],
+          "label": "block_0_401598",
+          "is_tail_call": false,
+          "size": 21
+        },
+        {
+          "preconditions": [
+            "(= (llvm t60) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))",
+            "(= (llvm t61) (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)))",
+            "(= (llvm t62) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t63) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))",
+
+	    "(bvslt (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)) (_ bv8096 64))",
+	    "(bvslt (_ bv18446744073709551615 64) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))",
+	    "(bvsle (_ bv0 64) (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)))",
+	    "(bvslt (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))"
+	    
+
+          ],
+          "addr": "0x4015ad",
+          "mem_events": [
+            {
+              "addr": "0x4015ad",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x4015b1",
+              "type": "heap_access"
+            }
+          ],
+          "label": "block_0_4015ad",
+          "is_tail_call": false,
+          "size": 21
+        },
+        {
+          "preconditions": [
+            "(= (llvm t69) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))",
+            "(= (llvm t70) (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)))",
+            "(= (llvm t71) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t72) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))",
+
+	    "(bvslt (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)) (_ bv8096 64))",
+	    "(bvslt (_ bv18446744073709551615 64) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))",
+	    "(bvsle (_ bv0 64) (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)))",
+	    "(bvslt (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))"
+	    
+
+          ],
+          "addr": "0x4015c2",
+          "mem_events": [
+            {
+              "addr": "0x4015c2",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x4015c6",
+              "type": "heap_access"
+            }
+          ],
+          "label": "block_0_4015c2",
+          "is_tail_call": false,
+          "size": 12
+        },
+        {
+          "preconditions": [
+            "(= (llvm t75) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))",
+            "(= (llvm t76) (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)))",
+            "(= (llvm t77) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t78) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))",
+
+	    "(bvslt (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)) (_ bv8096 64))",
+	    "(bvslt (_ bv18446744073709551615 64) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))",
+	    "(bvsle (_ bv0 64) (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)))",
+	    "(bvslt (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))"
+	    
+
+          ],
+          "addr": "0x4015ce",
+          "mem_events": [
+            {
+              "addr": "0x4015d3",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x4015db",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_4015ce",
+          "is_tail_call": false,
+          "size": 22
+        },
+        {
+          "preconditions": [
+            "(= (llvm t80) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t81) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))",
+
+	    "(bvslt (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)) (_ bv8096 64))",
+	    "(bvslt (_ bv18446744073709551615 64) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))"
+
+          ],
+          "addr": "0x4015e4",
+          "mem_events": [
+            {
+              "addr": "0x4015e4",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x401600",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_4015e4",
+          "is_tail_call": false,
+          "size": 33
+        },
+        {
+          "preconditions": [
+            "(= (llvm t83) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t84) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))",
+	    
+	    "(bvslt (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)) (_ bv8096 64))",
+	    "(bvslt (_ bv18446744073709551615 64) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))"
+          ],
+          "addr": "0x401605",
+          "mem_events": [
+            {
+              "addr": "0x40161e",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_401605",
+          "is_tail_call": false,
+          "size": 30
+        },
+        {
+          "preconditions": [
+            "(= (llvm t86) rax)",
+            "(= (llvm t87) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t88) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))",
+
+	    "(bvslt (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)) (_ bv8096 64))",
+	    "(bvslt (_ bv18446744073709551615 64) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))"
+
+          ],
+          "addr": "0x401623",
+          "label": "block_0_401623",
+          "is_tail_call": false,
+          "size": 9
+        },
+        {
+          "preconditions": [
+            "(= (llvm t91) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t92) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= cf af)",
+            "(= cf df)",
+            "(= cf of)",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))",
+
+	    "(bvslt (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)) (_ bv8096 64))",
+	    "(bvslt (_ bv18446744073709551615 64) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))"
+
+          ],
+          "addr": "0x40162c",
+          "mem_events": [
+            {
+              "addr": "0x401645",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_40162c",
+          "is_tail_call": false,
+          "size": 30
+        },
+        {
+          "preconditions": [
+            "(= (llvm t94) rax)",
+            "(= (llvm t95) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t96) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))",
+
+	    "(bvslt (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)) (_ bv8096 64))",
+	    "(bvslt (_ bv18446744073709551615 64) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))"
+	    
+          ],
+          "addr": "0x40164a",
+          "label": "block_0_40164a",
+          "is_tail_call": false,
+          "size": 9
+        },
+        {
+          "preconditions": [
+            "(= (llvm t99) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t100) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= cf af)",
+            "(= cf df)",
+            "(= cf of)",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))",
+
+	    "(bvslt (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)) (_ bv8096 64))",
+	    "(bvslt (_ bv18446744073709551615 64) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))"
+
+          ],
+          "addr": "0x401653",
+          "mem_events": [
+            {
+              "addr": "0x401653",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x40166f",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_401653",
+          "is_tail_call": false,
+          "size": 33
+        },
+        {
+          "preconditions": [
+            "(= (llvm t102) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t103) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))",
+
+	    "(bvslt (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)) (_ bv8096 64))",
+	    "(bvslt (_ bv18446744073709551615 64) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))"
+
+          ],
+          "addr": "0x401674",
+          "mem_events": [
+            {
+              "addr": "0x401674",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_401674",
+          "is_tail_call": false,
+          "size": 8
+        },
+        {
+          "preconditions": [
+            "(= (llvm t104) (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)))",
+            "(= (llvm t105) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t106) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))",
+
+	    "(bvslt (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)) (_ bv8096 64))",
+	    "(bvslt (_ bv18446744073709551615 64) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))",
+
+	    "(bvsle (_ bv0 64) (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)))",
+	    "(bvsle (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)) (_ bv8096 64))"	    
+
+          ],
+          "addr": "0x40167c",
+          "mem_events": [
+            {
+              "addr": "0x40167c",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_40167c",
+          "is_tail_call": false,
+          "size": 14
+        },
+        {
+          "preconditions": [
+            "(= (llvm t112) (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)))",
+            "(= (llvm t113) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t114) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= af df)",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))",
+
+	    "(bvslt (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)) (_ bv8096 64))",
+	    "(bvslt (_ bv18446744073709551615 64) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))",
+	    
+	    "(bvsle (_ bv0 64) (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)))",
+	    "(bvslt (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)) (_ bv8096 64))"	    
+
+          ],
+          "addr": "0x40168a",
+          "mem_events": [
+            {
+              "addr": "0x40168a",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x40168e",
+              "type": "heap_access"
+            }
+          ],
+          "label": "block_0_40168a",
+          "is_tail_call": false,
+          "size": 21
+        },
+        {
+          "preconditions": [
+            "(= (llvm t120) (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)))",
+            "(= (llvm t121) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t122) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= af df)",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))",
+
+	    "(bvslt (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)) (_ bv8096 64))",
+	    "(bvslt (_ bv18446744073709551615 64) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))",
+	    
+	    "(bvsle (_ bv0 64) (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)))",
+	    "(bvslt (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)) (_ bv8096 64))"	    
+
+          ],
+          "addr": "0x40169f",
+          "mem_events": [
+            {
+              "addr": "0x40169f",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x4016a3",
+              "type": "heap_access"
+            }
+          ],
+          "label": "block_0_40169f",
+          "is_tail_call": false,
+          "size": 17
+        },
+        {
+          "preconditions": [
+            "(= (llvm t125) (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)))",
+            "(= (llvm t126) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t127) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= af df)",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))",
+
+	    "(bvslt (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)) (_ bv8096 64))",
+	    "(bvslt (_ bv18446744073709551615 64) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))",
+	    
+	    "(bvsle (_ bv0 64) (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)))",
+	    "(bvslt (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)) (_ bv8096 64))"	 	    
+          ],
+          "addr": "0x4016b0",
+          "mem_events": [
+            {
+              "addr": "0x4016b5",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x4016bd",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_4016b0",
+          "is_tail_call": false,
+          "size": 22
+        },
+        {
+          "preconditions": [
+            "(= (llvm t129) (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)))",
+            "(= (llvm t130) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t131) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))",
+
+	    "(bvslt (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)) (_ bv8096 64))",
+	    "(bvslt (_ bv18446744073709551615 64) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))",
+
+	    "(bvsle (_ bv0 64) (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)))",
+	    "(bvsle (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)) (_ bv8096 64))"	 	    
+
+          ],
+          "addr": "0x4016c6",
+          "mem_events": [
+            {
+              "addr": "0x4016c6",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_4016c6",
+          "is_tail_call": false,
+          "size": 7
+        },
+        {
+          "preconditions": [
+            "(= (llvm t132) (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)))",
+            "(= (llvm t133) (mcstack (bvsub stack_high (_ bv20 64)) (_ BitVec 32)))",
+            "(= (llvm t134) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t135) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))",
+
+	    "(bvslt (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)) (_ bv8096 64))",
+	    "(bvslt (_ bv18446744073709551615 64) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))",
+
+	    "(bvsle (_ bv0 64) (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)))",
+	    "(bvsle (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)) (_ bv8096 64))",
+
+	    "(bvsle (_ bv0 32) (mcstack (bvsub stack_high (_ bv20 64)) (_ BitVec 32)))"	    
+          ],
+          "addr": "0x4016cd",
+          "mem_events": [
+            {
+              "addr": "0x4016cd",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x4016d1",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_4016cd",
+          "is_tail_call": false,
+          "size": 21
+        },
+        {
+          "preconditions": [
+            "(= (llvm t143) (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)))",
+            "(= (llvm t144) (mcstack (bvsub stack_high (_ bv20 64)) (_ BitVec 32)))",
+            "(= (llvm t145) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t146) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))",
+
+	    "(bvslt (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)) (_ bv8096 64))",
+	    "(bvslt (_ bv18446744073709551615 64) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))",
+
+	    "(bvsle (_ bv0 64) (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)))",
+	    "(bvsle (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)) (_ bv8096 64))",	 	   
+
+	    "(bvsle (_ bv0 32) (mcstack (bvsub stack_high (_ bv20 64)) (_ BitVec 32)))",
+	    "(bvslt (mcstack (bvsub stack_high (_ bv20 64)) (_ BitVec 32)) (_ bv8096 32))"
+          ],
+          "addr": "0x4016e2",
+          "mem_events": [
+            {
+              "addr": "0x4016e2",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x4016e6",
+              "type": "heap_access"
+            }
+          ],
+          "label": "block_0_4016e2",
+          "is_tail_call": false,
+          "size": 21
+        },
+        {
+          "preconditions": [
+            "(= (llvm t153) (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)))",
+            "(= (llvm t154) (mcstack (bvsub stack_high (_ bv20 64)) (_ BitVec 32)))",
+            "(= (llvm t155) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t156) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))",
+
+	    "(bvslt (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)) (_ bv8096 64))",
+	    "(bvslt (_ bv18446744073709551615 64) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))",
+
+	    "(bvsle (_ bv0 64) (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)))",
+	    "(bvsle (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)) (_ bv8096 64))",	 	    
+
+	    "(bvsle (_ bv0 32) (mcstack (bvsub stack_high (_ bv20 64)) (_ BitVec 32)))",
+	    "(bvslt (mcstack (bvsub stack_high (_ bv20 64)) (_ BitVec 32)) (_ bv8096 32))"
+	    
+          ],
+          "addr": "0x4016f7",
+          "mem_events": [
+            {
+              "addr": "0x4016f7",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x4016ff",
+              "type": "heap_access"
+            }
+          ],
+          "label": "block_0_4016f7",
+          "is_tail_call": false,
+          "size": 25
+        },
+        {
+          "preconditions": [
+            "(= (llvm t164) (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)))",
+            "(= (llvm t165) (mcstack (bvsub stack_high (_ bv20 64)) (_ BitVec 32)))",
+            "(= (llvm t166) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t167) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))",
+	    
+	    "(bvslt (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)) (_ bv8096 64))",
+	    "(bvslt (_ bv18446744073709551615 64) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))",
+
+	    "(bvsle (_ bv0 64) (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)))",
+	    "(bvsle (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)) (_ bv8096 64))",	 	    
+
+	    "(bvsle (_ bv0 32) (mcstack (bvsub stack_high (_ bv20 64)) (_ BitVec 32)))",
+	    "(bvslt (mcstack (bvsub stack_high (_ bv20 64)) (_ BitVec 32)) (_ bv8096 32))"
+	    
+          ],
+          "addr": "0x401710",
+          "mem_events": [
+            {
+              "addr": "0x401710",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x40172c",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_401710",
+          "is_tail_call": false,
+          "size": 33
+        },
+        {
+          "preconditions": [
+            "(= (llvm t169) (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)))",
+            "(= (llvm t170) (mcstack (bvsub stack_high (_ bv20 64)) (_ BitVec 32)))",
+            "(= (llvm t171) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t172) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))",
+
+	    "(bvslt (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)) (_ bv8096 64))",
+	    "(bvslt (_ bv18446744073709551615 64) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))",
+	    
+	    "(bvsle (_ bv0 64) (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)))",
+	    "(bvsle (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)) (_ bv8096 64))",
+
+	    "(bvsle (_ bv0 32) (mcstack (bvsub stack_high (_ bv20 64)) (_ BitVec 32)))",
+	    "(bvslt (mcstack (bvsub stack_high (_ bv20 64)) (_ BitVec 32)) (_ bv8096 32))"
+
+          ],
+          "addr": "0x401731",
+          "mem_events": [
+            {
+              "addr": "0x401736",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x40173c",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_401731",
+          "is_tail_call": false,
+          "size": 19
+        },
+        {
+          "preconditions": [
+            "(= (llvm t174) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t175) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))"
+          ],
+          "addr": "0x401744",
+          "mem_events": [
+            {
+              "addr": "0x40175d",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_401744",
+          "is_tail_call": false,
+          "size": 30
+        },
+        {
+          "preconditions": [
+            "(= (llvm t177) rax)",
+            "(= (llvm t178) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t179) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))"
+          ],
+          "addr": "0x401762",
+          "label": "block_0_401762",
+          "is_tail_call": false,
+          "size": 9
+        },
+        {
+          "preconditions": [
+            "(= (llvm t182) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t183) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= cf af)",
+            "(= cf df)",
+            "(= cf of)",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))"
+          ],
+          "addr": "0x40176b",
+          "mem_events": [
+            {
+              "addr": "0x401784",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_40176b",
+          "is_tail_call": false,
+          "size": 30
+        },
+        {
+          "preconditions": [
+            "(= (llvm t185) rax)",
+            "(= (llvm t186) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t187) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))"
+          ],
+          "addr": "0x401789",
+          "label": "block_0_401789",
+          "is_tail_call": false,
+          "size": 9
+        },
+        {
+          "preconditions": [
+            "(= (llvm t190) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t191) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= af df)",
+            "(= af of)",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))"
+          ],
+          "addr": "0x401792",
+          "mem_events": [
+            {
+              "addr": "0x40179c",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_401792",
+          "is_tail_call": false,
+          "size": 15
+        },
+        {
+          "preconditions": [
+            "(= (llvm t193) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t194) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))"
+          ],
+          "addr": "0x4017a1",
+          "mem_events": [
+            {
+              "addr": "0x4017a6",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_4017a1",
+          "is_tail_call": false,
+          "size": 10
+        },
+        {
+          "preconditions": [
+            "(= (llvm t196) rax)",
+            "(= (llvm t197) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t198) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))"
+          ],
+          "addr": "0x4017ab",
+          "mem_events": [
+            {
+              "addr": "0x4017ab",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x4017ae",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x4017b6",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_4017ab",
+          "is_tail_call": false,
+          "size": 19
+        },
+        {
+          "preconditions": [
+            "(= (llvm t200) (mcstack (bvsub stack_high (_ bv64 64)) (_ BitVec 64)))",
+            "(= (llvm t201) (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)))",
+            "(= (llvm t202) (mcstack (bvsub stack_high (_ bv28 64)) (_ BitVec 32)))",
+            "(= (llvm t203) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t204) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))"
+          ],
+          "addr": "0x4017be",
+          "mem_events": [
+            {
+              "addr": "0x4017be",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x4017d3",
+              "type": "heap_access"
+            }
+          ],
+          "label": "block_0_4017be",
+          "is_tail_call": false,
+          "size": 31
+        },
+        {
+          "preconditions": [
+            "(= (llvm t210) (mcstack (bvsub stack_high (_ bv64 64)) (_ BitVec 64)))",
+            "(= (llvm t211) (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)))",
+            "(= (llvm t212) (mcstack (bvsub stack_high (_ bv28 64)) (_ BitVec 32)))",
+            "(= (llvm t213) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t214) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= af df)",
+            "(= af of)",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))"
+          ],
+          "addr": "0x4017dd",
+          "mem_events": [
+            {
+              "addr": "0x4017dd",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x4017f2",
+              "type": "heap_access"
+            },
+            {
+              "addr": "0x4017f5",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_4017dd",
+          "is_tail_call": false,
+          "size": 29
+        },
+        {
+          "preconditions": [
+            "(= (llvm t220) rax)",
+            "(= (llvm t221) (mcstack (bvsub stack_high (_ bv64 64)) (_ BitVec 64)))",
+            "(= (llvm t222) (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)))",
+            "(= (llvm t223) (mcstack (bvsub stack_high (_ bv28 64)) (_ BitVec 32)))",
+            "(= (llvm t224) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t225) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))"
+          ],
+          "addr": "0x4017fa",
+          "mem_events": [
+            {
+              "addr": "0x4017fa",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x4017fe",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x401802",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x401813",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x401828",
+              "type": "heap_access"
+            },
+            {
+              "addr": "0x40182b",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x40182f",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_4017fa",
+          "is_tail_call": false,
+          "size": 58
+        },
+        {
+          "preconditions": [
+            "(= (llvm t234) rax)",
+            "(= (llvm t235) (mcstack (bvsub stack_high (_ bv64 64)) (_ BitVec 64)))",
+            "(= (llvm t236) (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)))",
+            "(= (llvm t237) (mcstack (bvsub stack_high (_ bv28 64)) (_ BitVec 32)))",
+            "(= (llvm t238) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t239) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))"
+          ],
+          "addr": "0x401834",
+          "label": "block_0_401834",
+          "is_tail_call": false,
+          "size": 9
+        },
+        {
+          "preconditions": [
+            "(= (llvm t242) (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)))",
+            "(= (llvm t243) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t244) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= cf af)",
+            "(= cf df)",
+            "(= cf of)",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))"
+          ],
+          "addr": "0x40183d",
+          "mem_events": [
+            {
+              "addr": "0x40183d",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x401852",
+              "type": "heap_access"
+            },
+            {
+              "addr": "0x401856",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_40183d",
+          "is_tail_call": false,
+          "size": 34
+        },
+        {
+          "preconditions": [
+            "(= (llvm t249) (mcstack (bvsub stack_high (_ bv64 64)) (_ BitVec 64)))",
+            "(= (llvm t250) (mcstack (bvsub stack_high (_ bv40 64)) (_ BitVec 64)))",
+            "(= (llvm t251) (mcstack (bvsub stack_high (_ bv28 64)) (_ BitVec 32)))",
+            "(= (llvm t252) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t253) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= cf af)",
+            "(= cf df)",
+            "(= cf of)",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))"
+          ],
+          "addr": "0x40185f",
+          "mem_events": [
+            {
+              "addr": "0x401864",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x40186c",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_40185f",
+          "is_tail_call": false,
+          "size": 22
+        },
+        {
+          "preconditions": [
+            "(= (llvm t255) (mcstack (bvsub stack_high (_ bv64 64)) (_ BitVec 64)))",
+            "(= (llvm t256) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t257) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))"
+          ],
+          "addr": "0x401875",
+          "mem_events": [
+            {
+              "addr": "0x401875",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_401875",
+          "is_tail_call": false,
+          "size": 11
+        },
+        {
+          "preconditions": [
+            "(= (llvm t259) (mcstack (bvsub stack_high (_ bv64 64)) (_ BitVec 64)))",
+            "(= (llvm t260) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t261) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= cf af)",
+            "(= cf df)",
+            "(= cf of)",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))"
+          ],
+          "addr": "0x401880",
+          "mem_events": [
+            {
+              "addr": "0x401880",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x40189c",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_401880",
+          "is_tail_call": false,
+          "size": 33
+        },
+        {
+          "preconditions": [
+            "(= (llvm t263) (mcstack (bvsub stack_high (_ bv64 64)) (_ BitVec 64)))",
+            "(= (llvm t264) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t265) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))"
+          ],
+          "addr": "0x4018a1",
+          "mem_events": [
+            {
+              "addr": "0x4018b3",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_4018a1",
+          "is_tail_call": false,
+          "size": 23
+        },
+        {
+          "preconditions": [
+            "(= (llvm t267) rax)",
+            "(= (llvm t268) (mcstack (bvsub stack_high (_ bv64 64)) (_ BitVec 64)))",
+            "(= (llvm t269) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t270) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))"
+          ],
+          "addr": "0x4018b8",
+          "mem_events": [
+            {
+              "addr": "0x4018b8",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_4018b8",
+          "is_tail_call": false,
+          "size": 12
+        },
+        {
+          "preconditions": [
+            "(= (llvm t273) (mcstack (bvsub stack_high (_ bv64 64)) (_ BitVec 64)))",
+            "(= (llvm t274) (mcstack (bvsub stack_high (_ bv24 64)) (_ BitVec 32)))",
+            "(= (llvm t275) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t276) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))"
+          ],
+          "addr": "0x4018c4",
+          "mem_events": [
+            {
+              "addr": "0x4018c4",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x4018e4",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_4018c4",
+          "is_tail_call": false,
+          "size": 37
+        },
+        {
+          "preconditions": [
+            "(= (llvm t278) (mcstack (bvsub stack_high (_ bv64 64)) (_ BitVec 64)))",
+            "(= (llvm t279) (mcstack (bvsub stack_high (_ bv24 64)) (_ BitVec 32)))",
+            "(= (llvm t280) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t281) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))"
+          ],
+          "addr": "0x4018e9",
+          "mem_events": [
+            {
+              "addr": "0x4018e9",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x401909",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_4018e9",
+          "is_tail_call": false,
+          "size": 37
+        },
+        {
+          "preconditions": [
+            "(= (llvm t283) (mcstack (bvsub stack_high (_ bv64 64)) (_ BitVec 64)))",
+            "(= (llvm t284) (mcstack (bvsub stack_high (_ bv24 64)) (_ BitVec 32)))",
+            "(= (llvm t285) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t286) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))"
+          ],
+          "addr": "0x40190e",
+          "mem_events": [
+            {
+              "addr": "0x40190e",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x40191a",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_40190e",
+          "is_tail_call": false,
+          "size": 17
+        },
+        {
+          "preconditions": [
+            "(= (llvm t289) rax)",
+            "(= (llvm t290) (mcstack (bvsub stack_high (_ bv64 64)) (_ BitVec 64)))",
+            "(= (llvm t291) (mcstack (bvsub stack_high (_ bv24 64)) (_ BitVec 32)))",
+            "(= (llvm t292) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t293) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))"
+          ],
+          "addr": "0x40191f",
+          "mem_events": [
+            {
+              "addr": "0x40191f",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x401923",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x40192c",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_40191f",
+          "is_tail_call": false,
+          "size": 18
+        },
+        {
+          "preconditions": [
+            "(= (llvm t296) (mcstack (bvsub stack_high (_ bv64 64)) (_ BitVec 64)))",
+            "(= (llvm t297) (mcstack (bvsub stack_high (_ bv56 64)) (_ BitVec 64)))",
+            "(= (llvm t298) (mcstack (bvsub stack_high (_ bv24 64)) (_ BitVec 32)))",
+            "(= (llvm t299) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t300) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))"
+          ],
+          "addr": "0x401931",
+          "mem_events": [
+            {
+              "addr": "0x401931",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x401935",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x401954",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_401931",
+          "is_tail_call": false,
+          "size": 40
+        },
+        {
+          "preconditions": [
+            "(= (llvm t302) (mcstack (bvsub stack_high (_ bv24 64)) (_ BitVec 32)))",
+            "(= (llvm t303) (mcstack (bvsub stack_high (_ bv16 64)) (_ BitVec 32)))",
+            "(= (llvm t304) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))"
+          ],
+          "addr": "0x401959",
+          "mem_events": [
+            {
+              "addr": "0x401959",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x401975",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_401959",
+          "is_tail_call": false,
+          "size": 33
+        },
+        {
+          "preconditions": [
+            "(= (llvm t306) (mcstack (bvsub stack_high (_ bv24 64)) (_ BitVec 32)))",
+            "(= (llvm t307) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))"
+          ],
+          "addr": "0x40197a",
+          "mem_events": [
+            {
+              "addr": "0x40197a",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x40197d",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x401985",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_40197a",
+          "is_tail_call": false,
+          "size": 16
+        },
+        {
+          "preconditions": [
+            "(= (llvm t309) rax)",
+            "(= (llvm t310) (mcstack (bvsub stack_high (_ bv68 64)) (_ BitVec 32)))",
+            "(= (llvm t311) (mcstack (bvsub stack_high (_ bv24 64)) (_ BitVec 32)))",
+            "(= (llvm t312) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))"
+          ],
+          "addr": "0x40198a",
+          "mem_events": [
+            {
+              "addr": "0x40198a",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x40199a",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_40198a",
+          "is_tail_call": false,
+          "size": 21
+        },
+        {
+          "preconditions": [
+            "(= (llvm t315) (mcstack (bvsub stack_high (_ bv24 64)) (_ BitVec 32)))",
+            "(= (llvm t316) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))"
+          ],
+          "addr": "0x40199f",
+          "mem_events": [
+            {
+              "addr": "0x40199f",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x4019b1",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_40199f",
+          "is_tail_call": false,
+          "size": 23
+        },
+        {
+          "preconditions": [
+            "(= (llvm t319) rax)",
+            "(= (llvm t320) (mcstack (bvsub stack_high (_ bv24 64)) (_ BitVec 32)))",
+            "(= (llvm t321) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))"
+          ],
+          "addr": "0x4019b6",
+          "mem_events": [
+            {
+              "addr": "0x4019b6",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_4019b6",
+          "is_tail_call": false,
+          "size": 14
+        },
+        {
+          "preconditions": [
+            "(= (llvm t325) rax)",
+            "(= (llvm t325) (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))",
+            "(= (llvm t326) (mcstack (bvsub stack_high (_ bv24 64)) (_ BitVec 32)))",
+            "(= (llvm t327) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= cf af)",
+            "(= cf df)",
+            "(= cf of)",
+            "(= rax (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))"
+          ],
+          "addr": "0x4019c4",
+          "mem_events": [
+            {
+              "addr": "0x4019c4",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x4019c7",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x4019d5",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_4019c4",
+          "is_tail_call": false,
+          "size": 22
+        },
+        {
+          "preconditions": [
+            "(= (llvm t330) (mcstack (bvsub stack_high (_ bv24 64)) (_ BitVec 32)))",
+            "(= (llvm t331) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))"
+          ],
+          "addr": "0x4019da",
+          "label": "block_0_4019da",
+          "is_tail_call": false,
+          "size": 5
+        },
+        {
+          "preconditions": [
+            "(= (llvm t332) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= cf af)",
+            "(= cf df)",
+            "(= cf of)",
+            "(= rax (mcstack (bvsub stack_high (_ bv48 64)) (_ BitVec 64)))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))"
+          ],
+          "addr": "0x4019df",
+          "mem_events": [
+            {
+              "addr": "0x4019e4",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_4019df",
+          "is_tail_call": false,
+          "size": 10
+        },
+        {
+          "preconditions": [
+            "(= (llvm t334) (mcstack (bvsub stack_high (_ bv12 64)) (_ BitVec 32)))",
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))"
+          ],
+          "addr": "0x4019e9",
+          "mem_events": [
+            {
+              "addr": "0x4019e9",
+              "type": "binary_only_access"
+            },
+            {
+              "addr": "0x4019ec",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_4019e9",
+          "is_tail_call": false,
+          "size": 8
+        },
+        {
+          "preconditions": [
+            "(= rbx (fnstart rbx))",
+            "(= rsp (bvsub stack_high (_ bv72 64)))",
+            "(= rbp (bvsub stack_high (_ bv8 64)))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))",
+            "(= (mcstack (bvsub stack_high (_ bv8 64)) (_ BitVec 64)) (fnstart rbp))"
+          ],
+          "addr": "0x4019f1",
+          "mem_events": [
+            {
+              "addr": "0x4019f6",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_4019f1",
+          "is_tail_call": true,
+          "size": 10
+        }
+      ],
+      "start_addr": "0x4014f0"
+    },
+
+
+    {
+      "llvm_name": "__libc_csu_fini",
+      "blocks": [
+        {
+          "preconditions": [
+            "(= rbx (fnstart rbx))",
+            "(= rsp stack_high)",
+            "(= rbp (fnstart rbp))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))"
+          ],
+          "addr": "0x401f40",
+          "mem_events": [
+            {
+              "addr": "0x401f44",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_401f40",
+          "is_tail_call": false,
+          "size": 5
+        }
+      ],
+      "start_addr": "0x401f40"
+    },
+    {
+      "llvm_name": "_fini",
+      "blocks": [
+        {
+          "preconditions": [
+            "(= rbx (fnstart rbx))",
+            "(= rsp stack_high)",
+            "(= rbp (fnstart rbp))",
+            "(= r12 (fnstart r12))",
+            "(= r13 (fnstart r13))",
+            "(= r14 (fnstart r14))",
+            "(= r15 (fnstart r15))"
+          ],
+          "addr": "0x401f48",
+          "mem_events": [
+            {
+              "addr": "0x401f54",
+              "type": "binary_only_access"
+            }
+          ],
+          "label": "block_0_401f48",
+          "is_tail_call": false,
+          "size": 13
+        }
+      ],
+      "start_addr": "0x401f48"
+    }
+  ],
+  "llvm_path": "nweb23.ll",
+  "page_size": 4096,
+  "stack_guard_pages": 1,
+  "extfunctions": [
+    {
+      "llvm_name": "close",
+      "start_addr": "0x4010e0",
+      "is_no_return": false
+    },
+    {
+      "llvm_name": "exit",
+      "start_addr": "0x401180",
+      "is_no_return": true
+    },
+    {
+      "llvm_name": "logger",
+      "start_addr": "0x4012c0",
+      "is_no_return": false
+    },
+    {
+      "llvm_name": "lseek",
+      "start_addr": "0x4010c0",
+      "is_no_return": false
+    },
+    {
+      "llvm_name": "open",
+      "start_addr": "0x401140",
+      "is_no_return": false
+    },
+    {
+      "llvm_name": "read",
+      "start_addr": "0x4010f0",
+      "is_no_return": false,
+      "postcondition": "(and (bvslt (_ bv18446744073709551615 64) rax) (bvslt rax (before_call rdx)))"
+    },
+    {
+      "llvm_name": "sleep",
+      "start_addr": "0x401190",
+      "is_no_return": false
+    },
+    {
+      "llvm_name": "sprintf",
+      "start_addr": "0x401170",
+      "is_no_return": false
+    },
+    {
+      "llvm_name": "strcpy",
+      "start_addr": "0x401050",
+      "is_no_return": false
+    },
+    {
+      "llvm_name": "strlen",
+      "start_addr": "0x401080",
+      "is_no_return": false
+    },
+    {
+      "llvm_name": "strncmp",
+      "start_addr": "0x401040",
+      "is_no_return": false
+    },
+    {
+      "llvm_name": "write",
+      "start_addr": "0x401060",
+      "is_no_return": false
+    }
+  ],
+  "binary_path": "nweb23.exe"
+}

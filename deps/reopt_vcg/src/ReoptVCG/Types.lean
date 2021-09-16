@@ -220,6 +220,130 @@ def VerificationMode.isExportMode : VerificationMode → Bool
 
 end VerificationMode
 
+-- Correctness properties as a data type (makes categorizing/reporting/etc easier)
+-- See Property.lean for inductive Property
+inductive GoalTag
+  | mcOnlyReadFromUnallocStack : GoalTag
+  | mcOnlyWriteToUnreservedStack : GoalTag
+  | llvmWriteTargetsAlloc : GoalTag
+  | mcWriteTargetsAlloc : GoalTag
+  | nonStackReadAddrValid : GoalTag
+  | nonStackWriteAddrValid : GoalTag
+  | blockUnreachable : GoalTag
+  | expectedInstrPtrVal : GoalTag
+  | blockPrecondition : GoalTag
+  | llvmAndMCReadOffsetsMatch : GoalTag
+  | llvmAndMCLoadAddrsMatch : GoalTag
+  | llvmAndMCStoreAddrsMatch : GoalTag
+  | llvmAndMCStoreEq : GoalTag
+  | llvmAndMCCallEq : GoalTag
+  | stackHeightPreserved : GoalTag
+  | returnAddressPreserved : GoalTag
+  | registerPreserved : GoalTag
+  | returnAddrNextInstr : GoalTag
+  | llvmAndMCReturnValuesEq : GoalTag
+  | argAndRegEq : GoalTag
+  | expectedDirectionFlagVal : GoalTag
+  deriving DecidableEq
+
+namespace GoalTag
+
+def index : GoalTag → UInt32
+  | mcOnlyReadFromUnallocStack => 0
+  | mcOnlyWriteToUnreservedStack => 1
+  | llvmWriteTargetsAlloc => 2
+  | mcWriteTargetsAlloc => 3
+  | nonStackReadAddrValid => 4
+  | blockUnreachable => 5
+  | expectedInstrPtrVal => 6
+  | blockPrecondition => 7
+  | llvmAndMCReadOffsetsMatch => 8
+  | llvmAndMCLoadAddrsMatch => 9
+  | llvmAndMCStoreAddrsMatch => 10
+  | llvmAndMCStoreEq => 11
+  | stackHeightPreserved => 12
+  | returnAddressPreserved => 13
+  | registerPreserved => 14
+  | returnAddrNextInstr => 15
+  | llvmAndMCReturnValuesEq => 16
+  | argAndRegEq => 17
+  | expectedDirectionFlagVal => 18
+  | llvmAndMCCallEq => 19
+  | nonStackWriteAddrValid => 20
+
+instance : Ord GoalTag where
+  compare x y := Ord.compare x.index y.index
+
+def description : GoalTag → String
+  | mcOnlyReadFromUnallocStack =>
+    "machine code reads from unallocated stack space"
+  | mcOnlyWriteToUnreservedStack =>
+    "machine code writes to unreserve stack space"
+  | llvmWriteTargetsAlloc =>
+    "LLVM write targets intended allocation"
+  | mcWriteTargetsAlloc =>
+    "machine code write targets intended allocation"
+  | nonStackReadAddrValid =>
+    "read heap address not in stack space"
+  | nonStackWriteAddrValid =>
+    "written heap address not in stack space"
+  | blockUnreachable =>
+    "block is unreachable"
+  | expectedInstrPtrVal =>
+    "instruction pointer is expected value"
+  | blockPrecondition =>
+    "precondition"
+  | llvmAndMCReadOffsetsMatch =>
+    "LLVM and machine code read from same allocation offset"
+  | llvmAndMCLoadAddrsMatch =>
+    "LLVM and machine code load from same heap address"
+  | llvmAndMCStoreAddrsMatch =>
+    "LLVM and machine code store to same heap address"
+  | llvmAndMCStoreEq =>
+    "LLVM and machine code store the same value to the heap"
+  | llvmAndMCCallEq => 
+    "LLVM and machine code branch to the same function address"
+  | stackHeightPreserved =>
+    "stack height preserved"
+  | returnAddressPreserved =>
+    "return address preserved"
+  | registerPreserved =>
+    "register value preserved"
+  | returnAddrNextInstr =>
+    "return address is next instruction"
+  | llvmAndMCReturnValuesEq =>
+    "LLVM and machine code return values match"
+  | argAndRegEq =>
+    "argument matches register"
+  | expectedDirectionFlagVal =>
+    "direction flag is expected value"
+
+-- This has to match the index above
+def allGoalTags : List GoalTag := 
+  [ mcOnlyReadFromUnallocStack 
+  , mcOnlyWriteToUnreservedStack
+  , llvmWriteTargetsAlloc
+  , mcWriteTargetsAlloc
+  , nonStackReadAddrValid
+  , blockUnreachable
+  , expectedInstrPtrVal
+  , blockPrecondition
+  , llvmAndMCReadOffsetsMatch
+  , llvmAndMCLoadAddrsMatch
+  , llvmAndMCStoreAddrsMatch
+  , llvmAndMCStoreEq
+  , stackHeightPreserved
+  , returnAddressPreserved
+  , registerPreserved
+  , returnAddrNextInstr
+  , llvmAndMCReturnValuesEq
+  , argAndRegEq
+  , expectedDirectionFlagVal
+  , llvmAndMCCallEq
+  , nonStackWriteAddrValid
+  ]
+
+end GoalTag
 
 inductive SemanticsBackend 
 | KSemantics : SemanticsBackend
@@ -232,6 +356,7 @@ structure VCGConfig :=
 (mode : VerificationMode)
 (verbose : Bool)
 (semanticsBackend : SemanticsBackend)
+(ignoredGoalTags : List GoalTag)
 
 namespace VCGConfig
 
@@ -259,6 +384,8 @@ structure ModuleVCGContext :=
 (moduleTypeMap : LLVMTypeMap)
 -- ^ type map for module.
 (phdrRanges : List (Nat × Nat))
+(ignoredGoalTags : List GoalTag)
+-- ^ List of goals to skip checking (for debugging)
 
 -------------------------------------------------------
 -- Error/Exception Data
@@ -523,100 +650,6 @@ end ModuleError
 -- are good-to-go.
 -----------------------------------------------------------
 
--- Correctness properties as a data type (makes categorizing/reporting/etc easier)
--- See Property.lean for inductive Property
-inductive GoalTag
-  | mcOnlyReadFromUnallocStack : GoalTag
-  | mcOnlyWriteToUnreservedStack : GoalTag
-  | llvmWriteTargetsAlloc : GoalTag
-  | mcWriteTargetsAlloc : GoalTag
-  | nonStackReadAddrValid : GoalTag
-  | blockUnreachable : GoalTag
-  | expectedInstrPtrVal : GoalTag
-  | blockPrecondition : GoalTag
-  | llvmAndMCReadOffsetsMatch : GoalTag
-  | llvmAndMCLoadAddrsMatch : GoalTag
-  | llvmAndMCStoreAddrsMatch : GoalTag
-  | llvmAndMCStoreEq : GoalTag
-  | llvmAndMCCallEq : GoalTag
-  | stackHeightPreserved : GoalTag
-  | returnAddressPreserved : GoalTag
-  | registerPreserved : GoalTag
-  | returnAddrNextInstr : GoalTag
-  | llvmAndMCReturnValuesEq : GoalTag
-  | argAndRegEq : GoalTag
-  | expectedDirectionFlagVal : GoalTag
-
-namespace GoalTag
-
-def index : GoalTag → UInt32
-  | mcOnlyReadFromUnallocStack => 0
-  | mcOnlyWriteToUnreservedStack => 1
-  | llvmWriteTargetsAlloc => 2
-  | mcWriteTargetsAlloc => 3
-  | nonStackReadAddrValid => 4
-  | blockUnreachable => 5
-  | expectedInstrPtrVal => 6
-  | blockPrecondition => 7
-  | llvmAndMCReadOffsetsMatch => 8
-  | llvmAndMCLoadAddrsMatch => 9
-  | llvmAndMCStoreAddrsMatch => 10
-  | llvmAndMCStoreEq => 11
-  | stackHeightPreserved => 12
-  | returnAddressPreserved => 13
-  | registerPreserved => 14
-  | returnAddrNextInstr => 15
-  | llvmAndMCReturnValuesEq => 16
-  | argAndRegEq => 17
-  | expectedDirectionFlagVal => 18
-  | llvmAndMCCallEq => 19
-
-instance : Ord GoalTag where
-  compare x y := Ord.compare x.index y.index
-
-def description : GoalTag → String
-  | mcOnlyReadFromUnallocStack =>
-    "machine code reads from unallocated stack space"
-  | mcOnlyWriteToUnreservedStack =>
-    "machine code writes to unreserve stack space"
-  | llvmWriteTargetsAlloc =>
-    "LLVM write targets intended allocation"
-  | mcWriteTargetsAlloc =>
-    "machine code write targets intended allocation"
-  | nonStackReadAddrValid =>
-    "read heap address not in stack space"
-  | blockUnreachable =>
-    "block is unreachable"
-  | expectedInstrPtrVal =>
-    "instruction pointer is expected value"
-  | blockPrecondition =>
-    "precondition"
-  | llvmAndMCReadOffsetsMatch =>
-    "LLVM and machine code read from same allocation offset"
-  | llvmAndMCLoadAddrsMatch =>
-    "LLVM and machine code load from same heap address"
-  | llvmAndMCStoreAddrsMatch =>
-    "LLVM and machine code store to same heap address"
-  | llvmAndMCStoreEq =>
-    "LLVM and machine code store the same value to the heap"
-  | llvmAndMCCallEq => 
-    "LLVM and machine code branch to the same function address"
-  | stackHeightPreserved =>
-    "stack height preserved"
-  | returnAddressPreserved =>
-    "return address preserved"
-  | registerPreserved =>
-    "register value preserved"
-  | returnAddrNextInstr =>
-    "return address is next instruction"
-  | llvmAndMCReturnValuesEq =>
-    "LLVM and machine code return values match"
-  | argAndRegEq =>
-    "argument matches register"
-  | expectedDirectionFlagVal =>
-    "direction flag is expected value"
-
-end GoalTag
 
 -- A verification goal for a block.
 structure VerificationGoal :=
@@ -813,6 +846,8 @@ structure BlockVCGState :=
   -- ^ Map registers to the SMT term.
 (mcCurMem : x86.vcg.memory)
   -- ^ Current memory object
+(mcPreCallRegs : x86.vcg.RegState)
+  -- ^ Map registers to the SMT term for just before a call (nonsense otherwise).
 (mcEvents : List x86.vcg.Event)
   -- ^ Unprocessed events from last instruction.
 (idGen : IdGen)

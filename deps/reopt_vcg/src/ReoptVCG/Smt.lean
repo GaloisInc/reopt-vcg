@@ -209,6 +209,7 @@ class BlockExprEnv (α : Type u) :=
 (initGPReg64 : α → x86.reg64 → Term SmtSort.bv64)
 (initFlag : α → x86.flag → Term SmtSort.bool)
 (fnStartRegState : α → x86.reg64 → Term SmtSort.bv64)
+(beforeCallRegState : α → x86.reg64 → Term SmtSort.bv64)
 (evalVar : α → LLVM.Ident → Option (Sigma Term))
 (readMem : α → ∀(w : WordSize), x86.vcg.memaddr →  Term w.sort)
 
@@ -229,6 +230,9 @@ e.state.mcCurRegs.get_flag' r
 def fnStartRegState (r : x86.reg64) : Term SmtSort.bv64 :=
 e.context.mcStdLib.funStartRegs.get_reg64 r
 
+def beforeCallRegState (r : x86.reg64) : Term SmtSort.bv64 :=
+e.state.mcPreCallRegs.get_reg64 r
+
 def readMem (w:WordSize) (addr : x86.vcg.memaddr) : Term w.sort :=
 (e.context.mcStdLib.memOps w).readMem e.state.mcCurMem addr
 
@@ -238,6 +242,7 @@ instance BlockVCGExprEnv.isBlockExprEnv : BlockExprEnv BlockVCGExprEnv :=
 {initGPReg64 := BlockVCGExprEnv.initGPReg64,
  initFlag    := BlockVCGExprEnv.initFlag,
  fnStartRegState := BlockVCGExprEnv.fnStartRegState,
+ beforeCallRegState := BlockVCGExprEnv.beforeCallRegState,
  evalVar := BlockVCGExprEnv.evalVar,
  readMem := BlockVCGExprEnv.readMem
 }
@@ -255,19 +260,25 @@ def toSExp : ∀ {tp : SmtSort}, BlockExpr tp → SExp String
 | _, initGPReg64 r => SExp.atom r.name
 | _, initFlag r    => SExp.atom r.name
 | _, fnStartGPReg64 r => SExp.list [SExp.atom "fnstart", SExp.atom r.name]
+| _, beforeCallGPReg64 r => SExp.list [SExp.atom "before_call", SExp.atom r.name]
 | _, mcStack a w =>
   SExp.list [SExp.atom "mcstack",
              toSExp a,
              SExp.list [SExp.atom "_", SExp.atom "BitVec", SExp.atom (reprStr w.bits)]
             ]
 | _, llvmVar nm tp => SExp.list [SExp.atom "llvm", SExp.atom (ppLLVMIdent nm)]
-| _, eq e1 e2 => SExp.list [SExp.atom "=", toSExp e1, toSExp e2]
-| _, bvAdd e1 e2 => SExp.list [SExp.atom "bvadd", toSExp e1, toSExp e2]
-| _, bvSub e1 e2 => SExp.list [SExp.atom "bvsub", toSExp e1, toSExp e2]
+| _, smtBinOp ident e1 e2 => SExp.list [ toSExpr ident, toSExp e1, toSExp e2]
+| _, smtBool b => SExp.atom (if b then "true" else "false")
 | _, bvDecimal n width => SExp.list [SExp.atom "_", SExp.atom ("bv"++(reprStr n)), SExp.atom (reprStr width)]
 
 def toString : ∀ {tp : SmtSort}, BlockExpr tp → String
 | _, e => (BlockExpr.toSExp e).toString
+
+section
+
+
+open Smt.Raw.Term (app ident)
+open Smt.Raw.Ident (builtin)
 
 -- Converts an Expr into an SMT term given an environment. AMK: it's currently in IO
 -- to handle some partiality (doh!) and because we want to use it in an IO context
@@ -279,6 +290,7 @@ def toSmt {α : Type u} [BlockExprEnv α] (env: α) : ∀ {tp : SmtSort}, BlockE
 | _, initGPReg64 r => pure $ BlockExprEnv.initGPReg64 env r
 | _, initFlag r    => pure $ BlockExprEnv.initFlag env r
 | _, fnStartGPReg64 r => pure $ BlockExprEnv.fnStartRegState env r
+| _, beforeCallGPReg64 r => pure $ BlockExprEnv.beforeCallRegState env r
 | _, mcStack a w => do
   let t ← toSmt env a
   pure $ BlockExprEnv.readMem env w t
@@ -296,24 +308,21 @@ def toSmt {α : Type u} [BlockExprEnv α] (env: α) : ∀ {tp : SmtSort}, BlockE
   | none => Except.error $ BlockVCGError.globalErr $
     "Error while translating precondition to SMT! LLVM variable `"
     ++ nm.asString ++ "` had no entry in the phi variable map!"
-| _, eq e1 e2 => do
+| _, smtBinOp i e1 e2 => do
   let t1 ← toSmt env e1
   let t2 ← toSmt env e2
-  pure $ Smt.eq t1 t2
-| _, bvAdd e1 e2 => do
-  let t1 ← toSmt env e1
-  let t2 ← toSmt env e2
-  pure $ Smt.bvadd t1 t2
-| _, bvSub e1 e2 => do
-  let t1 ← toSmt env e1
-  let t2 ← toSmt env e2
-  pure $ Smt.bvsub t1 t2
+  -- FIXME
+  pure $ app (app (ident (builtin i)) t1) t2
+| _, smtBool b => do
+  pure $ if b then Smt.true else Smt.false
 | _, bvDecimal n width => pure $ Smt.bvimm width n
+
+end
 
 end BlockExpr
 
 /- Converts a BlockExpr into an SMT term in the BlockVCG context. -/
-def evalPrecondition {tp : SmtSort} (evalVar : LLVM.Ident → Option (Sigma Term)) (expr : BlockExpr tp) : BlockVCG (Term tp) := do
+def evalBlockExpr {tp : SmtSort} (evalVar : LLVM.Ident → Option (Sigma Term)) (expr : BlockExpr tp) : BlockVCG (Term tp) := do
   let ctx ← read
   let state ← get
   let env := BlockVCGExprEnv.mk evalVar ctx state
@@ -400,8 +409,6 @@ structure InteractiveContext :=
 -- ^ Command line contents, which when followed up a file name, can be executed
 --   to see if the resulting script is satisfiable or not.
 
-
-
 -- | Function to verify an SMT proposition is provable in the given
 --   context and print the result to the user.
 def verifyGoal
@@ -413,17 +420,19 @@ def verifyGoal
 : BlockVCG Unit := do
   let ctx ← read
   let st ← get
-  let newGoal : VerificationGoal :=
-    { loc := {fnName := ctx.llvmFnName,
-              blockLbl := ctx.currentBlock,
-              llvmInstrIdx := st.llvmInstrIndex,
-              mcAddr := st.mcCurAddr},
-      index := st.goals.size,
-      tag := tag,
-      extraInfo := extraInfo,
-      goal := do st.smtContext; pure goal}
-  modify (λ s => {s with
-                  goals := s.goals.push newGoal})
+  unless List.elem tag ctx.mcModuleVCGContext.ignoredGoalTags do
+    let newGoal : VerificationGoal :=
+      { loc := {fnName := ctx.llvmFnName,
+                blockLbl := ctx.currentBlock,
+                llvmInstrIdx := st.llvmInstrIndex,
+                mcAddr := st.mcCurAddr},
+        index := st.goals.size,
+        tag := tag,
+        extraInfo := extraInfo,
+        goal := do st.smtContext; pure goal}
+    modify (λ s => {s with
+                    goals := s.goals.push newGoal})
+
   pure ()
 
 

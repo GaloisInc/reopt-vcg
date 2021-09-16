@@ -1,6 +1,8 @@
 
 import ReoptVCG.Annotations
 import ReoptVCG.ReoptVCG
+import ReoptVCG.Types
+
 
 open ReoptVCG
 
@@ -17,11 +19,12 @@ structure VCGArgs :=
   (mode : Option VerificationMode)
   (verbose : Bool)
   (semanticsBackend : SemanticsBackend)
+  (ignoredGoalTags : List GoalTag)
 
 -- | State of argument parsing before any user arguments have actually
 -- been processed.
 
-def initVCGArgs := VCGArgs.mk none none false SemanticsBackend.KSemantics
+def initVCGArgs := VCGArgs.mk none none false SemanticsBackend.KSemantics []
 
 -- Function for parsing command line arguments to reopt-vcg.
 partial def parseArgs : List String → VCGArgs → Except String VCGCmd
@@ -30,7 +33,7 @@ partial def parseArgs : List String → VCGArgs → Except String VCGCmd
   let mut mode := match args.mode with
                   | none => VerificationMode.default
                   | some m => m
-  pure $ VCGCmd.runVCG $ VCGConfig.mk annPath mode args.verbose args.semanticsBackend
+  pure $ VCGCmd.runVCG $ VCGConfig.mk annPath mode args.verbose args.semanticsBackend args.ignoredGoalTags
 | (s::ss), args =>
   if s == "--help" then
     pure $ VCGCmd.showHelp
@@ -69,14 +72,28 @@ partial def parseArgs : List String → VCGArgs → Except String VCGCmd
           throw "Cannot specify `--json-goals` multiple times."
         mode := some $ VerificationMode.solverMode {solverCfg with jsonOut := some s'}
       parseArgs ss' $ {args with mode := mode}
-  else do
+  else if s == "--ignore" then do
+    match ss with
+    | [] => throw "missing argument for `--ignore` flag"
+    | s'::ss' => 
+      let nums := String.split s' (fun c => c = ',') -- split on ,
+      let getOne n :=
+        match String.toNat? n with
+        | none    => throw "bad argument for `--ignore` flag"
+        | some n' => 
+          match List.get? n' ReoptVCG.GoalTag.allGoalTags with
+          | none => throw "unknown goal tag for `--ignore` flag"
+          | some t => pure t
+      let newIgnored <- List.mapM getOne nums
+      parseArgs ss' { args with ignoredGoalTags := args.ignoredGoalTags ++ newIgnored }
+  else do 
     if (String.isPrefixOf "--" s) then throw $ "Unexpected flag " ++ s
     if (Option.isSome args.annFile) then throw "Multiple VCG files specified."
     parseArgs ss $ {args with annFile := (Option.some s)}
 
-
 def usage : String :=
   "Usage: reopt-vcg FILE [-v|--verbose] [--alt-backend] [--export DIR] [--solver PATH] [--json-goals FILE]"
+
 def showUsage : IO Unit := do
   IO.println usage
   IO.println "  Use --help for more details."
